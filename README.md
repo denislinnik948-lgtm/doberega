@@ -55,6 +55,10 @@ The game opens on a **main menu** over the live lake: a slider of fishing spots 
 
 The catalog (fish, bait, rods, extras, spots) lives in `src/fishing/data.js`; fight balance in `src/fishing/game.js` (`fightRates`). Progress is saved in localStorage. Add `?debug` to the URL to expose the game as `window.doberega`.
 
+## Icon
+
+A pixel perch leaping out of night water under a crescent moon (`icons/`): an SVG favicon, a 512 px PNG and a square 192 px home-screen icon, also listed in `manifest.webmanifest` so the game can be installed to a phone's home screen.
+
 ## Phones
 
 On a phone held upright the landscape isn't squeezed: the scene is laid out at least 1.15 times as wide as it is tall and the screen shows a slice of it, centred on what each spot is about (the castle crag at the castle lake, the middle elsewhere); reeds, rocks, lily pads and the rod follow the visible slice. The interface adapts too: the menu drops the title so nothing overlaps, puts a full-width **Рибалити** under the spot card and the four sections in a 2×2 grid of large buttons; dialogs fill the screen and scroll inside, the shop shows two columns of cards; everything stays clear of the notch and the home bar, and buttons don't zoom on double tap.
