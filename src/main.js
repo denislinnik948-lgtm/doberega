@@ -1,5 +1,6 @@
 import { CanvasWaterRenderer } from "./canvas-renderer.js";
 import { activeScene } from "./scene.js";
+import { DAY_SECONDS, dayTimeAt } from "./daycycle.js";
 import { nameOf, t } from "./i18n.js";
 import { Weather } from "./weather.js";
 import { Ducks } from "./wildlife.js";
@@ -18,11 +19,12 @@ const config = {
   waterColor: LOCATIONS[0].water,
 };
 
-// 24 in-game hours pass in DAY_LENGTH seconds (20 real minutes), starting mid-afternoon.
+// A full day takes DAY_SECONDS (21 min 20 s): day 10 min, sunset 1.5 min,
+// night 8 min 20 s, sunrise 1.5 min; it starts mid-afternoon.
 // `?time=0.5` pins the clock (0 midnight, 0.25 dawn, 0.5 noon, 0.76 evening);
-// `?day=60` shortens the day to 60 seconds.
+// `?day=60` squeezes the whole cycle into 60 seconds.
 const params = new URLSearchParams(location.search);
-const DAY_LENGTH = Number(params.get("day")) || 1200;
+const DAY_LENGTH = Number(params.get("day")) || DAY_SECONDS;
 const FIXED_TIME = params.has("time") ? Number(params.get("time")) : null;
 const DAY_START = 0.68;
 // `?rain=1` forces rain (0..1); otherwise showers come and go on their own.
@@ -209,8 +211,9 @@ function renderNow(now = performance.now()) {
   const step = Math.max(0, Math.min(dt, 0.1));
   weather.update(step);
   game.biteBoost = weather.biteBoost;
+  const dayTime = FIXED_TIME ?? dayTimeAt(elapsed, DAY_START, DAY_LENGTH);
   // Ducks only come out between 6:00 and 20:00.
-  const hour = ((FIXED_TIME ?? (DAY_START + elapsed / DAY_LENGTH) % 1) * 24) % 24;
+  const hour = (dayTime * 24) % 24;
   ducks.update(step, elapsed, width, height, renderer.shorelineY(width / 2), (x, y) => renderer.isOpenWater(x, y), hour >= 6 && hour < 20);
   // A duck paddling over the float eats the bait.
   if (mode === "fishing" && game.target && ["waiting", "nibble", "bite"].includes(game.phase)) {
@@ -219,7 +222,6 @@ function renderNow(now = performance.now()) {
   }
   if (step > 0) game.update(step);
   syncFishingUi();
-  const dayTime = FIXED_TIME ?? (DAY_START + elapsed / DAY_LENGTH) % 1;
   game.hour = dayTime * 24;
   ui.setClock(dayTime);
   ui.setWeather(weather.intensity);

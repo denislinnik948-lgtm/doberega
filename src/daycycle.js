@@ -73,6 +73,46 @@ const KEYFRAMES = [
   glint: frame.glint.map(hex),
 }));
 
+/**
+ * How long each part of the day lasts in real seconds. `from`/`to` are clock
+ * fractions matching the sky keyframes; the night wraps past midnight.
+ */
+export const DAY_PHASES = [
+  { id: "sunrise", from: 0.2, to: 0.32, seconds: 90 },
+  { id: "day", from: 0.32, to: 0.78, seconds: 600 },
+  { id: "sunset", from: 0.78, to: 0.92, seconds: 90 },
+  { id: "night", from: 0.92, to: 1.2, seconds: 500 },
+];
+
+/** Real seconds in one full in-game day (21 min 20 s). */
+export const DAY_SECONDS = DAY_PHASES.reduce((sum, phase) => sum + phase.seconds, 0);
+
+/** Real seconds into the cycle (from the start of sunrise) at clock fraction `t`. */
+function cycleOffset(t) {
+  const clock = t < DAY_PHASES[0].from ? t + 1 : t;
+  let offset = 0;
+  for (const phase of DAY_PHASES) {
+    if (clock < phase.to) return offset + ((clock - phase.from) / (phase.to - phase.from)) * phase.seconds;
+    offset += phase.seconds;
+  }
+  return 0;
+}
+
+/**
+ * Clock fraction (0 midnight .. 1) after `seconds` of real time, starting at
+ * clock `start`. Each phase runs at its own pace, so dawn and dusk pass
+ * quickly and the day and night take most of the cycle. `length` stretches
+ * or shrinks the whole cycle.
+ */
+export function dayTimeAt(seconds, start, length = DAY_SECONDS) {
+  let s = (((cycleOffset(start) + (seconds * DAY_SECONDS) / length) % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
+  for (const phase of DAY_PHASES) {
+    if (s < phase.seconds) return (phase.from + (s / phase.seconds) * (phase.to - phase.from)) % 1;
+    s -= phase.seconds;
+  }
+  return DAY_PHASES[0].from;
+}
+
 const SUNRISE = 0.23;
 const SUNSET = 0.83;
 const MOONRISE = 0.86;
