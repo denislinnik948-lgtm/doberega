@@ -1,0 +1,247 @@
+import { locale, t } from "../i18n.js";
+
+/**
+ * Fishing catalog (display names live in src/i18n.js): fish, bait, rods, extras and fishing spots. Weights are in
+ * kilograms, prices in hryvnia. The economy is deliberately tight: each rod
+ * is a real grind away from the last.
+ */
+
+/**
+ * `active` is when each fish feeds: a baseline plus peaks [hour, width, strength]
+ * on a 24-hour clock.
+ */
+export const FISH = {
+  yorzh: { min: 0.02, max: 0.2, pricePerKg: 15, active: { base: 0.6, peaks: [[6, 4, 0.5], [20, 5, 0.5]] } },
+  plitka: { min: 0.05, max: 0.6, pricePerKg: 20, active: { base: 0.3, peaks: [[7, 3, 1], [18, 3, 0.8]] } },
+  krasnopirka: { min: 0.05, max: 0.7, pricePerKg: 20, active: { base: 0.3, peaks: [[13, 4, 1]] } },
+  karas: { min: 0.1, max: 1.5, pricePerKg: 30, active: { base: 0.25, peaks: [[6, 3, 1], [19, 3, 1]] } },
+  okun: { min: 0.1, max: 1.8, pricePerKg: 40, active: { base: 0.2, peaks: [[10, 4, 1], [17, 3, 0.6]] } },
+  lyn: { min: 0.3, max: 3.5, pricePerKg: 50, active: { base: 0.2, peaks: [[5, 2.5, 1], [21, 2.5, 0.8]] } },
+  lyasch: { min: 0.4, max: 5, pricePerKg: 35, active: { base: 0.25, peaks: [[2, 4, 1], [22, 3, 0.8]] } },
+  korop: { min: 1, max: 18, pricePerKg: 45, active: { base: 0.25, peaks: [[5, 3, 1], [23, 3, 0.8]] } },
+  shchuka: { min: 1, max: 14, pricePerKg: 55, active: { base: 0.2, peaks: [[6, 2.5, 1], [19, 2.5, 1]] } },
+  sudak: { min: 0.8, max: 10, pricePerKg: 70, active: { base: 0.15, peaks: [[21, 3, 1], [4, 3, 0.8]] } },
+  som: { min: 5, max: 60, pricePerKg: 40, active: { base: 0.1, peaks: [[0, 4, 1], [23, 3, 0.6]] } },
+  // Not a fish: sometimes reeled in instead of an empty hook.
+  boot: { min: 0.6, max: 1.4, pricePerKg: 0, junk: true, active: { base: 0, peaks: [] } },
+};
+
+/** Chance that reeling in an empty line hooks an old boot. */
+export const BOOT_CHANCE = 0.012;
+
+/** How hungry a fish is at `hour` (0..24): roughly 0.1 (asleep) to 1.3 (feeding). */
+export function activity(species, hour) {
+  const { base, peaks } = FISH[species].active;
+  return peaks.reduce((sum, [center, width, strength]) => {
+    const around = (((hour - center) % 24) + 24) % 24;
+    const distance = Math.min(around, 24 - around);
+    return sum + strength * Math.exp(-((distance / width) ** 2));
+  }, base);
+}
+
+const PERIODS = [
+  { id: "night", hours: [23, 0, 1, 2, 3] },
+  { id: "dawn", hours: [4, 5, 6] },
+  { id: "morning", hours: [7, 8, 9, 10] },
+  { id: "day", hours: [11, 12, 13, 14, 15] },
+  { id: "evening", hours: [16, 17, 18, 19] },
+  { id: "dusk", hours: [20, 21, 22] },
+];
+
+/** The parts of the day when a fish feeds best, for the handbook. */
+export function activePeriods(species) {
+  const scores = PERIODS.map((period) => period.hours.reduce((sum, hour) => sum + activity(species, hour), 0) / period.hours.length);
+  const best = Math.max(...scores);
+  return PERIODS.filter((_, index) => scores[index] >= best * 0.7).map((period) => period.id);
+}
+
+/**
+ * `species` is how much each fish likes the bait (others nibble rarely);
+ * `size` scales the chance of a big fish; `maxSize` caps the weight range
+ * (bread only ever tempts tiddlers); `others` is how often fish that don't
+ * favour it still bite; `price` is per piece; `free` never runs out.
+ */
+export const BAITS = {
+  bread: { price: 0, free: true, others: 0, size: 0, maxSize: 0.22, species: { plitka: 4, krasnopirka: 4, karas: 3, yorzh: 1 } },
+  worm: { price: 3, size: 0.6, species: { plitka: 3, karas: 3, okun: 3, yorzh: 3, lyn: 2, lyasch: 1 } },
+  maggot: { price: 4, size: 0.5, species: { plitka: 4, krasnopirka: 3, yorzh: 2, lyasch: 2, karas: 2 } },
+  bloodworm: { price: 5, size: 0.5, species: { yorzh: 3, plitka: 3, karas: 2, lyn: 3, okun: 2 } },
+  barley: { price: 4, size: 0.8, species: { karas: 3, lyasch: 3, plitka: 2, korop: 2, lyn: 1 } },
+  corn: { price: 7, size: 1, species: { karas: 2, lyasch: 3, korop: 4, lyn: 2 } },
+  boilie: { price: 20, size: 1.6, species: { korop: 6, lyasch: 1 } },
+  livebait: { price: 25, size: 1.4, species: { okun: 2, shchuka: 4, sudak: 4, som: 1 } },
+  frog: { price: 45, size: 1.8, species: { som: 6, shchuka: 1 } },
+};
+
+/** `maxKg` is the weight a rod handles comfortably; heavier fish strain it fast. */
+export const RODS = {
+  willow: { tier: 1, maxKg: 0.6, price: 0, reel: 0.95 },
+  hazel: { tier: 2, maxKg: 1.2, price: 150, reel: 1 },
+  bamboo: { tier: 3, maxKg: 2, price: 650, reel: 1 },
+  telescope: { tier: 4, maxKg: 3.5, price: 1900, reel: 1.05 },
+  glass: { tier: 5, maxKg: 6, price: 5200, reel: 1.05 },
+  carbon: { tier: 6, maxKg: 10, price: 14000, reel: 1.1 },
+  carp: { tier: 7, maxKg: 18, price: 36000, reel: 1.15 },
+  catfish: { tier: 8, maxKg: 40, price: 90000, reel: 1.2 },
+};
+
+/** Hooks are consumables; a big fish that snaps the line takes one with it. */
+export const HOOK_PRICE = 6;
+
+/** One-off upgrades that make fishing easier. */
+export const EXTRAS = {
+  handbook: { price: 900 },
+  glowfloat: { price: 650 },
+  net: { price: 2800 },
+  braid: { price: 4500 },
+  sonar: { price: 7500 },
+};
+
+/**
+ * Fishing spots. `fish` weights who lives there; `bigChance` is the base odds
+ * that a bite is a big one (before bait and cast distance). `water` tints the lake.
+ */
+export const LOCATIONS = [
+  {
+    id: "pond", snagChance: 0.02, kind: "pond", water: "#4a7d66",
+    traits: { type: "pond", depth: "shallow", bottom: "mud", current: "none" },
+    bigChance: 1 / 100,
+    fish: { karas: 5, krasnopirka: 3, plitka: 3, yorzh: 2, lyn: 1.5, korop: 0.6 },
+  },
+  {
+    id: "lake", snagChance: 0.025, kind: "lake", water: "#3f7f86",
+    traits: { type: "lake", depth: "medium", bottom: "sandWeed", current: "none" },
+    bigChance: 1 / 60,
+    fish: { plitka: 3, okun: 3, lyasch: 2, krasnopirka: 2, lyn: 2, shchuka: 1, korop: 1 },
+  },
+  {
+    id: "river", snagChance: 0.035, kind: "river", water: "#3d7896",
+    traits: { type: "river", depth: "medium", bottom: "stones", current: "moderate" },
+    bigChance: 1 / 45,
+    fish: { plitka: 3, okun: 3, yorzh: 2, shchuka: 2, sudak: 1.2, lyasch: 1, som: 0.3 },
+  },
+  {
+    id: "reservoir", snagChance: 0.04, kind: "reservoir", water: "#356f80",
+    traits: { type: "reservoir", depth: "deep", bottom: "clayLogs", current: "weak" },
+    bigChance: 1 / 30,
+    fish: { lyasch: 3, sudak: 2, shchuka: 2, korop: 2, okun: 2, som: 0.8 },
+  },
+  {
+    id: "pit", snagChance: 0.06, kind: "pit", water: "#2c5f6c",
+    traits: { type: "river", depth: "veryDeep", bottom: "logsEddies", current: "strong" },
+    bigChance: 1 / 20,
+    fish: { som: 3, sudak: 2, lyasch: 2, korop: 1, shchuka: 1 },
+  },
+];
+
+export const START_STATE = {
+  money: 30,
+  baits: { worm: 5 },
+  hooks: 5,
+  rods: ["willow"],
+  rod: "willow",
+  bait: "worm",
+  extras: [],
+  trophies: [],
+  caught: 0,
+  location: 0,
+};
+
+export function fishPrice(fish) {
+  return Math.round(fish.weight * FISH[fish.species].pricePerKg + 2);
+}
+
+export function trophyCost(fish) {
+  return Math.round(fishPrice(fish) * 0.6 + 40);
+}
+
+export function formatWeight(kg) {
+  return kg < 1 ? `${Math.round(kg * 1000)} ${t("unit.g")}` : `${Number(kg.toFixed(2))} ${t("unit.kg")}`;
+}
+
+export function formatMoney(value) {
+  return `${value.toLocaleString(locale())} ₴`;
+}
+
+function pickWeighted(entries, random) {
+  let roll = random() * entries.reduce((sum, [, weight]) => sum + weight, 0);
+  for (const [id, weight] of entries) {
+    roll -= weight;
+    if (roll <= 0) return id;
+  }
+  return entries[entries.length - 1][0];
+}
+
+/**
+ * Pick a species and weight for a bite. Species = who lives here × who likes the
+ * bait (fish that don't care for it still take it now and then). Weight: most
+ * bites are ordinary; with the spot's big-fish odds — scaled by bait and by how
+ * far out the cast landed (`reach`, 0..1) — it's a big one. Big fish can turn
+ * up anywhere; some places are just far likelier. Returns null when no fish
+ * here takes this bait.
+ */
+/** Who here would take this bait, weighted by habitat, taste and hunger right now. */
+function candidates(baitId, locationIndex, hour) {
+  const bait = BAITS[baitId];
+  const location = LOCATIONS[locationIndex] ?? LOCATIONS[0];
+  return Object.entries(location.fish)
+    .map(([id, weight]) => [id, weight * (bait.species[id] ?? bait.others ?? 0.08), activity(id, hour)])
+    .filter(([, weight]) => weight > 0);
+}
+
+/**
+ * How lively the bite is right now (≈0.1..1.3): the average hunger of the fish
+ * that would take this bait here. Bites come sooner when it's high.
+ */
+export function biteActivity(baitId, locationIndex, hour) {
+  const list = candidates(baitId, locationIndex, hour);
+  const total = list.reduce((sum, [, weight]) => sum + weight, 0);
+  if (!total) return 0;
+  return list.reduce((sum, [, weight, hunger]) => sum + weight * hunger, 0) / total;
+}
+
+export function rollFish(baitId, locationIndex, random = Math.random, reach = 0.5, hour = 18) {
+  const bait = BAITS[baitId];
+  const location = LOCATIONS[locationIndex] ?? LOCATIONS[0];
+  const entries = candidates(baitId, locationIndex, hour).map(([id, weight, hunger]) => [id, weight * hunger]);
+  // Nobody here takes this bait at all.
+  if (!entries.length) return null;
+  const species = pickWeighted(entries, random);
+  const fish = FISH[species];
+
+  const bigOdds = Math.min(0.6, location.bigChance * bait.size * (0.4 + 1.2 * Math.min(1, Math.max(0, reach))));
+  const big = random() < bigOdds;
+  const t = big ? 0.55 + 0.45 * random() ** 1.4 : 0.5 * random() ** 1.7;
+  const span = (fish.max - fish.min) * (bait.maxSize ?? 1);
+  const weight = Math.round((fish.min + span * t) * 1000) / 1000;
+  return { species, weight, big: big && !bait.maxSize };
+}
+
+/** Handbook entries, derived from the catalog so they never drift from the game. */
+export function handbookEntries() {
+  return Object.entries(FISH).filter(([, fish]) => !fish.junk).map(([id, fish]) => {
+    // Places as trait sets (type, depth, bottom); the UI words them.
+    const seen = new Set();
+    const places = LOCATIONS
+      .filter((spot) => (spot.fish[id] ?? 0) >= 1)
+      .sort((a, b) => b.fish[id] - a.fish[id])
+      .map((spot) => spot.traits)
+      .filter((traits) => {
+        const key = `${traits.type}|${traits.depth}|${traits.bottom}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    const baits = Object.entries(BAITS)
+      .filter(([, bait]) => (bait.species[id] ?? 0) >= 3)
+      .map(([baitId]) => baitId);
+    return {
+      id,
+      places,
+      baits,
+      times: activePeriods(id),
+      range: `${formatWeight(fish.min)} – ${formatWeight(fish.max)}`,
+    };
+  });
+}
+

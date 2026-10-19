@@ -1,0 +1,10 @@
+# macOS
+.DS_Store
+
+# Editors and local tooling
+.vscode/
+.idea/
+.claude/settings.local.json
+
+# Dependencies, if any are ever added
+node_modules/

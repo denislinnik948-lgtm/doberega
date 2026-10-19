@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#14221f" />
+    <title>Stillwater</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Handjet:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="in-menu">
+    <main class="scene" data-i18n-aria="a11y.scene">
+      <canvas id="water-canvas" data-i18n-aria="a11y.canvas"></canvas>
+
+      <!-- Main menu: pick a spot, then fish; shop, backpack and trophies around it. -->
+      <section class="menu" id="menu" aria-labelledby="menu-title">
+        <header class="menu-top">
+          <h1 class="title-tab" id="menu-title" data-frame="tab">Stillwater</h1>
+          <div class="clock" data-frame="box" data-i18n-aria="a11y.clock"><span class="clock-icon" aria-hidden="true"></span><span class="clock-value">16:00</span><span class="weather-icon" data-i18n-aria="a11y.rain" hidden></span></div>
+          <div class="chip" data-frame="box" data-i18n-aria="a11y.money">
+            <span class="chip-icon coin-slot"></span>
+            <span class="money-value">30</span>
+          </div>
+        </header>
+
+        <div class="spot-slider" data-i18n-roledescription="a11y.slider" data-i18n-aria="a11y.spot">
+          <button class="pixel-btn pixel-btn-square spot-arrow" id="spot-prev" type="button" data-i18n-aria="a11y.prevSpot">◀</button>
+          <article class="spot-card">
+            <div class="card-scene">
+              <h2 class="title-tab" id="spot-name" data-frame="tab"></h2>
+              <div class="spot-picture" id="spot-picture" data-frame="location" data-variant="pond"></div>
+            </div>
+            <dl class="caption spot-traits" id="spot-traits" data-frame="box"></dl>
+            <div class="spot-dots" id="spot-dots" aria-hidden="true"></div>
+          </article>
+          <button class="pixel-btn pixel-btn-square spot-arrow" id="spot-next" type="button" data-i18n-aria="a11y.nextSpot">▶</button>
+        </div>
+
+        <button class="pixel-btn pixel-btn-primary fish-button" id="fish-button" type="button" data-i18n="menu.fish">Go fishing</button>
+
+        <nav class="menu-nav" data-i18n-aria="a11y.menu">
+          <button class="menu-item" id="shop-button" data-frame="box" type="button"><span class="menu-icon" id="shop-icon"></span><span data-i18n="menu.shop">Shop</span></button>
+          <button class="menu-item" id="pack-button" data-frame="box" type="button"><span class="menu-icon" id="pack-icon"></span><span data-i18n="menu.pack">Backpack</span></button>
+          <button class="menu-item" id="trophy-button" data-frame="box" type="button"><span class="menu-icon" id="trophy-icon"></span><span data-i18n="menu.trophies">Trophies</span> <span id="trophy-count" class="badge" hidden>0</span></button>
+          <button class="menu-item" id="settings-button" data-frame="box" type="button"><span class="menu-icon" id="settings-icon"></span><span data-i18n="menu.settings">Settings</span></button>
+        </nav>
+      </section>
+
+      <!-- In-game HUD. -->
+      <div class="hud hud-top game-only">
+        <div class="chip" data-frame="box" data-i18n-aria="a11y.money">
+          <span class="chip-icon coin-slot"></span>
+          <span class="money-value">30</span>
+        </div>
+        <div class="hud-buttons">
+          <div class="clock" data-frame="box" data-i18n-aria="a11y.clock"><span class="clock-icon" aria-hidden="true"></span><span class="clock-value">16:00</span><span class="weather-icon" data-i18n-aria="a11y.rain" hidden></span></div>
+          <span class="spot-label" data-frame="box"><span id="spot-label"></span></span>
+          <button id="exit-button" class="icon-btn" data-frame="box" type="button" data-i18n-aria="a11y.exit" data-i18n-title="a11y.exitTitle"></button>
+        </div>
+      </div>
+
+      <div class="hud loadout game-only" id="loadout">
+        <button class="slot" id="rod-slot" data-frame="well" type="button" aria-haspopup="true" aria-expanded="false" data-i18n-aria="a11y.rod">
+          <span class="slot-sprite" id="rod-sprite"></span>
+          <span class="slot-tag" id="rod-tag"></span>
+        </button>
+        <button class="slot" id="bait-slot" data-frame="well" type="button" aria-haspopup="true" aria-expanded="false" data-i18n-aria="a11y.bait">
+          <span class="slot-sprite" id="bait-sprite"></span>
+          <span class="slot-tag" id="bait-tag">×5</span>
+        </button>
+        <div class="slot slot-static" id="hook-slot" data-frame="well" data-i18n-aria="a11y.hooks">
+          <span class="slot-sprite" id="hook-sprite"></span>
+          <span class="slot-tag" id="hook-tag">×5</span>
+        </div>
+        <div class="picker" id="picker" data-frame="box" role="listbox" hidden></div>
+      </div>
+
+      <div class="fight-hud" id="fight-hud" hidden>
+        <div class="tension" id="tension-meter" data-frame="box" role="meter" data-i18n-aria="a11y.tension" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div class="tension-fill" id="tension-fill"></div>
+        </div>
+      </div>
+
+      <div class="toast" id="toast" data-frame="box" role="status" aria-live="assertive" hidden><span id="toast-text"></span></div>
+    </main>
+
+    <dialog class="sheet catch-sheet" id="catch-dialog" data-frame="ornate" aria-labelledby="catch-title">
+      <div class="card-scene">
+        <div class="title-tab" data-frame="tab" tabindex="-1" autofocus data-i18n="catch.title">Catch</div>
+        <div class="picture" id="catch-art" data-frame="picture"></div>
+      </div>
+      <div class="caption" data-frame="box">
+        <h2 id="catch-title"></h2>
+        <div class="catch-weight" id="catch-weight">—</div>
+      </div>
+      <div class="catch-actions">
+        <button class="pixel-btn pixel-btn-primary" id="sell-button" type="button"><span data-i18n="catch.sell">Sell</span> <b id="catch-price">+0</b></button>
+        <button class="pixel-btn" id="mount-button" type="button"><span data-i18n="catch.mount">Trophy</span> <b id="catch-trophy">−0</b></button>
+        <button class="pixel-btn pixel-btn-quiet" id="release-button" type="button" data-i18n="catch.release">Release</button>
+      </div>
+    </dialog>
+
+    <dialog class="sheet sheet-wide" id="shop-dialog" data-frame="ornate" aria-labelledby="shop-title">
+      <header class="sheet-heading">
+        <h2 class="title-tab" id="shop-title" data-frame="tab" data-i18n="shop.title">Shop</h2>
+        <div class="chip chip-small" data-frame="box"><span class="chip-icon coin-slot"></span><span class="money-value">30</span></div>
+        <form method="dialog"><button class="pixel-btn pixel-btn-square" type="submit" data-i18n-aria="a11y.close">✕</button></form>
+      </header>
+      <div class="tabs" role="tablist">
+        <button class="pixel-btn tab is-active" type="button" role="tab" aria-selected="true" data-tab="bait-shop" data-i18n="shop.bait">Bait</button>
+        <button class="pixel-btn tab" type="button" role="tab" aria-selected="false" data-tab="rod-shop" data-i18n="shop.rods">Rods</button>
+        <button class="pixel-btn tab" type="button" role="tab" aria-selected="false" data-tab="extra-shop" data-i18n="shop.extras">Extras</button>
+      </div>
+      <ul class="card-grid" id="bait-shop" role="tabpanel"></ul>
+      <ul class="card-grid" id="rod-shop" role="tabpanel" hidden></ul>
+      <ul class="card-grid" id="extra-shop" role="tabpanel" hidden></ul>
+    </dialog>
+
+    <dialog class="sheet sheet-wide" id="pack-dialog" data-frame="ornate" aria-labelledby="pack-title">
+      <header class="sheet-heading">
+        <h2 class="title-tab" id="pack-title" data-frame="tab" data-i18n="pack.title">Backpack</h2>
+        <form method="dialog"><button class="pixel-btn pixel-btn-square" type="submit" data-i18n-aria="a11y.close">✕</button></form>
+      </header>
+      <div class="pack-body">
+        <h3 data-i18n="pack.rods">Rods</h3>
+        <ul class="item-row" id="pack-rods"></ul>
+        <h3 data-i18n="pack.bait">Bait</h3>
+        <ul class="item-row" id="pack-baits"></ul>
+        <h3 data-i18n="pack.extras">Extras</h3>
+        <ul class="item-row" id="pack-extras"></ul>
+        <p class="empty-note" id="pack-extras-empty" data-i18n="pack.empty">Nothing yet</p>
+      </div>
+    </dialog>
+
+    <dialog class="sheet sheet-wide" id="handbook-dialog" data-frame="ornate" aria-labelledby="handbook-title">
+      <header class="sheet-heading">
+        <h2 class="title-tab" id="handbook-title" data-frame="tab" data-i18n="handbook.title">Angler's handbook</h2>
+        <form method="dialog"><button class="pixel-btn pixel-btn-square" type="submit" data-i18n-aria="a11y.close">✕</button></form>
+      </header>
+      <ul class="handbook" id="handbook-list"></ul>
+    </dialog>
+
+    <dialog class="sheet sheet-wide" id="trophy-dialog" data-frame="ornate" aria-labelledby="trophy-title">
+      <header class="sheet-heading">
+        <h2 class="title-tab" id="trophy-title" data-frame="tab" data-i18n="trophies.title">Trophies</h2>
+        <form method="dialog"><button class="pixel-btn pixel-btn-square" type="submit" data-i18n-aria="a11y.close">✕</button></form>
+      </header>
+      <ul class="trophy-wall" id="trophy-wall"></ul>
+      <p class="empty-note" id="trophy-empty" data-i18n="trophies.empty">The wall is empty for now</p>
+    </dialog>
+
+    <dialog class="sheet settings-sheet" id="settings-dialog" data-frame="ornate" aria-labelledby="settings-title">
+      <header class="sheet-heading">
+        <h2 class="title-tab" id="settings-title" data-frame="tab" data-i18n="settings.title">Settings</h2>
+        <form method="dialog"><button class="pixel-btn pixel-btn-square" type="submit" data-i18n-aria="a11y.close">✕</button></form>
+      </header>
+      <div class="setting-row">
+        <span class="setting-label" data-i18n="settings.language">Language</span>
+        <div class="segmented" id="language-options" role="radiogroup" data-i18n-aria="settings.language"></div>
+      </div>
+    </dialog>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
