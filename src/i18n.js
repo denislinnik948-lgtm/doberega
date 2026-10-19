@@ -4,12 +4,13 @@
  * remembered in localStorage.
  */
 
+// The storage key keeps the game's old working name so existing saves carry over.
 const KEY = "stillwater.lang";
 
 const STRINGS = {
   en: {
     locale: "en-US",
-    title: "Stillwater — ASCII fishing",
+    title: "doberega — ASCII fishing",
     "a11y.scene": "An ASCII lake at sunset where you can fish",
     "a11y.canvas": "A lake at sunset made of ASCII characters. Tap the water to cast; hold Space or a finger on the water to reel in.",
     "a11y.clock": "Time of day",
@@ -133,7 +134,7 @@ const STRINGS = {
 
   uk: {
     locale: "uk-UA",
-    title: "Stillwater — ASCII-рибалка",
+    title: "doberega — ASCII-рибалка",
     "a11y.scene": "ASCII-озеро на заході сонця, де можна рибалити",
     "a11y.canvas": "Водойма на заході сонця з ASCII-символів. Торкніться води, щоб закинути вудку; тримайте пробіл або палець на воді, щоб тягти.",
     "a11y.clock": "Час доби",

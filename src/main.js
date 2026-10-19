@@ -162,7 +162,7 @@ function tryCast(x, y) {
 }
 
 // `?debug` exposes the game for manual testing from the console.
-if (params.has("debug")) window.stillwater = { game, progress, ui, renderNow, renderer, config, ripples, weather, ducks };
+if (params.has("debug")) window.doberega = { game, progress, ui, renderNow, renderer, config, ripples, weather, ducks };
 
 const pullable = () => ["waiting", "nibble", "bite", "fight"].includes(game.phase);
 

@@ -1,0 +1,15 @@
+{
+  "name": "doberega",
+  "short_name": "doberega",
+  "description": "ASCII fishing at dawn, dusk and night.",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#14221f",
+  "theme_color": "#14221f",
+  "icons": [
+    { "src": "./icons/icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "./icons/apple-touch-icon.png", "sizes": "176x176", "type": "image/png" }
+  ]
+}

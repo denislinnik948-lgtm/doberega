@@ -1,4 +1,4 @@
-# Stillwater — ASCII Water Study
+# doberega — ASCII fishing
 
 A small, dependency-free canvas prototype for a calm lake scene rendered as a regular ASCII character field. The screen grid and distant forest glyphs are generated on resize or when character spacing changes. Water animation is a separate mathematical model, so the same wave sampling can later feed another renderer.
 
@@ -53,7 +53,7 @@ The game opens on a **main menu** over the live lake: a slider of fishing spots 
 - **Hooks:** bought per piece (5 to start); no hook, no cast. A big fish that snaps the line takes the hook with it.
 - **Handbook:** opens with a page on everything that affects the bite (spot, cast distance, bait, time of day, rod, hooks, float, extras), then each fish's weight range, waters, favourite bait and feeding times.
 
-The catalog (fish, bait, rods, extras, spots) lives in `src/fishing/data.js`; fight balance in `src/fishing/game.js` (`fightRates`). Progress is saved in localStorage. Add `?debug` to the URL to expose the game as `window.stillwater`.
+The catalog (fish, bait, rods, extras, spots) lives in `src/fishing/data.js`; fight balance in `src/fishing/game.js` (`fightRates`). Progress is saved in localStorage. Add `?debug` to the URL to expose the game as `window.doberega`.
 
 ## Phones
 

@@ -1,5 +1,6 @@
 import { BAITS, EXTRAS, LOCATIONS, RODS, START_STATE } from "./data.js";
 
+// The storage key keeps the game's old working name so existing saves carry over.
 const KEY = "stillwater.fishing.v2";
 
 /** Angler progress (money, gear, trophies), kept in this browser's localStorage. */
