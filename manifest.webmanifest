@@ -1,7 +1,7 @@
 {
   "name": "Doberega",
   "short_name": "Doberega",
-  "description": "Doberega — peace and quiet. ASCII fishing at dawn, dusk and night.",
+  "description": "Doberega - peace and quiet. ASCII fishing at dawn, dusk and night.",
   "start_url": "./",
   "display": "standalone",
   "orientation": "any",
