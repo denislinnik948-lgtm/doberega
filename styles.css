@@ -575,9 +575,16 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
 /* A small picture of each water, painted like the menu's spot picture. */
 .handbook-spot { width: 120px; height: 76px; }
 .handbook-tabs .pixel-btn { min-height: 44px; padding-inline: 6px; }
+/* Facts as label / value rows, split by faint rules so sections don't run together. */
+.handbook-body small { display: block; margin-top: 2px; }
+.handbook-facts { display: grid; grid-template-columns: max-content 1fr; gap: 0 14px; margin: 10px 0 0; }
+.handbook-facts dt, .handbook-facts dd { padding: 6px 0; border-top: 1px solid rgba(160, 176, 168, 0.18); }
+.handbook-facts dt { color: var(--gold); font-size: 17px; opacity: 0.85; }
+.handbook-facts dd { display: grid; gap: 2px; margin: 0; color: var(--light); font-size: 18px; }
 .handbook-page strong { display: block; color: var(--bone); font-size: 22px; font-weight: 500; }
 .handbook-page small { color: var(--gold); font-size: 18px; }
 .handbook-page p { margin: 4px 0 0; color: var(--light); font-size: 18px; }
+@media (max-width: 520px) { .handbook-facts { grid-template-columns: 1fr; } .handbook-facts dd { border-top: 0; padding-top: 0; } }
 .handbook-rules { grid-template-columns: 1fr; }
 .handbook-rules dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 6px 0 0; }
 .handbook-rules dt { color: var(--gold); font-size: 18px; }

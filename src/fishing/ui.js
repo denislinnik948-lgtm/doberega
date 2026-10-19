@@ -686,13 +686,18 @@ export class AnglerUI {
     }
     const lower = (text) => text.toLocaleLowerCase(locale());
     const list = (items) => items.join(", ");
-    const page = (art, title, subtitle, lines, seed) => {
+    // Each page: a picture, a title and subtitle, then labelled facts (one or more lines each).
+    const page = (art, title, subtitle, facts, seed) => {
+      const rows = facts.filter(([, value]) => value && (!Array.isArray(value) || value.length));
       const node = element("li", { className: `handbook-page${art ? "" : " handbook-text"}` }, [
         art ? element("div", { className: "handbook-art" }, [art]) : "",
-        element("div", {}, [
+        element("div", { className: "handbook-body" }, [
           element("strong", { textContent: title }),
           subtitle ? element("small", { textContent: subtitle }) : "",
-          ...lines.filter(Boolean).map((text) => element("p", { textContent: text })),
+          element("dl", { className: "handbook-facts" }, rows.flatMap(([label, value]) => [
+            element("dt", { textContent: label }),
+            element("dd", {}, (Array.isArray(value) ? value : [value]).map((line) => element("span", { textContent: line }))),
+          ])),
         ]),
       ]);
       frame(node, "box", seed);
@@ -702,11 +707,11 @@ export class AnglerUI {
     if (id === "fish") {
       // Small fish are drawn bigger so all of them read at a glance.
       pages = handbookEntries().map((entry, index) => page(fishSprite(entry.id, FISH[entry.id].max < 4 ? 3 : 2), nameOf("fish", entry.id), t("handbook.weight", { range: entry.range, price: entry.pricePerKg }), [
-        t("handbook.livesIn", { spots: entry.spots.map((spot) => t("handbook.spotIn", { spot: nameOf("location", spot.id), abundance: nameOf("abundance", spot.abundance), kg: formatWeight(spot.maxKg) })).join("; ") }),
-        t("handbook.baits", { baits: entry.baits.length ? lower(list(entry.baits.map((bait) => nameOf("bait", bait)))) : t("handbook.baitsNone") }),
-        entry.alsoBaits.length ? t("handbook.alsoBaits", { baits: lower(list(entry.alsoBaits.map((bait) => nameOf("bait", bait)))) }) : "",
-        t("handbook.active", { times: entry.times.map(periodName).join(", ") }),
-        t("handbook.bites", { style: nameOf("biteStyle", entry.style) }),
+        [t("handbook.livesIn"), entry.spots.map((spot) => t("handbook.spotIn", { spot: nameOf("location", spot.id), abundance: nameOf("abundance", spot.abundance), kg: formatWeight(spot.maxKg) }))],
+        [t("handbook.bestBait"), entry.baits.length ? lower(list(entry.baits.map((bait) => nameOf("bait", bait)))) : t("handbook.baitsNone")],
+        [t("handbook.otherBait"), lower(list(entry.alsoBaits.map((bait) => nameOf("bait", bait))))],
+        [t("handbook.activeAt"), entry.times.map(periodName).join(", ")],
+        [t("handbook.biteLabel"), nameOf("biteStyle", entry.style)],
       ], 700 + index));
     } else if (id === "spots") {
       pages = spotEntries().map((spot, index) => {
@@ -717,9 +722,9 @@ export class AnglerUI {
           type: traitValue("type", spot.traits.type), depth: lower(traitValue("depth", spot.traits.depth)),
           bottom: lower(traitValue("bottom", spot.traits.bottom)), current: lower(traitValue("current", spot.traits.current)),
         }), [
-          t("handbook.spotFish", { fish: lower(list(spot.fish.map((fish) => nameOf("fish", fish)))) }),
-          t("handbook.spotMax", { kg: formatWeight(spot.maxKg), odds: spot.bigOdds }),
-          `${nameOf("pace", spot.pace)} · ${nameOf("snags", spot.snags)}`,
+          [t("handbook.fishLabel"), lower(list(spot.fish.map((fish) => nameOf("fish", fish))))],
+          [t("handbook.sizeLabel"), t("handbook.spotMax", { kg: formatWeight(spot.maxKg), odds: spot.bigOdds })],
+          [t("handbook.waterLabel"), `${nameOf("pace", spot.pace)} · ${nameOf("snags", spot.snags)}`],
         ], 760 + index);
       });
     } else if (id === "baits") {
@@ -727,8 +732,8 @@ export class AnglerUI {
         const favourites = bait.fish.filter((fish) => fish.favourite).map((fish) => nameOf("fish", fish.id));
         const others = bait.fish.filter((fish) => !fish.favourite).map((fish) => nameOf("fish", fish.id));
         return page(baitSprite(bait.id, 3), nameOf("bait", bait.id), `${bait.free ? t("handbook.baitFree") : t("handbook.baitPrice", { price: bait.price })} · ${nameOf("baitSize", bait.size)}`, [
-          favourites.length ? t("handbook.baitFish", { fish: lower(list(favourites)) }) : "",
-          others.length ? t("handbook.baitOthers", { fish: lower(list(others)) }) : "",
+          [t("handbook.loves"), lower(list(favourites))],
+          [t("handbook.takes"), lower(list(others))],
         ], 820 + index);
       });
     } else {
