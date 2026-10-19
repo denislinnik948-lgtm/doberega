@@ -16,7 +16,7 @@ Each spot has its own ASCII landscape, built from a profile in `src/scene.js` (h
 - **Тихе озеро** — layered mountains behind a forested shore, reeds, a boulder and a few lily pads.
 - **Замкове озеро** — after a photo of an alpine lake: a dark wooded hill of distinct tree crowns rises on the left to a sheer limestone cliff topped by an ancient ruined castle (broken grey walls, gutted towers, ivy, no roofs); a snowy alpine massif fills the right, built from glyph cells in a flat palette: `/` and `\` follow the slope, faces facing the sun are lighter, snow runs down the gullies and leaves steep rock bare, woods cover the lower slopes, with blue distance haze; an arched stone bridge sits under the cliff and two red-roofed houses on the far shore. Calm emerald water.
 - **Затока водосховища** — wide open water, low far hills, a concrete dam with gates and lamps, power pylons with sagging wires, concrete blocks in the foreground.
-- **Старий міст** — fishing from a wooden bridge over a fast river: we look downstream past the railing, willow-lined banks recede toward a bend, and the current races away in long streaks and flecks of foam (no casting onto the railing).
+- **Старий міст** — fishing from a wooden bridge over a fast river: we look downstream past the railing, willow-lined banks recede and the river swings right round a bend, leaving the view past the right edge; the current runs away from us and turns with the bend in long streaks and flecks of foam (no casting onto the railing).
 
 Switching spots in the menu rebuilds the scene behind it.
 

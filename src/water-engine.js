@@ -13,8 +13,20 @@ export function sampleWater(point, time, config, verticalDepth, ripples = []) {
   // A river carries the whole wave pattern sideways across the view, or
   // straight away from the viewer when we look downstream.
   const drift = (config.flow ?? 0) * time;
-  const wx = config.flowAway ? x + drift : x - drift;
-  const wy = y + drift;
+  // A bend turns the downstream pattern around a pivot, so far off the current
+  // swings sideways and carries on out of view.
+  let bx = x;
+  let by = y;
+  if (config.flowAway && config.bend) {
+    const { x: cx, y: cy, from, to } = config.bend;
+    const turn = clamp01((from - verticalDepth) / (from - to)) ** 1.4 * Math.PI * 0.5;
+    const cos = Math.cos(-turn);
+    const sin = Math.sin(-turn);
+    bx = cx + (x - cx) * cos - (y - cy) * sin;
+    by = cy + (x - cx) * sin + (y - cy) * cos;
+  }
+  const wx = config.flowAway ? bx + drift : x - drift;
+  const wy = (config.flowAway ? by : y) + drift;
 
   // A light breeze sends broad, nearly parallel wavelets from the far shore
   // toward the viewer. Small crosswind terms gently bend the crests instead of

@@ -15,10 +15,11 @@ const LAKE_RIDGES = [
   { top: 0.42, amplitude: 0.022, seed: 5.2, fill: "#26352d", glyph: "#3a4c3d", texture: "^^*.", density: 0.34 },
 ];
 
-/** Bank width on one side of the bridge river at a screen depth (0 top .. 1 bottom). */
+/** Bank width on one side of the bridge river at a screen depth (0 top .. 1 bottom); negative means off screen. */
 function riverBank(depth, side) {
   const t = Math.max(0, (depth - 0.4) / 0.6);
-  const center = 0.5 + 0.09 * (1 - t) ** 2;
+  // Far off the river swings right and leaves the view past the right edge.
+  const center = 0.5 + 0.55 * (1 - t) ** 2.2;
   const half = 0.15 + 0.31 * t ** 0.9;
   const wobble = Math.sin(depth * 31 + side) * 0.008 + Math.sin(depth * 73 + side * 2) * 0.004;
   return side < 0 ? center - half + wobble : 1 - center - half + wobble;
@@ -93,7 +94,7 @@ export const SCENES = {
   },
   /**
    * Old bridge over a fast river: we stand at the wooden railing looking
-   * downstream; willow banks converge on a bend and the current races away.
+   * downstream; the current runs away from us and swings right round a bend.
    */
   bridge: {
     horizon: 0.4,
@@ -109,7 +110,9 @@ export const SCENES = {
       right: (depth) => riverBank(depth, 1),
     },
     structures: {},
-    water: { flow: 90, flowAway: true },
+    // The current runs away from us, then turns right with the bend
+    // (pivot and the depths where the turn starts and completes).
+    water: { flow: 60, flowAway: true, bend: { x: 1.05, y: 0.68, from: 0.66, to: 0.43 } },
     foreground: { reeds: 0.35, rock: false, lilyPads: 0, bridge: 0.875 },
   },
 };

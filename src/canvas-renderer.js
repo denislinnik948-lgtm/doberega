@@ -202,7 +202,12 @@ export class CanvasWaterRenderer {
     for (const cell of structures.lights) this.lightBatch.push(cell.x, cell.y, cell.glyph, hexToInt(cell.color));
     this.bankCells = createBankGlyphs(width, height, cellWidth, lineHeight, this.sun.x);
     this.waterRocks = this.createWaterRocks();
-    this.waterParams = { flow: scene.water.flow ?? 0, flowAway: Boolean(scene.water.flowAway) };
+    const bend = scene.water.bend;
+    this.waterParams = {
+      flow: scene.water.flow ?? 0,
+      flowAway: Boolean(scene.water.flowAway),
+      bend: bend ? { ...this.screenToPlane(bend.x * width, bend.y * height), from: bend.from, to: bend.to } : null,
+    };
     this.treeline = new Float32Array(columns + 1);
     for (let column = 0; column <= columns; column += 1) this.treeline[column] = this.shorelineY(column * cellWidth);
     for (const cell of this.forestCells) {
@@ -647,7 +652,7 @@ export class CanvasWaterRenderer {
       const horizon = this.shorelineY(width / 2);
       const bottom = height * activeScene().foreground.bridge;
       for (let i = 0; i < 70; i += 1) {
-        const s = (hash2(i, 1, 811) + time * (0.05 + hash2(i, 2, 811) * 0.04)) % 1;
+        const s = (hash2(i, 1, 811) + time * (0.034 + hash2(i, 2, 811) * 0.026)) % 1;
         const y = bottom - (bottom - horizon) * (1 - (1 - s) ** 2.2);
         const { left, right } = bankWidths(y / height);
         const from = left * width;
