@@ -520,23 +520,26 @@ export function cupSprite(scale = 3) {
 
 /** Backpack: the inventory. */
 export function packSprite(scale = 3) {
+  // A khaki canvas backpack: carry loop, buckled top flap, shoulder straps and a front pocket.
   return fromRows([
-    "................",
-    ".....oooooo.....",
-    "....oDo..oDo....",
-    "...ooooooooooo..",
-    "..oMMMMMMMMMMMo.",
-    "..oMLLMMMMMMMMo.",
-    "..oMooooooooMMo.",
-    "..oMoGGGGGGoMMo.",
-    "..oMoGgGGGGoMMo.",
-    "..oMooooooooMMo.",
-    "..oMMMMMMMMMMMo.",
-    "..oDMMMMMMMMMDo.",
-    "..oDDMMMMMMMDDo.",
-    "...ooooooooooo..",
-    "................",
-  ], { o: P.ink, M: P.mid, L: P.light, D: P.dark, G: P.goldDark, g: P.gold }).toCanvas(scale);
+    "......oooo......",
+    ".....o....o.....",
+    "....oooooooo....",
+    "...oFFFFFFFFo...",
+    "..oFLFFFFFFFFo..",
+    "..oFFFFFFFFFFo..",
+    ".oDDDDDggDDDDDo.",
+    ".oSBBBBggBBBBSo.",
+    ".oSBLBBBBBBBBSo.",
+    ".oSBBooooooBBSo.",
+    ".oSBoPPPPPPoBSo.",
+    ".oSBoPPPgPPoBSo.",
+    ".oSBoPPPPPPoBSo.",
+    ".oSBBooooooBBSo.",
+    ".oDBBBBBBBBBBDo.",
+    "..oDDDDDDDDDDo..",
+    "...oooooooooo...",
+  ], { o: P.ink, F: "#7a6a3a", L: "#b4a46a", D: "#4e4426", B: "#8e7e48", S: "#3e3420", P: "#6e6034", g: P.gold }).toCanvas(scale);
 }
 
 /** Arrow out of a door frame: back to the menu. */
