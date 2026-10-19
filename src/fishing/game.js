@@ -203,7 +203,8 @@ export class FishingGame {
   /** Seconds until the next bite: shorter when the local fish are feeding. */
   nextWait() {
     const hunger = biteActivity(this.bait, this.location, this.hour);
-    const pace = Math.min(2.2, Math.max(0.3, hunger * 1.2 * this.biteBoost));
+    const spotPace = LOCATIONS[this.location]?.pace ?? 1;
+    const pace = Math.min(2.2, Math.max(0.3, hunger * 1.2 * spotPace * this.biteBoost));
     return ((4 + this.random() * 10) / pace) * (this.extras.includes("sonar") ? 0.55 : 1);
   }
 

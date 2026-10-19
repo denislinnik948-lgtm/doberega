@@ -99,38 +99,41 @@ export const EXTRAS = {
 
 /**
  * Fishing spots. `fish` weights who lives there; `bigChance` is the base odds
- * that a bite is a big one (before bait and cast distance). `water` tints the lake.
+ * that a bite is a big one (before bait and cast distance); `maxKg` is the
+ * heaviest fish this water can hold (small water, small fish); `pace` scales
+ * how often anything bites (big water: fewer, bigger fish). `water` tints the lake.
  */
 export const LOCATIONS = [
   {
     id: "pond", snagChance: 0.02, kind: "pond", water: "#4a7d66",
     traits: { type: "pond", depth: "shallow", bottom: "mud", current: "none" },
-    bigChance: 1 / 100,
-    fish: { karas: 5, krasnopirka: 3, plitka: 3, yorzh: 2, lyn: 1.5, korop: 0.6 },
+    bigChance: 1 / 100, maxKg: 6, pace: 1.1,
+    fish: { karas: 5, krasnopirka: 3, plitka: 3, yorzh: 2, lyn: 1.5, korop: 0.4 },
   },
   {
     id: "lake", snagChance: 0.025, kind: "lake", water: "#3f7f86",
     traits: { type: "lake", depth: "medium", bottom: "sandWeed", current: "none" },
-    bigChance: 1 / 60,
+    bigChance: 1 / 60, maxKg: 12, pace: 1,
     fish: { plitka: 3, okun: 3, lyasch: 2, krasnopirka: 2, lyn: 2, shchuka: 1, korop: 1 },
   },
   {
     id: "castle", snagChance: 0.035, kind: "castle", water: "#3aa88c",
     traits: { type: "lake", depth: "deep", bottom: "stones", current: "none" },
-    bigChance: 1 / 45,
-    fish: { plitka: 3, okun: 3, yorzh: 2, shchuka: 2, sudak: 1.2, lyasch: 1, som: 0.3 },
+    bigChance: 1 / 45, maxKg: 16, pace: 0.95,
+    // Clear, deep and stony: a predator lake.
+    fish: { okun: 4, plitka: 3, shchuka: 2.5, sudak: 1.5, lyasch: 1.5, yorzh: 1 },
   },
   {
     id: "reservoir", snagChance: 0.04, kind: "reservoir", water: "#356f80",
     traits: { type: "reservoir", depth: "deep", bottom: "clayLogs", current: "weak" },
-    bigChance: 1 / 30,
+    bigChance: 1 / 30, maxKg: 40, pace: 0.9,
     fish: { lyasch: 3, sudak: 2, shchuka: 2, korop: 2, okun: 2, som: 0.8 },
   },
   {
     id: "bridge", snagChance: 0.06, kind: "bridge", water: "#2f6a7a",
     traits: { type: "river", depth: "deep", bottom: "logsEddies", current: "strong" },
-    bigChance: 1 / 20,
-    fish: { som: 3, sudak: 2, lyasch: 2, korop: 1, shchuka: 1 },
+    bigChance: 1 / 20, maxKg: 60, pace: 0.8,
+    fish: { som: 3, sudak: 2, lyasch: 2, okun: 1.5, plitka: 1.5, korop: 1, shchuka: 1 },
   },
 ];
 
@@ -212,7 +215,9 @@ export function rollFish(baitId, locationIndex, random = Math.random, reach = 0.
   const bigOdds = Math.min(0.6, location.bigChance * bait.size * (0.4 + 1.2 * Math.min(1, Math.max(0, reach))));
   const big = random() < bigOdds;
   const t = big ? 0.55 + 0.45 * random() ** 1.4 : 0.5 * random() ** 1.7;
-  const span = (fish.max - fish.min) * (bait.maxSize ?? 1);
+  // Small water caps how big a fish can grow; bread only ever tempts tiddlers.
+  const max = Math.min(fish.max, Math.max(fish.min, location.maxKg ?? fish.max));
+  const span = (max - fish.min) * (bait.maxSize ?? 1);
   const weight = Math.round((fish.min + span * t) * 1000) / 1000;
   return { species, weight, big: big && !bait.maxSize };
 }
