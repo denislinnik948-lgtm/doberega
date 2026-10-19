@@ -73,6 +73,8 @@ export class FishingGame {
     // open water the float can drift onto.
     this.currentAt = () => ({ x: 0, y: 0 });
     this.isWater = () => true;
+    // Where a hooked fish is brought in: the middle of what's on screen.
+    this.landingX = 0.5;
     this.reset();
   }
 
@@ -203,7 +205,7 @@ export class FishingGame {
 
   /** Where the hooked fish is: it moves from the cast point toward the angler. */
   fishPosition() {
-    const landing = { x: 0.5, y: 0.98 };
+    const landing = { x: this.landingX, y: 0.98 };
     const t = 1 - this.distance;
     return {
       x: this.target.x + (landing.x - this.target.x) * t,

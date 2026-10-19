@@ -68,6 +68,8 @@ function applySpot() {
   const spot = LOCATIONS[progress.location];
   config.waterColor = spot.water;
   renderer.setScene(spot.kind, config);
+  // Each spot centres a phone's view on its own point of interest.
+  if (width) resize();
   ducks.reset();
   // Casts can land from just past the far shore to near the bank.
   TUNING.farY = activeScene().horizon + 0.05;
@@ -235,11 +237,25 @@ function renderNow(now = performance.now()) {
   renderer.render(elapsed, config, ripples, anglerView(elapsed), dayTime, { rain: weather.intensity, ducks: ducks.all });
 }
 
+// A phone held upright would squeeze the landscape sideways. Instead the scene
+// is laid out at least this wide (relative to its height) and the screen shows
+// a slice of it, centred on what the spot is about.
+const MIN_ASPECT = 1.15;
+
 function resize() {
-  const bounds = canvas.getBoundingClientRect();
-  width = Math.round(bounds.width);
+  const bounds = canvas.parentElement.getBoundingClientRect();
+  const viewWidth = Math.round(bounds.width);
   height = Math.round(bounds.height);
-  renderer.resize(width, height, config);
+  width = Math.max(viewWidth, Math.round(height * MIN_ASPECT));
+  const focus = activeScene().focus ?? 0.5;
+  // Snap the slice to the glyph grid so the foreground lines up with the water.
+  const left = Math.round(Math.min(width - viewWidth, Math.max(0, focus * width - viewWidth / 2)) / config.spacing) * config.spacing;
+  for (const node of [canvas, renderer.overlay]) {
+    node.style.width = `${width}px`;
+    node.style.left = `${-left}px`;
+  }
+  game.landingX = (left + viewWidth / 2) / width;
+  renderer.resize(width, height, config, { left, width: viewWidth });
   cancelAnimationFrame(animationFrame);
   renderNow(performance.now());
   animationFrame = requestAnimationFrame(draw);

@@ -65,6 +65,8 @@ export const SCENES = {
    */
   castle: {
     horizon: 0.5,
+    // On a narrow screen, keep the castle crag in view.
+    focus: 0.3,
     ridges: [
       // Snowy alpine range, low behind the castle hill and high on the right.
       { top: 0.46, amplitude: 0.3, seed: 1.9, jagged: true, alpine: true, rise: [0.3, 0.66], snowline: 0.28, haze: 0.2, fill: "#5d7084", glyph: "#8193a5", texture: ".'", density: 0.05 },

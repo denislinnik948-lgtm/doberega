@@ -5,7 +5,10 @@ import { activeScene } from "./scene.js";
  * Close-up shore details: reeds and cattails framing the bottom corners, a
  * weathered rock at the water's edge, and a few lily pads floating nearby.
  */
-export function createReeds(width, height) {
+export function createReeds(width, height, frame = { left: 0, width }) {
+  // Reeds frame the visible part of the view, which on a phone is narrower than the scene.
+  const left = frame.left;
+  width = frame.width;
   const reeds = [];
   const { reeds: density = 1 } = activeScene().foreground;
   const perSide = Math.round(Math.max(10, Math.min(30, width / 46)) * density);
@@ -15,7 +18,7 @@ export function createReeds(width, height) {
       const seed = 7000 + (side + 1) * 500 + i;
       // Most stalks crowd the screen edge; a few stray toward the open water.
       const reach = hash01(seed * 3) ** 1.7 * 0.24;
-      const baseX = side < 0 ? width * (reach - 0.015) : width * (1.015 - reach);
+      const baseX = left + (side < 0 ? width * (reach - 0.015) : width * (1.015 - reach));
       const edgeBoost = 1 - reach / 0.24;
       const kindRoll = hash01(seed * 5);
       const kind = kindRoll < 0.24 ? "cattail" : kindRoll < 0.4 ? "grass" : "blade";
@@ -41,7 +44,9 @@ export function createReeds(width, height) {
 }
 
 /** Lily pads snap to the water grid so they read as part of the same ASCII field. */
-export function createLilyPads(width, height, cellWidth, lineHeight) {
+export function createLilyPads(width, height, cellWidth, lineHeight, frame = { left: 0, width }) {
+  const left = frame.left;
+  width = frame.width;
   const { lilyPads: count = 5, padScale = 1.2 } = activeScene().foreground;
   const pads = [
     { x: 0.27, y: 0.8, r: 0.034, flower: false },
@@ -63,7 +68,7 @@ export function createLilyPads(width, height, cellWidth, lineHeight) {
   pads.length = count;
 
   return pads.map((pad, index) => {
-    const cx = width * pad.x;
+    const cx = left + width * pad.x;
     const cy = height * pad.y;
     const rx = Math.max(cellWidth * 5, Math.min(width, height * 1.6) * pad.r * padScale);
     const ry = rx * 0.34;
@@ -107,7 +112,9 @@ export function createLilyPads(width, height, cellWidth, lineHeight) {
  * Foreground boulders: a rounded rock at the lake, or angular concrete blocks
  * at the reservoir. Returns a (possibly empty) list.
  */
-export function createRocks(width, height, sunX) {
+export function createRocks(width, height, sunX, frame = { left: 0, width }) {
+  const left = frame.left;
+  width = frame.width;
   const { rock, blocks } = activeScene().foreground;
   const size = Math.min(width, height * 1.5);
   const make = (cx, rx, ry, kind) => {
@@ -122,11 +129,11 @@ export function createRocks(width, height, sunX) {
     return { cx, baseY: height * 1.01, rx, ry, outline, kind, litSide: sunX > cx ? 1 : -1 };
   };
   const rocks = [];
-  if (rock) rocks.push(make(width * 0.135, size * 0.11, size * 0.065, "rock"));
+  if (rock) rocks.push(make(left + width * 0.135, size * 0.11, size * 0.065, "rock"));
   if (blocks) {
-    rocks.push(make(width * 0.1, size * 0.13, size * 0.08, "block"));
-    rocks.push(make(width * 0.28, size * 0.07, size * 0.05, "block"));
-    rocks.push(make(width * 0.9, size * 0.12, size * 0.07, "block"));
+    rocks.push(make(left + width * 0.1, size * 0.13, size * 0.08, "block"));
+    rocks.push(make(left + width * 0.28, size * 0.07, size * 0.05, "block"));
+    rocks.push(make(left + width * 0.9, size * 0.12, size * 0.07, "block"));
   }
   return rocks;
 }

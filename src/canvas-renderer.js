@@ -64,12 +64,19 @@ export class CanvasWaterRenderer {
   /** Switch to another fishing spot's landscape and rebuild everything for it. */
   setScene(kind, config) {
     setScene(kind);
-    if (this.width && this.height) this.resize(this.width, this.height, config);
+    if (this.width && this.height) this.resize(this.width, this.height, config, this.frame);
   }
 
-  resize(width, height, config) {
+  /**
+   * `width` × `height` is the whole scene; `frame` is the slice of it actually
+   * on screen (narrower on a phone held upright). The landscape is laid out
+   * over the whole scene so nothing gets squeezed; the foreground and the rod
+   * follow the frame.
+   */
+  resize(width, height, config, frame = { left: 0, width }) {
     this.width = width;
     this.height = height;
+    this.frame = frame;
     this.pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
     for (const target of [this.canvas, this.overlay]) {
       target.width = Math.round(width * this.pixelRatio);
@@ -84,8 +91,8 @@ export class CanvasWaterRenderer {
     const axisY = GAME_ISOMETRIC_SLOPE;
     this.projection = { centerX: width / 2, centerY: height / 2, axisX, axisY };
     this.sun = sunPosition(width, height);
-    this.reeds = createReeds(width, height);
-    this.rocks = createRocks(width, height, this.sun.x);
+    this.reeds = createReeds(width, height, frame);
+    this.rocks = createRocks(width, height, this.sun.x, frame);
     view.width = width;
     this.ridgeOutlines = activeScene().ridges.map((ridge) => {
       const points = [];
@@ -120,11 +127,12 @@ export class CanvasWaterRenderer {
 
   /** A random point on open water, used for fish jumps. */
   randomWaterPoint(random = Math.random) {
-    const horizon = this.shorelineY(this.width / 2);
-    let x = this.width / 2;
+    const { left, width } = this.frame;
+    const horizon = this.shorelineY(left + width / 2);
+    let x = left + width / 2;
     let y = horizon + (this.height - horizon) * 0.4;
     for (let attempt = 0; attempt < 12; attempt += 1) {
-      const px = this.width * (0.12 + random() * 0.76);
+      const px = left + width * (0.12 + random() * 0.76);
       const py = horizon + (this.height - horizon) * (0.12 + random() * 0.55);
       if (isOpenWater(px, py, this.width, this.height)) {
         x = px;
@@ -150,7 +158,7 @@ export class CanvasWaterRenderer {
     this.columns = columns;
     this.rows = rows;
 
-    this.lilyPads = createLilyPads(width, height, cellWidth, lineHeight);
+    this.lilyPads = createLilyPads(width, height, cellWidth, lineHeight, this.frame);
     for (const pad of this.lilyPads) {
       for (const cell of [...pad.cells, ...pad.flower]) cell.colorValue = hexToInt(cell.color);
     }
@@ -713,10 +721,11 @@ export class CanvasWaterRenderer {
 
   /** Rod from the angler's hands (bottom right) toward the cast; it bends under tension. */
   rodGeometry(angler) {
-    const { width, height } = this;
-    const aimX = angler.target ? angler.target.x : width * 0.5;
-    const base = { x: width * 0.66, y: height + 24 };
-    const tip = { x: width * 0.5 + (aimX - width * 0.5) * 0.3, y: height * 0.6 };
+    const { height } = this;
+    const { left, width } = this.frame;
+    const aimX = angler.target ? angler.target.x : left + width * 0.5;
+    const base = { x: left + width * 0.66, y: height + 24 };
+    const tip = { x: left + width * 0.5 + (aimX - left - width * 0.5) * 0.3, y: height * 0.6 };
     // A willow switch bows even at rest; manufactured rods stay straight.
     const look = ROD_LOOKS[(angler.rodTier ?? 1) - 1];
     let bend = look.reel ? 0.03 : 0.09;

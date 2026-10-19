@@ -55,6 +55,10 @@ The game opens on a **main menu** over the live lake: a slider of fishing spots 
 
 The catalog (fish, bait, rods, extras, spots) lives in `src/fishing/data.js`; fight balance in `src/fishing/game.js` (`fightRates`). Progress is saved in localStorage. Add `?debug` to the URL to expose the game as `window.stillwater`.
 
+## Phones
+
+On a phone held upright the landscape isn't squeezed: the scene is laid out at least 1.15 times as wide as it is tall and the screen shows a slice of it, centred on what each spot is about (the castle crag at the castle lake, the middle elsewhere); reeds, rocks, lily pads and the rod follow the visible slice. The interface adapts too: the menu drops the title so nothing overlaps, puts a full-width **Рибалити** under the spot card and the four sections in a 2×2 grid of large buttons; dialogs fill the screen and scroll inside, the shop shows two columns of cards; everything stays clear of the notch and the home bar, and buttons don't zoom on double tap.
+
 ## Rendering
 
 Every character is pushed into a glyph batch (position, glyph, color). WebGL2 draws each batch with a single instanced call from a white glyph atlas tinted on the GPU, so the ~25,000 characters on screen cost a few milliseconds per frame. Static scenery (sky gradient, sun, ridges, forest silhouette, water body) is rasterized once into layer textures; clouds and stars are resampled about 15 times per second. Reeds and the rock are drawn on a light 2D overlay. Browsers without WebGL2 fall back to Canvas 2D with the same batches. 
