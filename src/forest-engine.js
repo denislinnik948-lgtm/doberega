@@ -105,7 +105,8 @@ function createTrees(width, height, sunX) {
           bank: true,
           lightSide: centerX < sunX ? 1 : -1,
           swayPhase: hash01(seed * 13) * Math.PI * 2,
-          swayScale: 0.25 * (0.78 + hash01(seed * 17) * 0.44),
+          // Near trees are big on screen, so their sway reads clearly.
+          swayScale: (0.5 + t * 0.6) * (0.78 + hash01(seed * 17) * 0.44),
         });
         t += 0.05 + hash01(seed * 19) * 0.07 + t * 0.08;
       }

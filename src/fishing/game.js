@@ -1,4 +1,4 @@
-import { BOOT_CHANCE, LOCATIONS, RODS, biteActivity, rollFish } from "./data.js";
+import { BOOT_CHANCE, LOCATIONS, NIBBLE, RODS, biteActivity, rollFish } from "./data.js";
 
 /**
  * Fishing state machine. Positions are normalized to the viewport (0..1) so the
@@ -234,15 +234,18 @@ export class FishingGame {
    * fiddles for a long time, a teaser goes quiet before coming back. Gaps,
    * twitch strength and dip depth all vary from step to step.
    */
-  planNibble() {
+  planNibble(species) {
     const random = this.random;
-    const roll = random();
-    const temper = roll < 0.18 ? "greedy" : roll < 0.62 ? "nibbler" : roll < 0.87 ? "wary" : "teaser";
+    // Each species leans toward its own kinds of bite and its own rhythm.
+    const style = NIBBLE[species] ?? { tempers: [18, 44, 25, 13], pace: 1, twitches: 1, strength: 1 };
+    const total = style.tempers.reduce((sum, weight) => sum + weight, 0);
+    let roll = random() * total;
+    const temper = ["greedy", "nibbler", "wary", "teaser"].find((_, index) => (roll -= style.tempers[index]) < 0) ?? "nibbler";
     const range = (from, to) => from + random() * (to - from);
     const count = { greedy: [0, 1], nibbler: [2, 6], wary: [4, 9], teaser: [3, 7] }[temper];
-    const twitches = count[0] + Math.floor(random() * (count[1] - count[0] + 1));
+    const twitches = Math.round((count[0] + Math.floor(random() * (count[1] - count[0] + 1))) * style.twitches);
     // Gaps skew short with the odd longer hesitation.
-    const gap = () => (temper === "wary" ? 0.3 + 1.9 * random() ** 1.5 : 0.25 + 1.3 * random() ** 1.8);
+    const gap = () => style.pace * (temper === "wary" ? 0.3 + 1.9 * random() ** 1.5 : 0.25 + 1.3 * random() ** 1.8);
     const dips = new Set();
     if (twitches && random() < 0.5) dips.add(Math.floor(random() * twitches));
     if (twitches > 3 && random() < 0.25) dips.add(Math.floor(random() * twitches));
@@ -252,7 +255,7 @@ export class FishingGame {
     let at = range(0.15, 0.6);
     for (let i = 0; i < twitches; i += 1) {
       if (i === pauseAt) at += range(2.5, 6);
-      steps.push({ at, kind: dips.has(i) ? "dip" : "twitch", strength: range(0.45, 1.4) });
+      steps.push({ at, kind: dips.has(i) ? "dip" : "twitch", strength: range(0.45, 1.4) * style.strength });
       at += gap();
     }
     if (temper === "greedy") at = Math.min(at, range(0.2, 0.9));
@@ -283,10 +286,10 @@ export class FishingGame {
             this.waitTime = this.nextWait();
             break;
           }
-          this.timeline = this.planNibble();
+          this.timeline = this.planNibble(this.fish.species);
           // The fish leads the float off in its own direction as it plays with the bait.
           this.heading = this.random() * Math.PI * 2;
-          this.biteWindow = TUNING.biteWindow * (0.6 + this.random() * 0.8);
+          this.biteWindow = TUNING.biteWindow * (0.6 + this.random() * 0.8) * (NIBBLE[this.fish.species]?.window ?? 1);
           this.enter("nibble");
         }
         break;
@@ -308,7 +311,7 @@ export class FishingGame {
             step.rippled = true;
             // Each twitch or dip tugs the float a little, wandering off the cast point.
             this.heading += (this.random() - 0.5) * 1.4;
-            const tug = (step.kind === "dip" ? 0.009 : 0.005) * (step.strength ?? 1) * (0.5 + this.random());
+            const tug = (step.kind === "dip" ? 0.0045 : 0.0025) * (step.strength ?? 1) * (0.5 + this.random());
             this.moveFloat(Math.cos(this.heading) * tug, Math.sin(this.heading) * tug * 0.6);
             this.ripple(this.target, step.kind === "dip" ? 0.4 : 0.22, 0.2);
           }
@@ -323,7 +326,7 @@ export class FishingGame {
         this.float.sink = 1;
         // Once it takes, the fish drags the sunk float steadily away.
         this.driftFloat(dt);
-        this.moveFloat(Math.cos(this.heading) * 0.012 * dt, Math.sin(this.heading) * 0.007 * dt);
+        this.moveFloat(Math.cos(this.heading) * 0.006 * dt, Math.sin(this.heading) * 0.0035 * dt);
         if (this.clock >= (this.biteWindow ?? TUNING.biteWindow)) this.escape("late");
         break;
 

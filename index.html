@@ -49,32 +49,21 @@
       </section>
 
       <!-- In-game HUD. -->
+      <!-- In-game HUD: the clock on the left, the way out on the right. -->
       <div class="hud hud-top game-only">
-        <div class="chip" data-frame="box" data-i18n-aria="a11y.money">
-          <span class="chip-icon coin-slot"></span>
-          <span class="money-value">30</span>
-        </div>
-        <div class="hud-buttons">
-          <div class="clock" data-frame="box" data-i18n-aria="a11y.clock"><span class="clock-icon" aria-hidden="true"></span><span class="clock-value">16:00</span><span class="weather-icon" data-i18n-aria="a11y.rain" hidden></span></div>
-          <span class="spot-label" data-frame="box"><span id="spot-label"></span></span>
-          <button id="exit-button" class="icon-btn" data-frame="box" type="button" data-i18n-aria="a11y.exit" data-i18n-title="a11y.exitTitle"></button>
-        </div>
+        <div class="clock" data-frame="box" data-i18n-aria="a11y.clock"><span class="clock-icon" aria-hidden="true"></span><span class="clock-value">16:00</span><span class="weather-icon" data-i18n-aria="a11y.rain" hidden></span></div>
+        <button id="exit-button" class="icon-btn" data-frame="box" type="button" data-i18n-aria="a11y.exit" data-i18n-title="a11y.exitTitle"></button>
       </div>
 
+      <!-- Gear: one backpack button (rod and bait are changed inside), with the bait in use beside it. -->
       <div class="hud loadout game-only" id="loadout">
-        <button class="slot" id="rod-slot" data-frame="well" type="button" aria-haspopup="true" aria-expanded="false" data-i18n-aria="a11y.rod">
-          <span class="slot-sprite" id="rod-sprite"></span>
-          <span class="slot-tag" id="rod-tag"></span>
+        <button class="slot" id="pack-slot" data-frame="well" type="button" aria-haspopup="dialog" data-i18n-aria="menu.pack">
+          <span class="slot-sprite" id="pack-slot-sprite"></span>
         </button>
-        <button class="slot" id="bait-slot" data-frame="well" type="button" aria-haspopup="true" aria-expanded="false" data-i18n-aria="a11y.bait">
-          <span class="slot-sprite" id="bait-sprite"></span>
-          <span class="slot-tag" id="bait-tag">×5</span>
-        </button>
-        <div class="slot slot-static" id="hook-slot" data-frame="well" data-i18n-aria="a11y.hooks">
-          <span class="slot-sprite" id="hook-sprite"></span>
-          <span class="slot-tag" id="hook-tag">×5</span>
+        <div class="bait-chip" id="bait-chip" data-frame="box">
+          <span class="bait-chip-sprite" id="bait-chip-sprite"></span>
+          <span class="bait-chip-count" id="bait-chip-count">×5</span>
         </div>
-        <div class="picker" id="picker" data-frame="box" role="listbox" hidden></div>
       </div>
 
       <div class="fight-hud" id="fight-hud" hidden>
@@ -88,7 +77,8 @@
 
     <dialog class="sheet catch-sheet" id="catch-dialog" data-frame="ornate" aria-labelledby="catch-title">
       <div class="card-scene">
-        <div class="title-tab" data-frame="tab" tabindex="-1" autofocus data-i18n="catch.title">Catch</div>
+        <!-- Takes focus when the dialog opens, so Space can't press a button by accident. -->
+        <div class="focus-sink" tabindex="-1" autofocus></div>
         <div class="picture" id="catch-art" data-frame="picture"></div>
       </div>
       <div class="caption" data-frame="box">
@@ -121,6 +111,7 @@
     <dialog class="sheet sheet-wide" id="pack-dialog" data-frame="ornate" aria-labelledby="pack-title">
       <header class="sheet-heading">
         <h2 class="title-tab" id="pack-title" data-frame="tab" data-i18n="pack.title">Backpack</h2>
+        <div class="chip chip-small pack-hooks" data-frame="box" data-i18n-aria="a11y.hooks"><span class="chip-icon" id="pack-hook-sprite"></span><span id="pack-hook-count">×5</span></div>
         <form method="dialog"><button class="pixel-btn pixel-btn-square" type="submit" data-i18n-aria="a11y.close">✕</button></form>
       </header>
       <div class="pack-body">

@@ -520,7 +520,7 @@ function addCrag({ to, peak }, width, height, cellWidth, lineHeight, out) {
         const crack = hash2(column, 0, 4111) > 0.75;
         out.cells.push({ x, y, column, row, glyph: crack ? "|" : "#%:/\\.:"[Math.floor(noise * 7)], color: noise > 0.55 ? "#b4b4aa" : noise > 0.2 ? "#8e8f86" : "#6a6b64" });
       } else {
-        out.cells.push({ x, y, column, row, ...crownGlyph(x, y, noise) });
+        out.cells.push({ x, y, column, row, rustle: true, ...crownGlyph(x, y, noise) });
       }
     }
   }

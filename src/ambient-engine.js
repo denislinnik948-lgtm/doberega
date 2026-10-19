@@ -42,9 +42,9 @@ export function createAmbient({ scene, structures, ridgeCells, bankCells, width,
     ...(grassBanks ? bankCells : []).map((cell) => ({ ...cell, colorValue: parseInt(cell.color.slice(1), 16) })),
   ];
 
-  // Mist sits in a band of rows straddling the far shoreline.
+  // Mist sits in a band of rows straddling the far shoreline (not on fast rivers).
   const mist = [];
-  for (let x = cellWidth; x < width; x += cellWidth * 1.5) {
+  for (let x = cellWidth; scene.mist !== false && x < width; x += cellWidth * 1.5) {
     const shore = shorelineY(x);
     for (let k = -4; k <= 2; k += 1) mist.push({ x, y: shore + k * lineHeight * 0.7, row: k });
   }
@@ -62,8 +62,12 @@ export function createAmbient({ scene, structures, ridgeCells, bankCells, width,
     }
   }
 
+  // Leaves on the near wooded hill rustle in place.
+  const leaves = (structures.cells ?? []).filter((cell) => cell.rustle).map((cell) => ({ ...cell, colorValue: parseInt(cell.color.slice(1), 16) }));
+
   return {
     breeze,
+    leaves,
     breezyRidges: breezy,
     grassBanks,
     chimneys: structures.chimneys ?? [],
@@ -94,6 +98,13 @@ export function fillAmbient(ambient, { ground, haze, glow }, time, dayTime, rain
     ground.push(cell.x + lean, cell.y, cell.glyph, wave > 0.05 ? mix(cell.colorValue, 0xe8e6b8, wave * 0.45) : cell.colorValue);
   }
 
+  // Leaves stir a pixel or so and catch the light as gusts pass.
+  for (const cell of ambient.leaves) {
+    const stir = Math.sin(time * 1.1 + cell.x * 0.031 + cell.y * 0.047);
+    const gust = Math.max(0, Math.sin(cell.x * 0.012 - time * 0.6)) ** 4;
+    ground.push(cell.x + stir * 0.7 * (0.4 + gust), cell.y + stir * 0.25, cell.glyph, gust > 0.1 ? mix(cell.colorValue, 0xb8d07a, gust * 0.35) : cell.colorValue);
+  }
+
   // Chimney smoke rises, drifts downwind and thins out; rain beats it down.
   const rise = 1 - rain * 0.5;
   for (const chimney of ambient.chimneys) {
@@ -110,7 +121,8 @@ export function fillAmbient(ambient, { ground, haze, glow }, time, dayTime, rain
   }
 
   // Mist drifts slowly along the far shore.
-  const strength = mistStrength(dayTime);
+  // Rain clears the mist away.
+  const strength = mistStrength(dayTime) * Math.max(0, 1 - rain * 4);
   if (strength > 0.05) {
     for (const cell of ambient.mist) {
       // Thickest right on the waterline, thinning upward into the trees.

@@ -84,7 +84,10 @@ function setMode(next) {
 }
 
 const ui = new AnglerUI(progress, {
-  onFish: () => setMode("fishing"),
+  onFish: () => {
+    ui.chooseBestBait();
+    setMode("fishing");
+  },
   onExit: () => setMode("menu"),
   onSpotChange: applySpot,
 });

@@ -43,9 +43,7 @@ export class AnglerUI {
     this.packDialog = $("#pack-dialog");
     this.handbookDialog = $("#handbook-dialog");
     this.settingsDialog = $("#settings-dialog");
-    this.picker = $("#picker");
-    this.rodSlot = $("#rod-slot");
-    this.baitSlot = $("#bait-slot");
+    this.packSlot = $("#pack-slot");
     this.shopQuantities = {};
 
     frameAll();
@@ -55,15 +53,11 @@ export class AnglerUI {
     $("#trophy-icon").append(cupSprite(3));
     $("#exit-button").append(exitSprite(3));
     $("#settings-icon").append(gearSprite(3));
-    $("#hook-sprite").append(hookSprite(3));
+    $("#pack-slot-sprite").append(packSprite(3));
+    $("#pack-hook-sprite").append(hookSprite(2));
 
-    this.rodSlot.addEventListener("click", () => this.togglePicker("rod"));
-    this.baitSlot.addEventListener("click", () => this.togglePicker("bait"));
-    document.addEventListener("pointerdown", (event) => {
-      if (!this.picker.hidden && !event.target.closest("#loadout")) this.closePicker();
-    });
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") this.closePicker();
+    this.packSlot.addEventListener("click", () => {
+      if (!this.busy) this.openPack();
     });
 
     $("#spot-prev").addEventListener("click", () => this.shiftSpot(-1));
@@ -130,10 +124,8 @@ export class AnglerUI {
   /** Lock gear changes and leaving while a line is in the water. */
   setBusy(busy) {
     this.busy = busy;
-    this.rodSlot.disabled = busy;
-    this.baitSlot.disabled = busy;
+    this.packSlot.disabled = busy;
     $("#exit-button").disabled = busy;
-    if (busy) this.closePicker();
   }
 
   render() {
@@ -146,20 +138,16 @@ export class AnglerUI {
     trophyCount.textContent = String(progress.trophies.length);
     trophyCount.hidden = progress.trophies.length === 0;
 
-    $("#rod-sprite").replaceChildren(rodArt(progress.rod, 3));
-    $("#rod-tag").textContent = formatWeight(rod.maxKg);
-    this.rodSlot.setAttribute("aria-label", `${t("a11y.rod")}: ${nameOf("rod", progress.rod)}, ${t("shop.upTo", { weight: formatWeight(rod.maxKg) })}`);
+    // The bait in use sits beside the backpack button.
+    const chip = $("#bait-chip");
+    $("#bait-chip-sprite").replaceChildren(baitSprite(progress.bait, 3));
+    $("#bait-chip-count").textContent = countLabel(this.baitCount);
+    chip.classList.toggle("is-empty", this.baitCount <= 0);
+    chip.setAttribute("aria-label", `${t("a11y.bait")}: ${nameOf("bait", progress.bait)}, ${countLabel(this.baitCount)}`);
+    this.packSlot.setAttribute("aria-label", `${t("menu.pack")}: ${nameOf("rod", progress.rod)}, ${t("shop.upTo", { weight: formatWeight(rod.maxKg) })}`);
 
-    $("#bait-sprite").replaceChildren(baitSprite(progress.bait, 3));
-    $("#bait-tag").textContent = countLabel(this.baitCount);
-    this.baitSlot.classList.toggle("is-empty", this.baitCount <= 0);
-    this.baitSlot.setAttribute("aria-label", `${t("a11y.bait")}: ${nameOf("bait", progress.bait)}, ${countLabel(this.baitCount)}`);
-
-    $("#hook-tag").textContent = `×${progress.hooks}`;
-    $("#hook-slot").classList.toggle("is-empty", progress.hooks <= 0);
-    $("#hook-slot").setAttribute("aria-label", `${t("a11y.hooks")}: ${progress.hooks} ${t("unit.pcs")}`);
-
-    if (!this.picker.hidden) this.fillPicker(this.pickerKind);
+    $("#pack-hook-count").textContent = `×${progress.hooks}`;
+    $("#pack-hook-count").closest(".chip").classList.toggle("is-empty", progress.hooks <= 0);
   }
 
   /** A rain cloud beside the clock while it's raining. */
@@ -204,7 +192,6 @@ export class AnglerUI {
     picture.dataset.variant = spot.kind;
     repaint(picture);
     setContent($("#spot-name"), nameOf("location", spot.id));
-    $("#spot-label").textContent = nameOf("location", spot.id);
     setContent($("#spot-traits"), ...Object.entries(spot.traits).flatMap(([key, value]) => [
       element("dt", { textContent: traitLabel(key) }),
       element("dd", { textContent: traitValue(key, value) }),
@@ -212,64 +199,20 @@ export class AnglerUI {
     $("#spot-dots").replaceChildren(...LOCATIONS.map((_, index) => element("span", { className: index === this.progress.location ? "is-active" : "" })));
   }
 
-  /* ---------- Loadout picker ---------- */
+  /* ---------- Gear ---------- */
 
-  togglePicker(kind) {
-    if (this.busy) return;
-    if (!this.picker.hidden && this.pickerKind === kind) {
-      this.closePicker();
-      return;
-    }
-    this.pickerKind = kind;
-    this.fillPicker(kind);
-    this.picker.hidden = false;
-    this.picker.dataset.kind = kind;
-    this.rodSlot.setAttribute("aria-expanded", String(kind === "rod"));
-    this.baitSlot.setAttribute("aria-expanded", String(kind === "bait"));
-    this.picker.querySelector("[aria-selected='true']")?.focus();
-  }
-
-  closePicker() {
-    this.picker.hidden = true;
-    this.rodSlot.setAttribute("aria-expanded", "false");
-    this.baitSlot.setAttribute("aria-expanded", "false");
+  /** Arriving at the water, put on the priciest bait you have (bread if nothing else). */
+  chooseBestBait() {
+    const { progress } = this;
+    const best = Object.entries(BAITS)
+      .filter(([id, bait]) => !bait.free && baitCount(progress, id) > 0)
+      .sort(([, a], [, b]) => b.price - a.price)[0];
+    progress.bait = best ? best[0] : Object.keys(BAITS).find((id) => BAITS[id].free);
+    this.commit();
   }
 
   ownedBaits() {
     return Object.keys(BAITS).filter((id) => baitCount(this.progress, id) > 0 || id === this.progress.bait);
-  }
-
-  fillPicker(kind) {
-    const { progress } = this;
-    const choose = (apply) => () => {
-      apply();
-      this.closePicker();
-      this.commit();
-    };
-    const items = kind === "rod"
-      ? progress.rods.map((id) => ({
-        selected: id === progress.rod,
-        art: rodArt(id, 2),
-        title: nameOf("rod", id),
-        tag: formatWeight(RODS[id].maxKg),
-        onclick: choose(() => { progress.rod = id; }),
-      }))
-      : this.ownedBaits().map((id) => ({
-        selected: id === progress.bait,
-        art: baitSprite(id, 2),
-        title: nameOf("bait", id),
-        tag: countLabel(baitCount(progress, id)),
-        onclick: choose(() => { progress.bait = id; }),
-      }));
-
-    setContent(this.picker, ...items.map((item) => element("button", {
-      className: `pick${item.selected ? " is-selected" : ""}`,
-      type: "button",
-      role: "option",
-      ariaSelected: String(item.selected),
-      title: item.title,
-      onclick: item.onclick,
-    }, [item.art, element("span", { className: "pick-tag", textContent: item.tag })])));
   }
 
   /* ---------- HUD ---------- */
@@ -501,11 +444,11 @@ export class AnglerUI {
       id === progress.bait, baitSprite(id, 3), nameOf("bait", id), countLabel(baitCount(progress, id)),
       choose(() => { progress.bait = id; }),
     )));
-    $("#pack-extras").replaceChildren(tile(false, hookSprite(3), t("shop.hooks"), `×${progress.hooks}`, () => {}), ...progress.extras.map((id) => tile(
+    $("#pack-extras").replaceChildren(...progress.extras.map((id) => tile(
       false, extraSprite(id, 3), nameOf("extra", id), id === "handbook" ? t("pack.read") : "",
       id === "handbook" ? () => this.openHandbook() : () => {},
     )));
-    $("#pack-extras-empty").hidden = true;
+    $("#pack-extras-empty").hidden = progress.extras.length > 0;
     if (!this.packDialog.open) this.packDialog.showModal();
   }
 

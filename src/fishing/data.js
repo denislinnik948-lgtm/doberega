@@ -26,6 +26,28 @@ export const FISH = {
   boot: { min: 0.6, max: 1.4, pricePerKg: 0, junk: true, active: { base: 0, peaks: [] } },
 };
 
+/**
+ * How each fish takes the bait. `tempers` weights the four kinds of bite
+ * (greedy grab, playful nibbler, wary fiddler, teaser that goes quiet);
+ * `pace` stretches the gaps between twitches (above 1 is slower), `twitches`
+ * scales how many there are, `strength` how hard they pull the float, and
+ * `window` how long the float stays under before the fish lets go.
+ */
+export const NIBBLE = {
+  yorzh: { tempers: [5, 4, 1, 0], pace: 0.7, twitches: 1.3, strength: 0.7, window: 1.2 },
+  plitka: { tempers: [2, 6, 1, 1], pace: 0.75, twitches: 1.2, strength: 0.6, window: 0.85 },
+  krasnopirka: { tempers: [2, 6, 1, 1], pace: 0.8, twitches: 1.1, strength: 0.6, window: 0.9 },
+  karas: { tempers: [1, 4, 4, 2], pace: 1.15, twitches: 1.4, strength: 0.65, window: 1 },
+  okun: { tempers: [6, 3, 1, 0], pace: 0.7, twitches: 0.8, strength: 1.2, window: 1.1 },
+  lyn: { tempers: [0, 2, 5, 3], pace: 1.5, twitches: 0.9, strength: 0.8, window: 1.3 },
+  lyasch: { tempers: [0, 3, 4, 3], pace: 1.35, twitches: 1, strength: 0.75, window: 1.2 },
+  korop: { tempers: [1, 2, 5, 2], pace: 1.3, twitches: 1.1, strength: 1.1, window: 1 },
+  shchuka: { tempers: [6, 1, 1, 2], pace: 0.9, twitches: 0.6, strength: 1.4, window: 1.2 },
+  sudak: { tempers: [1, 3, 5, 1], pace: 1.1, twitches: 0.8, strength: 0.7, window: 0.8 },
+  som: { tempers: [2, 1, 3, 4], pace: 1.6, twitches: 0.6, strength: 1.5, window: 1.4 },
+  boot: { tempers: [1, 0, 0, 0], pace: 1, twitches: 0, strength: 0.5, window: 1 },
+};
+
 /** Chance that reeling in an empty line hooks an old boot. */
 export const BOOT_CHANCE = 0.012;
 

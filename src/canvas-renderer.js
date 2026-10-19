@@ -408,6 +408,8 @@ export class CanvasWaterRenderer {
       ctx.fill();
     }
     for (const cell of this.structureCells) {
+      // Rustling leaves are drawn every frame by the ambient layer.
+      if (cell.rustle) continue;
       ctx.fillStyle = cell.color;
       ctx.fillText(cell.glyph, cell.x, cell.y);
     }
