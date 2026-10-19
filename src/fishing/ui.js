@@ -138,6 +138,7 @@ export class AnglerUI {
     const strip = $("#account-strip");
     strip.classList.toggle("is-safe", signedIn);
     $("#account-strip-text").textContent = signedIn ? t("account.cloudAs", { name: cloud.displayName }) : t("account.local");
+    strip.title = signedIn ? t("account.cloud") : t("savePrompt.warning");
     const button = $("#account-button");
     // Without a configured backend there's nothing to sign in to; the warning still stands.
     button.hidden = !cloud?.enabled;
