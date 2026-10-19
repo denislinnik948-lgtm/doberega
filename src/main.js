@@ -1,5 +1,5 @@
 import { CanvasWaterRenderer } from "./canvas-renderer.js";
-import { activeScene } from "./scene.js";
+import { activeScene, currentAt } from "./scene.js";
 import { DAY_SECONDS, dayTimeAt } from "./daycycle.js";
 import { nameOf, t } from "./i18n.js";
 import { Weather } from "./weather.js";
@@ -135,6 +135,10 @@ function isOnWater(x, y) {
     && y < height * TUNING.nearY
     && renderer.isOpenWater(x, y);
 }
+
+// The float drifts only where the current runs, and never onto a bank.
+game.currentAt = (x, y) => currentAt(x, y);
+game.isWater = (point) => isOnWater(point.x * width, point.y * height);
 
 function tryCast(x, y) {
   if (mode !== "fishing" || !isOnWater(x, y)) return;

@@ -69,6 +69,10 @@ export class FishingGame {
     // both kept current by the host.
     this.hour = 18;
     this.biteBoost = 1;
+    // Set by the host: the current at a float position, and whether a point is
+    // open water the float can drift onto.
+    this.currentAt = () => ({ x: 0, y: 0 });
+    this.isWater = () => true;
     this.reset();
   }
 
@@ -96,7 +100,7 @@ export class FishingGame {
     this.bait = baitId;
     this.location = location;
     this.extras = extras;
-    this.target = target;
+    this.target = { ...target };
     this.enter("casting");
     return true;
   }
@@ -185,6 +189,18 @@ export class FishingGame {
     if (point) this.emit("ripple", { x: point.x, y: point.y, strength, size });
   }
 
+  /** Nudge the float, unless that would push it onto a bank or out of the water. */
+  moveFloat(dx, dy) {
+    const next = { x: this.target.x + dx, y: this.target.y + dy };
+    if (this.isWater(next)) this.target = next;
+  }
+
+  /** Current carries the float along; on still water it stays exactly where it landed. */
+  driftFloat(dt) {
+    const flow = this.currentAt(this.target.x, this.target.y);
+    if (flow.x || flow.y) this.moveFloat(flow.x * dt, flow.y * dt);
+  }
+
   /** Where the hooked fish is: it moves from the cast point toward the angler. */
   fishPosition() {
     const landing = { x: 0.5, y: 0.98 };
@@ -258,6 +274,7 @@ export class FishingGame {
         break;
 
       case "waiting":
+        this.driftFloat(dt);
         if (this.clock >= this.waitTime) {
           this.fish = rollFish(this.bait, this.location, random, this.reach(), this.hour);
           if (!this.fish) {
@@ -267,12 +284,15 @@ export class FishingGame {
             break;
           }
           this.timeline = this.planNibble();
+          // The fish leads the float off in its own direction as it plays with the bait.
+          this.heading = this.random() * Math.PI * 2;
           this.biteWindow = TUNING.biteWindow * (0.6 + this.random() * 0.8);
           this.enter("nibble");
         }
         break;
 
       case "nibble": {
+        this.driftFloat(dt);
         this.float.offset = 0;
         this.float.sink = 0;
         for (const step of this.timeline) {
@@ -286,6 +306,10 @@ export class FishingGame {
           if (age < 0 || age > 0.45) continue;
           if (!step.rippled) {
             step.rippled = true;
+            // Each twitch or dip tugs the float a little, wandering off the cast point.
+            this.heading += (this.random() - 0.5) * 1.4;
+            const tug = (step.kind === "dip" ? 0.009 : 0.005) * (step.strength ?? 1) * (0.5 + this.random());
+            this.moveFloat(Math.cos(this.heading) * tug, Math.sin(this.heading) * tug * 0.6);
             this.ripple(this.target, step.kind === "dip" ? 0.4 : 0.22, 0.2);
           }
           const strength = step.strength ?? 1;
@@ -297,6 +321,9 @@ export class FishingGame {
 
       case "bite":
         this.float.sink = 1;
+        // Once it takes, the fish drags the sunk float steadily away.
+        this.driftFloat(dt);
+        this.moveFloat(Math.cos(this.heading) * 0.012 * dt, Math.sin(this.heading) * 0.007 * dt);
         if (this.clock >= (this.biteWindow ?? TUNING.biteWindow)) this.escape("late");
         break;
 

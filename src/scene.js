@@ -89,7 +89,8 @@ export const SCENES = {
     ],
     forest: { heightScale: 0.55, spacingScale: 1.7, broadleaf: 0.3, gaps: [[0.58, 1.02]] },
     structures: { dam: { from: 0.6, to: 0.97 }, pylons: [0.14, 0.33, 0.5] },
-    water: {},
+    // A weak current sets slowly toward the dam.
+    water: { drift: { x: 0.0016, y: 0 } },
     foreground: { reeds: 0, rock: false, lilyPads: 0, blocks: true },
   },
   /**
@@ -112,7 +113,7 @@ export const SCENES = {
     structures: {},
     // The current runs away from us, then turns right with the bend
     // (pivot and the depths where the turn starts and completes).
-    water: { flow: 60, flowAway: true, bend: { x: 1.05, y: 0.68, from: 0.66, to: 0.43 } },
+    water: { flow: 60, flowAway: true, bend: { x: 1.05, y: 0.68, from: 0.66, to: 0.43 }, drift: { away: 0.009 } },
     foreground: { reeds: 0.35, rock: false, lilyPads: 0, bridge: 0.875 },
   },
 };
@@ -154,6 +155,20 @@ export function isOpenWater(x, y, width, height) {
   return true;
 }
 
+
+/**
+ * How fast the current carries a float at a normalized screen point, in
+ * screen fractions per second. Still water returns zero. A downstream river
+ * carries it away from the viewer, slower in the distance, and round the bend.
+ */
+export function currentAt(x, y) {
+  const { drift, bend } = active.water;
+  if (!drift) return { x: 0, y: 0 };
+  if (!drift.away) return { x: drift.x ?? 0, y: drift.y ?? 0 };
+  const distance = Math.min(1, Math.max(0.15, (y - active.horizon) / (1 - active.horizon)));
+  const turn = bend ? Math.min(1, Math.max(0, (bend.from - y) / (bend.from - bend.to))) ** 1.4 * Math.PI * 0.5 : 0;
+  return { x: Math.sin(turn) * drift.away * distance, y: -Math.cos(turn) * drift.away * distance };
+}
 
 export function sunPosition(width, height) {
   return {
