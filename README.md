@@ -14,7 +14,7 @@ Each spot has its own ASCII landscape, built from a profile in `src/scene.js` (h
 
 - **Ставок за селом** — a pond in open farmland: big sky, a low flat far bank of green meadow and a ploughed strip, scattered round trees and tall poplars, a few small cottages in the distance, a reed fringe along the far waterline, and thick reeds and cattails on both near sides.
 - **Тихе озеро** — layered mountains behind a forested shore, reeds, a boulder and a few lily pads.
-- **Ріка під замком** — a medieval river: a stone castle on a craggy hill across the water (curtain wall with a gate, towers under red tiled cones, a tall keep, banners; windows and torches glow at dusk), thatched huts along the shore, the current drifting sideways with a couple of foamy rocks, and reeds at the near corners.
+- **Ріка під замком** — a medieval river: a stone castle on a craggy hill across the water (curtain wall with a gate, towers under red tiled cones, a tall keep, banners; windows and torches glow at dusk), an old stone bridge with three round arches over a stream mouth, a half-timbered watermill whose wheel turns and churns white water, a hut along the shore, the current drifting sideways with a couple of foamy rocks, and reeds at the near corners.
 - **Затока водосховища** — wide open water, low far hills, a concrete dam with gates and lamps, power pylons with sagging wires, concrete blocks in the foreground.
 - **Старий міст** — fishing from a wooden bridge over a fast river: we look downstream past the railing, willow-lined banks recede toward a bend, and the current races away in long streaks and flecks of foam (no casting onto the railing).
 

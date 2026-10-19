@@ -229,6 +229,28 @@ function landscape(px, w, h, random, kind) {
   } else if (kind === "river") {
     ridge(px, x0, x1, horizon, 14 * unit, 0.9, P.dark, horizon + 1);
     for (let x = x0 + 2; x < Math.round(w * 0.46); x += 3 + Math.floor(random() * 5)) pine(px, x, horizon + 1, Math.round((5 + random() * 8) * unit), P.deep);
+    // Watermill with its wheel, and a stone bridge with round arches.
+    const millX = Math.round(w * 0.1);
+    px.rect(millX - Math.round(w * 0.04), horizon - Math.round(8 * unit), Math.round(w * 0.08), Math.round(8 * unit), P.soft);
+    for (let k = 0; k < Math.round(w * 0.05); k += 1) px.rect(millX - Math.round(w * 0.05) + k, horizon - Math.round(8 * unit) - k, Math.max(1, Math.round(w * 0.1) - 2 * k), 1, P.goldDark);
+    const wheelR = Math.round(7 * unit);
+    const wheelX = millX + Math.round(w * 0.04) + wheelR + 1;
+    for (let a = 0; a < 48; a += 1) px.set(wheelX + Math.round(Math.cos(a / 7.64) * wheelR), horizon - Math.round(3 * unit) + Math.round(Math.sin(a / 7.64) * wheelR), P.gold);
+    for (let a = 0; a < 4; a += 1) for (let k = 0; k < wheelR; k += 1) px.set(wheelX + Math.round(Math.cos(a * 0.785) * k), horizon - Math.round(3 * unit) + Math.round(Math.sin(a * 0.785) * k), P.goldDark);
+    const bx0 = Math.round(w * 0.27);
+    const bx1 = Math.round(w * 0.47);
+    const deck = horizon - Math.round(9 * unit);
+    px.rect(bx0, deck, bx1 - bx0, horizon - deck + 1, P.soft);
+    px.rect(bx0, deck, bx1 - bx0, 1, P.light);
+    for (let i = 0; i < 3; i += 1) {
+      const ax = bx0 + ((bx1 - bx0) * (i + 0.5)) / 3;
+      const ar = (bx1 - bx0) / 3 * 0.36;
+      for (let y = deck + 2; y <= horizon; y += 1) {
+        const dy = (horizon - y) / (horizon - deck - 2);
+        const half = Math.round(ar * Math.sqrt(Math.max(0, 1 - dy * dy)));
+        if (half > 0) px.rect(Math.round(ax - half), y, half * 2, 1, P.ink);
+      }
+    }
     // Castle on a rocky hill: curtain wall, coned towers, a tall keep.
     const cx = Math.round(w * 0.7);
     const ground = horizon - Math.round(7 * unit);

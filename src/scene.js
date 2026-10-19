@@ -68,7 +68,9 @@ export const SCENES = {
     forest: { heightScale: 1.1, spacingScale: 1.2, broadleaf: 0.55, gaps: [[0.5, 0.92]] },
     structures: {
       castle: { x: 0.7, width: 0.24 },
-      houses: { at: [0.16, 0.27, 0.95], scale: 0.6 },
+      archBridge: { from: 0.27, to: 0.47, arches: 3 },
+      mill: { x: 0.09 },
+      houses: { at: [0.96], scale: 0.6 },
     },
     water: {
       flow: 22,

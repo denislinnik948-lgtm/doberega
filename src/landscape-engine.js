@@ -195,9 +195,120 @@ export function createStructures(width, height, cellWidth, lineHeight) {
     }
   }
 
-  if (structures.castle) addCastle(structures.castle, width, height, cellWidth, lineHeight, { cells, lights, shapes });
+  const out = { cells, lights, shapes, wheels: [] };
+  if (structures.castle) addCastle(structures.castle, width, height, cellWidth, lineHeight, out);
+  if (structures.archBridge) addArchBridge(structures.archBridge, width, height, cellWidth, lineHeight, out);
+  if (structures.mill) addMill(structures.mill, width, height, cellWidth, lineHeight, out);
 
-  return { cells, lights, shapes };
+  return out;
+}
+
+/** Old stone bridge over a stream mouth on the far bank, with round arches. */
+function addArchBridge({ from, to, arches }, width, height, cellWidth, lineHeight, out) {
+  const x0 = width * from;
+  const x1 = width * to;
+  const base = Math.max(shorelineY(x0, height), shorelineY(x1, height)) - lineHeight * 0.2;
+  const rows = Math.max(4, Math.round((height * 0.06) / lineHeight));
+  const top = base - rows * lineHeight;
+  const span = (x1 - x0) / arches;
+  const archRadius = span * 0.36;
+  const archHeight = (rows - 1.6) * lineHeight;
+  const insideArch = (x, y) => {
+    for (let i = 0; i < arches; i += 1) {
+      const ax = x0 + span * (i + 0.5);
+      const dx = (x - ax) / archRadius;
+      const dy = (base + lineHeight * 0.5 - y) / archHeight;
+      if (dy >= 0 && dx * dx + dy * dy < 1) return true;
+    }
+    return false;
+  };
+  // Solid masonry silhouette, with the dark water of the stream under each arch.
+  out.shapes.push({ points: [[x0 - cellWidth, base + lineHeight * 0.5], [x0, top], [x1, top], [x1 + cellWidth, base + lineHeight * 0.5]], color: "#545248" });
+  for (let i = 0; i < arches; i += 1) {
+    const ax = x0 + span * (i + 0.5);
+    const points = [];
+    for (let k = 0; k <= 16; k += 1) {
+      const angle = Math.PI - (k / 16) * Math.PI;
+      points.push([ax + Math.cos(angle) * archRadius, base + lineHeight * 0.5 - Math.sin(angle) * archHeight]);
+    }
+    out.shapes.push({ points, color: "#162026" });
+  }
+  for (let r = 0; r <= rows; r += 1) {
+    const y = base - r * lineHeight;
+    for (let x = x0; x <= x1; x += cellWidth) {
+      const cell = cellAt(x, y, cellWidth, lineHeight);
+      const noise = hash2(cell.column, cell.row, 2203);
+      if (insideArch(cell.x, cell.y)) {
+        // A glimpse of the stream running out under the arch.
+        if (r === 0 && noise > 0.4) out.cells.push({ ...cell, glyph: noise > 0.7 ? "~" : "-", color: "#4f6f7a" });
+        continue;
+      }
+      const ring = insideArch(cell.x, cell.y + lineHeight) || insideArch(cell.x - cellWidth, cell.y) || insideArch(cell.x + cellWidth, cell.y);
+      let glyph;
+      let color;
+      if (r === rows) {
+        // Low parapet along the deck.
+        if (noise < 0.25) continue;
+        glyph = noise > 0.85 ? "n" : "_";
+        color = "#a39e8a";
+      } else if (r === rows - 1) {
+        glyph = "=";
+        color = noise > 0.5 ? "#9a9480" : "#868070";
+      } else if (ring) {
+        glyph = "#";
+        color = "#8f8a76";
+      } else {
+        glyph = (r + Math.floor(cell.column / 2)) % 2 ? ":" : "=";
+        color = noise > 0.6 ? "#7a7564" : noise > 0.2 ? "#686456" : "#55524a";
+      }
+      out.cells.push({ ...cell, glyph, color });
+    }
+  }
+}
+
+/** A watermill: a timber house under a thatched roof, its wheel turning in the river. */
+function addMill({ x: fx }, width, height, cellWidth, lineHeight, out) {
+  const cx = width * fx;
+  const base = shorelineY(cx, height) - lineHeight * 0.6;
+  const half = 5;
+  const wallRows = Math.max(3, Math.round((height * 0.04) / lineHeight));
+  const roofRows = 4;
+  const left = cx - (half + 0.5) * cellWidth;
+  const right = cx + (half + 0.5) * cellWidth;
+  const wallTop = base - (wallRows - 0.5) * lineHeight;
+  out.shapes.push({ points: [[left, base + lineHeight * 0.5], [left, wallTop], [right, wallTop], [right, base + lineHeight * 0.5]], color: "#4a3a2c" });
+  out.shapes.push({ points: [[left - cellWidth * 1.5, wallTop], [cx, wallTop - roofRows * lineHeight], [right + cellWidth * 1.5, wallTop]], color: "#5e4e2c" });
+  for (let r = 0; r < wallRows; r += 1) {
+    const y = base - r * lineHeight;
+    for (let c = -half; c <= half; c += 1) {
+      const cell = cellAt(cx + c * cellWidth, y, cellWidth, lineHeight);
+      const edge = Math.abs(c) === half;
+      // Half-timbering: dark posts and a cross brace over pale daub.
+      const timber = edge || c === 0 || r === wallRows - 1 || (r === 1 && Math.abs(c) === 3);
+      const window = r === wallRows - 2 && Math.abs(c) === 2;
+      out.cells.push({ ...cell, glyph: window ? "#" : timber ? (edge || c === 0 ? "|" : "=") : r === 0 ? "_" : ".", color: window ? "#e2b85e" : timber ? "#4a3626" : "#b0a488" });
+      if (window) out.lights.push(out.cells[out.cells.length - 1]);
+    }
+  }
+  for (let r = 0; r < roofRows; r += 1) {
+    const span = Math.round(half + 2 - (r * (half + 2)) / roofRows);
+    for (let c = -span; c <= span; c += 1) {
+      const cell = cellAt(cx + c * cellWidth, base - (wallRows + r) * lineHeight, cellWidth, lineHeight);
+      const glyph = c === -span ? "/" : c === span ? "\\" : r === roofRows - 1 ? "^" : "\"';,"[Math.floor(hash2(cell.column, cell.row, 61) * 4)];
+      out.cells.push({ ...cell, glyph, color: c < 0 ? "#a08a52" : "#7e6a3c" });
+    }
+  }
+  // The wheel turns every frame, so the renderer draws it from this description.
+  const radius = Math.max(3, (height * 0.055) / lineHeight) * lineHeight;
+  const wheel = { x: right + radius * 1.1, y: base - radius * 0.55, radius };
+  out.wheels.push(wheel);
+  // A dark disc behind the turning wheel keeps it legible against the trees.
+  const disc = [];
+  for (let k = 0; k < 24; k += 1) {
+    const a = (k / 24) * Math.PI * 2;
+    disc.push([wheel.x + Math.cos(a) * radius * 1.3, wheel.y + Math.sin(a) * radius * 1.1]);
+  }
+  out.shapes.push({ points: disc, color: "#1a140e" });
 }
 
 /**
