@@ -90,6 +90,9 @@ export class AnglerUI {
     document.querySelectorAll("[data-i18n-aria]").forEach((node) => node.setAttribute("aria-label", t(node.dataset.i18nAria)));
     document.querySelectorAll("[data-i18n-title]").forEach((node) => node.setAttribute("title", t(node.dataset.i18nTitle)));
     document.querySelectorAll("[data-i18n-roledescription]").forEach((node) => node.setAttribute("aria-roledescription", t(node.dataset.i18nRoledescription)));
+    // The account form is rebuilt in the new language.
+    $("#account-body")?.replaceChildren();
+    this.renderAccount?.();
     this.renderSpot();
     this.render();
   }
@@ -109,7 +112,96 @@ export class AnglerUI {
         this.openSettings();
       },
     })));
+    this.renderAccount();
     if (!this.settingsDialog.open) this.settingsDialog.showModal();
+  }
+
+  /* ---------- Account ---------- */
+
+  /** Hook up cloud saves; the account section redraws whenever its state changes. */
+  setCloud(cloud) {
+    this.cloud = cloud;
+    this.renderAccount();
+  }
+
+  renderAccount() {
+    const body = $("#account-body");
+    const cloud = this.cloud;
+    const note = (text, className = "account-note") => element("p", { className, textContent: text });
+    if (!cloud?.enabled) {
+      body.replaceChildren(note(t("account.unavailable")));
+      return;
+    }
+    if (cloud.user) {
+      const time = cloud.lastSync && new Date(cloud.lastSync).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
+      body.replaceChildren(...[
+        note(t("account.signedIn", { email: cloud.user.email })),
+        note(cloud.busy ? t("account.working") : time ? t("account.synced", { time }) : t("account.notSynced"), "account-status"),
+        cloud.error ? note(t("account.error", { message: cloud.error }), "account-error") : null,
+        element("button", { className: "pixel-btn", type: "button", disabled: cloud.busy, textContent: t("account.signOut"), onclick: () => cloud.signOut() }),
+      ].filter(Boolean));
+      return;
+    }
+
+    // Signed out: keep the form between redraws so typing isn't lost.
+    let form = body.querySelector(".account-form");
+    if (!form) {
+      const email = element("input", { className: "text-input", type: "email", name: "email", autocomplete: "email", required: true, placeholder: t("account.email") });
+      const password = element("input", { className: "text-input", type: "password", name: "password", autocomplete: "current-password", required: true, minLength: 6, placeholder: t("account.password") });
+      email.setAttribute("aria-label", t("account.email"));
+      password.setAttribute("aria-label", t("account.password"));
+      const submit = async (action) => {
+        if (!email.reportValidity()) return;
+        if (password.value.length < 6) {
+          this.accountMessage = { text: t("account.short"), bad: true };
+          this.renderAccount();
+          return;
+        }
+        this.accountMessage = null;
+        const result = await cloud[action](email.value.trim(), password.value);
+        if (result?.confirm) this.accountMessage = { text: t("account.checkEmail") };
+        else if (!result?.error) password.value = "";
+        this.renderAccount();
+      };
+      form = element("form", { className: "account-form", noValidate: true, onsubmit: (event) => { event.preventDefault(); submit("signIn"); } }, [
+        note(t("account.intro")),
+        email,
+        password,
+        element("div", { className: "account-actions" }, [
+          element("button", { className: "pixel-btn pixel-btn-primary", type: "submit", textContent: t("account.signIn") }),
+          element("button", { className: "pixel-btn", type: "button", textContent: t("account.signUp"), onclick: () => submit("signUp") }),
+        ]),
+        element("p", { className: "account-message", role: "status" }),
+      ]);
+      body.replaceChildren(form);
+    }
+    for (const button of form.querySelectorAll("button")) button.disabled = cloud.busy;
+    const message = form.querySelector(".account-message");
+    const shown = cloud.busy ? { text: t("account.working") } : cloud.error ? { text: t("account.error", { message: cloud.error }), bad: true } : this.accountMessage;
+    message.textContent = shown?.text ?? "";
+    message.classList.toggle("is-bad", Boolean(shown?.bad));
+  }
+
+  /** Ask which of two different saves to keep; resolves "remote" or "local". */
+  chooseSave({ local, remote }) {
+    const dialog = $("#sync-dialog");
+    const summary = (state) => t("sync.summary", { money: state.money.toLocaleString(locale()), caught: state.caught ?? 0, trophies: state.trophies?.length ?? 0 });
+    $("#sync-remote-summary").textContent = summary(remote);
+    $("#sync-local-summary").textContent = summary(local);
+    return new Promise((resolve) => {
+      const finish = (choice) => {
+        dialog.close();
+        resolve(choice);
+      };
+      $("#sync-remote").onclick = () => finish("remote");
+      $("#sync-local").onclick = () => finish("local");
+      // Closing without a choice keeps this device's progress.
+      dialog.oncancel = (event) => {
+        event.preventDefault();
+        finish("local");
+      };
+      dialog.showModal();
+    });
   }
 
   commit() {

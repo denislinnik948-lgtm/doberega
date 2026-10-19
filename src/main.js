@@ -6,7 +6,8 @@ import { Weather } from "./weather.js";
 import { Ducks } from "./wildlife.js";
 import { FishingGame, TUNING } from "./fishing/game.js";
 import { BAITS, LOCATIONS, RODS } from "./fishing/data.js";
-import { baitCount, loadProgress } from "./fishing/store.js";
+import { baitCount, loadProgress, onProgressSaved, replaceProgress, saveProgress } from "./fishing/store.js";
+import { Cloud } from "./cloud.js";
 import { AnglerUI } from "./fishing/ui.js";
 
 // The water look is fixed: a still lake, gentle swell speed, soft glints.
@@ -95,6 +96,24 @@ const ui = new AnglerUI(progress, {
 });
 applySpot();
 
+// Accounts: every save goes up to the cloud; signing in elsewhere brings it back.
+const cloud = new Cloud({
+  getProgress: () => progress,
+  applyProgress: (save) => {
+    replaceProgress(progress, save);
+    saveProgress(progress, { quiet: true });
+    ui.renderSpot();
+    ui.render();
+    applySpot();
+  },
+  chooseSave: (saves) => ui.chooseSave(saves),
+  onChange: () => ui.renderAccount(),
+});
+ui.setCloud(cloud);
+onProgressSaved(() => cloud.schedulePush());
+window.addEventListener("pagehide", () => cloud.flush());
+cloud.init();
+
 function toScreen(point) {
   return { x: point.x * width, y: point.y * height };
 }
@@ -162,7 +181,7 @@ function tryCast(x, y) {
 }
 
 // `?debug` exposes the game for manual testing from the console.
-if (params.has("debug")) window.doberega = { game, progress, ui, renderNow, renderer, config, ripples, weather, ducks };
+if (params.has("debug")) window.doberega = { game, progress, ui, cloud, renderNow, renderer, config, ripples, weather, ducks };
 
 const pullable = () => ["waiting", "nibble", "bite", "fight"].includes(game.phase);
 

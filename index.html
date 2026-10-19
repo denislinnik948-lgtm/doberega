@@ -156,6 +156,22 @@
         <span class="setting-label" data-i18n="settings.language">Language</span>
         <div class="segmented" id="language-options" role="radiogroup" data-i18n-aria="settings.language"></div>
       </div>
+      <div class="setting-row account">
+        <span class="setting-label" data-i18n="account.title">Account</span>
+        <div class="account-body" id="account-body"></div>
+      </div>
+    </dialog>
+
+    <!-- Asked when this device and the account hold different progress. -->
+    <dialog class="sheet" id="sync-dialog" data-frame="ornate" aria-labelledby="sync-title">
+      <header class="sheet-heading">
+        <h2 class="title-tab" id="sync-title" data-frame="tab" data-i18n="sync.title">Two saves</h2>
+      </header>
+      <p class="sync-text" data-i18n="sync.text">This device and your account have different progress. Which one should stay?</p>
+      <div class="sync-choices">
+        <button class="pixel-btn pixel-btn-primary sync-choice" id="sync-remote" type="button"><span data-i18n="sync.remote">From the account</span><small id="sync-remote-summary"></small></button>
+        <button class="pixel-btn sync-choice" id="sync-local" type="button"><span data-i18n="sync.local">From this device</span><small id="sync-local-summary"></small></button>
+      </div>
     </dialog>
 
     <script type="module" src="./src/main.js"></script>

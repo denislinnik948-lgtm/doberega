@@ -55,6 +55,18 @@ The game opens on a **main menu** over the live lake: a slider of fishing spots 
 
 The catalog (fish, bait, rods, extras, spots) lives in `src/fishing/data.js`; fight balance in `src/fishing/game.js` (`fightRates`). Progress is saved in localStorage. Add `?debug` to the URL to expose the game as `window.doberega`.
 
+## Accounts and cloud saves
+
+Progress normally lives in the browser's localStorage, which can be wiped. With accounts switched on, **Налаштування → Акаунт** lets a player sign in or create an account with email and password (Supabase Auth). While signed in, every save is pushed to the player's row in a `saves` table a few seconds after it happens (and on leaving the page); signing in on another device pulls it back. If the device and the account hold different progress, the game asks which one to keep. Row-level security means each player can only read and write their own save.
+
+To switch it on:
+1. Create a free project at [supabase.com](https://supabase.com).
+2. In the project, open **SQL Editor → New query**, paste [`supabase/schema.sql`](supabase/schema.sql) and run it.
+3. In **Project Settings → API**, copy the project URL and the `anon` public key into [`src/cloud-config.js`](src/cloud-config.js).
+4. Optionally, under **Authentication → Providers → Email**, turn off “Confirm email” to let players sign in straight away; otherwise they confirm their address first.
+
+With the two values left empty the game runs exactly as before and the account section says cloud saves aren't set up.
+
 ## Icon
 
 A pixel perch leaping out of night water under a crescent moon (`icons/`): an SVG favicon, a 512 px PNG and a square 192 px home-screen icon, also listed in `manifest.webmanifest` so the game can be installed to a phone's home screen.

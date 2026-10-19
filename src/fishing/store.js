@@ -11,6 +11,11 @@ export function loadProgress() {
   } catch {
     saved = null;
   }
+  return normalizeProgress(saved);
+}
+
+/** Turn saved data (from this browser or the cloud) into a valid progress object. */
+export function normalizeProgress(saved) {
   const state = structuredClone(START_STATE);
   if (saved && typeof saved === "object") {
     if (Number.isFinite(saved.money)) state.money = saved.money;
@@ -25,16 +30,40 @@ export function loadProgress() {
     if (Array.isArray(saved.trophies)) state.trophies = saved.trophies;
     if (Number.isFinite(saved.caught)) state.caught = saved.caught;
     if (LOCATIONS[saved.location]) state.location = saved.location;
+    if (Number.isFinite(saved.savedAt)) state.savedAt = saved.savedAt;
   }
   return state;
 }
 
-export function saveProgress(state) {
+const listeners = new Set();
+
+/** Be told whenever progress is saved (the cloud sync uses this). */
+export function onProgressSaved(listener) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+/** Save to this browser; `quiet` skips the listeners (used when the save came from the cloud). */
+export function saveProgress(state, { quiet = false } = {}) {
+  if (!quiet) state.savedAt = Date.now();
   try {
     localStorage.setItem(KEY, JSON.stringify(state));
   } catch {
     // Private windows may block storage; progress then lasts for this visit only.
   }
+  if (!quiet) for (const listener of listeners) listener(state);
+}
+
+/** Swap the live progress object's contents for another save, keeping the same object. */
+export function replaceProgress(target, source) {
+  for (const key of Object.keys(target)) delete target[key];
+  Object.assign(target, structuredClone(normalizeProgress(source)));
+}
+
+/** Whether a save holds anything beyond the starting kit. */
+export function hasProgress(state) {
+  return (state.caught ?? 0) > 0 || (state.trophies?.length ?? 0) > 0 || (state.rods?.length ?? 1) > 1
+    || (state.extras?.length ?? 0) > 0 || state.money !== START_STATE.money;
 }
 
 /** How many of a bait the angler has; free bait is unlimited. */
