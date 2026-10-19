@@ -193,32 +193,34 @@ function landscape(px, w, h, random, kind) {
   }
 
   if (kind === "pond") {
-    ridge(px, x0, x1, horizon, 5 * unit, 1, P.deep, horizon + 1);
-    // Willow on the far bank.
-    const wx = Math.round(w * 0.72);
-    for (let k = 0; k < 30 * unit; k += 1) px.set(wx + Math.round(Math.sin(k * 0.2)), horizon - k, P.ink);
-    for (let a = 0; a < 260; a += 1) {
-      const angle = random() * Math.PI;
-      const r = random() * 16 * unit;
-      const x = wx + Math.round(Math.cos(angle) * r * 1.4);
-      const y = horizon - Math.round(26 * unit) + Math.round(Math.sin(angle) * r * 0.5) + Math.round(random() * 14 * unit);
-      if (y < horizon) px.set(x, y, P.ink);
+    // Flat farmland: a meadow band and a ploughed strip along the far bank.
+    px.rect(x0, horizon - Math.round(4 * unit), w - 2 * m, Math.round(4 * unit) + 1, P.mid);
+    px.rect(x0 + Math.round(w * 0.45), horizon - Math.round(2 * unit), Math.round(w * 0.3), Math.round(2 * unit), P.goldDark);
+    // Scattered clumps of trees of different heights, and a few small houses.
+    for (let x = x0 + 4; x < x1 - 4; x += 6 + Math.floor(random() * 14)) {
+      if (random() < 0.35) continue;
+      const tall = Math.round((8 + random() * 16) * unit);
+      const r = Math.max(2, Math.round(tall * (random() < 0.3 ? 0.18 : 0.35)));
+      for (let k = 0; k < tall; k += 1) {
+        const half = k > tall * 0.25 ? Math.round(r * Math.sin(((k - tall * 0.25) / (tall * 0.75)) * Math.PI)) : 0;
+        px.rect(x - half, horizon - 1 - k, half * 2 + 1, 1, k < tall * 0.25 ? P.ink : P.deep);
+      }
     }
-    // Reeds and cattails crowding the near corners.
-    for (let i = 0; i < w / 3; i += 1) {
+    for (const fx of [0.08, 0.33, 0.93]) {
+      const hx = Math.round(w * fx);
+      const top = horizon - Math.round(4 * unit);
+      px.rect(hx - 3, top - 3, 7, 4, P.light);
+      for (let k = 0; k < 3; k += 1) px.rect(hx - 4 + k, top - 4 - k, 9 - 2 * k, 1, fx > 0.9 ? P.ember : P.goldDark);
+    }
+    px.rect(x0, horizon, w - 2 * m, 1, P.dark);
+    // Thick reeds and cattails crowding both near corners.
+    for (let i = 0; i < w / 2.5; i += 1) {
       const side = random() < 0.5;
-      const x = side ? x0 + Math.floor(random() * w * 0.28) : x1 - 1 - Math.floor(random() * w * 0.28);
-      const tall = Math.round((12 + random() * 30) * unit);
+      const x = side ? x0 + Math.floor(random() * w * 0.3) : x1 - 1 - Math.floor(random() * w * 0.3);
+      const tall = Math.round((14 + random() * 34) * unit);
       const lean = (random() - 0.5) * 0.3;
-      for (let k = 0; k < tall; k += 1) px.set(x + Math.round(k * lean), h - m - 1 - k, P.ink);
-      if (random() < 0.35) px.rect(x + Math.round(tall * lean) - 1, h - m - tall - 3, 2, 4, P.goldDark);
-    }
-    // Lily pads.
-    for (let i = 0; i < 5; i += 1) {
-      const cx = Math.round(w * (0.35 + random() * 0.3));
-      const cy = Math.round(horizon + (h - horizon) * (0.4 + random() * 0.45));
-      const r = Math.round((3 + random() * 3) * unit);
-      for (let x = -r; x <= r; x += 1) px.rect(cx + x, cy, 1, 1 + Math.round((1 - Math.abs(x) / r) * r * 0.3), P.mid);
+      for (let k = 0; k < tall; k += 1) px.set(x + Math.round(k * lean), h - m - 1 - k, random() < 0.3 ? P.dark : P.ink);
+      if (random() < 0.3) px.rect(x + Math.round(tall * lean) - 1, h - m - tall - 3, 2, 4, P.goldDark);
     }
   } else if (kind === "lake") {
     ridge(px, x0, x1, horizon, 16 * unit, 2.2, P.dark, horizon + 1);

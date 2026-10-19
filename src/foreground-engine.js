@@ -7,11 +7,10 @@ import { activeScene } from "./scene.js";
  */
 export function createReeds(width, height) {
   const reeds = [];
-  const { reeds: density = 1, snags = false, reedSides = ["left", "right"] } = activeScene().foreground;
+  const { reeds: density = 1, snags = false } = activeScene().foreground;
   const perSide = Math.round(Math.max(10, Math.min(30, width / 46)) * density);
 
   for (const side of [-1, 1]) {
-    if (!reedSides.includes(side < 0 ? "left" : "right")) continue;
     for (let i = 0; i < perSide; i += 1) {
       const seed = 7000 + (side + 1) * 500 + i;
       // Most stalks crowd the screen edge; a few stray toward the open water.
