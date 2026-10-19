@@ -66,8 +66,8 @@ export const SCENES = {
     horizon: 0.5,
     ridges: [
       // Snowy alpine range, low behind the castle hill and high on the right.
-      { top: 0.46, amplitude: 0.34, seed: 1.9, jagged: true, rise: [0.3, 0.68], snowline: 0.27, fill: "#5d7084", glyph: "#8193a5", texture: "|:.'", density: 0.2 },
-      { top: 0.47, amplitude: 0.07, seed: 4.6, jagged: true, rise: [0.4, 0.8], fill: "#3e5160", glyph: "#56697a", texture: ".:;'", density: 0.18 },
+      { top: 0.46, amplitude: 0.3, seed: 1.9, jagged: true, alpine: true, rise: [0.3, 0.66], snowline: 0.28, haze: 0.2, fill: "#5d7084", glyph: "#8193a5", texture: ".'", density: 0.05 },
+      { top: 0.48, amplitude: 0.08, seed: 4.6, jagged: true, alpine: true, rise: [0.4, 0.8], haze: 0.12, fill: "#3e5160", glyph: "#56697a", texture: ".'", density: 0.05 },
     ],
     forest: { heightScale: 0.95, spacingScale: 0.95, broadleaf: 0.85, round: 0.6 },
     structures: {

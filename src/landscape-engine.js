@@ -1,7 +1,18 @@
-import { hash2 } from "./noise.js";
+import { clamp, hash2, smoothstep, valueNoise } from "./noise.js";
 import { activeScene, bankWidths, shorelineY, view } from "./scene.js";
 
-const triangle = (v) => 1 - Math.abs((((v % 2) + 2) % 2) - 1);
+/** Ridged fractal noise: sharp crests where the smooth noise crosses its midpoint. */
+function ridged(x, y, seed, octaves = 4) {
+  let sum = 0;
+  let amplitude = 0.5;
+  let frequency = 1;
+  for (let o = 0; o < octaves; o += 1) {
+    sum += amplitude * (1 - Math.abs(2 * valueNoise(x * frequency, y * frequency, seed + o * 17) - 1)) ** 1.5;
+    amplitude *= 0.5;
+    frequency *= 2.1;
+  }
+  return sum;
+}
 
 export function ridgeTop(ridge, x, height) {
   const s = ridge.seed;
@@ -10,8 +21,8 @@ export function ridgeTop(ridge, x, height) {
     const u = x / view.width;
     const [from, to] = ridge.rise ?? [0, 0];
     const ramp = to > from ? Math.min(1, Math.max(0, (u - from) / (to - from))) ** 0.8 : 1;
-    const crest = 0.5 * triangle(x * 0.0024 + s) + 0.32 * triangle(x * 0.0067 + s * 1.3) + 0.18 * triangle(x * 0.017 + s * 2);
-    return height * (ridge.top - ridge.amplitude * ramp * (0.45 + 0.55 * crest));
+    const crest = ridged(x * 0.0042, s, 100 + Math.round(s * 10), 5);
+    return height * (ridge.top - ridge.amplitude * ramp * (0.25 + 0.95 * crest));
   }
   const peaks = 0.55 * (1 - Math.abs(Math.sin(x * 0.0021 + s))) ** 1.4
     + 0.3 * (1 - Math.abs(Math.sin(x * 0.0057 - s * 0.7)))
@@ -25,13 +36,57 @@ export function skylineY(x, height) {
   return ridges.length ? ridgeTop(ridges[0], x, height) : height * horizon;
 }
 
-export const SNOW_FILL = "#d6dfe5";
+const mixRgb = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+const SNOW_LIT = [244, 247, 250];
+const SNOW_SHADE = [150, 166, 188];
+const ROCK_LIT = [132, 132, 128];
+const ROCK_SHADE = [52, 60, 76];
+const WOOD_LIT = [70, 92, 76];
+const WOOD_SHADE = [36, 50, 52];
+const HAZE = [158, 178, 198];
 
-/** The snowline at x: snow covers whatever rises above it, ragged where gullies cut down. */
-export function snowLine(ridge, x, height) {
-  const gullies = Math.max(0, Math.sin(x * 0.045 + ridge.seed)) ** 6 * 0.05 + Math.max(0, Math.sin(x * 0.13)) ** 8 * 0.025;
-  return height * (ridge.snowline + gullies + 0.012 * Math.sin(x * 0.021));
+/**
+ * Colour of an alpine slope at a screen point. Couloirs and spurs come from
+ * vertically stretched ridged noise; the sun lights faces turned to the left.
+ * Snow lies above a ragged snowline and runs further down the gullies; bare
+ * rock shows where it is too steep to hold snow; woods cover the lower slopes.
+ */
+export function alpineColor(ridge, x, y, height, column = alpineColumn(ridge, x, height)) {
+  const seed = 300 + Math.round(ridge.seed * 10);
+  const f = 0.011;
+  const terrain = (px) => ridged(px * f, y * f * 0.32, seed, 4);
+  const here = terrain(x);
+  const slope = terrain(x - 3) - terrain(x + 3);
+  const { top, crestSlope } = column;
+  const nearCrest = Math.exp(-(y - top) / (height * 0.04));
+  const light = clamp(0.5 + slope * 9 + crestSlope * 1.2 * nearCrest + (here - 0.45) * 0.5, 0, 1);
+
+  const snowline = ridge.snowline ? height * (ridge.snowline + (1 - here) * 0.07 + (valueNoise(x * 0.02, 3, seed) - 0.5) * 0.03) : -1;
+  // Woods climb to just under the snow, or most of the way up a lower ridge.
+  const woodsTop = ridge.snowline ? ridge.snowline + 0.13 : ridge.top - ridge.amplitude * 0.7;
+  const treeline = height * (woodsTop + (valueNoise(x * 0.015, 9, seed) - 0.5) * 0.03);
+  // Snow thins out across a soft band and slides off the steepest faces.
+  const snow = ridge.snowline
+    ? smoothstep(snowline + height * 0.012, snowline - height * 0.012, y) * (1 - smoothstep(0.045, 0.085, Math.abs(slope)))
+    : 0;
+  const woods = smoothstep(treeline - height * 0.01, treeline + height * 0.01, y);
+  let color = mixRgb(ROCK_SHADE, ROCK_LIT, light);
+  color = mixRgb(color, mixRgb(WOOD_SHADE, WOOD_LIT, light), woods);
+  color = mixRgb(color, mixRgb(SNOW_SHADE, SNOW_LIT, light ** 0.7), snow);
+  // Distance haze, a touch heavier toward the valley floor.
+  const haze = (ridge.haze ?? 0.22) + smoothstep(top, height * activeScene().horizon, y) * 0.12;
+  return mixRgb(color, HAZE, haze);
 }
+
+/** Per-column values of an alpine ridge, shared by every pixel below the crest. */
+export function alpineColumn(ridge, x, height) {
+  return {
+    top: ridgeTop(ridge, x, height),
+    crestSlope: (ridgeTop(ridge, x + 4, height) - ridgeTop(ridge, x - 4, height)) / 8,
+  };
+}
+
+const toHexRgb = (c) => `#${((1 << 24) | (Math.round(c[0]) << 16) | (Math.round(c[1]) << 8) | Math.round(c[2])).toString(16).slice(1)}`;
 
 /** Contour and stipple glyphs for every ridge, plus per-cell ridge membership for reflections. */
 export function createRidgeGlyphs(width, height, cellWidth, lineHeight) {
@@ -66,15 +121,13 @@ export function createRidgeGlyphs(width, height, cellWidth, lineHeight) {
           }
         }
 
-        // Snow caps: white glyphs on a pale fill down from the crest.
-        const snowy = ridge.snowline && y < snowLine(ridge, x, height);
-        if (snowy && !glyph && noise < 0.55) glyph = "^*'."[Math.floor(noise * 7) % 4];
-        cells.push({
-          x, y, column, row, glyph,
-          color: snowy ? (noise > 0.3 ? "#f2f6f8" : "#c8d4dc") : ridge.glyph,
-          fill: snowy ? SNOW_FILL : ridge.fill,
-          ridge: ridgeIndex,
-        });
+        if (ridge.alpine) {
+          // Glyphs pick up the painted slope colour, a shade brighter.
+          const base = alpineColor(ridge, x, y, height);
+          cells.push({ x, y, column, row, glyph, color: toHexRgb(mixRgb(base, [255, 255, 255], 0.14)), fill: toHexRgb(base), ridge: ridgeIndex });
+          continue;
+        }
+        cells.push({ x, y, column, row, glyph, color: ridge.glyph, fill: ridge.fill, ridge: ridgeIndex });
       }
     }
   });

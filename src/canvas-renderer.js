@@ -3,7 +3,7 @@ import { createForestGlyphs } from "./forest-engine.js";
 import { activeScene, bankWidths, isOpenWater, setScene, shorelineY, sunPosition, view } from "./scene.js";
 import { skyAt, toHex, toInt } from "./daycycle.js";
 import { clamp, hash2, hexToInt, mixColor } from "./noise.js";
-import { SNOW_FILL, createBankGlyphs, createRidgeGlyphs, createShoreGlyphs, createStructures, ridgeTop, snowLine } from "./landscape-engine.js";
+import { alpineColor, alpineColumn, createBankGlyphs, createRidgeGlyphs, createShoreGlyphs, createStructures, ridgeTop } from "./landscape-engine.js";
 import { birdsAt, createSkyCells, discOffsets, lightSky, pushDisc, sampleSky, setCloudColors, setCloudiness } from "./sky-engine.js";
 import { createLilyPads, createReeds, createRocks, rockGlyphs } from "./foreground-engine.js";
 import { GlyphBatch, createBackend } from "./glyph-backend.js";
@@ -335,21 +335,21 @@ export class CanvasWaterRenderer {
       ctx.lineTo(width, horizon + height * 0.03);
       ctx.lineTo(0, horizon + height * 0.03);
       ctx.closePath();
-      ctx.fillStyle = ridge.fill;
-      ctx.fill();
-      if (ridge.snowline) {
-        ctx.beginPath();
-        ctx.moveTo(points[0], points[1]);
-        for (let i = 2; i < points.length; i += 2) ctx.lineTo(points[i], points[i + 1]);
-        for (let i = points.length - 2; i >= 0; i -= 2) ctx.lineTo(points[i], Math.max(points[i + 1], snowLine(ridge, points[i], height)));
-        ctx.closePath();
-        ctx.fillStyle = SNOW_FILL;
+      if (ridge.alpine) {
+        ctx.save();
+        ctx.clip();
+        this.paintAlpine(ctx, ridge, horizon + height * 0.03);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = ridge.fill;
         ctx.fill();
       }
 
       ctx.fillStyle = ridge.glyph;
       for (const cell of this.ridgeCells) {
-        if (cell.ridge === index && cell.glyph) ctx.fillText(cell.glyph, cell.x, cell.y);
+        if (cell.ridge !== index || !cell.glyph) continue;
+        if (ridge.alpine) ctx.fillStyle = cell.color;
+        ctx.fillText(cell.glyph, cell.x, cell.y);
       }
 
       // Valley haze settles between the layers.
@@ -447,6 +447,34 @@ export class CanvasWaterRenderer {
       }
       ctx.fill();
     }
+  }
+
+  /** Paint a shaded alpine slope at half resolution; the caller clips it to the ridge. */
+  paintAlpine(ctx, ridge, bottom) {
+    const { width, height } = this;
+    const scale = 2;
+    const top = Math.max(0, Math.floor(Math.min(...this.ridgeOutlines[activeScene().ridges.indexOf(ridge)].filter((_, i) => i % 2))));
+    const w = Math.ceil(width / scale);
+    const h = Math.max(1, Math.ceil((bottom - top) / scale));
+    const image = new ImageData(w, h);
+    for (let px = 0; px < w; px += 1) {
+      const x = px * scale;
+      const column = alpineColumn(ridge, x, height);
+      for (let py = Math.max(0, Math.floor((column.top - top) / scale) - 1); py < h; py += 1) {
+        const color = alpineColor(ridge, x, top + py * scale, height, column);
+        const i = (py * w + px) * 4;
+        image.data[i] = color[0];
+        image.data[i + 1] = color[1];
+        image.data[i + 2] = color[2];
+        image.data[i + 3] = 255;
+      }
+    }
+    const buffer = document.createElement("canvas");
+    buffer.width = w;
+    buffer.height = h;
+    buffer.getContext("2d").putImageData(image, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(buffer, 0, top, w * scale, h * scale);
   }
 
   /** A static foreground rock, cropped to its bounds so the overlay copies only a small image. */
