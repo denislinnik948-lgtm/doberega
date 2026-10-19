@@ -195,6 +195,9 @@ export function createStructures(width, height, cellWidth, lineHeight) {
   const lights = [];
   // Solid shapes painted under the glyphs so buildings read as silhouettes.
   const shapes = [];
+  // Where animated extras attach: chimney tops for smoke, pylon tips for warning lights.
+  const chimneys = [];
+  const beacons = [];
   const put = (x, y, glyph, color, extra = {}) => {
     const cell = { ...cellAt(x, y, cellWidth, lineHeight), glyph, color, ...extra };
     cells.push(cell);
@@ -238,6 +241,7 @@ export function createStructures(width, height, cellWidth, lineHeight) {
       // Chimney.
       put(cx + (half - 2) * cellWidth, base - (wallRows + 1) * lineHeight, "|", "#5a4a3e");
       put(cx + (half - 2) * cellWidth, base - (wallRows + 2) * lineHeight, "|", "#5a4a3e");
+      chimneys.push({ x: cx + (half - 2) * cellWidth, y: base - (wallRows + 2.6) * lineHeight, seed: i });
     }
   }
 
@@ -278,6 +282,7 @@ export function createStructures(width, height, cellWidth, lineHeight) {
       }
       const topY = ground - tall * lineHeight;
       for (let c = -3; c <= 3; c += 1) put(x + c * cellWidth, topY, c === 0 ? "T" : "-", "#2b3539");
+      beacons.push({ x, y: topY - lineHeight * 0.8 });
       return { x, y: topY };
     });
     // Sagging wires between neighbouring pylons.
@@ -291,7 +296,7 @@ export function createStructures(width, height, cellWidth, lineHeight) {
     }
   }
 
-  const out = { cells, lights, shapes };
+  const out = { cells, lights, shapes, chimneys, beacons };
   if (structures.crag) addCrag(structures.crag, width, height, cellWidth, lineHeight, out);
   if (structures.archBridge) addArchBridge(structures.archBridge, width, height, cellWidth, lineHeight, out);
 

@@ -7,6 +7,7 @@ import { createBankGlyphs, createRidgeGlyphs, createShoreGlyphs, createStructure
 import { birdsAt, createSkyCells, discOffsets, lightSky, pushDisc, sampleSky, setCloudColors, setCloudiness } from "./sky-engine.js";
 import { createLilyPads, createReeds, createRocks, rockGlyphs } from "./foreground-engine.js";
 import { GlyphBatch, createBackend } from "./glyph-backend.js";
+import { createAmbient, fillAmbient } from "./ambient-engine.js";
 import { ROD_LOOKS } from "./fishing/sprites.js";
 
 const WATER_RAMP = "    ..,:;~-=+*#%@W";
@@ -47,6 +48,8 @@ export class CanvasWaterRenderer {
     this.starBatch = new GlyphBatch();
     this.discBatch = new GlyphBatch();
     this.lightBatch = new GlyphBatch();
+    // Moving bits of the far landscape (wind in grass, smoke, mist) and lights that blink.
+    this.ambientBatches = { ground: new GlyphBatch(), haze: new GlyphBatch(), glow: new GlyphBatch() };
     this.rainBatch = new GlyphBatch();
     this.ducks = [];
     this.glintBatch = new GlyphBatch();
@@ -201,6 +204,10 @@ export class CanvasWaterRenderer {
     this.lightBatch.clear();
     for (const cell of structures.lights) this.lightBatch.push(cell.x, cell.y, cell.glyph, hexToInt(cell.color));
     this.bankCells = createBankGlyphs(width, height, cellWidth, lineHeight, this.sun.x);
+    this.ambient = createAmbient({
+      scene, structures, ridgeCells: this.ridgeCells, bankCells: this.bankCells,
+      width, height, cellWidth, lineHeight, shorelineY: (x) => this.shorelineY(x),
+    });
     this.waterRocks = this.createWaterRocks();
     const bend = scene.water.bend;
     this.waterParams = {
@@ -357,7 +364,8 @@ export class CanvasWaterRenderer {
 
       ctx.fillStyle = ridge.glyph;
       for (const cell of this.ridgeCells) {
-        if (cell.ridge !== index || !cell.glyph) continue;
+        // Breezy meadows are drawn every frame by the ambient layer instead.
+        if (cell.ridge !== index || !cell.glyph || this.ambient.breezyRidges.has(index)) continue;
         if (ridge.alpine) ctx.fillStyle = cell.color;
         ctx.fillText(cell.glyph, cell.x, cell.y);
       }
@@ -442,9 +450,11 @@ export class CanvasWaterRenderer {
         ctx.fillStyle = cliff ? "#121614" : "#1d2a1c";
         ctx.fill();
       }
-      for (const cell of this.bankCells) {
-        ctx.fillStyle = cell.color;
-        ctx.fillText(cell.glyph, cell.x, cell.y);
+      if (!this.ambient.grassBanks) {
+        for (const cell of this.bankCells) {
+          ctx.fillStyle = cell.color;
+          ctx.fillText(cell.glyph, cell.x, cell.y);
+        }
       }
       // Trees on the banks get a dark backing so they stand out from the grass.
       ctx.fillStyle = "#0f1811";
@@ -1027,6 +1037,7 @@ export class CanvasWaterRenderer {
     if (sky.moon.up && sky.moon.y < 0.52) pushDisc(this.discBatch, this.moonDisc, sky.moon.x * width, sky.moon.y * height, cellWidth, lineHeight, "moon");
     if (sky.sun.up && sky.sun.y < 0.52) pushDisc(this.discBatch, this.sunDisc, sky.sun.x * width, sky.sun.y * height, cellWidth, lineHeight, "sun");
     this.fillForest(time);
+    fillAmbient(this.ambient, this.ambientBatches, time, dayTime, this.rain);
     this.fillWater(time, config, ripples);
     this.fillSurface(time, ripples);
     this.fillRain(time, this.rain);
@@ -1044,9 +1055,12 @@ export class CanvasWaterRenderer {
     backend.drawGlyphs(this.discBatch);
     backend.drawGlyphs(this.skyBatch);
     backend.drawLayer("land", land);
+    backend.drawGlyphs(this.ambientBatches.ground, land);
     backend.drawGlyphs(this.forestBatch, land);
+    backend.drawGlyphs(this.ambientBatches.haze, land);
     // Cottage windows and dam lamps glow as the light fades.
     backend.drawGlyphs(this.lightBatch, [1, 1, 1, Math.min(1, 0.12 + sky.stars)]);
+    backend.drawGlyphs(this.ambientBatches.glow);
     backend.drawGlyphs(this.waterBatch, water);
     backend.drawGlyphs(this.glintBatch);
     backend.drawGlyphs(this.surfaceBatch, water);

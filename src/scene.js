@@ -35,7 +35,7 @@ export const SCENES = {
     horizon: 0.44,
     ridges: [
       // Distant meadows: almost flat, bright green, with a darker ploughed strip.
-      { top: 0.405, amplitude: 0.008, seed: 2.2, fill: "#4f6d40", glyph: "#6f8f52", texture: ",'.\"", density: 0.22 },
+      { top: 0.405, amplitude: 0.008, seed: 2.2, fill: "#4f6d40", glyph: "#6f8f52", texture: ",'.\"", density: 0.22, breeze: true },
       { top: 0.425, amplitude: 0.004, seed: 5.1, fill: "#5a4a34", glyph: "#7a6448", texture: "=-_", density: 0.4 },
     ],
     forest: {

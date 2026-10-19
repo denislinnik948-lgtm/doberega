@@ -20,6 +20,8 @@ Each spot has its own ASCII landscape, built from a profile in `src/scene.js` (h
 
 Switching spots in the menu rebuilds the scene behind it.
 
+The far landscape keeps moving too (`src/ambient-engine.js`, redrawn every frame on top of the static layer for under a millisecond): wind runs through the meadow by the pond and the grassy banks at the old bridge in bright travelling gusts, smoke rises from cottage chimneys and drifts downwind (flattened by rain), mist creeps along the far shore — thick at dawn and dusk, light at night — thin cloud clings to the alpine flanks at the castle lake, and the reservoir's pylons blink red after dusk.
+
 ## Time of day
 
 A full in-game day takes 21 min 20 s of real time, starting mid-afternoon, and each part runs at its own pace: day (07:41–18:43) 10 min, sunset (18:43–22:05) 1 min 30 s, night (22:05–04:48) 8 min 20 s, sunrise (04:48–07:41) 1 min 30 s — so the clock races through dawn and dusk. There is a clock in the menu and HUD: night → dawn → morning → noon → afternoon → evening → dusk → night. Keyframes in `src/daycycle.js` hold the sky gradient, sun/moon glow, cloud colours, star visibility, glint colours and light multipliers for land, water and the foreground; everything between them is blended smoothly. The sun rises on the right, peaks near the top and sets on the left; the moon and stars take over at night, with a pale moon path on the water.
