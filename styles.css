@@ -523,6 +523,16 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
 .account-note { margin: 0; color: var(--light); font-size: 19px; line-height: 1.3; }
 .account-status { margin: 0; color: var(--gold); font-size: 19px; }
 .account-error, .account-message.is-bad { color: var(--ember); }
+.account-hint { margin: 0; color: var(--mid); font-size: 17px; line-height: 1.3; }
+.account-name { margin: 0; color: var(--bone); font-size: 22px; }
+.account-email { margin: 0; color: var(--light); font-size: 18px; }
+.account-email[hidden] { display: none; }
+.nickname-row { display: flex; gap: 8px; }
+.nickname-row .text-input { flex: 1; min-width: 0; }
+.nickname-row .pixel-btn { flex: none; min-height: 46px; padding-inline: 16px; }
+/* A quiet text button for secondary actions like password recovery. */
+.link-btn { justify-self: start; padding: 2px 0; border: 0; color: var(--light); font-size: 18px; text-decoration: underline; text-underline-offset: 3px; background: none; cursor: pointer; }
+.link-btn:hover { color: var(--bone); }
 .account-message { min-height: 1.3em; margin: 0; color: var(--gold); font-size: 18px; }
 .account-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .account-actions .pixel-btn { min-height: 46px; }

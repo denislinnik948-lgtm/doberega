@@ -57,13 +57,14 @@ The catalog (fish, bait, rods, extras, spots) lives in `src/fishing/data.js`; fi
 
 ## Accounts and cloud saves
 
-Signing in is optional: the game is fully playable without an account. Progress then lives only in the browser's localStorage, which can be wiped, and the main menu says so in an amber line under the buttons, next to a **Увійти** button (once signed in, the line reads that progress is saved to the account and the button opens **Акаунт**). After the very first fish the game offers once to sign in, with a warning of what skipping means, and a **Продовжити без входу** option. The **Акаунт** window lets a player sign in or create an account with email and password (Supabase Auth). While signed in, every save is pushed to the player's row in a `saves` table a few seconds after it happens (and on leaving the page); signing in on another device pulls it back. If the device and the account hold different progress, the game asks which one to keep. Row-level security means each player can only read and write their own save.
+Signing in is optional: the game is fully playable without an account. Progress then lives only in the browser's localStorage, which can be wiped, and the main menu says so in an amber line under the buttons, next to a **Увійти** button (once signed in, the line reads that progress is saved to the account and the button opens **Акаунт**). After the very first fish the game offers once to sign in, with a warning of what skipping means, and a **Продовжити без входу** option. The **Акаунт** window lets a player sign in or create an account with email and password (Supabase Auth), and **Забули пароль?** emails a reset link that brings them back to the game to set a new password. Once signed in, the player can set a **nickname** (3–16 letters, digits, spaces, _ or -), kept in the account profile so every device shows it; until one is set, the email is shown instead. While signed in, every save is pushed to the player's row in a `saves` table a few seconds after it happens (and on leaving the page); signing in on another device pulls it back. If the device and the account hold different progress, the game asks which one to keep. Row-level security means each player can only read and write their own save.
 
 To switch it on:
 1. Create a free project at [supabase.com](https://supabase.com).
 2. In the project, open **SQL Editor → New query**, paste [`supabase/schema.sql`](supabase/schema.sql) and run it.
 3. In **Project Settings → API**, copy the project URL and the `anon` public key into [`src/cloud-config.js`](src/cloud-config.js).
 4. Optionally, under **Authentication → Providers → Email**, turn off “Confirm email” to let players sign in straight away; otherwise they confirm their address first.
+5. Under **Authentication → URL Configuration**, set the **Site URL** to where the game is hosted and add it (plus `http://localhost:8000/` for local testing) to **Redirect URLs**, so password reset links lead back to the game.
 
 With the two values left empty the game runs exactly as before and the account section says cloud saves aren't set up.
 

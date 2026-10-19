@@ -6,6 +6,7 @@ import {
   bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, hookSprite, packSprite, rodSprite,
 } from "./sprites.js";
 import { frame, frameAll, repaint, setContent } from "./frames.js";
+import { validNickname } from "../cloud.js";
 import { baitCount, saveProgress } from "./store.js";
 import {
   LANGUAGES, handbookRules, language, locale, nameOf, periodName, setLanguage, t, traitLabel, traitValue,
@@ -136,7 +137,7 @@ export class AnglerUI {
     const signedIn = Boolean(cloud?.user);
     const strip = $("#account-strip");
     strip.classList.toggle("is-safe", signedIn);
-    $("#account-strip-text").textContent = t(signedIn ? "account.cloud" : "account.local");
+    $("#account-strip-text").textContent = signedIn ? t("account.cloudAs", { name: cloud.displayName }) : t("account.local");
     const button = $("#account-button");
     // Without a configured backend there's nothing to sign in to; the warning still stands.
     button.hidden = !cloud?.enabled;
@@ -168,43 +169,59 @@ export class AnglerUI {
     this.renderAccountStrip();
     const body = $("#account-body");
     const cloud = this.cloud;
-    const note = (text, className = "account-note") => element("p", { className, textContent: text });
-    if (!cloud?.enabled) {
-      body.replaceChildren(note(t("account.unavailable")));
-      return;
+    const mode = !cloud?.enabled ? "off" : !cloud.user ? "out" : cloud.recovering ? "recover" : "in";
+    // Rebuild only when the kind of view changes, so typing isn't lost on redraws.
+    if (body.dataset.mode !== mode || !body.firstChild) {
+      body.dataset.mode = mode;
+      this.accountMessage = null;
+      body.replaceChildren(...this.buildAccount(mode));
     }
-    if (cloud.user) {
-      const time = cloud.lastSync && new Date(cloud.lastSync).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
-      body.replaceChildren(...[
-        note(t("account.signedIn", { email: cloud.user.email })),
-        note(cloud.busy ? t("account.working") : time ? t("account.synced", { time }) : t("account.notSynced"), "account-status"),
-        cloud.error ? note(t("account.error", { message: cloud.error }), "account-error") : null,
-        element("button", { className: "pixel-btn", type: "button", disabled: cloud.busy, textContent: t("account.signOut"), onclick: () => cloud.signOut() }),
-      ].filter(Boolean));
-      return;
-    }
+    this.updateAccount(mode);
+    // Back from a password reset email: the new-password form comes straight up.
+    if (mode === "recover" && !$("#account-dialog").open) $("#account-dialog").showModal();
+  }
 
-    // Signed out: keep the form between redraws so typing isn't lost.
-    let form = body.querySelector(".account-form");
-    if (!form) {
-      const email = element("input", { className: "text-input", type: "email", name: "email", autocomplete: "email", required: true, placeholder: t("account.email") });
-      const password = element("input", { className: "text-input", type: "password", name: "password", autocomplete: "current-password", required: true, minLength: 6, placeholder: t("account.password") });
-      email.setAttribute("aria-label", t("account.email"));
-      password.setAttribute("aria-label", t("account.password"));
+  /** The account view's elements for one mode: off, out (sign in), in (profile) or recover. */
+  buildAccount(mode) {
+    const cloud = this.cloud;
+    const note = (text, className = "account-note") => element("p", { className, textContent: text });
+    const input = (props, label) => {
+      const node = element("input", { className: "text-input", ...props, placeholder: label });
+      node.setAttribute("aria-label", label);
+      return node;
+    };
+    const message = () => element("p", { className: "account-message", role: "status" });
+    const say = (text, bad = false) => {
+      this.accountMessage = { text, bad };
+      this.renderAccount();
+    };
+    const passwordOk = (field) => {
+      if (field.value.length >= 6) return true;
+      say(t("account.short"), true);
+      return false;
+    };
+
+    if (mode === "off") return [note(t("account.unavailable"))];
+
+    if (mode === "out") {
+      const email = input({ type: "email", name: "email", autocomplete: "email" }, t("account.email"));
+      const password = input({ type: "password", name: "password", autocomplete: "current-password" }, t("account.password"));
       const submit = async (action) => {
-        if (!email.reportValidity()) return;
-        if (password.value.length < 6) {
-          this.accountMessage = { text: t("account.short"), bad: true };
-          this.renderAccount();
-          return;
-        }
+        if (!email.value.includes("@")) return say(t("account.needEmail"), true);
+        if (!passwordOk(password)) return;
+        password.autocomplete = action === "signUp" ? "new-password" : "current-password";
         this.accountMessage = null;
         const result = await cloud[action](email.value.trim(), password.value);
         if (result?.confirm) this.accountMessage = { text: t("account.checkEmail") };
         else if (!result?.error) password.value = "";
         this.renderAccount();
       };
-      form = element("form", { className: "account-form", noValidate: true, onsubmit: (event) => { event.preventDefault(); submit("signIn"); } }, [
+      const forgot = async () => {
+        if (!email.value.includes("@")) return say(t("account.needEmail"), true);
+        const result = await cloud.resetPassword(email.value.trim());
+        if (!result?.error) say(t("account.resetSent", { email: email.value.trim() }));
+      };
+      return [element("form", { className: "account-form", noValidate: true, onsubmit: (event) => { event.preventDefault(); submit("signIn"); } }, [
         note(t("account.intro")),
         email,
         password,
@@ -212,13 +229,69 @@ export class AnglerUI {
           element("button", { className: "pixel-btn pixel-btn-primary", type: "submit", textContent: t("account.signIn") }),
           element("button", { className: "pixel-btn", type: "button", textContent: t("account.signUp"), onclick: () => submit("signUp") }),
         ]),
-        element("p", { className: "account-message", role: "status" }),
-      ]);
-      body.replaceChildren(form);
+        element("button", { className: "link-btn", type: "button", textContent: t("account.forgot"), onclick: forgot }),
+        message(),
+      ])];
     }
-    for (const button of form.querySelectorAll("button")) button.disabled = cloud.busy;
-    const message = form.querySelector(".account-message");
-    const shown = cloud.busy ? { text: t("account.working") } : cloud.error ? { text: t("account.error", { message: cloud.error }), bad: true } : this.accountMessage;
+
+    if (mode === "recover") {
+      const password = input({ type: "password", name: "new-password", autocomplete: "new-password" }, t("account.newPassword"));
+      return [element("form", { className: "account-form", noValidate: true, onsubmit: async (event) => {
+        event.preventDefault();
+        if (!passwordOk(password)) return;
+        const result = await cloud.setPassword(password.value);
+        if (!result?.error) say(t("account.passwordSaved"));
+      } }, [
+        note(t("account.recoverIntro")),
+        password,
+        element("button", { className: "pixel-btn pixel-btn-primary", type: "submit", textContent: t("account.setPassword") }),
+        message(),
+      ])];
+    }
+
+    // Signed in: who you are, sync state, a nickname, and the way out.
+    const nickname = input({ type: "text", name: "nickname", autocomplete: "nickname", maxLength: 16, value: cloud.user.user_metadata?.nickname ?? "" }, t("account.nickname"));
+    return [
+      note("", "account-name"),
+      note("", "account-email"),
+      note("", "account-status"),
+      element("form", { className: "account-form nickname-form", noValidate: true, onsubmit: async (event) => {
+        event.preventDefault();
+        if (!validNickname(nickname.value)) return say(t("account.nickRules"), true);
+        const result = await cloud.setNickname(nickname.value);
+        if (!result?.error) say(t("account.nicknameSaved"));
+      } }, [
+        element("label", { className: "setting-label", textContent: t("account.nickname") }),
+        element("div", { className: "nickname-row" }, [
+          nickname,
+          element("button", { className: "pixel-btn pixel-btn-primary", type: "submit", textContent: t("account.saveNickname") }),
+        ]),
+        note(t("account.nicknameHint"), "account-hint"),
+      ]),
+      message(),
+      element("button", { className: "pixel-btn", type: "button", textContent: t("account.signOut"), onclick: () => cloud.signOut() }),
+    ];
+  }
+
+  /** Refresh the parts of the account view that change: names, sync time, busy state, messages. */
+  updateAccount(mode) {
+    const cloud = this.cloud;
+    const body = $("#account-body");
+    if (mode === "off") return;
+    for (const button of body.querySelectorAll("button")) button.disabled = cloud.busy;
+    if (mode === "in") {
+      const nickname = cloud.user.user_metadata?.nickname;
+      const time = cloud.lastSync && new Date(cloud.lastSync).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
+      body.querySelector(".account-name").textContent = t("account.signedIn", { name: cloud.displayName });
+      const email = body.querySelector(".account-email");
+      email.textContent = nickname ? t("account.emailLine", { email: cloud.user.email }) : "";
+      email.hidden = !nickname;
+      body.querySelector(".account-status").textContent = time ? t("account.synced", { time }) : t("account.notSynced");
+    }
+    // Common failures in plain words; anything else shows the server's message.
+    const message = body.querySelector(".account-message");
+    const failure = cloud.error && { text: t("account.error", { message: cloud.error }), bad: true };
+    const shown = cloud.busy ? { text: t("account.working") } : failure || this.accountMessage;
     message.textContent = shown?.text ?? "";
     message.classList.toggle("is-bad", Boolean(shown?.bad));
   }

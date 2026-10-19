@@ -5,6 +5,15 @@ import { hasProgress, normalizeProgress } from "./fishing/store.js";
 const SUPABASE_JS = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm";
 // Saves are batched: a burst of changes goes up once things settle.
 const PUSH_DELAY_MS = 3000;
+const NICK_PATTERN = /^[\p{L}\p{N}_ -]{3,16}$/u;
+
+/** A nickname is 3–16 letters (any alphabet), digits, spaces, _ or -. */
+export function validNickname(nickname) {
+  return NICK_PATTERN.test(nickname.trim());
+}
+
+/** Where links in auth emails (password reset) bring the player back. */
+const returnUrl = () => `${location.origin}${location.pathname}`;
 
 /**
  * Accounts and cloud saves. Signed in, every local save is pushed to the
@@ -43,6 +52,8 @@ export class Cloud {
       this.user = data.session?.user ?? null;
       this.client.auth.onAuthStateChange((event, session) => {
         this.user = session?.user ?? null;
+        // Arrived from a password reset email: ask for a new password.
+        if (event === "PASSWORD_RECOVERY") this.recovering = true;
         this.onChange();
         // Supabase calls back from inside its own lock; sync after it returns.
         if (event === "SIGNED_IN") setTimeout(() => this.reconcile(), 0);
@@ -56,9 +67,8 @@ export class Cloud {
 
   async signUp(email, password) {
     return this.run(async () => {
-      // The confirmation link in the email brings the player back to this page.
-      const emailRedirectTo = `${location.origin}${location.pathname}`;
-      const { data, error } = await this.client.auth.signUp({ email, password, options: { emailRedirectTo } });
+      // The confirmation link in the email (if the project asks for one) brings the player back here.
+      const { data, error } = await this.client.auth.signUp({ email, password, options: { emailRedirectTo: returnUrl() } });
       if (error) throw error;
       // Without a session the project wants the address confirmed first.
       return { confirm: !data.session };
@@ -69,6 +79,41 @@ export class Cloud {
     return this.run(async () => {
       const { error } = await this.client.auth.signInWithPassword({ email, password });
       if (error) throw error;
+      return {};
+    });
+  }
+
+  /** What to call the player: their nickname once set, until then their email. */
+  get displayName() {
+    if (!this.user) return "";
+    return this.user.user_metadata?.nickname || this.user.email;
+  }
+
+  /** Save a nickname to the account profile, so every device shows it. */
+  async setNickname(nickname) {
+    return this.run(async () => {
+      const { data, error } = await this.client.auth.updateUser({ data: { nickname: nickname.trim() } });
+      if (error) throw error;
+      this.user = data.user;
+      return {};
+    });
+  }
+
+  /** Email a link to set a new password. */
+  async resetPassword(email) {
+    return this.run(async () => {
+      const { error } = await this.client.auth.resetPasswordForEmail(email, { redirectTo: returnUrl() });
+      if (error) throw error;
+      return {};
+    });
+  }
+
+  /** Set a new password (after following a reset link, or any time while signed in). */
+  async setPassword(password) {
+    return this.run(async () => {
+      const { error } = await this.client.auth.updateUser({ password });
+      if (error) throw error;
+      this.recovering = false;
       return {};
     });
   }
