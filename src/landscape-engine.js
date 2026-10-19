@@ -1,4 +1,4 @@
-import { clamp, hash2, smoothstep, valueNoise } from "./noise.js";
+import { clamp, hash2, valueNoise } from "./noise.js";
 import { activeScene, bankWidths, shorelineY, view } from "./scene.js";
 
 /** Ridged fractal noise: sharp crests where the smooth noise crosses its midpoint. */
@@ -46,12 +46,13 @@ const WOOD_SHADE = [36, 50, 52];
 const HAZE = [158, 178, 198];
 
 /**
- * Colour of an alpine slope at a screen point. Couloirs and spurs come from
- * vertically stretched ridged noise; the sun lights faces turned to the left.
- * Snow lies above a ragged snowline and runs further down the gullies; bare
- * rock shows where it is too steep to hold snow; woods cover the lower slopes.
+ * What an alpine slope looks like at a screen point. Couloirs and spurs come
+ * from vertically stretched ridged noise; the sun lights faces turned to the
+ * left. Snow lies above a ragged snowline and runs further down the gullies,
+ * bare rock shows where it is too steep to hold snow, woods cover the lower
+ * slopes. Light is snapped to a few steps to keep a flat, pixel-art palette.
  */
-export function alpineColor(ridge, x, y, height, column = alpineColumn(ridge, x, height)) {
+export function alpineSample(ridge, x, y, height, column = alpineColumn(ridge, x, height)) {
   const seed = 300 + Math.round(ridge.seed * 10);
   const f = 0.011;
   const terrain = (px) => ridged(px * f, y * f * 0.32, seed, 4);
@@ -59,23 +60,25 @@ export function alpineColor(ridge, x, y, height, column = alpineColumn(ridge, x,
   const slope = terrain(x - 3) - terrain(x + 3);
   const { top, crestSlope } = column;
   const nearCrest = Math.exp(-(y - top) / (height * 0.04));
-  const light = clamp(0.5 + slope * 9 + crestSlope * 1.2 * nearCrest + (here - 0.45) * 0.5, 0, 1);
-
+  const light = Math.round(clamp(0.5 + slope * 9 + crestSlope * 1.2 * nearCrest + (here - 0.45) * 0.5, 0, 1) * 3) / 3;
   const snowline = ridge.snowline ? height * (ridge.snowline + (1 - here) * 0.07 + (valueNoise(x * 0.02, 3, seed) - 0.5) * 0.03) : -1;
   // Woods climb to just under the snow, or most of the way up a lower ridge.
   const woodsTop = ridge.snowline ? ridge.snowline + 0.13 : ridge.top - ridge.amplitude * 0.7;
   const treeline = height * (woodsTop + (valueNoise(x * 0.015, 9, seed) - 0.5) * 0.03);
-  // Snow thins out across a soft band and slides off the steepest faces.
-  const snow = ridge.snowline
-    ? smoothstep(snowline + height * 0.012, snowline - height * 0.012, y) * (1 - smoothstep(0.045, 0.085, Math.abs(slope)))
-    : 0;
-  const woods = smoothstep(treeline - height * 0.01, treeline + height * 0.01, y);
-  let color = mixRgb(ROCK_SHADE, ROCK_LIT, light);
-  color = mixRgb(color, mixRgb(WOOD_SHADE, WOOD_LIT, light), woods);
-  color = mixRgb(color, mixRgb(SNOW_SHADE, SNOW_LIT, light ** 0.7), snow);
-  // Distance haze, a touch heavier toward the valley floor.
-  const haze = (ridge.haze ?? 0.22) + smoothstep(top, height * activeScene().horizon, y) * 0.12;
-  return mixRgb(color, HAZE, haze);
+  const material = y < snowline && Math.abs(slope) < 0.065 ? "snow" : y > treeline ? "woods" : "rock";
+  return { material, light, slope, crest: y - top < height * 0.012 };
+}
+
+const ALPINE = {
+  snow: [SNOW_SHADE, SNOW_LIT],
+  rock: [ROCK_SHADE, ROCK_LIT],
+  woods: [WOOD_SHADE, WOOD_LIT],
+};
+
+/** Palette colour of a slope sample, with distance haze. */
+export function alpineColor(ridge, sample, depth) {
+  const [shade, lit] = ALPINE[sample.material];
+  return mixRgb(mixRgb(shade, lit, sample.light), HAZE, (ridge.haze ?? 0.22) + depth * 0.12);
 }
 
 /** Per-column values of an alpine ridge, shared by every pixel below the crest. */
@@ -122,9 +125,23 @@ export function createRidgeGlyphs(width, height, cellWidth, lineHeight) {
         }
 
         if (ridge.alpine) {
-          // Glyphs pick up the painted slope colour, a shade brighter.
-          const base = alpineColor(ridge, x, y, height);
-          cells.push({ x, y, column, row, glyph, color: toHexRgb(mixRgb(base, [255, 255, 255], 0.14)), fill: toHexRgb(base), ridge: ridgeIndex });
+          // Every cell is drawn: a flat palette block with a glyph that follows the slope.
+          const sample = alpineSample(ridge, x, y, height);
+          const base = alpineColor(ridge, sample, Math.min(1, (y - top) / (bottom - top + 1)));
+          const pick = (set) => set[Math.floor(noise * set.length)];
+          let mark;
+          if (sample.crest) mark = sample.material === "snow" ? "^" : glyph ?? "^";
+          else if (sample.material === "snow") mark = pick(sample.light > 0.5 ? "*'^:" : "-~:'");
+          else if (sample.material === "woods") mark = pick("o*&%");
+          else mark = Math.abs(sample.slope) < 0.012 ? pick("#%:") : sample.slope > 0 ? "/" : "\\";
+          cells.push({
+            x, y, column, row,
+            glyph: mark.trim() || null,
+            // Bright glyph on a darker block of the same hue, like the rest of the landscape.
+            color: toHexRgb(mixRgb(base, [255, 255, 255], 0.12)),
+            fill: toHexRgb(mixRgb(base, [44, 54, 72], sample.material === "snow" ? 0.22 : 0.5)),
+            ridge: ridgeIndex,
+          });
           continue;
         }
         cells.push({ x, y, column, row, glyph, color: ridge.glyph, fill: ridge.fill, ridge: ridgeIndex });
