@@ -50,6 +50,12 @@
           <button class="menu-item" id="trophy-button" data-frame="box" type="button"><span class="menu-icon" id="trophy-icon"></span><span data-i18n="menu.trophies">Trophies</span> <span id="trophy-count" class="badge" hidden>0</span></button>
           <button class="menu-item" id="settings-button" data-frame="box" type="button"><span class="menu-icon" id="settings-icon"></span><span data-i18n="menu.settings">Settings</span></button>
         </nav>
+
+        <!-- Where progress is kept, with the way to sign in. -->
+        <div class="account-strip" id="account-strip" data-frame="box">
+          <span class="account-strip-text" id="account-strip-text"></span>
+          <button class="pixel-btn pixel-btn-primary" id="account-button" type="button"></button>
+        </div>
       </section>
 
       <!-- In-game HUD. -->
@@ -156,9 +162,26 @@
         <span class="setting-label" data-i18n="settings.language">Language</span>
         <div class="segmented" id="language-options" role="radiogroup" data-i18n-aria="settings.language"></div>
       </div>
-      <div class="setting-row account">
-        <span class="setting-label" data-i18n="account.title">Account</span>
-        <div class="account-body" id="account-body"></div>
+    </dialog>
+
+    <dialog class="sheet" id="account-dialog" data-frame="ornate" aria-labelledby="account-title">
+      <header class="sheet-heading">
+        <h2 class="title-tab" id="account-title" data-frame="tab" data-i18n="account.title">Account</h2>
+        <form method="dialog"><button class="pixel-btn pixel-btn-square" type="submit" data-i18n-aria="a11y.close">✕</button></form>
+      </header>
+      <div class="account-body" id="account-body"></div>
+    </dialog>
+
+    <!-- Offered once, after the very first fish: sign in, or carry on knowing the risk. -->
+    <dialog class="sheet" id="save-prompt" data-frame="ornate" aria-labelledby="save-prompt-title">
+      <header class="sheet-heading">
+        <h2 class="title-tab" id="save-prompt-title" data-frame="tab" data-i18n="savePrompt.title">First catch!</h2>
+      </header>
+      <p class="sync-text" data-i18n="savePrompt.text">Sign in so your catch and progress are kept safe.</p>
+      <p class="warning-text" data-i18n="savePrompt.warning">Without an account, progress lives only in this browser.</p>
+      <div class="sync-choices">
+        <button class="pixel-btn pixel-btn-primary" id="save-prompt-login" type="button" data-i18n="savePrompt.login">Sign in</button>
+        <button class="pixel-btn" id="save-prompt-skip" type="button" data-i18n="savePrompt.skip">Continue without signing in</button>
       </div>
     </dialog>
 

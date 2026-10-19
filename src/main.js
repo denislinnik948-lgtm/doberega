@@ -143,6 +143,8 @@ function handleGameEvent(type, data) {
         if (choice.type === "sell") ui.toast(`+${choice.price} ₴`, "good", 1200);
         else if (choice.type === "mount") ui.toast(t("toast.trophy"), "good", 1200);
         game.reset();
+        // The first fish ever is the moment to suggest keeping progress safe.
+        if (progress.caught === 1) ui.offerSignIn();
       });
     }
   }

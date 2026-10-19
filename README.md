@@ -57,7 +57,7 @@ The catalog (fish, bait, rods, extras, spots) lives in `src/fishing/data.js`; fi
 
 ## Accounts and cloud saves
 
-Progress normally lives in the browser's localStorage, which can be wiped. With accounts switched on, **Налаштування → Акаунт** lets a player sign in or create an account with email and password (Supabase Auth). While signed in, every save is pushed to the player's row in a `saves` table a few seconds after it happens (and on leaving the page); signing in on another device pulls it back. If the device and the account hold different progress, the game asks which one to keep. Row-level security means each player can only read and write their own save.
+Signing in is optional: the game is fully playable without an account. Progress then lives only in the browser's localStorage, which can be wiped, and the main menu says so in an amber line under the buttons, next to a **Увійти** button (once signed in, the line reads that progress is saved to the account and the button opens **Акаунт**). After the very first fish the game offers once to sign in, with a warning of what skipping means, and a **Продовжити без входу** option. The **Акаунт** window lets a player sign in or create an account with email and password (Supabase Auth). While signed in, every save is pushed to the player's row in a `saves` table a few seconds after it happens (and on leaving the page); signing in on another device pulls it back. If the device and the account hold different progress, the game asks which one to keep. Row-level security means each player can only read and write their own save.
 
 To switch it on:
 1. Create a free project at [supabase.com](https://supabase.com).

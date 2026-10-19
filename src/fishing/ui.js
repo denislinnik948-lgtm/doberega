@@ -70,6 +70,7 @@ export class AnglerUI {
     $("#pack-button").addEventListener("click", () => this.openPack());
     $("#trophy-button").addEventListener("click", () => this.openTrophies());
     $("#settings-button").addEventListener("click", () => this.openSettings());
+    $("#account-button").addEventListener("click", () => this.openAccount());
     for (const tab of document.querySelectorAll(".tab")) {
       tab.addEventListener("click", () => this.showShopTab(tab.dataset.tab));
     }
@@ -112,7 +113,6 @@ export class AnglerUI {
         this.openSettings();
       },
     })));
-    this.renderAccount();
     if (!this.settingsDialog.open) this.settingsDialog.showModal();
   }
 
@@ -124,7 +124,48 @@ export class AnglerUI {
     this.renderAccount();
   }
 
+  openAccount() {
+    this.renderAccount();
+    const dialog = $("#account-dialog");
+    if (!dialog.open) dialog.showModal();
+  }
+
+  /** The menu line under the buttons: where progress lives, and the way to sign in. */
+  renderAccountStrip() {
+    const cloud = this.cloud;
+    const signedIn = Boolean(cloud?.user);
+    const strip = $("#account-strip");
+    strip.classList.toggle("is-safe", signedIn);
+    $("#account-strip-text").textContent = t(signedIn ? "account.cloud" : "account.local");
+    const button = $("#account-button");
+    // Without a configured backend there's nothing to sign in to; the warning still stands.
+    button.hidden = !cloud?.enabled;
+    button.textContent = t(signedIn ? "account.open" : "account.login");
+  }
+
+  /** After the very first fish, offer once to sign in, warning what skipping means. */
+  offerSignIn() {
+    const cloud = this.cloud;
+    const KEY = "stillwater.signInOffered";
+    let offered = false;
+    try {
+      offered = localStorage.getItem(KEY) === "1";
+      localStorage.setItem(KEY, "1");
+    } catch {
+      // Without storage the offer may simply come again next time.
+    }
+    if (offered || !cloud?.enabled || cloud.user) return;
+    const dialog = $("#save-prompt");
+    $("#save-prompt-login").onclick = () => {
+      dialog.close();
+      this.openAccount();
+    };
+    $("#save-prompt-skip").onclick = () => dialog.close();
+    dialog.showModal();
+  }
+
   renderAccount() {
+    this.renderAccountStrip();
     const body = $("#account-body");
     const cloud = this.cloud;
     const note = (text, className = "account-note") => element("p", { className, textContent: text });
