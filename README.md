@@ -12,7 +12,7 @@ English and Ukrainian, switched in **Settings** on the main menu. English is the
 
 Each spot has its own ASCII landscape, built from a profile in `src/scene.js` (horizon, ridges, forest, near banks, structures, water behaviour, foreground):
 
-- **Ставок за селом** — no mountains, a close bank of round willows, cottages whose windows light up at night, thick reeds and lots of lily pads.
+- **Ставок за селом** — a Ukrainian village pond: a windmill with turning sails on the hill, whitewashed thatched cottages behind a wattle fence, a well sweep, a little white church with a golden onion dome (windows light up at dusk), a big weeping willow trailing its strands to the water, and a wooden jetty with a moored boat rocking beside it (both solid: no casting onto them, ducks go round). Reeds on the left, lily pads.
 - **Тихе озеро** — layered mountains behind a forested shore, reeds, a boulder and a few lily pads.
 - **Кам'яний брід** — a river: the wave pattern drifts sideways with the current, reflections tremble, rocks break the surface with foam, and a grassy near bank curves in on the left.
 - **Затока водосховища** — wide open water, low far hills, a concrete dam with gates and lamps, power pylons with sagging wires, concrete blocks in the foreground.

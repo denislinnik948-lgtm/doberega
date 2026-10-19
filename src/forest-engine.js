@@ -224,5 +224,63 @@ export function createForestGlyphs(width, height, cellWidth, lineHeight, sunX = 
     }
   }
 
+  const willow = activeScene().forest.willow;
+  if (willow) addWeepingWillow(cells, willow, width, height, cellWidth, lineHeight, columns);
+
   return [...cells.values()];
+}
+
+/**
+ * A big weeping willow on the far bank: a broad dome of leaves with long
+ * strands hanging to the water, swaying more toward their tips.
+ */
+/** Geometry of the scene's weeping willow (shared with the renderer's silhouette). */
+export function willowShape(width, height) {
+  const willow = activeScene().forest.willow;
+  if (!willow) return null;
+  const cx = width * willow.x;
+  const base = shorelineY(cx, height);
+  return { cx, base, crownTop: base - height * 0.2, crownBottom: base - height * 0.11, halfWidth: width * 0.085 };
+}
+
+function addWeepingWillow(cells, _willow, width, height, cellWidth, lineHeight, columns) {
+  const { cx, base, crownTop, crownBottom, halfWidth } = willowShape(width, height);
+  const put = (x, y, glyph, color, sway, phase) => {
+    const column = Math.floor(x / cellWidth);
+    const row = Math.floor(y / lineHeight);
+    if (column < 0 || column >= columns || row < 0) return;
+    cells.set(row * columns + column, {
+      x: (column + 0.5) * cellWidth, y: (row + 0.5) * lineHeight, column, row,
+      depth: base + 1, glyph, color, swayAmount: sway, swayPhase: phase, willow: true,
+    });
+  };
+
+  // Trunk, leaning slightly.
+  for (let y = base - lineHeight * 0.5; y > crownBottom; y -= lineHeight) {
+    const lean = ((base - y) / (base - crownBottom)) * cellWidth * 1.2;
+    put(cx - lean, y, "|", "#5a4a36", 0, 0);
+    put(cx - lean + cellWidth, y, "(", "#4a3c2c", 0, 0);
+  }
+  // Crown: a flattened dome.
+  for (let y = crownTop; y < crownBottom + lineHeight; y += lineHeight) {
+    const t = (y - crownTop) / (crownBottom - crownTop);
+    const span = halfWidth * Math.sqrt(Math.max(0, 1 - (1 - t) ** 2 * 0.95));
+    for (let x = cx - span; x <= cx + span; x += cellWidth) {
+      const noise = hash01(Math.round(x) * 31 + Math.round(y) * 17);
+      if (noise < 0.12) continue;
+      const lit = x < cx - span * 0.2 && t < 0.6;
+      put(x, y, noise > 0.7 ? "*" : noise > 0.4 ? "(" : ")", lit ? "#8e9a5c" : noise > 0.5 ? "#5e7444" : "#465c36", cellWidth * 0.2 * (1 - t), x * 0.01);
+    }
+  }
+  // Hanging strands from the crown's rim down to the water.
+  for (let x = cx - halfWidth * 1.05; x <= cx + halfWidth * 1.05; x += cellWidth * 1.5) {
+    const noise = hash01(Math.round(x) * 13);
+    if (noise < 0.2) continue;
+    const rim = crownBottom - lineHeight * (1 - Math.abs(x - cx) / halfWidth) * 2;
+    const end = base - lineHeight * (0.3 + noise * 1.5);
+    for (let y = rim; y < end; y += lineHeight) {
+      const t = (y - rim) / Math.max(1, end - rim);
+      put(x, y, t > 0.85 ? "'" : noise > 0.6 ? "!" : "|", t > 0.5 ? "#a2bc78" : "#86a062", cellWidth * (0.4 + t * 1.2), noise * 6);
+    }
+  }
 }

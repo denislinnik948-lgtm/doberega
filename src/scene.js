@@ -13,17 +13,37 @@ const LAKE_RIDGES = [
 ];
 
 export const SCENES = {
-  /** Village pond: no mountains, a close bank of willows, cottages, thick reeds and lily pads. */
+  /**
+   * Village pond: a windmill on the hill, whitewashed thatched cottages behind a
+   * wattle fence, a well sweep, a little church with a golden dome, a weeping
+   * willow trailing into the water, and a wooden jetty with a moored boat.
+   */
   pond: {
     horizon: 0.5,
     ridges: [
-      { top: 0.445, amplitude: 0.03, seed: 2.2, fill: "#3d4b47", glyph: "#56665f", texture: ".:'", density: 0.12 },
+      { top: 0.43, amplitude: 0.045, seed: 2.2, fill: "#3d4b47", glyph: "#56665f", texture: ".:'", density: 0.12 },
       { top: 0.475, amplitude: 0.012, seed: 4.1, fill: "#2a3a30", glyph: "#3f5244", texture: ",.'", density: 0.25 },
     ],
-    forest: { heightScale: 1.3, spacingScale: 1.2, broadleaf: 0.9, round: 0.75, gaps: [[0.05, 0.36]] },
-    structures: { houses: { from: 0.07, to: 0.34, count: 3, scale: 1.6 } },
-    water: {},
-    foreground: { reeds: 1.8, rock: false, lilyPads: 9, padScale: 1.7 },
+    forest: {
+      heightScale: 1.15, spacingScale: 1.45, broadleaf: 0.9, round: 0.75,
+      gaps: [[0.04, 0.36], [0.53, 0.63]],
+      willow: { x: 0.445 },
+    },
+    structures: {
+      houses: { from: 0.05, to: 0.3, count: 2, scale: 1.5, style: "mazanka" },
+      fence: { from: 0.03, to: 0.33 },
+      well: { x: 0.33 },
+      church: { x: 0.58 },
+      windmill: { x: 0.79 },
+    },
+    water: {
+      // The jetty and the boat beside it are solid: no casting onto them, and ducks go round.
+      solids: [
+        { points: [[0.655, 0.7], [0.735, 0.7], [0.98, 1.03], [0.79, 1.03]] },
+        { ellipse: { x: 0.585, y: 0.77, rx: 0.075, ry: 0.024 } },
+      ],
+    },
+    foreground: { reeds: 1.4, reedSides: ["left"], rock: false, lilyPads: 8, padScale: 1.7, jetty: true },
   },
   /** Quiet lake: layered mountains behind a forested shore. */
   lake: {
@@ -116,7 +136,24 @@ export function isOpenWater(x, y, width, height) {
     const r = rock.r * Math.min(width, height * 1.6);
     if (((x - rock.x * width) / r) ** 2 + ((y - rock.y * height) / (r * 0.45)) ** 2 < 1.4) return false;
   }
+  for (const solid of active.water.solids ?? []) if (insideSolid(solid, x / width, y / height)) return false;
   return true;
+}
+
+/** Point-in-shape test for solid things on the water (jetty, boat), in viewport fractions. */
+export function insideSolid(solid, fx, fy) {
+  if (solid.ellipse) {
+    const { x, y, rx, ry } = solid.ellipse;
+    return ((fx - x) / rx) ** 2 + ((fy - y) / ry) ** 2 < 1;
+  }
+  let inside = false;
+  const points = solid.points;
+  for (let i = 0, j = points.length - 1; i < points.length; j = i, i += 1) {
+    const [xi, yi] = points[i];
+    const [xj, yj] = points[j];
+    if ((yi > fy) !== (yj > fy) && fx < ((xj - xi) * (fy - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
 }
 
 export function sunPosition(width, height) {

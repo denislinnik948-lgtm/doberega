@@ -1,5 +1,5 @@
 import { sampleWater } from "./water-engine.js";
-import { createForestGlyphs } from "./forest-engine.js";
+import { createForestGlyphs, willowShape } from "./forest-engine.js";
 import { activeScene, isOpenWater, setScene, shorelineY, sunPosition } from "./scene.js";
 import { skyAt, toHex, toInt } from "./daycycle.js";
 import { clamp, hash2, hexToInt, mixColor } from "./noise.js";
@@ -197,6 +197,7 @@ export class CanvasWaterRenderer {
     const structures = createStructures(width, height, cellWidth, lineHeight);
     this.structureCells = structures.cells;
     this.structureShapes = structures.shapes;
+    this.windmill = structures.windmill;
     this.lightBatch.clear();
     for (const cell of structures.lights) this.lightBatch.push(cell.x, cell.y, cell.glyph, hexToInt(cell.color));
     this.bankCells = createBankGlyphs(width, height, cellWidth, lineHeight);
@@ -210,7 +211,7 @@ export class CanvasWaterRenderer {
     this.treeline = new Float32Array(columns + 1);
     for (let column = 0; column <= columns; column += 1) this.treeline[column] = this.shorelineY(column * cellWidth);
     for (const cell of this.forestCells) {
-      if (cell.glyph === "|" || cell.y - lineHeight * 0.2 > this.treeline[cell.column]) continue;
+      if (cell.willow || cell.glyph === "|" || cell.y - lineHeight * 0.2 > this.treeline[cell.column]) continue;
       this.treeline[cell.column] = cell.y - lineHeight * 0.2;
     }
     this.buildBackdrop();
@@ -221,6 +222,7 @@ export class CanvasWaterRenderer {
     this.backend.setLayer("land", this.createLayer((ctx) => this.paintLand(ctx)));
     this.lightKey = null;
     this.rockImages = this.rocks.map((rock) => this.createRockImage(rock));
+    this.jettyImage = activeScene().foreground.jetty ? this.createJettyImage() : null;
     this.skyTime = null;
   }
 
@@ -365,6 +367,21 @@ export class CanvasWaterRenderer {
     ctx.fillStyle = "#1b271f";
     ctx.fill();
 
+    // The weeping willow: a dark rounded crown with a curtain of strands below.
+    const willow = willowShape(width, height);
+    if (willow) {
+      const { cx, crownTop, crownBottom, halfWidth, base } = willow;
+      ctx.beginPath();
+      ctx.moveTo(cx - halfWidth * 1.05, base);
+      ctx.lineTo(cx - halfWidth * 1.05, crownBottom + (base - crownBottom) * 0.35);
+      ctx.quadraticCurveTo(cx - halfWidth * 1.1, crownTop, cx, crownTop);
+      ctx.quadraticCurveTo(cx + halfWidth * 1.1, crownTop, cx + halfWidth * 1.05, crownBottom + (base - crownBottom) * 0.35);
+      ctx.lineTo(cx + halfWidth * 1.05, base);
+      ctx.closePath();
+      ctx.fillStyle = "rgba(24, 36, 26, 0.92)";
+      ctx.fill();
+    }
+
     // Cottages, the dam and pylons stand on the far shore.
     for (const shape of this.structureShapes) {
       ctx.beginPath();
@@ -450,6 +467,118 @@ export class CanvasWaterRenderer {
     return { image, left, top, width, height };
   }
 
+  /** A wooden jetty running out from the bottom-right corner: planks, rails and posts. */
+  createJettyImage() {
+    const { width, height, pixelRatio, cellWidth, lineHeight } = this;
+    const solid = activeScene().water.solids[0].points.map(([fx, fy]) => [fx * width, fy * height]);
+    const [farLeft, farRight, nearRight, nearLeft] = solid;
+    const image = document.createElement("canvas");
+    image.width = Math.round(width * pixelRatio);
+    image.height = Math.round(height * pixelRatio);
+    const ctx = image.getContext("2d");
+    ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    ctx.font = `600 ${Math.round(this.reedSize * 0.7)}px ${MONO_FONT}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    // Posts standing in the water under both edges.
+    const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+    for (let t = 0; t <= 1.001; t += 0.2) {
+      for (const [from, to] of [[farLeft, nearLeft], [farRight, nearRight]]) {
+        const [px, py] = lerp(from, to, t);
+        const post = 6 + t * 26;
+        ctx.fillStyle = "#1e1710";
+        ctx.fillRect(px - 2 - t * 3, py, 4 + t * 6, post);
+      }
+    }
+    // Deck.
+    ctx.beginPath();
+    solid.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)));
+    ctx.closePath();
+    ctx.fillStyle = "#3b2c1d";
+    ctx.fill();
+    // Planks across the deck, closer together toward the far end.
+    for (let t = 0.02; t < 1; t += 0.03 + t * 0.05) {
+      const [ax, ay] = lerp(farLeft, nearLeft, t);
+      const [bx, by] = lerp(farRight, nearRight, t);
+      ctx.strokeStyle = "#20180f";
+      ctx.lineWidth = 1 + t * 2;
+      ctx.beginPath();
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(bx, by);
+      ctx.stroke();
+      const glyphs = Math.max(2, Math.round((bx - ax) / (cellWidth * (1 + t * 2))));
+      for (let g = 0; g <= glyphs; g += 1) {
+        const k = g / glyphs;
+        ctx.fillStyle = (g + Math.round(t * 40)) % 3 ? "#7a6040" : "#94784e";
+        ctx.fillText("=", ax + (bx - ax) * k, ay + (by - ay) * k - lineHeight * 0.3 * t);
+      }
+    }
+    // Edge rails.
+    for (const [from, to] of [[farLeft, nearLeft], [farRight, nearRight]]) {
+      for (let t = 0; t <= 1; t += 0.06) {
+        const [px, py] = lerp(from, to, t);
+        ctx.fillStyle = "#a88a5a";
+        ctx.fillText("|", px, py - 4 - t * 8);
+      }
+    }
+    return image;
+  }
+
+  /** The moored rowing boat, rocking gently beside the jetty. */
+  drawBoat(ctx, time) {
+    const boat = activeScene().water.solids?.[1]?.ellipse;
+    if (!boat) return;
+    const { width, height } = this;
+    const cx = boat.x * width;
+    const cy = boat.y * height + Math.sin(time * 1.1) * 1.5;
+    const rx = boat.rx * width;
+    const ry = boat.ry * height;
+    const tilt = Math.sin(time * 0.8) * 0.02;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(tilt);
+    // Hull.
+    ctx.beginPath();
+    ctx.moveTo(-rx, -ry * 0.6);
+    ctx.quadraticCurveTo(-rx * 0.9, ry * 1.4, 0, ry * 1.3);
+    ctx.quadraticCurveTo(rx * 0.9, ry * 1.4, rx * 1.05, -ry * 0.9);
+    ctx.lineTo(-rx, -ry * 0.6);
+    ctx.fillStyle = "#2a1d12";
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#7a5a36";
+    ctx.stroke();
+    ctx.font = `700 ${Math.round(this.reedSize * 0.6)}px ${MONO_FONT}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const n = Math.round((rx * 2) / (this.reedSize * 0.42));
+    for (let i = 0; i <= n; i += 1) {
+      const px = -rx + (i / n) * rx * 2;
+      ctx.fillStyle = i % 2 ? "#a07a48" : "#8a6a40";
+      ctx.fillText(i === 0 ? "\\" : i === n ? "/" : "=", px, -ry * 0.55 + (i / n) * -ry * 0.3);
+      if (i > 0 && i < n && i % 3 === 0) {
+        ctx.fillStyle = "#5a4228";
+        ctx.fillText("|", px, ry * 0.25);
+      }
+    }
+    // An oar resting across the boat.
+    ctx.strokeStyle = "#8a6a40";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-rx * 0.5, -ry * 1.4);
+    ctx.lineTo(rx * 0.7, ry * 0.8);
+    ctx.stroke();
+    ctx.restore();
+    // Mooring rope to the jetty.
+    ctx.strokeStyle = "rgba(190, 170, 130, 0.7)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx + rx, cy - ry * 0.8);
+    ctx.quadraticCurveTo(cx + rx * 1.25, cy + ry, width * 0.69, height * 0.735);
+    ctx.stroke();
+  }
+
   fillForest(time) {
     const batch = this.forestBatch;
     batch.clear();
@@ -457,6 +586,26 @@ export class CanvasWaterRenderer {
       const sway = Math.sin(time * 0.42 + cell.swayPhase) * cell.swayAmount;
       batch.push(cell.x + sway, cell.y, cell.glyph, cell.colorValue);
     }
+    if (this.windmill) this.pushWindmillSails(batch, time);
+  }
+
+  /** Four lattice sails turning slowly around the windmill's hub. */
+  pushWindmillSails(batch, time) {
+    const { x, y, length } = this.windmill;
+    const step = this.lineHeight * 0.75;
+    const turn = time * 0.45;
+    for (let arm = 0; arm < 4; arm += 1) {
+      const angle = turn + (arm * Math.PI) / 2;
+      const dx = Math.cos(angle);
+      const dy = Math.sin(angle);
+      const slope = Math.abs(dy) / Math.max(0.001, Math.abs(dx));
+      const line = slope > 2.4 ? "|" : slope < 0.42 ? "-" : dx * dy > 0 ? "\\" : "/";
+      for (let d = step, i = 0; d <= length; d += step, i += 1) {
+        const lattice = d > length * 0.3 && i % 2 === 0;
+        batch.push(x + dx * d, y + dy * d * 0.95, lattice ? "#" : line, lattice ? 0xb8a684 : 0xd8c8a4);
+      }
+    }
+    batch.push(x, y, "o", 0xe2d6b4);
   }
 
   fillWater(time, config, ripples) {
@@ -742,6 +891,10 @@ export class CanvasWaterRenderer {
     const ctx = this.overlayContext;
     ctx.clearRect(0, 0, this.width, this.height);
     for (const rock of this.rockImages) ctx.drawImage(rock.image, rock.left, rock.top, rock.width, rock.height);
+    if (this.jettyImage) {
+      ctx.drawImage(this.jettyImage, 0, 0, this.width, this.height);
+      this.drawBoat(ctx, time);
+    }
     this.drawDucks(ctx, time, this.ducks);
     if (angler && !angler.hidden) this.renderAngler(ctx, angler, "line");
 

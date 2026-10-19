@@ -99,7 +99,9 @@ export function createStructures(width, height, cellWidth, lineHeight) {
     return cell;
   };
 
-  if (structures.houses) {
+  if (structures.houses?.style === "mazanka") {
+    addMazanky(structures.houses, { width, height, cellWidth, lineHeight, put, shapes, lights });
+  } else if (structures.houses) {
     const { from, to, count, scale = 1 } = structures.houses;
     for (let i = 0; i < count; i += 1) {
       const cx = width * (from + ((to - from) * (i + 0.5)) / count) + (hash2(i, 3, 5) - 0.5) * width * 0.03;
@@ -187,7 +189,13 @@ export function createStructures(width, height, cellWidth, lineHeight) {
     }
   }
 
-  return { cells, lights, shapes };
+  const ctx = { width, height, cellWidth, lineHeight, put, shapes, lights };
+  if (structures.fence) addFence(structures.fence, ctx);
+  if (structures.well) addWellSweep(structures.well, ctx);
+  if (structures.church) addChurch(structures.church, ctx);
+  const windmill = structures.windmill ? addWindmill(structures.windmill, ctx) : null;
+
+  return { cells, lights, shapes, windmill };
 }
 
 /** Near banks (grassy or rocky) that frame the water at the sides of the view. */
@@ -225,4 +233,132 @@ export function createBankGlyphs(width, height, cellWidth, lineHeight) {
     }
   }
   return cells;
+}
+
+/* ---------- Village pieces for the pond ---------- */
+
+/** Whitewashed clay cottages with thick thatched roofs and warm windows. */
+function addMazanky({ from, to, count, scale = 1 }, { width, height, cellWidth, lineHeight, put, shapes, lights }) {
+  for (let i = 0; i < count; i += 1) {
+    const cx = width * (from + ((to - from) * (i + 0.5)) / count) + (hash2(i, 3, 5) - 0.5) * width * 0.02;
+    const base = shorelineY(cx, height) - lineHeight * 0.9;
+    const half = Math.round((6 + hash2(i, 7, 9) * 2) * scale);
+    const wallRows = Math.round(3 * scale);
+    const roofRows = Math.round(4 * scale);
+    const left = cx - (half + 0.5) * cellWidth;
+    const right = cx + (half + 0.5) * cellWidth;
+    const wallTop = base - (wallRows - 0.5) * lineHeight;
+    const eave = wallTop + lineHeight * 0.3;
+    const ridgeY = wallTop - roofRows * lineHeight;
+    shapes.push({ points: [[left, base + lineHeight * 0.5], [left, wallTop], [right, wallTop], [right, base + lineHeight * 0.5]], color: "#a9a493" });
+    // A hipped thatch roof overhanging the walls.
+    shapes.push({ points: [[left - cellWidth * 2, eave], [cx - half * 0.35 * cellWidth, ridgeY], [cx + half * 0.35 * cellWidth, ridgeY], [right + cellWidth * 2, eave]], color: "#6f5a2e" });
+    for (let r = 0; r < wallRows; r += 1) {
+      const y = base - r * lineHeight;
+      for (let c = -half; c <= half; c += 1) {
+        const edge = Math.abs(c) === half;
+        const window = r >= 1 && r <= wallRows - 1 && Math.abs(c) >= Math.round(2.5 * scale) && Math.abs(c) <= Math.round(3.5 * scale) && !edge;
+        const door = r < wallRows - 1 && c === -1;
+        const glyph = edge ? "|" : window ? "#" : door ? "]" : r === 0 ? "_" : hash2(c, r + i * 7, 41) > 0.7 ? "." : " ";
+        if (glyph === " ") continue;
+        const cell = put(cx + c * cellWidth, y, glyph, window ? "#e2b85e" : door ? "#4a3626" : "#d2cdbb");
+        if (window) lights.push(cell);
+      }
+    }
+    for (let r = 0; r < roofRows; r += 1) {
+      const y = eave - (r + 0.5) * lineHeight;
+      const t = r / roofRows;
+      const span = Math.round((half + 2) - t * (half + 2 - half * 0.35));
+      for (let c = -span; c <= span; c += 1) {
+        const glyph = c === -span ? "/" : c === span ? "\\" : r === roofRows - 1 ? "~" : hash2(c, r, 61 + i) > 0.5 ? "\"" : "'";
+        put(cx + c * cellWidth, y, glyph, c === -span || c === span ? "#8a7038" : hash2(c, r, 67) > 0.4 ? "#c4a862" : "#a88c4e");
+      }
+    }
+  }
+}
+
+/** A woven wattle fence along the far bank. */
+function addFence({ from, to }, { width, height, cellWidth, lineHeight, put }) {
+  for (let x = width * from, c = 0; x <= width * to; x += cellWidth, c += 1) {
+    const y = shorelineY(x, height) - lineHeight * 0.75;
+    put(x, y, c % 4 === 0 ? "|" : c % 2 ? "X" : "x", "#7a6040");
+    if (c % 4 === 0) put(x, y - lineHeight, "'", "#7a6040");
+  }
+}
+
+/** A well sweep: an upright post with a long tilted pole and a bucket on a rope. */
+function addWellSweep({ x: fx }, { width, height, cellWidth, lineHeight, put }) {
+  const x = width * fx;
+  const ground = shorelineY(x, height) - lineHeight * 0.9;
+  const postRows = Math.max(5, Math.round((height * 0.05) / lineHeight));
+  for (let r = 0; r < postRows; r += 1) put(x, ground - r * lineHeight, r === postRows - 1 ? "Y" : "|", "#a08458");
+  // Well box at the foot of the sweep.
+  for (let c = 2; c <= 5; c += 1) put(x + c * cellWidth, ground, c === 2 || c === 5 ? "|" : "=", "#b4966a");
+  // The pole: low end behind, high end over the well.
+  const pivot = { x, y: ground - (postRows - 1) * lineHeight };
+  const steps = Math.round(postRows * 2);
+  let tip = pivot;
+  for (let k = -Math.round(steps * 0.35); k <= steps; k += 1) {
+    const px = pivot.x + k * cellWidth * 0.75;
+    const py = pivot.y - k * lineHeight * 0.32;
+    put(px, py, "/", "#b4966a");
+    tip = { x: px, y: py };
+  }
+  for (let y = tip.y + lineHeight; y < ground - lineHeight * 1.5; y += lineHeight) put(tip.x, y, "|", "#8a7454");
+  put(tip.x, ground - lineHeight, "U", "#c8aa76");
+}
+
+/** A small whitewashed church with an onion dome, a cross and a lit window. */
+function addChurch({ x: fx }, { width, height, cellWidth, lineHeight, put, shapes, lights }) {
+  const cx = width * fx;
+  const base = shorelineY(cx, height) - lineHeight * 0.9;
+  const half = 4;
+  const wallRows = 5;
+  const wallTop = base - (wallRows - 0.5) * lineHeight;
+  const left = cx - (half + 0.5) * cellWidth;
+  const right = cx + (half + 0.5) * cellWidth;
+  shapes.push({ points: [[left, base + lineHeight * 0.5], [left, wallTop], [right, wallTop], [right, base + lineHeight * 0.5]], color: "#b4af9f" });
+  for (let r = 0; r < wallRows; r += 1) {
+    for (let c = -half; c <= half; c += 1) {
+      const edge = Math.abs(c) === half;
+      const window = c === 0 && (r === 2 || r === 3);
+      const glyph = edge ? "|" : window ? (r === 3 ? "n" : "#") : r === 0 ? "_" : "";
+      if (!glyph) continue;
+      const cell = put(cx + c * cellWidth, base - r * lineHeight, glyph, window ? "#e2b85e" : "#dcd7c6");
+      if (window) lights.push(cell);
+    }
+  }
+  // Drum, onion dome and cross.
+  const drumTop = wallTop - lineHeight * 1.5;
+  shapes.push({ points: [[cx - 2.5 * cellWidth, wallTop], [cx - 2.5 * cellWidth, drumTop], [cx + 2.5 * cellWidth, drumTop], [cx + 2.5 * cellWidth, wallTop]], color: "#b4af9f" });
+  put(cx - 2 * cellWidth, wallTop - lineHeight * 0.7, "|", "#dcd7c6");
+  put(cx + 2 * cellWidth, wallTop - lineHeight * 0.7, "|", "#dcd7c6");
+  const dome = [[-3, "("], [-2, "@"], [-1, "@"], [0, "@"], [1, "@"], [2, "@"], [3, ")"]];
+  const domeBase = drumTop - lineHeight * 0.5;
+  shapes.push({
+    points: [[cx - 3.2 * cellWidth, drumTop], [cx - 3.6 * cellWidth, drumTop - lineHeight * 1.2], [cx - 1.6 * cellWidth, drumTop - lineHeight * 2.6], [cx, drumTop - lineHeight * 3.4], [cx + 1.6 * cellWidth, drumTop - lineHeight * 2.6], [cx + 3.6 * cellWidth, drumTop - lineHeight * 1.2], [cx + 3.2 * cellWidth, drumTop]],
+    color: "#b8903a",
+  });
+  for (const [c, glyph] of dome) put(cx + c * cellWidth, drumTop - lineHeight * 1.1, glyph, "#e2b85e");
+  for (let c = -1; c <= 1; c += 1) put(cx + c * cellWidth, drumTop - lineHeight * 2.2, c ? (c < 0 ? "/" : "\\") : "^", "#e8c46a");
+  put(cx, drumTop - lineHeight * 3.4, "|", "#e8c46a");
+  put(cx, drumTop - lineHeight * 4.3, "+", "#f0d48a");
+}
+
+/** A post windmill on the hill; its sails are animated by the renderer. */
+function addWindmill({ x: fx }, { width, height, cellWidth, lineHeight, put, shapes }) {
+  const { ridges } = activeScene();
+  const x = width * fx;
+  const ground = (ridges.length ? ridgeTop(ridges[0], x, height) : shorelineY(x, height)) + lineHeight * 1.2;
+  const rows = Math.max(8, Math.round((height * 0.1) / lineHeight));
+  const top = ground - rows * lineHeight;
+  shapes.push({ points: [[x - 5 * cellWidth, ground + lineHeight * 0.5], [x - 2.5 * cellWidth, top], [x + 2.5 * cellWidth, top], [x + 5 * cellWidth, ground + lineHeight * 0.5]], color: "#4e4032" });
+  for (let r = 0; r < rows; r += 1) {
+    const spread = Math.round(4.5 - (r / rows) * 2);
+    put(x - spread * cellWidth, ground - r * lineHeight, "/", "#7a6448");
+    put(x + spread * cellWidth, ground - r * lineHeight, "\\", "#7a6448");
+    if (r % 2) put(x, ground - r * lineHeight, "#", "#6a5640");
+  }
+  for (let c = -2; c <= 2; c += 1) put(x + c * cellWidth, top - lineHeight * 0.5, c === 0 ? "^" : c < 0 ? "/" : "\\", "#8a7254");
+  return { x, y: top + lineHeight * 0.6, length: height * 0.11 };
 }
