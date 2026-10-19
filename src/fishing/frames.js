@@ -244,22 +244,18 @@ function landscape(px, w, h, random, kind) {
         px.set(x, y, cliff ? (x % 3 ? P.soft : P.mid) : (x * 7 + y * 3) % 5 ? P.deep : P.dark);
       }
     }
-    // Castle halls with red roofs and a coned tower.
+    // Ruined castle: broken grey walls and gutted towers, no roofs.
     const ground = horizon - Math.round(30 * unit);
-    for (const [fx, fw, tall] of [[0.1, 0.07, 6], [0.17, 0.08, 4]]) {
-      const x = Math.round(w * fx);
-      px.rect(x, ground - Math.round(tall * unit), Math.round(w * fw), Math.round(tall * unit), P.bone);
-      px.rect(x - 1, ground - Math.round((tall + 3) * unit), Math.round(w * fw) + 2, Math.round(3 * unit), P.ember);
+    for (let x = Math.round(w * 0.1); x < Math.round(w * 0.31); x += 1) {
+      const broken = Math.floor((((x * 37) % 11) / 11) * 3);
+      px.rect(x, ground - Math.round(4 * unit) + broken, 1, Math.round(4 * unit) - broken, P.soft);
     }
-    const tx = Math.round(w * 0.29);
-    px.rect(tx - 2, ground - Math.round(6 * unit), 5, Math.round(8 * unit), P.bone);
-    for (let k = 0; k < 4; k += 1) px.rect(tx - 3 + k, ground - Math.round(6 * unit) - k - 1, 7 - 2 * k, 1, P.ember);
-    // White church with a needle spire on the far shore.
-    const chx = Math.round(w * 0.79);
-    px.rect(chx - 6, horizon - Math.round(5 * unit), 12, Math.round(5 * unit), P.bone);
-    px.rect(chx + 6, horizon - Math.round(12 * unit), 3, Math.round(12 * unit), P.bone);
-    for (let k = 0; k < Math.round(10 * unit); k += 1) px.set(chx + 7, horizon - Math.round(12 * unit) - k, P.mid);
-    for (const fx of [0.7, 0.9]) {
+    for (const [fx, tall] of [[0.15, 14], [0.21, 9], [0.3, 11]]) {
+      const x = Math.round(w * fx);
+      for (let k = -3; k <= 3; k += 1) px.rect(x + k, ground - Math.round(tall * unit) + ((k * 13 + 20) % 4), 1, Math.round(tall * unit), k < 0 ? P.light : P.soft);
+      px.rect(x, ground - Math.round(tall * 0.6 * unit), 1, 2, P.ink);
+    }
+    for (const fx of [0.82, 0.94]) {
       const hx = Math.round(w * fx);
       px.rect(hx - 4, horizon - Math.round(4 * unit), 8, Math.round(4 * unit), P.light);
       px.rect(hx - 5, horizon - Math.round(6 * unit), 10, Math.round(2 * unit), P.ember);

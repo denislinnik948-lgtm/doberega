@@ -49,7 +49,6 @@ export class CanvasWaterRenderer {
     this.lightBatch = new GlyphBatch();
     this.rainBatch = new GlyphBatch();
     this.ducks = [];
-    this.wheels = [];
     this.glintBatch = new GlyphBatch();
     this.lightKey = null;
     this.forestBatch = new GlyphBatch();
@@ -199,7 +198,6 @@ export class CanvasWaterRenderer {
     const structures = createStructures(width, height, cellWidth, lineHeight);
     this.structureCells = structures.cells;
     this.structureShapes = structures.shapes;
-    this.wheels = structures.wheels;
     this.lightBatch.clear();
     for (const cell of structures.lights) this.lightBatch.push(cell.x, cell.y, cell.glyph, hexToInt(cell.color));
     this.bankCells = createBankGlyphs(width, height, cellWidth, lineHeight, this.sun.x);
@@ -532,42 +530,7 @@ export class CanvasWaterRenderer {
       const sway = Math.sin(time * 0.42 + cell.swayPhase) * cell.swayAmount;
       batch.push(cell.x + sway, cell.y, cell.glyph, cell.colorValue);
     }
-    for (const wheel of this.wheels) this.pushWheel(batch, wheel, time);
   }
-
-  /** A turning mill wheel: a rim of paddles and spokes, snapped to the glyph grid. */
-  pushWheel(batch, wheel, time) {
-    const { cellWidth, lineHeight } = this;
-    const angle = -time * 0.7;
-    const seen = new Set();
-    const put = (x, y, glyph, color) => {
-      const column = Math.floor(x / cellWidth);
-      const row = Math.floor(y / lineHeight);
-      const key = column * 4096 + row;
-      if (seen.has(key)) return;
-      seen.add(key);
-      batch.push((column + 0.5) * cellWidth, (row + 0.5) * lineHeight, glyph, color);
-    };
-    const r = wheel.radius;
-    put(wheel.x, wheel.y, "@", 0x6a5038);
-    const spokes = 8;
-    for (let k = 0; k < spokes; k += 1) {
-      const a = angle + (k / spokes) * Math.PI * 2;
-      const cos = Math.cos(a);
-      const sin = Math.sin(a);
-      // Paddle at the end of each spoke.
-      put(wheel.x + cos * r * 1.18, wheel.y + sin * r, "#", 0xc09a68);
-      if (k % 2) continue;
-      const slope = Math.abs(cos) < 0.38 ? "|" : Math.abs(sin) < 0.38 ? "-" : cos * sin > 0 ? "\\" : "/";
-      for (let t = 0.3; t < 0.85; t += 0.22) put(wheel.x + cos * r * 1.18 * t, wheel.y + sin * r * t, slope, 0x9a7a54);
-    }
-    for (let k = 0; k < 28; k += 1) {
-      const a = (k / 28) * Math.PI * 2;
-      put(wheel.x + Math.cos(a) * r * 1.02, wheel.y + Math.sin(a) * r * 0.86, "o", 0xa8845a);
-    }
-  }
-
-
 
   fillWater(time, config, ripples) {
     const { cellWidth, lineHeight, columns, backdrop, waterBandColors, reflectionColors } = this;
@@ -670,15 +633,6 @@ export class CanvasWaterRenderer {
       for (const cell of rock.foam) {
         const wave = Math.sin(time * 4 + cell.noise * 30 + cell.x * 0.05);
         if (wave > (cell.downstream ? -0.2 : 0.4)) batch.push(cell.x, cell.y, wave > 0.7 ? "~" : "-", wave > 0.7 ? 0xdde8e4 : 0x9fb8b6);
-      }
-    }
-
-    // White water churned up where the mill wheel dips into the river.
-    for (const wheel of this.wheels) {
-      const waterline = this.shorelineY(wheel.x) + this.lineHeight * 0.6;
-      for (let k = -3; k <= 3; k += 1) {
-        const wave = Math.sin(time * 6 + k * 1.7);
-        if (wave > -0.3) batch.push(wheel.x + k * this.cellWidth, waterline + (wave > 0.6 ? 0 : this.lineHeight * 0.5), wave > 0.5 ? "~" : "-", wave > 0.5 ? 0xdde8e4 : 0x9fb8b6);
       }
     }
 

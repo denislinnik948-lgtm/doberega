@@ -14,7 +14,7 @@ Each spot has its own ASCII landscape, built from a profile in `src/scene.js` (h
 
 - **Ставок за селом** — a pond in open farmland: big sky, a low flat far bank of green meadow and a ploughed strip, scattered round trees and tall poplars, a few small cottages in the distance, a reed fringe along the far waterline, and thick reeds and cattails on both near sides.
 - **Тихе озеро** — layered mountains behind a forested shore, reeds, a boulder and a few lily pads.
-- **Замкове озеро** — after a photo of an alpine lake: a wooded hill rises on the left to a sheer limestone cliff topped by a castle of pale walls and red roofs with a coned tower; snowy jagged peaks fill the right; a white church with a needle spire and red-roofed houses line the far shore, with an arched stone bridge under the cliff and a watermill whose wheel turns and churns foam. Calm emerald water.
+- **Замкове озеро** — after a photo of an alpine lake: a dark wooded hill of distinct tree crowns rises on the left to a sheer limestone cliff topped by an ancient ruined castle (broken grey walls, gutted towers, ivy, no roofs); jagged snow-capped peaks fill the right; an arched stone bridge sits under the cliff and two red-roofed houses on the far shore. Calm emerald water.
 - **Затока водосховища** — wide open water, low far hills, a concrete dam with gates and lamps, power pylons with sagging wires, concrete blocks in the foreground.
 - **Старий міст** — fishing from a wooden bridge over a fast river: we look downstream past the railing, willow-lined banks recede toward a bend, and the current races away in long streaks and flecks of foam (no casting onto the railing).
 

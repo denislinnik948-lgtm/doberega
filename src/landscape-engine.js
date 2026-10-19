@@ -221,11 +221,9 @@ export function createStructures(width, height, cellWidth, lineHeight) {
     }
   }
 
-  const out = { cells, lights, shapes, wheels: [] };
+  const out = { cells, lights, shapes };
   if (structures.crag) addCrag(structures.crag, width, height, cellWidth, lineHeight, out);
-  if (structures.church) addChurch(structures.church, width, height, cellWidth, lineHeight, out);
   if (structures.archBridge) addArchBridge(structures.archBridge, width, height, cellWidth, lineHeight, out);
-  if (structures.mill) addMill(structures.mill, width, height, cellWidth, lineHeight, out);
 
   return out;
 }
@@ -293,51 +291,6 @@ function addArchBridge({ from, to, arches }, width, height, cellWidth, lineHeigh
   }
 }
 
-/** A watermill: a timber house under a thatched roof, its wheel turning in the river. */
-function addMill({ x: fx }, width, height, cellWidth, lineHeight, out) {
-  const cx = width * fx;
-  const base = shorelineY(cx, height) - lineHeight * 0.6;
-  const half = 5;
-  const wallRows = Math.max(3, Math.round((height * 0.04) / lineHeight));
-  const roofRows = 4;
-  const left = cx - (half + 0.5) * cellWidth;
-  const right = cx + (half + 0.5) * cellWidth;
-  const wallTop = base - (wallRows - 0.5) * lineHeight;
-  out.shapes.push({ points: [[left, base + lineHeight * 0.5], [left, wallTop], [right, wallTop], [right, base + lineHeight * 0.5]], color: "#4a3a2c" });
-  out.shapes.push({ points: [[left - cellWidth * 1.5, wallTop], [cx, wallTop - roofRows * lineHeight], [right + cellWidth * 1.5, wallTop]], color: "#5e4e2c" });
-  for (let r = 0; r < wallRows; r += 1) {
-    const y = base - r * lineHeight;
-    for (let c = -half; c <= half; c += 1) {
-      const cell = cellAt(cx + c * cellWidth, y, cellWidth, lineHeight);
-      const edge = Math.abs(c) === half;
-      // Half-timbering: dark posts and a cross brace over pale daub.
-      const timber = edge || c === 0 || r === wallRows - 1 || (r === 1 && Math.abs(c) === 3);
-      const window = r === wallRows - 2 && Math.abs(c) === 2;
-      out.cells.push({ ...cell, glyph: window ? "#" : timber ? (edge || c === 0 ? "|" : "=") : r === 0 ? "_" : ".", color: window ? "#e2b85e" : timber ? "#4a3626" : "#b0a488" });
-      if (window) out.lights.push(out.cells[out.cells.length - 1]);
-    }
-  }
-  for (let r = 0; r < roofRows; r += 1) {
-    const span = Math.round(half + 2 - (r * (half + 2)) / roofRows);
-    for (let c = -span; c <= span; c += 1) {
-      const cell = cellAt(cx + c * cellWidth, base - (wallRows + r) * lineHeight, cellWidth, lineHeight);
-      const glyph = c === -span ? "/" : c === span ? "\\" : r === roofRows - 1 ? "^" : "\"';,"[Math.floor(hash2(cell.column, cell.row, 61) * 4)];
-      out.cells.push({ ...cell, glyph, color: c < 0 ? "#a08a52" : "#7e6a3c" });
-    }
-  }
-  // The wheel turns every frame, so the renderer draws it from this description.
-  const radius = Math.max(3, (height * 0.055) / lineHeight) * lineHeight;
-  const wheel = { x: right + radius * 1.1, y: base - radius * 0.55, radius };
-  out.wheels.push(wheel);
-  // A dark disc behind the turning wheel keeps it legible against the trees.
-  const disc = [];
-  for (let k = 0; k < 24; k += 1) {
-    const a = (k / 24) * Math.PI * 2;
-    disc.push([wheel.x + Math.cos(a) * radius * 1.12, wheel.y + Math.sin(a) * radius * 0.92]);
-  }
-  out.shapes.push({ points: disc, color: "#1a140e" });
-}
-
 /** Near banks (grassy or rocky) that frame the water at the sides of the view. */
 export function createBankGlyphs(width, height, cellWidth, lineHeight, sunX = width / 2) {
   const { banks, horizon } = activeScene();
@@ -403,9 +356,43 @@ function addCrag({ to, peak }, width, height, cellWidth, lineHeight, out) {
     else if (u < 0.33) lift = height * peak;
     else if (u < 0.37) lift = height * peak + (lowSlope - height * peak) * ((u - 0.33) / 0.04);
     else lift = lowSlope * Math.max(0, 1 - (u - 0.37) / (to - 0.37)) ** 1.3;
-    const crowns = u < 0.1 || u > 0.35 ? Math.abs(Math.sin(x * 0.09)) * lineHeight * 0.9 : 0;
-    return horizon - lift + crowns;
+    return horizon - lift;
   };
+  // The woods are packed tree crowns on a jittered grid: each lit from the
+  // upper left, shaded underneath, with dark gaps between them.
+  const crownW = cellWidth * 5;
+  const crownH = lineHeight * 2.8;
+  const crownAt = (i, j) => ({
+    x: (i + 0.5 + (j % 2) * 0.5 + (hash2(i, j, 4201) - 0.5) * 0.5) * crownW,
+    y: (j + 0.5 + (hash2(i, j, 4203) - 0.5) * 0.4) * crownH,
+    rx: crownW * (0.62 + hash2(i, j, 4207) * 0.25),
+    ry: crownH * (0.6 + hash2(i, j, 4209) * 0.25),
+    conifer: hash2(i, j, 4211) > 0.82,
+  });
+  const crownGlyph = (x, y, noise) => {
+    const i0 = Math.floor(x / crownW);
+    const j0 = Math.floor(y / crownH);
+    let best = null;
+    for (let j = j0 - 1; j <= j0 + 1; j += 1) {
+      for (let i = i0 - 1; i <= i0 + 1; i += 1) {
+        const crown = crownAt(i, j);
+        const nx = (x - crown.x) / crown.rx;
+        const ny = (y - crown.y) / crown.ry;
+        // Conifers taper to a point at the top.
+        const d = crown.conifer ? Math.abs(nx) / Math.max(0.05, (ny + 1) / 2) + Math.max(0, ny) ** 2 : nx * nx + ny * ny;
+        // The lower crown stands in front.
+        if (d < 1 && (!best || crown.y > best.crown.y)) best = { crown, nx, ny, d };
+      }
+    }
+    if (!best) return { glyph: noise > 0.5 ? "." : ",", color: "#16241a" };
+    const { nx, ny, d, crown } = best;
+    const light = -nx * 0.6 - ny * 0.8;
+    if (d > 0.72 && ny > -0.2) return { glyph: "%&#"[Math.floor(noise * 3)], color: "#16291a" };
+    if (light > 0.45) return { glyph: crown.conifer ? "^" : noise > 0.5 ? "o" : "O", color: noise > 0.4 ? "#6a9a4a" : "#557f3c" };
+    if (light > 0) return { glyph: crown.conifer ? "*" : "o*&"[Math.floor(noise * 3)], color: "#3a6230" };
+    return { glyph: "*&%"[Math.floor(noise * 3)], color: "#1f3a20" };
+  };
+
   // The cliff face hangs below the castle, deepest in the middle.
   const cliffDepth = (x) => {
     const u = (x / width - 0.12) / 0.22;
@@ -416,11 +403,34 @@ function addCrag({ to, peak }, width, height, cellWidth, lineHeight, out) {
   const outline = [[0, horizon + lineHeight]];
   for (let x = 0; x <= width * to; x += cellWidth) outline.push([x, skyline(x)]);
   outline.push([width * to, horizon + lineHeight]);
-  out.shapes.push({ points: outline, color: "#1f3a1d" });
+  out.shapes.push({ points: outline, color: "#0e1a10" });
   const cliff = [];
   for (let x = width * 0.12; x <= width * 0.34; x += cellWidth) cliff.push([x, skyline(x) - lineHeight * 0.3]);
   for (let x = width * 0.34; x >= width * 0.12; x -= cellWidth) cliff.push([x, skyline(x) + cliffDepth(x)]);
   out.shapes.push({ points: cliff, color: "#5c5d58" });
+
+  // Each crown gets a solid body and a lighter cap, back rows first so nearer
+  // trees overlap; crowns on the skyline give the hill a bumpy treetop edge.
+  const ellipse = (cx, cy, rx, ry) => Array.from({ length: 14 }, (_, k) => {
+    const a = (k / 14) * Math.PI * 2;
+    return [cx + Math.cos(a) * rx, cy + Math.sin(a) * ry];
+  });
+  const firstRow = Math.floor((plateau - height * 0.02) / crownH);
+  for (let j = firstRow; j * crownH < horizon + crownH; j += 1) {
+    for (let i = -1; i * crownW < width * to + crownW; i += 1) {
+      const crown = crownAt(i, j);
+      if (crown.x < 0 || crown.x > width * to) continue;
+      const top = skyline(crown.x);
+      if (crown.y < top - crown.ry * 0.2 || crown.y < top + cliffDepth(crown.x) || crown.y > shorelineY(crown.x, height)) continue;
+      const body = crown.conifer
+        ? [[crown.x - crown.rx * 0.8, crown.y + crown.ry], [crown.x, crown.y - crown.ry * 1.3], [crown.x + crown.rx * 0.8, crown.y + crown.ry]]
+        : ellipse(crown.x, crown.y, crown.rx, crown.ry);
+      out.shapes.push({ points: body, color: "#15281b" });
+      out.shapes.push({ points: crown.conifer
+        ? [[crown.x - crown.rx * 0.45, crown.y + crown.ry * 0.2], [crown.x, crown.y - crown.ry * 1.1], [crown.x + crown.rx * 0.05, crown.y + crown.ry * 0.2]]
+        : ellipse(crown.x - crown.rx * 0.18, crown.y - crown.ry * 0.25, crown.rx * 0.62, crown.ry * 0.55), color: "#243f26" });
+    }
+  }
 
   for (let column = 0; column * cellWidth < width * to; column += 1) {
     const x = (column + 0.5) * cellWidth;
@@ -435,113 +445,48 @@ function addCrag({ to, peak }, width, height, cellWidth, lineHeight, out) {
         const crack = hash2(column, 0, 4111) > 0.75;
         out.cells.push({ x, y, column, row, glyph: crack ? "|" : "#%:/\\.:"[Math.floor(noise * 7)], color: noise > 0.55 ? "#b4b4aa" : noise > 0.2 ? "#8e8f86" : "#6a6b64" });
       } else {
-        // Dense spring-green woods, lighter on the crowns.
-        const lit = hash2(column, row + 1, 4101) > noise;
-        out.cells.push({ x, y, column, row, glyph: "oO*+&@o"[Math.floor(noise * 7)], color: lit ? (noise > 0.6 ? "#7fae4a" : "#5f9238") : noise > 0.5 ? "#3d6a2a" : "#2c5020" });
+        out.cells.push({ x, y, column, row, ...crownGlyph(x, y, noise) });
       }
     }
   }
 
-  // Castle on the plateau: two long halls, a small turret, a round tower on the cliff edge.
-  const ground = plateau;
+  // A very old castle on the plateau: a broken curtain wall, a gutted keep and
+  // a crumbling corner tower, weathered grey stone patched with ivy.
   const rowsOf = (fraction) => Math.max(2, Math.round((height * fraction) / lineHeight));
-  const hall = (from, to2, rows, groundY) => {
+  const stone = (column, row) => {
+    const noise = hash2(column, row, 4301);
+    if (noise > 0.86) return "#3d5530";
+    return noise > 0.55 ? "#8a877a" : noise > 0.25 ? "#6e6b60" : "#55534a";
+  };
+  // Masonry from x0 to x1 standing `rows` high, its top broken by `ruin` (0..1).
+  const ruinWall = (from, to2, rows, groundY, ruin, slits = false) => {
     const x0 = width * from;
     const x1 = width * to2;
-    const top = groundY - rows * lineHeight;
-    out.shapes.push({ points: [[x0, groundY + lineHeight * 0.5], [x0, top + lineHeight * 0.5], [x1, top + lineHeight * 0.5], [x1, groundY + lineHeight * 0.5]], color: "#b8ae94" });
-    for (let r = 0; r < rows; r += 1) {
-      for (let x = x0 + cellWidth / 2; x < x1; x += cellWidth) {
-        const cell = cellAt(x, groundY - r * lineHeight, cellWidth, lineHeight);
-        const window = r === rows - 1 && cell.column % 3 === 1;
-        out.cells.push({ ...cell, glyph: window ? "#" : r === 0 ? "_" : ":", color: window ? "#e2b85e" : hash2(cell.column, r, 5) > 0.5 ? "#e0d8c0" : "#cbc2a8" });
-        if (window && hash2(cell.column, r, 9) > 0.4) out.lights.push(out.cells[out.cells.length - 1]);
-      }
+    const columns = [];
+    for (let x = x0 + cellWidth / 2; x < x1; x += cellWidth) {
+      const cell = cellAt(x, groundY, cellWidth, lineHeight);
+      const broken = Math.floor(hash2(cell.column, 7, 4303) ** 2 * ruin * rows);
+      columns.push({ x, column: cell.column, top: rows - broken });
     }
-    roof(x0, x1, top);
+    const outline = [[x0, groundY + lineHeight * 0.5]];
+    for (const c of columns) {
+      outline.push([c.x - cellWidth / 2, groundY - (c.top - 0.5) * lineHeight]);
+      outline.push([c.x + cellWidth / 2, groundY - (c.top - 0.5) * lineHeight]);
+    }
+    outline.push([x1, groundY + lineHeight * 0.5]);
+    out.shapes.push({ points: outline, color: "#4a4840" });
+    columns.forEach((c, index) => {
+      for (let r = 0; r < c.top; r += 1) {
+        const cell = cellAt(c.x, groundY - r * lineHeight, cellWidth, lineHeight);
+        const slit = slits && r === c.top - 2 && index % 3 === 1;
+        const crest = r === c.top - 1;
+        out.cells.push({ ...cell, glyph: slit ? "|" : crest ? (c.top === rows ? "n" : "'") : (r + index) % 3 ? ":" : "=", color: slit ? "#17160f" : stone(cell.column, cell.row) });
+      }
+    });
   };
-  const roof = (x0, x1, base) => {
-    const rows = 2;
-    out.shapes.push({ points: [[x0 - cellWidth * 0.5, base + lineHeight * 0.5], [x0 + cellWidth * 1.5, base - (rows - 0.5) * lineHeight], [x1 - cellWidth * 1.5, base - (rows - 0.5) * lineHeight], [x1 + cellWidth * 0.5, base + lineHeight * 0.5]], color: "#8a3622" });
-    for (let r = 0; r < rows; r += 1) {
-      for (let x = x0 + r * cellWidth; x < x1 - r * cellWidth; x += cellWidth) {
-        const cell = cellAt(x, base - r * lineHeight, cellWidth, lineHeight);
-        const edge = x < x0 + (r + 1) * cellWidth ? "/" : x >= x1 - (r + 1) * cellWidth ? "\\" : "=";
-        out.cells.push({ ...cell, glyph: edge, color: r === rows - 1 ? "#d0613e" : "#b04a30" });
-      }
-    }
-  };
-  const tower = (fx, rows, groundY) => {
-    const x = width * fx;
-    for (let r = 0; r < rows; r += 1) {
-      for (const c of [-1, 0, 1]) {
-        const cell = cellAt(x + c * cellWidth, groundY - r * lineHeight, cellWidth, lineHeight);
-        out.cells.push({ ...cell, glyph: c === 0 && r === rows - 2 ? "#" : c < 0 ? "(" : c > 0 ? ")" : ":", color: c === 0 && r === rows - 2 ? "#e2b85e" : c < 0 ? "#e4dcc4" : "#b8ae94" });
-      }
-    }
-    out.shapes.push({ points: [[x - cellWidth * 1.5, groundY + lineHeight * 0.5], [x - cellWidth * 1.5, groundY - (rows - 0.5) * lineHeight], [x + cellWidth * 1.5, groundY - (rows - 0.5) * lineHeight], [x + cellWidth * 1.5, groundY + lineHeight * 0.5]], color: "#b8ae94" });
-    const coneBase = groundY - rows * lineHeight;
-    out.shapes.push({ points: [[x - cellWidth * 2, coneBase + lineHeight * 0.5], [x, coneBase - 2.5 * lineHeight], [x + cellWidth * 2, coneBase + lineHeight * 0.5]], color: "#8a3622" });
-    for (let r = 0; r < 3; r += 1) {
-      const span = 1 - Math.floor(r / 2);
-      for (let c = -span; c <= span; c += 1) {
-        const cell = cellAt(x + c * cellWidth, coneBase - r * lineHeight, cellWidth, lineHeight);
-        out.cells.push({ ...cell, glyph: r === 2 ? "^" : c < 0 ? "/" : c > 0 ? "\\" : "A", color: c <= 0 ? "#d0613e" : "#a8442c" });
-      }
-    }
-  };
-  // Grey retaining wall along the cliff top.
-  for (let x = width * 0.1; x < width * 0.31; x += cellWidth) {
-    const cell = cellAt(x, ground + lineHeight * 0.6, cellWidth, lineHeight);
-    out.cells.push({ ...cell, glyph: "=", color: "#9a9a8e" });
-  }
-  hall(0.1, 0.175, rowsOf(0.038), ground);
-  hall(0.175, 0.26, rowsOf(0.028), ground);
-  tower(0.205, rowsOf(0.05), ground - rowsOf(0.028) * lineHeight * 0.4);
-  tower(0.3, rowsOf(0.055), ground + height * 0.025);
-}
-
-/** A white church with a tall slate spire on the far shore. */
-function addChurch({ x: fx }, width, height, cellWidth, lineHeight, out) {
-  const cx = width * fx;
-  const base = shorelineY(cx, height) - lineHeight * 1.2;
-  const rows = Math.max(3, Math.round((height * 0.035) / lineHeight));
-  const half = 4;
-  const x0 = cx - (half + 0.5) * cellWidth;
-  const x1 = cx + (half + 0.5) * cellWidth;
-  const top = base - (rows - 0.5) * lineHeight;
-  out.shapes.push({ points: [[x0, base + lineHeight * 0.5], [x0, top], [x1, top], [x1, base + lineHeight * 0.5]], color: "#c8c4b8" });
-  out.shapes.push({ points: [[x0 - cellWidth, top], [cx - cellWidth, top - 2.5 * lineHeight], [x1 + cellWidth, top]], color: "#4a4e52" });
-  for (let r = 0; r < rows; r += 1) {
-    for (let c = -half; c <= half; c += 1) {
-      const cell = cellAt(cx + c * cellWidth, base - r * lineHeight, cellWidth, lineHeight);
-      const window = r === rows - 2 && c % 3 === 0 && Math.abs(c) < half;
-      out.cells.push({ ...cell, glyph: window ? "#" : c === -half || c === half ? "|" : ":", color: window ? "#e2b85e" : c < 0 ? "#eeeae0" : "#d4d0c4" });
-      if (window) out.lights.push(out.cells[out.cells.length - 1]);
-    }
-  }
-  for (let r = 0; r < 3; r += 1) {
-    for (let c = -half - 1 + r * 2; c <= half - r * 2; c += 1) {
-      const cell = cellAt(cx + c * cellWidth, top - (r + 0.5) * lineHeight, cellWidth, lineHeight);
-      out.cells.push({ ...cell, glyph: c === -half - 1 + r * 2 ? "/" : "=", color: "#6a6e72" });
-    }
-  }
-  // Bell tower and a needle spire.
-  const tx = cx + (half + 2) * cellWidth;
-  const towerRows = Math.max(5, Math.round((height * 0.075) / lineHeight));
-  const spireRows = Math.max(4, Math.round((height * 0.07) / lineHeight));
-  out.shapes.push({ points: [[tx - cellWidth * 1.5, base + lineHeight * 0.5], [tx - cellWidth * 1.5, base - (towerRows - 0.5) * lineHeight], [tx + cellWidth * 1.5, base - (towerRows - 0.5) * lineHeight], [tx + cellWidth * 1.5, base + lineHeight * 0.5]], color: "#d8d4c8" });
-  for (let r = 0; r < towerRows; r += 1) {
-    for (const c of [-1, 0, 1]) {
-      const cell = cellAt(tx + c * cellWidth, base - r * lineHeight, cellWidth, lineHeight);
-      const opening = c === 0 && r === towerRows - 2;
-      out.cells.push({ ...cell, glyph: opening ? "n" : c ? "|" : ":", color: opening ? "#3a3c3e" : c < 0 ? "#f2eee4" : "#cfcbbf" });
-    }
-  }
-  const spireBase = base - towerRows * lineHeight;
-  out.shapes.push({ points: [[tx - cellWidth * 1.4, spireBase + lineHeight * 0.5], [tx, spireBase - (spireRows - 0.5) * lineHeight], [tx + cellWidth * 1.4, spireBase + lineHeight * 0.5]], color: "#4a4e52" });
-  for (let r = 0; r < spireRows; r += 1) {
-    const cell = cellAt(tx, spireBase - r * lineHeight, cellWidth, lineHeight);
-    out.cells.push({ ...cell, glyph: r === spireRows - 1 ? "+" : r > spireRows * 0.5 ? "|" : "A", color: r === spireRows - 1 ? "#d0b060" : "#7a7e82" });
-  }
+  const ground = plateau;
+  ruinWall(0.1, 0.31, rowsOf(0.022), ground, 0.9);
+  ruinWall(0.13, 0.175, rowsOf(0.075), ground, 0.55, true);
+  ruinWall(0.205, 0.225, rowsOf(0.045), ground, 0.7, true);
+  ruinWall(0.285, 0.31, rowsOf(0.055), ground + height * 0.02, 0.6, true);
 }

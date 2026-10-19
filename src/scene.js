@@ -59,9 +59,8 @@ export const SCENES = {
     foreground: { reeds: 1, rock: true, lilyPads: 5 },
   },
   /**
-   * Castle lake: a wooded hill rising to a sheer cliff with a red-roofed
-   * castle on top, snowy mountains beyond, a white church with a needle spire
-   * on the far shore, and calm emerald water.
+   * Castle lake: a dark wooded hill rising to a sheer cliff with an ancient
+   * ruined castle on top, snowy mountains beyond, and calm emerald water.
    */
   castle: {
     horizon: 0.5,
@@ -73,10 +72,8 @@ export const SCENES = {
     forest: { heightScale: 0.95, spacingScale: 0.95, broadleaf: 0.85, round: 0.6 },
     structures: {
       crag: { to: 0.66, peak: 0.26 },
-      church: { x: 0.79 },
-      houses: { at: [0.71, 0.9, 0.97], scale: 0.6, roof: "#b04a30", walls: "#d6cfbc" },
+      houses: { at: [0.82, 0.95], scale: 0.6, roof: "#b04a30", walls: "#d6cfbc" },
       archBridge: { from: 0.03, to: 0.2, arches: 3 },
-      mill: { x: 0.56 },
     },
     // Glacial emerald water over a pale stony bottom.
     water: { body: "#17423c" },
