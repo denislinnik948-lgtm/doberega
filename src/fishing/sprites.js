@@ -78,112 +78,217 @@ function fromRows(rows, palette) {
 
 /* ---------- Fish ---------- */
 
-// Species keep recognisable markings but share the UI palette.
+/*
+ * Each species is drawn after the real fish: its own colours (back, flank,
+ * belly, upper and lower fins, eye), body depth and where it is deepest,
+ * head and tail shape, and fins where they really are — perch, zander and
+ * ruffe carry a spiny first dorsal, carp a long dorsal, pike has dorsal and
+ * anal fins set far back, the catfish a tiny dorsal and an anal fin running
+ * most of its belly. `u` runs along the body from the tail root (0) to the
+ * snout (1). Fins are [from, to, height] in `u`.
+ */
 const FISH_LOOKS = {
-  plitka: { len: 30, h: 11, back: P.mid, side: P.light, belly: P.bone, fin: P.ember, eye: P.ember },
-  karas: { len: 30, h: 15, back: P.goldDark, side: P.gold, belly: P.bone, fin: P.goldDark, eye: P.bone, scales: true },
-  okun: { len: 32, h: 13, back: P.dark, side: P.soft, belly: P.light, fin: P.ember, eye: P.gold, bars: true, spiny: true },
-  lyasch: { len: 34, h: 18, back: P.mid, side: P.soft, belly: P.light, fin: P.dark, eye: P.bone },
-  korop: { len: 40, h: 16, back: P.goldDark, side: P.gold, belly: P.bone, fin: P.goldDark, eye: P.bone, scales: true, barbels: true },
-  shchuka: { len: 50, h: 10, back: P.dark, side: P.mid, belly: P.light, fin: P.soft, eye: P.gold, spots: true, snout: true, dorsalBack: true, roundTail: true },
-  som: { len: 50, h: 12, back: P.deep, side: P.dark, belly: P.soft, fin: P.deep, eye: P.light, whiskers: true, broadHead: true, mottled: true, roundTail: true },
-  yorzh: { len: 20, h: 8, back: P.dark, side: P.soft, belly: P.light, fin: P.mid, eye: P.light, spots: true, spiny: true },
-  krasnopirka: { len: 28, h: 11, back: P.goldDark, side: P.gold, belly: P.bone, fin: P.ember, eye: P.ember },
-  lyn: { len: 32, h: 13, back: P.deep, side: P.dark, belly: P.mid, fin: P.dark, eye: P.ember, roundTail: true, mottled: true },
-  sudak: { len: 44, h: 11, back: P.dark, side: P.soft, belly: P.bone, fin: P.mid, eye: P.bone, bars: true, spiny: true, snout: true },
-  livebait: { len: 15, h: 6, back: P.mid, side: P.light, belly: P.bone, fin: P.ember, eye: P.ink },
+  // Roach: silvery, blue-grey back, red eye, orange-red lower fins.
+  plitka: {
+    len: 30, h: 11, peak: 0.55, back: "#3d5a63", side: "#c6d0d2", belly: "#eef0ea", fin: "#8c8478", lowFin: "#d0603a", tailFin: "#a0705a", eye: "#d8382a",
+    dorsal: [[0.44, 0.6, 4]], anal: [0.2, 0.32, 3], tail: "fork",
+  },
+  // Rudd: golden-bronze flanks and bright blood-red fins, upturned mouth.
+  krasnopirka: {
+    len: 28, h: 12, peak: 0.52, back: "#56552c", side: "#d6b056", belly: "#f0e0ae", fin: "#d8402c", lowFin: "#e2482e", tailFin: "#d8402c", eye: "#e8a020",
+    dorsal: [[0.36, 0.5, 4]], anal: [0.2, 0.34, 3], tail: "fork", mouthUp: true,
+  },
+  // Crucian: deep golden-bronze body with big scales, dark olive fins.
+  karas: {
+    len: 30, h: 16, peak: 0.5, back: "#463f1c", side: "#c09a3a", belly: "#e6d49c", fin: "#5e5028", lowFin: "#7a6230", tailFin: "#5e5028", eye: "#e8c860",
+    dorsal: [[0.28, 0.66, 4, "long"]], anal: [0.2, 0.3, 3], tail: "fork", pattern: "scales", stem: 0.4,
+  },
+  // Perch: olive-green with 6 dark bars, spiny first dorsal with a dark spot, orange-red lower fins.
+  okun: {
+    len: 32, h: 13, peak: 0.58, back: "#34441f", side: "#a6ae48", belly: "#e8e4c0", fin: "#76786a", lowFin: "#e05a28", tailFin: "#d8622e", eye: "#e8b030",
+    dorsal: [[0.52, 0.8, 5, "spiny"], [0.3, 0.48, 3]], anal: [0.2, 0.3, 3], tail: "fork",
+    pattern: "bars", barColor: "#283216", bars: 6, finSpot: "#20241a", hump: true,
+  },
+  // Tench: thick olive-green body with a golden sheen, red eye, rounded fins, small barbels.
+  lyn: {
+    len: 32, h: 13, peak: 0.52, back: "#26341a", side: "#687830", belly: "#c8b66c", fin: "#2c381e", lowFin: "#364426", tailFin: "#2c381e", eye: "#e04428",
+    dorsal: [[0.4, 0.56, 4, "round"]], anal: [0.2, 0.34, 4, "round"], tail: "square", stem: 0.5, barbels: 1,
+  },
+  // Bream: very deep, flat body with a small head, bronze-silver flanks, dark fins, long anal fin.
+  lyasch: {
+    len: 34, h: 20, peak: 0.55, back: "#38392f", side: "#b49c6a", belly: "#ddd2b2", fin: "#34352e", lowFin: "#424238", tailFin: "#34352e", eye: "#dad6c2",
+    dorsal: [[0.5, 0.62, 5]], anal: [0.1, 0.46, 3, "long"], tail: "deep", head: 1.8, stem: 0.26,
+  },
+  // Common carp: golden-bronze with big scales, long dorsal, reddish lower fins, two barbels.
+  korop: {
+    len: 40, h: 16, peak: 0.55, back: "#4c3c1a", side: "#c08838", belly: "#ecd298", fin: "#5e4422", lowFin: "#b0502c", tailFin: "#8a4a26", eye: "#e8c060",
+    dorsal: [[0.26, 0.66, 4, "long"]], anal: [0.2, 0.3, 3], tail: "fork", pattern: "scales", stem: 0.38, barbels: 2,
+  },
+  // Pike: long olive-green body with rows of pale bean spots, duck-bill snout, fins far back.
+  shchuka: {
+    len: 50, h: 10, peak: 0.45, back: "#2c401e", side: "#5c7834", belly: "#e6e4c6", fin: "#94702e", lowFin: "#a87434", tailFin: "#94702e", eye: "#e8c040",
+    dorsal: [[0.06, 0.2, 4]], anal: [0.06, 0.18, 3], tail: "fork", pattern: "spots", spotColor: "#d8d88e", snout: "bill", flat: true,
+  },
+  // Zander: slender silver-grey with dark saddles, two dorsals (spiny first), big glassy eye.
+  sudak: {
+    len: 44, h: 11, peak: 0.55, back: "#3a4840", side: "#b4bcb4", belly: "#eceee8", fin: "#8a9088", lowFin: "#c8c8b8", tailFin: "#8a9088", eye: "#f2f2e2",
+    dorsal: [[0.54, 0.8, 5, "spiny"], [0.3, 0.5, 4]], anal: [0.18, 0.3, 3], tail: "fork",
+    pattern: "bars", barColor: "#4a5650", bars: 8, finDots: "#2a302c", snout: "point", bigEye: true,
+  },
+  // Wels catfish: dark mottled olive-brown, broad flat head, long whiskers, tiny dorsal, very long anal fin.
+  som: {
+    len: 50, h: 12, peak: 0.78, back: "#26261e", side: "#58543e", belly: "#c4c0a2", fin: "#34301f", lowFin: "#45412e", tailFin: "#34301f", eye: "#c8c0a0",
+    dorsal: [[0.7, 0.76, 2]], anal: [0.04, 0.58, 3, "long"], tail: "round", pattern: "mottle", broadHead: true, stem: 0.4, whiskers: true,
+  },
+  // Ruffe: small olive-brown speckled fish, one long spiny dorsal, big bluish eye.
+  yorzh: {
+    len: 20, h: 8, peak: 0.6, back: "#46462c", side: "#96965e", belly: "#dedac0", fin: "#7a7a5a", lowFin: "#8a8a66", tailFin: "#7a7a5a", eye: "#9cb6d0",
+    dorsal: [[0.28, 0.8, 4, "spiny"]], anal: [0.18, 0.3, 2], tail: "fork", pattern: "speckle", finDots: "#2e2e1e", bigEye: true,
+  },
+  // Live bait: a small roach-like fish.
+  livebait: {
+    len: 15, h: 6, peak: 0.55, back: "#3d5a63", side: "#c6d0d2", belly: "#eef0ea", fin: "#8c8478", lowFin: "#d0603a", tailFin: "#a0705a", eye: "#d8382a",
+    dorsal: [[0.44, 0.6, 2]], anal: [0.22, 0.32, 2], tail: "fork",
+  },
 };
 
 function fishGrid(species) {
   const look = FISH_LOOKS[species];
   const { len, h } = look;
-  const width = len + (look.whiskers ? 8 : 4);
-  const height = h + 10;
+  const width = len + (look.whiskers ? 10 : 5);
+  const height = h + 12;
   const grid = new Grid(width, height);
-  const y0 = height / 2 + 0.5;
-  const tailLen = Math.round(len * 0.18);
+  const y0 = Math.round(height / 2);
+  const tailLen = Math.round(len * 0.17);
   const x0 = 2;
+  const stem = look.stem ?? 0.32;
 
+  // Body depth along its length: thin at the tail stem, deepest at `peak`, tapering to the snout.
   const profile = (u) => {
-    let p = 0.3 + 0.7 * Math.sin(Math.PI * Math.min(1, 0.08 + u * 0.86)) ** 0.75;
-    if (look.snout && u > 0.72) p *= 1 - (u - 0.72) * 1.9;
-    if (look.broadHead && u > 0.6) p = Math.max(p, 0.78 - (u - 0.6) * 0.5);
-    return p;
+    const s = u < look.peak ? 0.5 * (u / look.peak) : 0.5 + 0.5 * ((u - look.peak) / (1 - look.peak));
+    let p = stem + (1 - stem) * Math.sin(Math.PI * Math.min(0.97, s)) ** 0.8;
+    if (u > 0.78) p *= 1 - (u - 0.78) * (look.head ?? 1.2);
+    if (look.snout === "bill" && u > 0.74) p = Math.min(p, 0.62 - (u - 0.74) * 1.3);
+    if (look.snout === "point" && u > 0.78) p *= 1 - (u - 0.78) * 0.9;
+    if (look.broadHead && u > 0.7) p = Math.max(p, 0.8 - (u - 0.7) * 1.1);
+    return Math.max(0.12, p);
   };
-  const bodyEdges = (x) => {
+  const edges = (x) => {
     const u = (x - tailLen) / (len - tailLen);
     const half = (h / 2) * profile(u);
-    return { u, top: y0 - half * 1.08, bottom: y0 + half * 0.92 };
+    // A humped back (perch) or a flat back (pike) shifts the outline.
+    const lift = look.hump && u > 0.4 && u < 0.75 ? Math.sin(((u - 0.4) / 0.35) * Math.PI) * 1.2 : 0;
+    const top = y0 - half * (look.flat ? 0.9 : 1.08) - lift;
+    return { u, top, bottom: y0 + half * (look.flat ? 1.05 : 0.92) };
+  };
+  const xAt = (u) => tailLen + u * (len - tailLen);
+
+  // A fin rising from an edge: `side` -1 grows up from the back, +1 down from the belly.
+  const fin = ([from, to, size, kind], side, color, dots) => {
+    for (let x = Math.ceil(xAt(from)); x <= Math.floor(xAt(to)); x += 1) {
+      const t = (x - xAt(from)) / Math.max(1, xAt(to) - xAt(from));
+      let height;
+      if (kind === "long") height = t > 0.82 ? size : size * 0.55 + (t > 0.7 ? (t - 0.7) * 3 : 0);
+      else if (kind === "round") height = size * Math.sin(Math.PI * (0.15 + t * 0.7));
+      else height = size * (0.35 + 0.65 * t);
+      height = Math.max(1, Math.round(height));
+      const { top, bottom } = edges(x);
+      const base = side < 0 ? Math.ceil(top) : Math.floor(bottom);
+      for (let k = 1; k <= height; k += 1) {
+        // Spiny fins: a comb of rays with gaps along the top.
+        if (kind === "spiny" && k >= height - 1 && x % 2 === 1) continue;
+        let c = k === height ? shade(color, 0.85) : color;
+        if (dots && (x + k) % 3 === 0) c = dots;
+        grid.set(x0 + x, base + side * k, c);
+      }
+      // Dark blotch at the rear of a perch's spiny dorsal.
+      if (look.finSpot && kind === "spiny" && t < 0.25 && side < 0) grid.set(x0 + x, base - Math.max(1, height - 1), look.finSpot);
+    }
   };
 
-  // Fins first, so the body draws over their roots.
-  for (let x = tailLen; x < len; x += 1) {
-    const { u, top, bottom } = bodyEdges(x);
-    const dorsal = look.dorsalBack ? [0.04, 0.2] : [0.34, 0.6];
-    if (u > dorsal[0] && u < dorsal[1]) {
-      const t = (u - dorsal[0]) / (dorsal[1] - dorsal[0]);
-      const fin = Math.round((1 - t) * (look.spiny ? 4 : 3) + 1);
-      for (let k = 1; k <= fin; k += 1) {
-        if (look.spiny && x % 2 === 1 && k === fin) continue;
-        grid.set(x0 + x, top - k, look.fin);
-      }
-    }
-    if ((u > 0.38 && u < 0.5) || (u > 0.12 && u < 0.26)) {
-      const fin = u > 0.3 ? 2 : 3;
-      for (let k = 1; k <= fin; k += 1) grid.set(x0 + x, bottom + k, look.fin);
-    }
-  }
+  look.dorsal.forEach((spec, index) => fin(spec, -1, index === 0 ? look.fin : look.fin, look.finDots));
+  if (look.anal) fin(look.anal, 1, look.lowFin, look.finDots);
+  // Pelvic fin under the belly, a little ahead of the anal fin.
+  fin([look.whiskers ? 0.62 : 0.5, look.whiskers ? 0.68 : 0.58, look.h > 14 ? 3 : 2], 1, look.lowFin);
 
-  // Tail.
+  // Tail fin.
   for (let x = 0; x < tailLen; x += 1) {
     const v = (tailLen - x) / tailLen;
-    const spread = 1 + v * h * 0.55;
+    // A rounded paddle widens, then closes in a curve; the others flare out to the edge.
+    const spread = look.tail === "round"
+      ? 1 + h * 0.38 * (v < 0.5 ? v / 0.5 : Math.sqrt(Math.max(0, 1 - ((v - 0.5) / 0.55) ** 2)))
+      : 1 + v * h * 0.55;
     for (let dy = -spread; dy <= spread; dy += 1) {
-      if (!look.roundTail && Math.abs(dy) < v * h * 0.28 && v > 0.35) continue;
-      grid.set(x0 + x, y0 + dy, Math.abs(dy) > spread - 1.2 ? shade(look.fin, 0.8) : look.fin);
+      const a = Math.abs(dy);
+      if (look.tail === "fork" && a < v * h * 0.26 && v > 0.4) continue;
+      if (look.tail === "deep" && a < v * h * 0.3 && v > 0.35) continue;
+      grid.set(x0 + x, y0 + dy, a > spread - 1.2 ? shade(look.tailFin, 0.8) : look.tailFin);
     }
   }
 
-  // Body with back / side / belly bands and species markings.
+  // Body: back, flank and belly bands with the species' markings.
+  const barWidth = (len - tailLen) * 0.62 / Math.max(1, (look.bars ?? 1) * 2);
   for (let x = tailLen; x < len; x += 1) {
-    const { u, top, bottom } = bodyEdges(x);
+    const { u, top, bottom } = edges(x);
     for (let y = Math.ceil(top); y <= Math.floor(bottom); y += 1) {
       const t = (y - top) / Math.max(1, bottom - top);
-      let color = t < 0.3 ? look.back : t < 0.74 ? look.side : look.belly;
-      if (t > 0.18 && t < 0.3 && hash(x, y, 3) < 0.5) color = shade(look.side, 0.82);
-      if (look.scales && t > 0.25 && t < 0.78 && (x + y * 2) % 4 === 0) color = shade(color, 0.84);
-      if (look.bars && t < 0.68 && u > 0.12 && u < 0.78 && Math.floor((x + (t < 0.3 ? 0 : 1)) / 3) % 2 === 0) color = shade(look.back, 0.75);
-      if (look.spots && t > 0.22 && t < 0.72 && hash(x >> 1, y, 9) < 0.18) color = P.light;
-      // Dither the seam between back and side, like hand-shaded pixel art.
-      if (t > 0.26 && t < 0.34 && (x + y) % 2 === 0) color = look.back;
-      if (look.mottled && t < 0.7 && hash(x >> 1, y >> 1, 4) < 0.3) color = shade(color, 0.7);
-      if (t > 0.08 && t < 0.16 && u > 0.2 && u < 0.8) color = shade(color, 1.18);
+      let color = t < 0.32 ? look.back : t < 0.72 ? look.side : look.belly;
+      // Dithered seams between the bands, like hand-shaded pixel art.
+      if (t > 0.27 && t < 0.37 && (x + y) % 2 === 0) color = t < 0.32 ? look.side : look.back;
+      if (t > 0.67 && t < 0.77 && (x + y) % 2 === 0) color = t < 0.72 ? look.belly : look.side;
+      // A soft highlight along the upper flank.
+      if (t > 0.36 && t < 0.46 && u > 0.2 && u < 0.78) color = shade(color, 1.12);
+      if (look.pattern === "scales" && t > 0.25 && t < 0.8 && u < 0.76 && ((x + (y % 2) * 2) % 4 === 0)) color = shade(color, 0.78);
+      if (look.pattern === "bars" && t < 0.74 && u > 0.1 && u < 0.76) {
+        const phase = (x - xAt(0.1)) / barWidth;
+        if (Math.floor(phase) % 2 === 0 && phase < (look.bars ?? 6) * 2) color = t < 0.32 ? shade(look.barColor, 0.8) : look.barColor;
+      }
+      if (look.pattern === "spots" && t > 0.18 && t < 0.82 && u < 0.76) {
+        // Pale, slightly elongated bean spots in staggered rows.
+        const row = Math.floor((y - top) / 2.2);
+        if ((x + row * 2) % 5 < 2 && (y + row) % 2 === 0) color = look.spotColor;
+      }
+      if (look.pattern === "speckle" && t < 0.75 && hash(x, y, 21) < 0.2) color = shade(look.back, 0.75);
+      if (look.pattern === "mottle" && t < 0.75) {
+        const blotch = hash(x >> 1, y >> 1, 4);
+        if (blotch < 0.3) color = shade(color, 0.62);
+        else if (blotch > 0.85) color = shade(color, 1.25);
+      }
       grid.set(x0 + x, y, color);
     }
-    // Gill plate.
-    if (u > 0.76 && u < 0.8) {
-      for (let y = Math.ceil(top) + 2; y <= Math.floor(bottom) - 1; y += 1) grid.set(x0 + x, y, shade(look.side, 0.62));
+    // Gill cover edge.
+    if (u > 0.8 && u < 0.83) {
+      for (let y = Math.ceil(top) + 2; y <= Math.floor(bottom) - 1; y += 1) grid.set(x0 + x, y, shade(look.side, 0.6));
     }
-    // Pectoral fin.
-    if (u > 0.66 && u < 0.74) grid.set(x0 + x, y0 + 1 + Math.round((0.74 - u) * 20), look.fin);
+    // Pectoral fin behind the gill.
+    if (u > 0.7 && u < 0.79) grid.set(x0 + x, Math.round(y0 + 1 + (0.79 - u) * 22), look.lowFin);
   }
 
-  const head = bodyEdges(len - 1);
-  const eyeX = x0 + Math.round(tailLen + (len - tailLen) * (look.snout ? 0.8 : 0.86));
-  const eyeY = Math.round(y0 - (head.bottom - head.top) * 0.18 - (look.snout ? 0 : 1));
+  // Eye, mouth and barbels.
+  const head = edges(len - 1);
+  const eyeU = look.snout === "bill" ? 0.82 : look.broadHead ? 0.9 : 0.87;
+  const eyeX = x0 + Math.round(xAt(eyeU));
+  const eyeY = Math.round(edges(xAt(eyeU)).top + (edges(xAt(eyeU)).bottom - edges(xAt(eyeU)).top) * 0.3);
   grid.set(eyeX, eyeY, look.eye);
+  if (look.bigEye) {
+    grid.set(eyeX, eyeY - 1, look.eye);
+    grid.set(eyeX + 1, eyeY - 1, look.eye);
+  }
   grid.set(eyeX + 1, eyeY, P.ink);
-  grid.set(x0 + len - 1, Math.round(y0 + 1), P.ink);
+  const mouthY = look.mouthUp ? Math.round(head.top + 1) : Math.round(y0 + (look.broadHead ? 2 : 1));
+  grid.set(x0 + len - 1, mouthY, P.ink);
+  if (look.snout === "bill") for (let k = 2; k <= 6; k += 1) grid.set(x0 + len - k, Math.round(y0 + 1), P.ink);
 
   if (look.whiskers) {
-    for (let k = 1; k <= 7; k += 1) {
-      grid.set(x0 + len - 2 + k, Math.round(y0 + 1 + k * 0.6), P.light);
-      grid.set(x0 + len - 3 + k, Math.round(y0 + 3 + k * 0.9), P.soft);
+    // Two long whiskers from the upper jaw, shorter ones under the chin.
+    for (let k = 1; k <= 9; k += 1) {
+      grid.set(x0 + len - 2 + k, Math.round(y0 + 1 + k * 0.5), "#8a8466");
+      grid.set(x0 + len - 3 + Math.round(k * 0.5), Math.round(y0 + 4 + k * 0.45), "#6e6a52");
     }
   }
   if (look.barbels) {
-    grid.set(x0 + len, Math.round(y0 + 2), P.gold);
-    grid.set(x0 + len + 1, Math.round(y0 + 3), P.gold);
+    grid.set(x0 + len, Math.round(y0 + 2), shade(look.side, 0.8));
+    if (look.barbels > 1) grid.set(x0 + len + 1, Math.round(y0 + 3), shade(look.side, 0.8));
   }
   return grid.outline(P.ink);
 }
