@@ -56,7 +56,9 @@ export class Cloud {
 
   async signUp(email, password) {
     return this.run(async () => {
-      const { data, error } = await this.client.auth.signUp({ email, password });
+      // The confirmation link in the email brings the player back to this page.
+      const emailRedirectTo = `${location.origin}${location.pathname}`;
+      const { data, error } = await this.client.auth.signUp({ email, password, options: { emailRedirectTo } });
       if (error) throw error;
       // Without a session the project wants the address confirmed first.
       return { confirm: !data.session };
