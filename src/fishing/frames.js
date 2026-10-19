@@ -165,7 +165,7 @@ function landscape(px, w, h, random, kind) {
   const m = 3;
   const x0 = m;
   const x1 = w - m;
-  const horizon = Math.round(h * (kind === "pit" ? 0.42 : 0.52));
+  const horizon = Math.round(h * (kind === "bridge" ? 0.42 : 0.52));
   const unit = h / 100;
 
   // Sky: dark overhead, warm and light toward the horizon, dithered.
@@ -259,32 +259,36 @@ function landscape(px, w, h, random, kind) {
       for (let y = top; y < horizon - 10 * unit; y += 1) px.set(x, y, P.ink);
       px.rect(x - 3, top + 2, 7, 1, P.ink);
     }
-  } else if (kind === "pit") {
-    // Steep banks closing in on both sides.
-    for (let y = m; y < h - m; y += 1) {
-      const t = (y - m) / (h - 2 * m);
-      const left = Math.round(w * (0.18 + 0.1 * Math.sin(t * 5)) * (1 - t * 0.3) + random() * 2);
-      const right = Math.round(w * (0.2 + 0.08 * Math.cos(t * 4)) * (1 - t * 0.3) + random() * 2);
-      px.rect(x0, y, left, 1, P.ink);
-      px.rect(x1 - right, y, right, 1, P.ink);
+  } else if (kind === "bridge") {
+    ridge(px, x0, x1, horizon, 12 * unit, 1.3, P.dark, horizon + 1);
+    for (let x = x0 + 2; x < x1; x += 3 + Math.floor(random() * 6)) {
+      const tall = Math.round((6 + random() * 12) * unit);
+      const r = Math.max(2, Math.round(tall * 0.4));
+      for (let k = 0; k < tall; k += 1) {
+        const half = Math.round(r * Math.sin((k / tall) * Math.PI * 0.9 + 0.2));
+        px.rect(x - half, horizon - k, half * 2 + 1, 1, P.deep);
+      }
     }
-    // A dead snag leaning over the water.
-    let x = x0 + Math.round(w * 0.18);
-    let y = Math.round(h * 0.55);
-    for (let k = 0; k < w * 0.3; k += 1) {
-      px.rect(x, y, 2, 2, P.deep);
-      if (k % 9 === 4) for (let b = 1; b < 6 * unit; b += 1) px.set(x + b, y - b, P.deep);
-      x += 1;
-      y -= random() < 0.35 ? 1 : 0;
+    // Banks close in on a bend; the current streaks away from the viewer.
+    const rail = Math.round(h * 0.84);
+    for (let y = horizon; y < rail; y += 1) {
+      const t = (y - horizon) / (rail - horizon);
+      const center = w * (0.5 + 0.1 * (1 - t) ** 2);
+      const half = w * (0.05 + 0.5 * t ** 0.85);
+      const left = Math.round(center - half);
+      const right = Math.round(center + half);
+      if (left > x0) px.rect(x0, y, left - x0, 1, P.ink);
+      if (right < x1) px.rect(right, y, x1 - right, 1, P.ink);
+      for (let k = 0; k < 3; k += 1) {
+        const lane = left + 2 + Math.floor(random() * Math.max(1, right - left - 4));
+        if (random() < 0.35 + t * 0.3) px.rect(lane, y, 1, 1 + Math.round(t * 2), t > 0.5 ? P.light : P.soft);
+      }
     }
-    // Whirlpool.
-    const cx = Math.round(w * 0.55);
-    const cy = Math.round(horizon + (h - horizon) * 0.55);
-    for (let a = 0; a < 220; a += 1) {
-      const angle = a * 0.22;
-      const r = a * 0.09 * unit;
-      px.set(cx + Math.round(Math.cos(angle) * r * 1.9), cy + Math.round(Math.sin(angle) * r * 0.6), a % 4 ? P.mid : P.light);
-    }
+    // Wooden railing in the foreground.
+    px.rect(x0, rail, w - 2 * m, Math.round(3 * unit), P.goldDark);
+    px.rect(x0, rail, w - 2 * m, 1, P.gold);
+    px.rect(x0, rail + Math.round(9 * unit), w - 2 * m, Math.round(2 * unit), P.goldDark);
+    for (let x = x0 + Math.round(w * 0.06); x < x1; x += Math.round(w * 0.2)) px.rect(x, rail - 1, Math.round(3 * unit), h - m - rail + 1, P.ink);
   }
   thornyBorder(px, m, m, w - 2 * m, h - 2 * m, random);
 }

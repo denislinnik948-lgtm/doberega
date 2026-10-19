@@ -7,7 +7,7 @@ import { activeScene } from "./scene.js";
  */
 export function createReeds(width, height) {
   const reeds = [];
-  const { reeds: density = 1, snags = false } = activeScene().foreground;
+  const { reeds: density = 1 } = activeScene().foreground;
   const perSide = Math.round(Math.max(10, Math.min(30, width / 46)) * density);
 
   for (const side of [-1, 1]) {
@@ -33,27 +33,6 @@ export function createReeds(width, height) {
         lit: hash01(seed * 19) > 0.55,
         depth: hash01(seed * 23),
       });
-    }
-  }
-
-  // Drowned snags: thick dead branches reaching in from the corners.
-  if (snags) {
-    for (const side of [-1, 1]) {
-      for (let i = 0; i < 4; i += 1) {
-        const seed = 9100 + (side + 1) * 50 + i;
-        reeds.push({
-          baseX: side < 0 ? width * (-0.02 + hash01(seed) * 0.1) : width * (1.02 - hash01(seed) * 0.1),
-          baseY: height + 6,
-          length: height * (0.3 + hash01(seed * 3) * 0.3),
-          kind: "snag",
-          lean: -side * (0.35 + hash01(seed * 5) * 0.5),
-          curve: side * (0.25 + hash01(seed * 7) * 0.5),
-          phase: hash01(seed * 11) * Math.PI * 2,
-          flex: 0.008,
-          lit: hash01(seed * 13) > 0.6,
-          depth: 0.2 + hash01(seed * 17) * 0.3,
-        });
-      }
     }
   }
 

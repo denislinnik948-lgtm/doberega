@@ -80,6 +80,38 @@ function createTrees(width, height, sunX) {
     }
   });
 
+  // Rows of trees along the near banks, growing larger toward the viewer.
+  const { banks, horizon } = activeScene();
+  if (activeScene().forest.bankTrees && banks) {
+    for (const side of [-1, 1]) {
+      let index = 0;
+      for (let t = 0.03; t < 0.82; index += 1) {
+        const seed = 8800 + (side + 1) * 300 + index;
+        const depth = horizon + t * (0.9 - horizon);
+        const edge = banks[side < 0 ? "left" : "right"](depth);
+        const inland = 0.012 + hash01(seed * 3) * 0.05 * (0.3 + t);
+        const centerX = side < 0 ? (edge - inland) * width : width * (1 - edge + inland);
+        const treeHeight = height * (0.045 + 0.42 * t ** 1.25) * (0.75 + hash01(seed * 5) * 0.5);
+        const species = hash01(seed * 7) < 0.6 ? "round" : "oak";
+        if (hash01(seed * 9) > 0.15) trees.push({
+          seed,
+          centerX,
+          baseY: depth * height,
+          topY: depth * height - treeHeight,
+          height: treeHeight,
+          maxWidth: treeHeight * (0.42 + hash01(seed * 11) * 0.2),
+          layer: 2,
+          species,
+          bank: true,
+          lightSide: centerX < sunX ? 1 : -1,
+          swayPhase: hash01(seed * 13) * Math.PI * 2,
+          swayScale: 0.25 * (0.78 + hash01(seed * 17) * 0.44),
+        });
+        t += 0.05 + hash01(seed * 19) * 0.07 + t * 0.08;
+      }
+    }
+  }
+
   return trees;
 }
 
@@ -221,7 +253,7 @@ export function createForestGlyphs(width, height, cellWidth, lineHeight, sunX = 
         const key = row * columns + column;
         const previous = cells.get(key);
         if (!previous || tree.baseY > previous.depth) {
-          cells.set(key, { x, y, column, row, depth: tree.baseY, ...shape });
+          cells.set(key, { x, y, column, row, depth: tree.baseY, bank: tree.bank, ...shape });
         }
       }
     }

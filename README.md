@@ -16,7 +16,7 @@ Each spot has its own ASCII landscape, built from a profile in `src/scene.js` (h
 - **Тихе озеро** — layered mountains behind a forested shore, reeds, a boulder and a few lily pads.
 - **Кам'яний брід** — a river: the wave pattern drifts sideways with the current, reflections tremble, rocks break the surface with foam, and a grassy near bank curves in on the left.
 - **Затока водосховища** — wide open water, low far hills, a concrete dam with gates and lamps, power pylons with sagging wires, concrete blocks in the foreground.
-- **Стара яма** — steep stratified rock banks on both sides, dark spruce, a slow whirlpool and drowned snags reaching in from the corners.
+- **Старий міст** — fishing from a wooden bridge over a fast river: we look downstream past the railing, willow-lined banks recede toward a bend, and the current races away in long streaks and flecks of foam (no casting onto the railing).
 
 Switching spots in the menu rebuilds the scene behind it.
 
@@ -37,16 +37,16 @@ Both are explained in the handbook.
 
 ## Fishing
 
-The game opens on a **main menu** over the live lake: a slider of fishing spots (pond, lake, river, reservoir, deep pit) shows each spot's picture and plain facts — type, depth, bottom, current — with **Рибалити** to go fishing. Around it: **Магазин** (bait by the piece with − / + steppers, rods, and expensive extras), **Рюкзак** (owned rods, bait and extras; pick the active gear here or from the in-game slots) and **Трофеї**. In game, the door icon returns to the menu.
+The game opens on a **main menu** over the live lake: a slider of fishing spots (pond, lake, river, reservoir, old bridge) shows each spot's picture and plain facts — type, depth, bottom, current — with **Рибалити** to go fishing. Around it: **Магазин** (bait by the piece with − / + steppers, rods, and expensive extras), **Рюкзак** (owned rods, bait and extras; pick the active gear here or from the in-game slots) and **Трофеї**. In game, the door icon returns to the menu.
 
-- **Spots** decide which fish live there and the base odds of a big one (from 1:100 at the pond to 1:20 in the pit); bait and cast distance scale those odds. Nothing in the game says which fish lives where — only the **Довідник рибака** (an extra) does.
+- **Spots** decide which fish live there and the base odds of a big one (from 1:100 at the pond to 1:20 at the old bridge); bait and cast distance scale those odds. Nothing in the game says which fish lives where — only the **Довідник рибака** (an extra) does.
 - **Bait:** bread is free and endless but only tempts tiddlers; everything else is bought per piece. If no local fish takes a bait, nothing bites.
 - **Rods:** from a willow switch (0.6 kg, no reel) to a catfish rod (40 kg); each looks different in game. Prices climb steeply — roughly 9 min of play for the second rod, ~2 h for the last.
 - **Extras:** landing net (calmer fish near the bank), braided line (slower tension), sonar (faster bites), handbook.
 - **Bite:** the float twitches, sometimes dips; pull on a twitch and the fish is gone with the bait; a pull on the dip hooks it half the time; once it sinks, pull within ~1.3 s.
 - **Fight:** hold **Space** or a finger on the water. The tension bar fills at rate X while pulling and drains at 1.5X when released, while the fish swims off at a random pace. A full bar snaps the line. Small fish come in within one full bar; heavy ones need several pulls.
 - **Catch:** sell, mount as a trophy, or release. Every escape or catch uses one bait (bread excepted).
-- **Snags and junk:** reeling in an empty line rarely hooks a snag (≈2% at the pond up to ≈6% in the pit) or an old boot (≈1%). A snag won't move and pulling hard snaps the line (hook lost); giving it slack lets the hook work free (only the bait is lost). The boot comes in heavy but doesn't fight, and sells for 2 ₴ — or makes a joke trophy.
+- **Snags and junk:** reeling in an empty line rarely hooks a snag (≈2% at the pond up to ≈6% at the old bridge) or an old boot (≈1%). A snag won't move and pulling hard snaps the line (hook lost); giving it slack lets the hook work free (only the bait is lost). The boot comes in heavy but doesn't fight, and sells for 2 ₴ — or makes a joke trophy.
 - **Hooks:** bought per piece (5 to start); no hook, no cast. A big fish that snaps the line takes the hook with it.
 - **Handbook:** opens with a page on everything that affects the bite (spot, cast distance, bait, time of day, rod, hooks, float, extras), then each fish's weight range, waters, favourite bait and feeding times.
 

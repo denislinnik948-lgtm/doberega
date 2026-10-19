@@ -10,9 +10,10 @@ export function sampleWater(point, time, config, verticalDepth, ripples = []) {
   const t = time * speed;
   const x = point.x;
   const y = point.y;
-  // A river carries the whole wave pattern sideways across the view.
+  // A river carries the whole wave pattern sideways across the view, or
+  // straight away from the viewer when we look downstream.
   const drift = (config.flow ?? 0) * time;
-  const wx = x - drift;
+  const wx = config.flowAway ? x + drift : x - drift;
   const wy = y + drift;
 
   // A light breeze sends broad, nearly parallel wavelets from the far shore
@@ -68,26 +69,21 @@ export function sampleWater(point, time, config, verticalDepth, ripples = []) {
     rippleHighlight = Math.max(rippleHighlight, ring * 0.28 * size);
   }
 
-  // A slow whirlpool: spiral arms of light turning around a point.
-  let swirl = 0;
-  if (config.whirl) {
-    const dx = x - config.whirl.x;
-    const dy = y - config.whirl.y;
-    const r = Math.hypot(dx, dy);
-    const falloff = Math.exp(-((r / config.whirl.r) ** 2));
-    if (falloff > 0.02) {
-      swirl = falloff * Math.sin(Math.atan2(dy, dx) * 2 + r * 0.045 - time * 0.9) * 0.16;
-      offsetX += (-dy / (r + 1)) * falloff * 3;
-      offsetY += (dx / (r + 1)) * falloff * 3;
-    }
+  // Fast water: long bright streaks drawn out along the current.
+  let streak = 0;
+  if (config.flowAway) {
+    const bend = Math.sin(downlake * 0.006 + acrossLake * 0.002) * 1.6;
+    const lane = Math.max(0, Math.sin(acrossLake * 0.05 + bend));
+    const pulse = 0.55 + 0.45 * Math.sin(downlake * 0.018 + acrossLake * 0.013);
+    streak = lane ** 10 * pulse * 0.2 - 0.03;
   }
 
   const density = clamp01(
     0.72 - depth * 0.025
+      + streak
       + broadWave * 0.105
       + shimmer * config.shimmer * 0.026
-      + rippleHighlight * 0.75
-      + swirl,
+      + rippleHighlight * 0.75,
   );
 
   return {

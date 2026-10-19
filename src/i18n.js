@@ -109,11 +109,11 @@ const STRINGS = {
         sonar: "Fish find the bait sooner",
       },
       location: {
-        pond: "Village pond", lake: "Quiet lake", river: "Stony ford", reservoir: "Reservoir bay", pit: "The old pit",
+        pond: "Village pond", lake: "Quiet lake", river: "Stony ford", reservoir: "Reservoir bay", bridge: "Old bridge",
       },
     },
     rules: [
-      ["Spot", "Every water has its own fish. Shallow ponds hold mostly small fry; big fish turn up more often in deep pits and reservoirs."],
+      ["Spot", "Every water has its own fish. Shallow ponds hold mostly small fry; big fish turn up more often in deep rivers and reservoirs."],
       ["Cast", "The farther from the bank you cast, the better the chance of a big fish. Small fish bite everywhere."],
       ["Bait", "Each fish has a favourite bait and rarely takes others. Only tiddlers bite on bread. If no local fish likes the bait, nothing bites."],
       ["Time of day", "Fish feed at certain hours. When the fish your bait is meant for are active, bites come often; when they rest, the bite is slow."],
@@ -230,11 +230,11 @@ const STRINGS = {
         sonar: "Риба знаходить наживку швидше",
       },
       location: {
-        pond: "Ставок за селом", lake: "Тихе озеро", river: "Кам'яний брід", reservoir: "Затока водосховища", pit: "Стара яма",
+        pond: "Ставок за селом", lake: "Тихе озеро", river: "Кам'яний брід", reservoir: "Затока водосховища", bridge: "Старий міст",
       },
     },
     rules: [
-      ["Місце", "У кожної водойми свій набір риби. У мілких ставках — переважно дрібнота, у глибоких ямах і водосховищах частіше трапляється велика риба."],
+      ["Місце", "У кожної водойми свій набір риби. У мілких ставках — переважно дрібнота, у глибоких річках і водосховищах частіше трапляється велика риба."],
       ["Закид", "Чим далі від берега закинути, тим більший шанс, що клюне велика риба. Мала клює всюди."],
       ["Наживка", "Кожна риба має улюблену наживку, на чужу бере рідко. На хліб клює тільки дрібнота. Якщо місцевій рибі наживка не до смаку — не клюне ніхто."],
       ["Час доби", "Риба годується в певні години. Коли активна риба, на яку розрахована наживка, клює частіше; коли вона спить — кльов повільний."],

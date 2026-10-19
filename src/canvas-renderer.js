@@ -1,6 +1,6 @@
 import { sampleWater } from "./water-engine.js";
 import { createForestGlyphs } from "./forest-engine.js";
-import { activeScene, isOpenWater, setScene, shorelineY, sunPosition } from "./scene.js";
+import { activeScene, bankWidths, isOpenWater, setScene, shorelineY, sunPosition } from "./scene.js";
 import { skyAt, toHex, toInt } from "./daycycle.js";
 import { clamp, hash2, hexToInt, mixColor } from "./noise.js";
 import { createBankGlyphs, createRidgeGlyphs, createShoreGlyphs, createStructures, ridgeTop } from "./landscape-engine.js";
@@ -199,18 +199,13 @@ export class CanvasWaterRenderer {
     this.structureShapes = structures.shapes;
     this.lightBatch.clear();
     for (const cell of structures.lights) this.lightBatch.push(cell.x, cell.y, cell.glyph, hexToInt(cell.color));
-    this.bankCells = createBankGlyphs(width, height, cellWidth, lineHeight);
+    this.bankCells = createBankGlyphs(width, height, cellWidth, lineHeight, this.sun.x);
     this.waterRocks = this.createWaterRocks();
-    // Water extras in plane coordinates (flow speed, whirlpool centre).
-    const whirl = scene.water.whirl;
-    this.waterParams = {
-      flow: scene.water.flow ?? 0,
-      whirl: whirl ? { ...this.screenToPlane(whirl.x * width, whirl.y * height), r: whirl.r * width * 0.6 } : null,
-    };
+    this.waterParams = { flow: scene.water.flow ?? 0, flowAway: Boolean(scene.water.flowAway) };
     this.treeline = new Float32Array(columns + 1);
     for (let column = 0; column <= columns; column += 1) this.treeline[column] = this.shorelineY(column * cellWidth);
     for (const cell of this.forestCells) {
-      if (cell.glyph === "|" || cell.y - lineHeight * 0.2 > this.treeline[cell.column]) continue;
+      if (cell.bank || cell.glyph === "|" || cell.y - lineHeight * 0.2 > this.treeline[cell.column]) continue;
       this.treeline[cell.column] = cell.y - lineHeight * 0.2;
     }
     this.buildBackdrop();
@@ -221,6 +216,7 @@ export class CanvasWaterRenderer {
     this.backend.setLayer("land", this.createLayer((ctx) => this.paintLand(ctx)));
     this.lightKey = null;
     this.rockImages = this.rocks.map((rock) => this.createRockImage(rock));
+    this.bridgeImage = scene.foreground.bridge ? this.createBridgeImage(scene.foreground.bridge) : null;
     this.skyTime = null;
   }
 
@@ -239,7 +235,8 @@ export class CanvasWaterRenderer {
       this.backdrop[cell.row * columns + cell.column] = indexOf.get(color);
     };
     for (const cell of this.ridgeCells) put(cell, cell.fill);
-    for (const cell of this.forestCells) put(cell, cell.color);
+    // Bank trees stand on the near banks, not the far shore, so the water doesn't mirror them.
+    for (const cell of this.forestCells) if (!cell.bank) put(cell, cell.color);
     for (const cell of this.structureCells) put(cell, cell.color);
     for (const cell of this.shoreCells) put(cell, "#2a3128");
     this.paletteKey = "";
@@ -429,6 +426,16 @@ export class CanvasWaterRenderer {
         ctx.fillStyle = cell.color;
         ctx.fillText(cell.glyph, cell.x, cell.y);
       }
+      // Trees on the banks get a dark backing so they stand out from the grass.
+      ctx.fillStyle = "#0f1811";
+      ctx.beginPath();
+      const radius = Math.max(this.cellWidth, this.lineHeight) * 0.62;
+      for (const cell of this.forestCells) {
+        if (!cell.bank) continue;
+        ctx.moveTo(cell.x + radius, cell.y);
+        ctx.arc(cell.x, cell.y, radius, 0, Math.PI * 2);
+      }
+      ctx.fill();
     }
   }
 
@@ -457,6 +464,53 @@ export class CanvasWaterRenderer {
       ctx.fillText(cell.glyph, cell.x, cell.y);
     }
     return { image, left, top, width, height };
+  }
+
+  /** The wooden railing of the bridge we fish from, pre-rendered once per layout. */
+  createBridgeImage(railFraction) {
+    const { width, height, cellWidth, lineHeight, pixelRatio } = this;
+    const top = Math.floor(height * railFraction - lineHeight);
+    const image = document.createElement("canvas");
+    image.width = Math.max(1, Math.round(width * pixelRatio));
+    image.height = Math.max(1, Math.round((height - top) * pixelRatio));
+    const ctx = image.getContext("2d");
+    ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, -top * pixelRatio);
+    ctx.font = `600 ${this.reedSize}px ${MONO_FONT}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const size = this.reedSize;
+    const railY = height * railFraction;
+    const lowY = railY + (height - railY) * 0.55;
+    const beam = size * 1.1;
+    const fill = "#1c140e";
+    // Posts reach down past the bottom edge; two rails run between them.
+    const posts = [];
+    for (let x = width * 0.04; x < width; x += width * (0.17 + hash2(Math.round(x), 3, 41) * 0.04)) posts.push(x);
+    ctx.fillStyle = fill;
+    for (const x of posts) ctx.fillRect(x - size * 0.9, railY - size * 0.9, size * 1.8, height - railY + size);
+    ctx.fillRect(0, railY - beam / 2, width, beam);
+    ctx.fillRect(0, lowY - beam * 0.4, width, beam * 0.8);
+    const wood = (x, y, glyph, row) => {
+      const noise = hash2(Math.round(x / cellWidth), row, 77);
+      ctx.fillStyle = row === 0 ? (noise > 0.3 ? "#8c6c4a" : "#6e543a") : noise > 0.5 ? "#5e4632" : "#4a382a";
+      ctx.fillText(glyph, x, y);
+    };
+    const step = size * 0.62;
+    for (let x = step / 2; x < width; x += step) {
+      const noise = hash2(Math.round(x), 1, 91);
+      wood(x, railY - size * 0.18, noise > 0.86 ? "-" : "=", 0);
+      wood(x, lowY, noise > 0.8 ? "_" : "=", 1);
+    }
+    for (const x of posts) {
+      for (let y = railY - size * 0.55; y < height + size; y += size * 0.8) {
+        for (const dx of [-0.42, 0.42]) {
+          const lit = dx < 0;
+          ctx.fillStyle = y < railY + size * 0.4 ? "#9a7a54" : lit ? "#6e543a" : "#3e2f22";
+          ctx.fillText(y < railY + size * 0.4 ? "#" : "|", x + dx * size, y);
+        }
+      }
+    }
+    return { image, top };
   }
 
   fillForest(time) {
@@ -571,6 +625,27 @@ export class CanvasWaterRenderer {
       for (const cell of rock.foam) {
         const wave = Math.sin(time * 4 + cell.noise * 30 + cell.x * 0.05);
         if (wave > (cell.downstream ? -0.2 : 0.4)) batch.push(cell.x, cell.y, wave > 0.7 ? "~" : "-", wave > 0.7 ? 0xdde8e4 : 0x9fb8b6);
+      }
+    }
+
+    // Fast water: flecks of foam race away from the bridge toward the bend.
+    if (this.waterParams.flowAway) {
+      const { width, height } = this;
+      const horizon = this.shorelineY(width / 2);
+      const bottom = height * activeScene().foreground.bridge;
+      for (let i = 0; i < 70; i += 1) {
+        const s = (hash2(i, 1, 811) + time * (0.05 + hash2(i, 2, 811) * 0.04)) % 1;
+        const y = bottom - (bottom - horizon) * (1 - (1 - s) ** 2.2);
+        const { left, right } = bankWidths(y / height);
+        const from = left * width;
+        const to = width * (1 - right);
+        const x = from + (to - from) * (0.06 + hash2(i, 3, 811) * 0.88) + Math.sin(time * 1.3 + i) * 3;
+        const near = 1 - s;
+        const fade = Math.min(1, s * 12, (1 - s) * 6);
+        if (fade < 0.3) continue;
+        const color = near > 0.55 ? 0xdde8e4 : 0xa9c0bd;
+        const glyphs = near > 0.6 ? "~~-" : near > 0.3 ? "~-" : "-";
+        for (let k = 0; k < glyphs.length; k += 1) batch.push(x + (k - glyphs.length / 2) * this.cellWidth, y, glyphs[k], color);
       }
     }
 
@@ -772,33 +847,16 @@ export class CanvasWaterRenderer {
         x: reed.baseX + reed.length * (reed.lean * t + reed.curve * t * t + swing * reed.flex * t * t),
         y: reed.baseY - reed.length * t,
       });
-      const snag = reed.kind === "snag";
-      const shade = snag ? "#3a342c" : reed.depth < 0.5 ? "#2c3b2c" : "#223024";
-      const rim = snag ? (reed.lit ? "#7a6e5c" : "#564c40") : reed.lit ? "#71804f" : "#46573c";
+      const shade = reed.depth < 0.5 ? "#2c3b2c" : "#223024";
+      const rim = reed.lit ? "#71804f" : "#46573c";
       const points = Array.from({ length: segments + 1 }, (_, i) => at(i / segments));
 
       // A solid silhouette hides the water glyphs behind each stalk.
       ctx.beginPath();
       points.forEach((point, i) => (i ? ctx.lineTo(point.x, point.y) : ctx.moveTo(point.x, point.y)));
-      ctx.lineWidth = size * (snag ? 1.1 : reed.kind === "grass" ? 0.3 : 0.4);
-      ctx.strokeStyle = snag ? "#14110d" : "#0b1410";
+      ctx.lineWidth = size * (reed.kind === "grass" ? 0.3 : 0.4);
+      ctx.strokeStyle = "#0b1410";
       ctx.stroke();
-      // Side twigs on drowned snags.
-      if (snag) {
-        for (const t of [0.45, 0.7, 0.85]) {
-          const from = at(t);
-          const dir = Math.sin(reed.phase * 7 + t * 13) > 0 ? 1 : -1;
-          const reach = reed.length * 0.14 * (1.1 - t);
-          ctx.beginPath();
-          ctx.moveTo(from.x, from.y);
-          ctx.lineTo(from.x + dir * reach, from.y - reach * 0.7);
-          ctx.lineWidth = size * 0.45;
-          ctx.strokeStyle = "#14110d";
-          ctx.stroke();
-          ctx.fillStyle = rim;
-          ctx.fillText(dir > 0 ? "/" : "\\", from.x + dir * reach * 0.6, from.y - reach * 0.42);
-        }
-      }
       if (reed.kind === "cattail") {
         const top = at(0.86);
         const bottom = at(0.62);
@@ -817,7 +875,6 @@ export class CanvasWaterRenderer {
         const slope = (next.x - point.x) / (point.y - next.y);
         let glyph = Math.abs(slope) < 0.2 ? "|" : Math.abs(slope) > 2.5 ? "=" : slope > 0 ? "/" : "\\";
         let color = t > 0.45 ? rim : shade;
-        if (snag) glyph = Math.abs(slope) > 2.5 ? "=" : i % 3 === 1 ? "%" : glyph;
 
         if (reed.kind === "cattail" && t > 0.62 && t < 0.86) {
           glyph = "#";
@@ -830,6 +887,8 @@ export class CanvasWaterRenderer {
       }
     }
 
+    // The railing stands between us and the reeds by the far abutments.
+    if (this.bridgeImage) ctx.drawImage(this.bridgeImage.image, 0, this.bridgeImage.top, this.width, this.height - this.bridgeImage.top);
     if (angler && !angler.hidden) this.renderAngler(ctx, angler, "rod");
 
     // Darken the close-up foreground at dusk and night, only where it's drawn.

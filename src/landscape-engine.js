@@ -199,7 +199,7 @@ export function createStructures(width, height, cellWidth, lineHeight) {
 }
 
 /** Near banks (grassy or rocky) that frame the water at the sides of the view. */
-export function createBankGlyphs(width, height, cellWidth, lineHeight) {
+export function createBankGlyphs(width, height, cellWidth, lineHeight, sunX = width / 2) {
   const { banks, horizon } = activeScene();
   if (!banks) return [];
   const cells = [];
@@ -224,6 +224,11 @@ export function createBankGlyphs(width, height, cellWidth, lineHeight) {
         glyph = edge ? (x < width / 2 ? "\\" : "/") : strata ? (noise > 0.5 ? "=" : "-") : "#%:/\\.:#"[Math.floor(noise * 8)];
         color = edge ? "#7a7a6c" : nearEdge < 0.04 ? "#4c4f47" : noise < 0.3 ? "#232824" : strata ? "#3f443d" : "#30352f";
         if (!edge && noise > 0.9) continue;
+      } else if (banks.style === "willow" && Math.min(Math.abs(x - leftEdge), Math.abs(x - rightEdge)) < width * (0.03 + 0.05 * (y / height))) {
+        // Willow scrub and sedge crowd the water's edge.
+        const lit = (x < leftEdge) === (sunX < width / 2) ? noise > 0.45 : noise > 0.75;
+        glyph = edge ? (noise > 0.5 ? "|" : "'") : "o%&*O#"[Math.floor(noise * 6)];
+        color = edge ? "#5d6e45" : lit ? "#5f7243" : noise < 0.3 ? "#1f2c20" : "#2f4129";
       } else {
         glyph = edge ? "~" : ",'\"`.;,'"[Math.floor(noise * 8)];
         color = edge ? "#6a7a58" : noise < 0.5 ? "#3f5236" : "#56693f";

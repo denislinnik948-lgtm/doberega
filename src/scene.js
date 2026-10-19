@@ -12,6 +12,15 @@ const LAKE_RIDGES = [
   { top: 0.42, amplitude: 0.022, seed: 5.2, fill: "#26352d", glyph: "#3a4c3d", texture: "^^*.", density: 0.34 },
 ];
 
+/** Bank width on one side of the bridge river at a screen depth (0 top .. 1 bottom). */
+function riverBank(depth, side) {
+  const t = Math.max(0, (depth - 0.4) / 0.6);
+  const center = 0.5 + 0.09 * (1 - t) ** 2;
+  const half = 0.15 + 0.31 * t ** 0.9;
+  const wobble = Math.sin(depth * 31 + side) * 0.008 + Math.sin(depth * 73 + side * 2) * 0.004;
+  return side < 0 ? center - half + wobble : 1 - center - half + wobble;
+}
+
 export const SCENES = {
   /**
    * Village pond in open farmland: a low, flat far bank of meadows and a
@@ -77,21 +86,26 @@ export const SCENES = {
     water: {},
     foreground: { reeds: 0, rock: false, lilyPads: 0, blocks: true },
   },
-  /** The old pit: steep rocky banks, dark spruce, a slow whirlpool and drowned snags. */
-  pit: {
+  /**
+   * Old bridge over a fast river: we stand at the wooden railing looking
+   * downstream; willow banks converge on a bend and the current races away.
+   */
+  bridge: {
     horizon: 0.4,
     ridges: [
-      { top: 0.33, amplitude: 0.1, seed: 4.4, fill: "#26302e", glyph: "#3a4642", texture: "^.:", density: 0.28 },
+      { top: 0.33, amplitude: 0.05, seed: 1.3, fill: "#4a5960", glyph: "#68777c", texture: ".:'", density: 0.14 },
+      { top: 0.375, amplitude: 0.025, seed: 3.8, fill: "#33433b", glyph: "#4a5b4c", texture: "^.*", density: 0.3 },
     ],
-    forest: { heightScale: 1.5, spacingScale: 0.85, broadleaf: 0.03 },
+    forest: { heightScale: 1.25, spacingScale: 1, broadleaf: 0.7, round: 0.5, bankTrees: true },
     banks: {
-      style: "cliff",
-      left: (depth) => 0.2 + Math.max(0, depth - 0.4) * 0.38 + Math.sin(depth * 19) * 0.012,
-      right: (depth) => 0.17 + Math.max(0, depth - 0.45) * 0.42 + Math.cos(depth * 23) * 0.012,
+      style: "willow",
+      // The river narrows toward a bend just right of centre.
+      left: (depth) => riverBank(depth, -1),
+      right: (depth) => riverBank(depth, 1),
     },
     structures: {},
-    water: { whirl: { x: 0.52, y: 0.66, r: 0.12 } },
-    foreground: { reeds: 0.25, rock: false, lilyPads: 0, snags: true },
+    water: { flow: 90, flowAway: true },
+    foreground: { reeds: 0.35, rock: false, lilyPads: 0, bridge: 0.875 },
   },
 };
 
@@ -122,6 +136,7 @@ export function bankWidths(depth) {
 /** Is this screen point open water (not bank, rock or shore)? */
 export function isOpenWater(x, y, width, height) {
   if (y < shorelineY(x, height)) return false;
+  if (active.foreground.bridge && y > active.foreground.bridge * height) return false;
   const { left, right } = bankWidths(y / height);
   if (x < left * width || x > width * (1 - right)) return false;
   for (const rock of active.water.rocks ?? []) {
