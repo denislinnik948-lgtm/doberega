@@ -422,15 +422,17 @@ export class AnglerUI {
         element("div", { className: "card-art" }, [rodArt(id, 3)]),
         element("strong", { textContent: nameOf("rod", id) }),
         element("small", { textContent: t("shop.upTo", { weight: formatWeight(rod.maxKg) }) }),
-        element("button", {
-          className: `pixel-btn${owned ? " pixel-btn-quiet" : " pixel-btn-primary"}`,
-          type: "button",
-          disabled: owned || progress.money < rod.price,
-          onclick: pay(rod.price, () => {
-            progress.rods.push(id);
-            progress.rod = id;
-          }),
-        }, [owned ? t("shop.owned") : formatMoney(rod.price)]),
+        owned
+          ? element("span", { className: "card-owned", textContent: t("shop.owned") })
+          : element("button", {
+            className: "pixel-btn pixel-btn-primary",
+            type: "button",
+            disabled: progress.money < rod.price,
+            onclick: pay(rod.price, () => {
+              progress.rods.push(id);
+              progress.rod = id;
+            }),
+          }, [formatMoney(rod.price)]),
       ]);
     }));
 
@@ -457,14 +459,16 @@ export class AnglerUI {
         element("div", { className: "card-art" }, [extraSprite(id, 3)]),
         element("strong", { textContent: nameOf("extra", id) }),
         element("small", { textContent: nameOf("extraText", id) }),
-        element("button", {
-          className: `pixel-btn${owned ? " pixel-btn-quiet" : " pixel-btn-primary"}`,
-          type: "button",
-          disabled: owned || progress.money < extra.price,
-          onclick: pay(extra.price, () => {
-            progress.extras.push(id);
-          }),
-        }, [owned ? t("shop.owned") : formatMoney(extra.price)]),
+        owned
+          ? element("span", { className: "card-owned", textContent: t("shop.owned") })
+          : element("button", {
+            className: "pixel-btn pixel-btn-primary",
+            type: "button",
+            disabled: progress.money < extra.price,
+            onclick: pay(extra.price, () => {
+              progress.extras.push(id);
+            }),
+          }, [formatMoney(extra.price)]),
       ]);
     }));
 

@@ -16,6 +16,7 @@ import { BOOT_CHANCE, LOCATIONS, RODS, biteActivity, rollFish } from "./data.js"
 
 export const TUNING = {
   castDuration: 0.75,
+  // Average time to strike once the float goes under; each bite varies around it.
   biteWindow: 1.35,
   dipHookChance: 0.5,
   // X: one full bar takes 1 / fillRate seconds of pulling.
@@ -205,19 +206,40 @@ export class FishingGame {
     const hunger = biteActivity(this.bait, this.location, this.hour);
     const spotPace = LOCATIONS[this.location]?.pace ?? 1;
     const pace = Math.min(2.2, Math.max(0.3, hunger * 1.2 * spotPace * this.biteBoost));
-    return ((4 + this.random() * 10) / pace) * (this.extras.includes("sonar") ? 0.55 : 1);
+    // Mostly a short wait, sometimes a quick one, now and then a long lull.
+    const lull = this.random() < 0.1 ? 6 + this.random() * 12 : 0;
+    const wait = 2.5 + 11 * this.random() ** 1.6 + lull;
+    return (wait / pace) * (this.extras.includes("sonar") ? 0.55 : 1);
   }
 
-  /** Build the twitches and optional dip that lead up to a bite. */
+  /**
+   * Build the twitches and dips that lead up to a bite. Each fish has a
+   * temper: a greedy one grabs at once, a nibbler plays a little, a wary one
+   * fiddles for a long time, a teaser goes quiet before coming back. Gaps,
+   * twitch strength and dip depth all vary from step to step.
+   */
   planNibble() {
+    const random = this.random;
+    const roll = random();
+    const temper = roll < 0.18 ? "greedy" : roll < 0.62 ? "nibbler" : roll < 0.87 ? "wary" : "teaser";
+    const range = (from, to) => from + random() * (to - from);
+    const count = { greedy: [0, 1], nibbler: [2, 6], wary: [4, 9], teaser: [3, 7] }[temper];
+    const twitches = count[0] + Math.floor(random() * (count[1] - count[0] + 1));
+    // Gaps skew short with the odd longer hesitation.
+    const gap = () => (temper === "wary" ? 0.3 + 1.9 * random() ** 1.5 : 0.25 + 1.3 * random() ** 1.8);
+    const dips = new Set();
+    if (twitches && random() < 0.5) dips.add(Math.floor(random() * twitches));
+    if (twitches > 3 && random() < 0.25) dips.add(Math.floor(random() * twitches));
+    const pauseAt = temper === "teaser" ? 1 + Math.floor(random() * Math.max(1, twitches - 2)) : -1;
+
     const steps = [];
-    let at = 0.3;
-    const twitches = 2 + Math.floor(this.random() * 4);
-    const dipIndex = this.random() < 0.45 ? Math.floor(this.random() * twitches) : -1;
+    let at = range(0.15, 0.6);
     for (let i = 0; i < twitches; i += 1) {
-      steps.push({ at, kind: i === dipIndex ? "dip" : "twitch" });
-      at += 0.45 + this.random() * 0.75;
+      if (i === pauseAt) at += range(2.5, 6);
+      steps.push({ at, kind: dips.has(i) ? "dip" : "twitch", strength: range(0.45, 1.4) });
+      at += gap();
     }
+    if (temper === "greedy") at = Math.min(at, range(0.2, 0.9));
     steps.push({ at, kind: "bite" });
     return steps;
   }
@@ -245,6 +267,7 @@ export class FishingGame {
             break;
           }
           this.timeline = this.planNibble();
+          this.biteWindow = TUNING.biteWindow * (0.6 + this.random() * 0.8);
           this.enter("nibble");
         }
         break;
@@ -265,15 +288,16 @@ export class FishingGame {
             step.rippled = true;
             this.ripple(this.target, step.kind === "dip" ? 0.4 : 0.22, 0.2);
           }
-          if (step.kind === "twitch") this.float.offset = age < 0.25 ? Math.sin((age / 0.25) * Math.PI) * 3 : 0;
-          else this.float.sink = age < 0.4 ? Math.min(1, Math.sin((age / 0.4) * Math.PI) * 1.6) : 0;
+          const strength = step.strength ?? 1;
+          if (step.kind === "twitch") this.float.offset = age < 0.25 ? Math.sin((age / 0.25) * Math.PI) * 3 * strength : 0;
+          else this.float.sink = age < 0.4 ? Math.min(1, Math.sin((age / 0.4) * Math.PI) * 1.6 * Math.max(0.7, strength)) : 0;
         }
         break;
       }
 
       case "bite":
         this.float.sink = 1;
-        if (this.clock >= TUNING.biteWindow) this.escape("late");
+        if (this.clock >= (this.biteWindow ?? TUNING.biteWindow)) this.escape("late");
         break;
 
       case "fight":

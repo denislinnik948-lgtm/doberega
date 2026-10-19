@@ -379,6 +379,8 @@ button { font: inherit; color: inherit; }
 .card small { min-height: 21px; color: var(--light); font-size: 18px; line-height: 1.4; }
 /* Price and stock sit on separate lines so neither gets lost. */
 .card-price { color: var(--gold); font-size: 26px; line-height: 1.1; }
+/* An owned rod or extra: a plain label where the buy button was, same height. */
+.card-owned { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 44px; color: var(--light); font-size: 22px; opacity: 0.8; }
 .card-stock { margin-top: -6px; color: var(--light); font-size: 20px; letter-spacing: 0.02em; opacity: 0.85; }
 .card .pixel-btn { width: 100%; }
 
