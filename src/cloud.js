@@ -1,4 +1,5 @@
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./cloud-config.js";
+import { LOCATIONS } from "./fishing/data.js";
 import { hasProgress, normalizeProgress } from "./fishing/store.js";
 
 // Loaded on demand, only when accounts are configured.
@@ -95,6 +96,8 @@ export class Cloud {
       const { data, error } = await this.client.auth.updateUser({ data: { nickname: nickname.trim() } });
       if (error) throw error;
       this.user = data.user;
+      // Trophies on show carry the new name too.
+      await this.publishTrophies(this.getProgress());
       return {};
     });
   }
@@ -159,6 +162,35 @@ export class Cloud {
     this.error = "";
     this.lastSync = Date.now();
     this.onChange();
+    await this.publishTrophies(progress);
+  }
+
+  /** Put this player's trophies on show for everyone (each only once, refreshed under a new nickname). */
+  async publishTrophies(progress) {
+    if (!this.user || !progress.trophies.length) return;
+    const player = this.user.user_metadata?.nickname ?? "";
+    const rows = progress.trophies.map((trophy) => ({
+      user_id: this.user.id,
+      trophy_id: String(trophy.id),
+      player,
+      species: trophy.species,
+      weight: trophy.weight,
+      spot: LOCATIONS[trophy.spot]?.id ?? null,
+      bait: trophy.bait ?? null,
+      caught_at: trophy.date,
+    }));
+    // A missing trophies table must not get in the way of saving progress.
+    const { error } = await this.client.from("trophies").upsert(rows, { onConflict: "user_id,trophy_id" });
+    if (error) console.warn("Trophies were not published:", error.message);
+  }
+
+  /** The latest trophies of other anglers (anyone can look, signed in or not). */
+  async otherTrophies(limit = 60) {
+    if (!this.client) return { error: "unavailable" };
+    let query = this.client.from("trophies").select("user_id, trophy_id, player, species, weight, spot, bait, caught_at").order("caught_at", { ascending: false }).limit(limit);
+    if (this.user) query = query.neq("user_id", this.user.id);
+    const { data, error } = await query;
+    return error ? { error: error.message } : { trophies: data };
   }
 
   /** On signing in: bring this device and the account to the same save. */

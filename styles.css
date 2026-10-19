@@ -392,6 +392,10 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
 .trophy .picture { min-height: 120px; }
 .trophy .caption strong { color: var(--gold); font-size: 22px; font-weight: 500; }
 .trophy .caption small { color: var(--light); font-size: 18px; }
+.trophy .caption small + small { display: block; }
+.trophy-player { display: block; color: var(--bone); font-size: 19px; }
+.trophy-hint { margin-top: 0; font-size: 18px; }
+.trophy-hint[hidden], #trophy-empty[hidden] { display: none; }
 .empty-note { margin: 0; color: var(--light); font-size: 22px; text-align: center; }
 .empty-note[hidden] { display: none; }
 

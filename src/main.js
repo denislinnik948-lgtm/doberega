@@ -139,7 +139,7 @@ function handleGameEvent(type, data) {
     } else {
       progress.caught += 1;
       game.release();
-      ui.showCatch(data.fish).then((choice) => {
+      ui.showCatch(data.fish, { bait: data.bait }).then((choice) => {
         if (choice.type === "sell") ui.toast(`+${choice.price} ₴`, "good", 1200);
         else if (choice.type === "mount") ui.toast(t("toast.trophy"), "good", 1200);
         game.reset();

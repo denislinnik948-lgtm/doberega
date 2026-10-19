@@ -1,5 +1,5 @@
 import {
-  BAITS, EXTRAS, HOOK_PRICE, LOCATIONS, RODS,
+  BAITS, EXTRAS, FISH, HOOK_PRICE, LOCATIONS, RODS,
   fishPrice, formatMoney, formatWeight, handbookEntries, trophyCost,
 } from "./data.js";
 import {
@@ -72,8 +72,11 @@ export class AnglerUI {
     $("#trophy-button").addEventListener("click", () => this.openTrophies());
     $("#settings-button").addEventListener("click", () => this.openSettings());
     $("#account-button").addEventListener("click", () => this.openAccount());
-    for (const tab of document.querySelectorAll(".tab")) {
+    for (const tab of document.querySelectorAll("#shop-dialog .tab")) {
       tab.addEventListener("click", () => this.showShopTab(tab.dataset.tab));
+    }
+    for (const tab of document.querySelectorAll("#trophy-dialog .tab")) {
+      tab.addEventListener("click", () => this.showTrophyTab(tab.dataset.tab));
     }
 
     this.applyLanguage();
@@ -469,7 +472,7 @@ export class AnglerUI {
   }
 
   /** Show the catch card; resolves after the angler sells, mounts or releases it. */
-  showCatch(fish) {
+  showCatch(fish, { bait } = {}) {
     const price = fishPrice(fish);
     const cost = trophyCost(fish);
     const dialog = this.catchDialog;
@@ -500,7 +503,8 @@ export class AnglerUI {
       });
       mount.onclick = this.guarded(dialog, () => {
         this.progress.money -= cost;
-        this.progress.trophies.unshift({ ...fish, date: new Date().toISOString(), spot: this.progress.location });
+        const date = new Date().toISOString();
+        this.progress.trophies.unshift({ ...fish, id: `${date}-${fish.species}-${fish.weight}`, date, spot: this.progress.location, bait });
         this.commit();
         finish({ type: "mount", cost });
       });
@@ -518,7 +522,7 @@ export class AnglerUI {
   /* ---------- Shop ---------- */
 
   showShopTab(id) {
-    for (const tab of document.querySelectorAll(".tab")) {
+    for (const tab of document.querySelectorAll("#shop-dialog .tab")) {
       const active = tab.dataset.tab === id;
       tab.classList.toggle("is-active", active);
       tab.setAttribute("aria-selected", String(active));
@@ -692,14 +696,63 @@ export class AnglerUI {
   /* ---------- Trophies ---------- */
 
   openTrophies() {
-    const { trophies } = this.progress;
-    $("#trophy-empty").hidden = trophies.length > 0;
+    this.showTrophyTab("mine");
+    if (!this.trophyDialog.open) this.trophyDialog.showModal();
+  }
+
+  /** Trophies come in two tabs: this player's wall and other anglers' latest catches. */
+  showTrophyTab(id) {
+    for (const tab of document.querySelectorAll("#trophy-dialog .tab")) {
+      const active = tab.dataset.tab === id;
+      tab.classList.toggle("is-active", active);
+      tab.setAttribute("aria-selected", String(active));
+    }
+    if (id === "mine") {
+      const { trophies } = this.progress;
+      this.fillTrophyWall(trophies, trophies.length ? "" : t("trophies.empty"));
+      return;
+    }
+    const cloud = this.cloud;
+    if (!cloud?.enabled) {
+      this.fillTrophyWall([], t("trophies.othersOff"));
+      return;
+    }
+    this.fillTrophyWall([], t("trophies.loading"));
+    const request = (this.trophyRequest = cloud.otherTrophies());
+    request.then((result) => {
+      // Ignore a slow answer if the player has moved on to another tab.
+      if (request !== this.trophyRequest || !$("#trophy-dialog .tab[data-tab='others']").classList.contains("is-active")) return;
+      if (result.error) return this.fillTrophyWall([], t("trophies.othersError"));
+      const trophies = result.trophies.map((row) => ({
+        species: row.species,
+        weight: row.weight,
+        spot: LOCATIONS.findIndex((spot) => spot.id === row.spot),
+        bait: row.bait,
+        date: row.caught_at,
+        player: row.player || t("trophies.anonymous"),
+      })).filter((trophy) => FISH[trophy.species]);
+      this.fillTrophyWall(trophies, trophies.length ? "" : t("trophies.othersEmpty"), !cloud.user ? t("trophies.shareHint") : "");
+    });
+  }
+
+  /** Draw trophy cards: fish, weight, who caught it (for others), where, on what bait and when. */
+  fillTrophyWall(trophies, emptyText, hint = "") {
+    const empty = $("#trophy-empty");
+    empty.textContent = emptyText;
+    empty.hidden = !emptyText;
+    const note = $("#trophy-hint");
+    note.textContent = hint;
+    note.hidden = !hint;
     $("#trophy-wall").replaceChildren(...trophies.map((fish, index) => {
       const tab = element("div", { className: "title-tab title-tab-small", textContent: nameOf("fish", fish.species) });
       const picture = element("div", { className: "picture" }, [fishSprite(fish.species, 3)]);
+      const spot = LOCATIONS[fish.spot] ? nameOf("location", LOCATIONS[fish.spot].id) : null;
+      const date = fish.date ? new Date(fish.date).toLocaleDateString(locale(), { day: "numeric", month: "short", year: "numeric" }) : null;
       const caption = element("div", { className: "caption" }, [
         element("strong", { textContent: formatWeight(fish.weight) }),
-        element("small", { textContent: [LOCATIONS[fish.spot] ? nameOf("location", LOCATIONS[fish.spot].id) : null, new Date(fish.date).toLocaleDateString(locale(), { day: "numeric", month: "short", year: "numeric" })].filter(Boolean).join(" · ") }),
+        fish.player ? element("span", { className: "trophy-player", textContent: fish.player }) : "",
+        element("small", { textContent: [spot, date].filter(Boolean).join(" · ") }),
+        fish.bait && BAITS[fish.bait] ? element("small", { textContent: t("trophies.bait", { bait: nameOf("bait", fish.bait) }) }) : "",
       ]);
       const card = element("li", { className: "trophy" }, [element("div", { className: "card-scene" }, [tab, picture]), caption]);
       frame(picture, "picture", 500 + index * 7);
@@ -707,6 +760,5 @@ export class AnglerUI {
       frame(caption, "box", 900 + index);
       return card;
     }));
-    this.trophyDialog.showModal();
   }
 }

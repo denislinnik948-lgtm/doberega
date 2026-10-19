@@ -150,8 +150,13 @@
         <h2 class="title-tab" id="trophy-title" data-frame="tab" data-i18n="trophies.title">Trophies</h2>
         <form method="dialog"><button class="pixel-btn pixel-btn-square" type="submit" data-i18n-aria="a11y.close">✕</button></form>
       </header>
+      <div class="tabs" role="tablist">
+        <button class="pixel-btn tab is-active" type="button" role="tab" aria-selected="true" data-tab="mine" data-i18n="trophies.mine">Mine</button>
+        <button class="pixel-btn tab" type="button" role="tab" aria-selected="false" data-tab="others" data-i18n="trophies.others">Other anglers</button>
+      </div>
       <ul class="trophy-wall" id="trophy-wall"></ul>
-      <p class="empty-note" id="trophy-empty" data-i18n="trophies.empty">The wall is empty for now</p>
+      <p class="empty-note" id="trophy-empty"></p>
+      <p class="empty-note trophy-hint" id="trophy-hint" hidden></p>
     </dialog>
 
     <dialog class="sheet settings-sheet" id="settings-dialog" data-frame="ornate" aria-labelledby="settings-title">
