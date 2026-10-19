@@ -938,17 +938,18 @@ export class CanvasWaterRenderer {
       ctx.globalCompositeOperation = "source-over";
     }
 
-    // A glowing float shines through the dark.
+    // A glowing float shines through the dark: off by day, fading in at dusk, full at night.
     const mark = this.floatMark;
-    if (angler && !angler.hidden && angler.glowFloat && mark && mark.sink < 0.55) {
+    const glow = clamp((this.shade - 0.2) / 0.25, 0, 1);
+    if (angler && !angler.hidden && angler.glowFloat && mark && mark.sink < 0.55 && glow > 0.02) {
       const pulse = 0.75 + 0.25 * Math.sin(time * 3);
       ctx.save();
       ctx.font = `600 ${mark.size}px ${MONO_FONT}`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.shadowColor = "rgba(170, 255, 140, 0.9)";
-      ctx.shadowBlur = 10 + 6 * pulse;
-      ctx.fillStyle = `rgba(214, 255, 160, ${0.85 + 0.15 * pulse})`;
+      ctx.shadowColor = `rgba(170, 255, 140, ${(0.9 * glow).toFixed(3)})`;
+      ctx.shadowBlur = (10 + 6 * pulse) * glow;
+      ctx.fillStyle = `rgba(214, 255, 160, ${((0.85 + 0.15 * pulse) * glow).toFixed(3)})`;
       ctx.fillText("|", mark.x, mark.y - mark.size * 0.55 + mark.below);
       ctx.restore();
     }
