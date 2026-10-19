@@ -14,7 +14,7 @@ Each spot has its own ASCII landscape, built from a profile in `src/scene.js` (h
 
 - **Ставок за селом** — a pond in open farmland: big sky, a low flat far bank of green meadow and a ploughed strip, scattered round trees and tall poplars, a few small cottages in the distance, a reed fringe along the far waterline, and thick reeds and cattails on both near sides.
 - **Тихе озеро** — layered mountains behind a forested shore, reeds, a boulder and a few lily pads.
-- **Ріка під замком** — a medieval river: a stone castle on a craggy hill across the water (curtain wall with a gate, towers under red tiled cones, a tall keep, banners; windows and torches glow at dusk), an old stone bridge with three round arches over a stream mouth, a half-timbered watermill whose wheel turns and churns white water, a hut along the shore, the current drifting sideways with a couple of foamy rocks, and reeds at the near corners.
+- **Замкове озеро** — after a photo of an alpine lake: a wooded hill rises on the left to a sheer limestone cliff topped by a castle of pale walls and red roofs with a coned tower; snowy jagged peaks fill the right; a white church with a needle spire and red-roofed houses line the far shore, with an arched stone bridge under the cliff and a watermill whose wheel turns and churns foam. Calm emerald water.
 - **Затока водосховища** — wide open water, low far hills, a concrete dam with gates and lamps, power pylons with sagging wires, concrete blocks in the foreground.
 - **Старий міст** — fishing from a wooden bridge over a fast river: we look downstream past the railing, willow-lined banks recede toward a bend, and the current races away in long streaks and flecks of foam (no casting onto the railing).
 
@@ -37,7 +37,7 @@ Both are explained in the handbook.
 
 ## Fishing
 
-The game opens on a **main menu** over the live lake: a slider of fishing spots (pond, lake, river, reservoir, old bridge) shows each spot's picture and plain facts — type, depth, bottom, current — with **Рибалити** to go fishing. Around it: **Магазин** (bait by the piece with − / + steppers, rods, and expensive extras), **Рюкзак** (owned rods, bait and extras; pick the active gear here or from the in-game slots) and **Трофеї**. In game, the door icon returns to the menu.
+The game opens on a **main menu** over the live lake: a slider of fishing spots (pond, lake, castle lake, reservoir, old bridge) shows each spot's picture and plain facts — type, depth, bottom, current — with **Рибалити** to go fishing. Around it: **Магазин** (bait by the piece with − / + steppers, rods, and expensive extras), **Рюкзак** (owned rods, bait and extras; pick the active gear here or from the in-game slots) and **Трофеї**. In game, the door icon returns to the menu.
 
 - **Spots** decide which fish live there and the base odds of a big one (from 1:100 at the pond to 1:20 at the old bridge); bait and cast distance scale those odds. Nothing in the game says which fish lives where — only the **Довідник рибака** (an extra) does.
 - **Bait:** bread is free and endless but only tempts tiddlers; everything else is bought per piece. If no local fish takes a bait, nothing bites.

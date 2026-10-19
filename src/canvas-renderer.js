@@ -1,9 +1,9 @@
 import { sampleWater } from "./water-engine.js";
 import { createForestGlyphs } from "./forest-engine.js";
-import { activeScene, bankWidths, isOpenWater, setScene, shorelineY, sunPosition } from "./scene.js";
+import { activeScene, bankWidths, isOpenWater, setScene, shorelineY, sunPosition, view } from "./scene.js";
 import { skyAt, toHex, toInt } from "./daycycle.js";
 import { clamp, hash2, hexToInt, mixColor } from "./noise.js";
-import { createBankGlyphs, createRidgeGlyphs, createShoreGlyphs, createStructures, ridgeTop } from "./landscape-engine.js";
+import { SNOW_FILL, createBankGlyphs, createRidgeGlyphs, createShoreGlyphs, createStructures, ridgeTop, snowLine } from "./landscape-engine.js";
 import { birdsAt, createSkyCells, discOffsets, lightSky, pushDisc, sampleSky, setCloudColors, setCloudiness } from "./sky-engine.js";
 import { createLilyPads, createReeds, createRocks, rockGlyphs } from "./foreground-engine.js";
 import { GlyphBatch, createBackend } from "./glyph-backend.js";
@@ -84,6 +84,7 @@ export class CanvasWaterRenderer {
     this.sun = sunPosition(width, height);
     this.reeds = createReeds(width, height);
     this.rocks = createRocks(width, height, this.sun.x);
+    view.width = width;
     this.ridgeOutlines = activeScene().ridges.map((ridge) => {
       const points = [];
       const step = Math.max(6, width / 240);
@@ -338,6 +339,15 @@ export class CanvasWaterRenderer {
       ctx.closePath();
       ctx.fillStyle = ridge.fill;
       ctx.fill();
+      if (ridge.snowline) {
+        ctx.beginPath();
+        ctx.moveTo(points[0], points[1]);
+        for (let i = 2; i < points.length; i += 2) ctx.lineTo(points[i], points[i + 1]);
+        for (let i = points.length - 2; i >= 0; i -= 2) ctx.lineTo(points[i], Math.max(points[i + 1], snowLine(ridge, points[i], height)));
+        ctx.closePath();
+        ctx.fillStyle = SNOW_FILL;
+        ctx.fill();
+      }
 
       ctx.fillStyle = ridge.glyph;
       for (const cell of this.ridgeCells) {
@@ -404,7 +414,7 @@ export class CanvasWaterRenderer {
     for (let x = 0; x <= width + 8; x += 8) ctx.lineTo(x, this.shorelineY(x) + this.lineHeight * 0.3);
     ctx.lineTo(width, height);
     ctx.closePath();
-    ctx.fillStyle = "#14232a";
+    ctx.fillStyle = scene.water.body ?? "#14232a";
     ctx.fill();
 
     // Near banks (grass or rock) cover the water at the sides.

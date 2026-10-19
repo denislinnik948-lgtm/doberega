@@ -4,6 +4,9 @@
  * man-made structures, water behaviour and foreground.
  */
 
+/** Current viewport width, for landscape features laid out across the view. */
+export const view = { width: 1600 };
+
 export const SUN = { x: 0.37, y: 0.252, radius: 0.03 };
 
 const LAKE_RIDGES = [
@@ -56,27 +59,28 @@ export const SCENES = {
     foreground: { reeds: 1, rock: true, lilyPads: 5 },
   },
   /**
-   * River under a castle: a stone keep and towers on a rocky hill across the
-   * water, thatched huts by the shore, misty blue hills behind.
+   * Castle lake: a wooded hill rising to a sheer cliff with a red-roofed
+   * castle on top, snowy mountains beyond, a white church with a needle spire
+   * on the far shore, and calm emerald water.
    */
-  river: {
-    horizon: 0.46,
+  castle: {
+    horizon: 0.5,
     ridges: [
-      { top: 0.36, amplitude: 0.075, seed: 0.9, fill: "#4a5a66", glyph: "#6a7a84", texture: ".:'", density: 0.12 },
-      { top: 0.42, amplitude: 0.03, seed: 2.9, fill: "#2f3e38", glyph: "#46584b", texture: "^.*", density: 0.3 },
+      // Snowy alpine range, low behind the castle hill and high on the right.
+      { top: 0.46, amplitude: 0.34, seed: 1.9, jagged: true, rise: [0.3, 0.68], snowline: 0.27, fill: "#5d7084", glyph: "#8193a5", texture: "|:.'", density: 0.2 },
+      { top: 0.47, amplitude: 0.07, seed: 4.6, jagged: true, rise: [0.4, 0.8], fill: "#3e5160", glyph: "#56697a", texture: ".:;'", density: 0.18 },
     ],
-    forest: { heightScale: 1.1, spacingScale: 1.2, broadleaf: 0.55, gaps: [[0.5, 0.92]] },
+    forest: { heightScale: 0.95, spacingScale: 0.95, broadleaf: 0.85, round: 0.6 },
     structures: {
-      castle: { x: 0.7, width: 0.24 },
-      archBridge: { from: 0.27, to: 0.47, arches: 3 },
-      mill: { x: 0.09 },
-      houses: { at: [0.96], scale: 0.6 },
+      crag: { to: 0.66, peak: 0.26 },
+      church: { x: 0.79 },
+      houses: { at: [0.71, 0.9, 0.97], scale: 0.6, roof: "#b04a30", walls: "#d6cfbc" },
+      archBridge: { from: 0.03, to: 0.2, arches: 3 },
+      mill: { x: 0.56 },
     },
-    water: {
-      flow: 22,
-      rocks: [{ x: 0.3, y: 0.66, r: 0.03 }, { x: 0.83, y: 0.74, r: 0.038 }],
-    },
-    foreground: { reeds: 0.9, rock: true, lilyPads: 0 },
+    // Glacial emerald water over a pale stony bottom.
+    water: { body: "#17423c" },
+    foreground: { reeds: 0.5, rock: false, lilyPads: 0 },
   },
   /** Reservoir bay: wide water, low far hills, a concrete dam and power lines. */
   reservoir: {

@@ -170,7 +170,7 @@ function landscape(px, w, h, random, kind) {
 
   // Sky: dark overhead, warm and light toward the horizon, dithered.
   px.dither(x0, m, x1, horizon, P.dark, P.soft, -0.1);
-  const sx = Math.round(w * (kind === "river" ? 0.3 : 0.34));
+  const sx = Math.round(w * (kind === "castle" ? 0.3 : 0.34));
   const sy = horizon - Math.round(10 * unit);
   const sr = Math.max(4, Math.round(7 * unit));
   for (let y = sy - sr * 3; y < horizon; y += 1) {
@@ -226,59 +226,45 @@ function landscape(px, w, h, random, kind) {
     ridge(px, x0, x1, horizon, 16 * unit, 2.2, P.dark, horizon + 1);
     for (let x = x0 + 2; x < x1; x += 2 + Math.floor(random() * 4)) pine(px, x, horizon + 1, Math.round((8 + random() * 14) * unit), P.ink);
     px.rect(x0, horizon, w - 2 * m, 1, P.ink);
-  } else if (kind === "river") {
-    ridge(px, x0, x1, horizon, 14 * unit, 0.9, P.dark, horizon + 1);
-    for (let x = x0 + 2; x < Math.round(w * 0.46); x += 3 + Math.floor(random() * 5)) pine(px, x, horizon + 1, Math.round((5 + random() * 8) * unit), P.deep);
-    // Watermill with its wheel, and a stone bridge with round arches.
-    const millX = Math.round(w * 0.1);
-    px.rect(millX - Math.round(w * 0.04), horizon - Math.round(8 * unit), Math.round(w * 0.08), Math.round(8 * unit), P.soft);
-    for (let k = 0; k < Math.round(w * 0.05); k += 1) px.rect(millX - Math.round(w * 0.05) + k, horizon - Math.round(8 * unit) - k, Math.max(1, Math.round(w * 0.1) - 2 * k), 1, P.goldDark);
-    const wheelR = Math.round(7 * unit);
-    const wheelX = millX + Math.round(w * 0.04) + wheelR + 1;
-    for (let a = 0; a < 48; a += 1) px.set(wheelX + Math.round(Math.cos(a / 7.64) * wheelR), horizon - Math.round(3 * unit) + Math.round(Math.sin(a / 7.64) * wheelR), P.gold);
-    for (let a = 0; a < 4; a += 1) for (let k = 0; k < wheelR; k += 1) px.set(wheelX + Math.round(Math.cos(a * 0.785) * k), horizon - Math.round(3 * unit) + Math.round(Math.sin(a * 0.785) * k), P.goldDark);
-    const bx0 = Math.round(w * 0.27);
-    const bx1 = Math.round(w * 0.47);
-    const deck = horizon - Math.round(9 * unit);
-    px.rect(bx0, deck, bx1 - bx0, horizon - deck + 1, P.soft);
-    px.rect(bx0, deck, bx1 - bx0, 1, P.light);
-    for (let i = 0; i < 3; i += 1) {
-      const ax = bx0 + ((bx1 - bx0) * (i + 0.5)) / 3;
-      const ar = (bx1 - bx0) / 3 * 0.36;
-      for (let y = deck + 2; y <= horizon; y += 1) {
-        const dy = (horizon - y) / (horizon - deck - 2);
-        const half = Math.round(ar * Math.sqrt(Math.max(0, 1 - dy * dy)));
-        if (half > 0) px.rect(Math.round(ax - half), y, half * 2, 1, P.ink);
+  } else if (kind === "castle") {
+    // Snowy peaks on the right, a wooded crag with a castle on the left.
+    for (let x = x0; x < x1; x += 1) {
+      const u = (x - x0) / (w - 2 * m);
+      const ramp = Math.min(1, Math.max(0, (u - 0.3) / 0.4));
+      const tri = (v) => 1 - Math.abs((v % 2) - 1);
+      const top = Math.round(horizon - ramp * (14 + 18 * tri(x * 0.05 + 1) + 8 * tri(x * 0.13)) * unit);
+      for (let y = top; y <= horizon; y += 1) px.set(x, y, y < horizon - 26 * unit ? P.bone : (x + y) % 3 ? P.soft : P.mid);
+    }
+    for (let x = x0; x < Math.round(w * 0.62); x += 1) {
+      const u = (x - x0) / (w * 0.62);
+      const lift = u < 0.55 ? 30 - Math.abs(u - 0.3) * 20 : 30 * (1 - (u - 0.55) / 0.45) ** 1.4;
+      const top = Math.round(horizon - lift * unit);
+      for (let y = top; y <= horizon; y += 1) {
+        const cliff = u > 0.18 && u < 0.5 && y < top + 12 * unit * Math.sin(Math.PI * (u - 0.18) / 0.32);
+        px.set(x, y, cliff ? (x % 3 ? P.soft : P.mid) : (x * 7 + y * 3) % 5 ? P.deep : P.dark);
       }
     }
-    // Castle on a rocky hill: curtain wall, coned towers, a tall keep.
-    const cx = Math.round(w * 0.7);
-    const ground = horizon - Math.round(7 * unit);
-    for (let y = ground; y <= horizon; y += 1) {
-      const half = Math.round(w * 0.13 + (y - ground) * 1.6);
-      px.rect(cx - half, y, half * 2, 1, P.ink);
+    // Castle halls with red roofs and a coned tower.
+    const ground = horizon - Math.round(30 * unit);
+    for (const [fx, fw, tall] of [[0.1, 0.07, 6], [0.17, 0.08, 4]]) {
+      const x = Math.round(w * fx);
+      px.rect(x, ground - Math.round(tall * unit), Math.round(w * fw), Math.round(tall * unit), P.bone);
+      px.rect(x - 1, ground - Math.round((tall + 3) * unit), Math.round(w * fw) + 2, Math.round(3 * unit), P.ember);
     }
-    const block = (x, half, tall) => px.rect(x - half, ground - tall, half * 2 + 1, tall, P.deep);
-    block(cx, Math.round(w * 0.11), Math.round(9 * unit));
-    block(cx + Math.round(w * 0.03), Math.round(w * 0.035), Math.round(24 * unit));
-    for (const tx of [-0.11, -0.04, 0.11]) {
-      const x = cx + Math.round(w * tx);
-      const tall = Math.round((tx === -0.04 ? 20 : 17) * unit);
-      const half = Math.round(w * (tx === -0.04 ? 0.012 : 0.02));
-      block(x, half, tall);
-      for (let k = 0; k <= half + 3; k += 1) px.rect(x - half - 1 + k, ground - tall - k, (half + 1 - k) * 2 + 1, 1, P.ember);
-      px.rect(x, ground - tall - half - 7, 1, 4, P.ink);
-      px.rect(x + 1, ground - tall - half - 7, 3, 2, P.ember);
+    const tx = Math.round(w * 0.29);
+    px.rect(tx - 2, ground - Math.round(6 * unit), 5, Math.round(8 * unit), P.bone);
+    for (let k = 0; k < 4; k += 1) px.rect(tx - 3 + k, ground - Math.round(6 * unit) - k - 1, 7 - 2 * k, 1, P.ember);
+    // White church with a needle spire on the far shore.
+    const chx = Math.round(w * 0.79);
+    px.rect(chx - 6, horizon - Math.round(5 * unit), 12, Math.round(5 * unit), P.bone);
+    px.rect(chx + 6, horizon - Math.round(12 * unit), 3, Math.round(12 * unit), P.bone);
+    for (let k = 0; k < Math.round(10 * unit); k += 1) px.set(chx + 7, horizon - Math.round(12 * unit) - k, P.mid);
+    for (const fx of [0.7, 0.9]) {
+      const hx = Math.round(w * fx);
+      px.rect(hx - 4, horizon - Math.round(4 * unit), 8, Math.round(4 * unit), P.light);
+      px.rect(hx - 5, horizon - Math.round(6 * unit), 10, Math.round(2 * unit), P.ember);
     }
-    for (let x = cx - Math.round(w * 0.11); x < cx + Math.round(w * 0.11); x += 3) px.rect(x, ground - Math.round(9 * unit) - 2, 2, 2, P.deep);
-    for (const [wx, wy] of [[0.02, 15], [0.04, 15], [0.03, 20], [-0.04, 14], [0.11, 12]]) px.rect(cx + Math.round(w * wx), ground - Math.round(wy * unit), 1, 2, P.gold);
     px.rect(x0, horizon, w - 2 * m, 1, P.ink);
-    // Reeds at the near corners.
-    for (let i = 0; i < w / 5; i += 1) {
-      const x = random() < 0.5 ? x0 + Math.floor(random() * w * 0.2) : x1 - 1 - Math.floor(random() * w * 0.2);
-      const tall = Math.round((10 + random() * 26) * unit);
-      for (let k = 0; k < tall; k += 1) px.set(x, h - m - 1 - k, random() < 0.3 ? P.dark : P.ink);
-    }
   } else if (kind === "reservoir") {
     ridge(px, x0, x1, horizon, 26 * unit, 0.5, P.dark, horizon + 1);
     ridge(px, x0, x1, horizon, 13 * unit, 3, P.deep, horizon + 1);
