@@ -91,7 +91,8 @@ export function activePeriods(species) {
  */
 export const BAITS = {
   bread: { price: 0, free: true, others: 0, size: 0, maxSize: 0.22, species: { plitka: 4, krasnopirka: 4, karas: 3, yorzh: 1 } },
-  dough: { price: 2, size: 0.4, maxSize: 0.45, species: { karas: 4, plitka: 3, krasnopirka: 3, korop: 0.6, lyasch: 0.6 } },
+  // Dough only ever tempts small fish (no carp or bream on it).
+  dough: { price: 2, size: 0.4, maxSize: 0.45, species: { karas: 4, plitka: 3, krasnopirka: 3, yorzh: 1 } },
   worm: { price: 3, size: 0.6, species: { plitka: 3, karas: 3, okun: 3, yorzh: 3, lyn: 2, lyasch: 1 } },
   maggot: { price: 4, size: 0.5, species: { plitka: 4, krasnopirka: 3, yorzh: 2, lyasch: 2, karas: 2 } },
   barley: { price: 4, size: 0.8, species: { karas: 3, lyasch: 3, plitka: 2, korop: 2, lyn: 1 } },
@@ -99,7 +100,7 @@ export const BAITS = {
   potato: { price: 5, size: 0.7, species: { korop: 2, karas: 2.5, lyasch: 1 } },
   peas: { price: 6, size: 0.9, species: { lyasch: 4, korop: 3, lyn: 2, plitka: 1 } },
   corn: { price: 7, size: 1, species: { karas: 2, lyasch: 3, korop: 4, lyn: 2 } },
-  liver: { price: 12, size: 0.9, species: { som: 2.2, sudak: 1, yorzh: 1.5 } },
+  liver: { price: 12, size: 0.8, species: { som: 1.5, yorzh: 2, okun: 1, sudak: 0.6 } },
   fishstrip: { price: 15, size: 1.1, species: { sudak: 3, shchuka: 1.5, som: 2, okun: 1.5 } },
   boilie: { price: 20, size: 1.6, species: { korop: 6, lyasch: 1 } },
   livebait: { price: 25, size: 1.4, species: { okun: 2, shchuka: 4, sudak: 4, som: 1 } },
@@ -110,13 +111,13 @@ export const BAITS = {
 /** `maxKg` is the weight a rod handles comfortably; heavier fish strain it fast. */
 export const RODS = {
   willow: { tier: 1, maxKg: 0.6, price: 0, reel: 0.95 },
-  hazel: { tier: 2, maxKg: 1.2, price: 150, reel: 1 },
-  bamboo: { tier: 3, maxKg: 2, price: 650, reel: 1 },
-  telescope: { tier: 4, maxKg: 3.5, price: 1900, reel: 1.05 },
-  glass: { tier: 5, maxKg: 6, price: 5200, reel: 1.05 },
-  carbon: { tier: 6, maxKg: 10, price: 14000, reel: 1.1 },
-  carp: { tier: 7, maxKg: 18, price: 36000, reel: 1.15 },
-  catfish: { tier: 8, maxKg: 40, price: 90000, reel: 1.2 },
+  hazel: { tier: 2, maxKg: 1.2, price: 250, reel: 1 },
+  bamboo: { tier: 3, maxKg: 2, price: 1000, reel: 1 },
+  telescope: { tier: 4, maxKg: 3.5, price: 3200, reel: 1.05 },
+  glass: { tier: 5, maxKg: 6, price: 8500, reel: 1.05 },
+  carbon: { tier: 6, maxKg: 10, price: 22000, reel: 1.1 },
+  carp: { tier: 7, maxKg: 18, price: 45000, reel: 1.15 },
+  catfish: { tier: 8, maxKg: 40, price: 120000, reel: 1.2 },
 };
 
 /** Hooks are consumables; a big fish that snaps the line takes one with it. */
@@ -125,10 +126,10 @@ export const HOOK_PRICE = 6;
 /** One-off upgrades that make fishing easier. */
 export const EXTRAS = {
   handbook: { price: 900 },
-  glowfloat: { price: 650 },
-  net: { price: 2800 },
-  braid: { price: 4500 },
-  sonar: { price: 7500 },
+  glowfloat: { price: 900 },
+  net: { price: 4500 },
+  braid: { price: 7000 },
+  sonar: { price: 12000 },
 };
 
 /**
@@ -184,9 +185,13 @@ export const START_STATE = {
   location: 0,
 };
 
+/**
+ * Market price: the price per kilo times the weight, tapering for heavy fish
+ * (a 40 kg catfish is worth a lot, but not forty crucians' worth per kilo).
+ */
 export function fishPrice(fish) {
   if (FISH[fish.species].unique) return 0;
-  return Math.round(fish.weight * FISH[fish.species].pricePerKg + 2);
+  return Math.round(fish.weight ** 0.88 * FISH[fish.species].pricePerKg + 2);
 }
 
 /** A unique fish is mounted for free. */
@@ -231,13 +236,20 @@ function candidates(baitId, locationIndex, hour) {
 
 /**
  * How lively the bite is right now (≈0.1..1.3): the average hunger of the fish
- * that would take this bait here. Bites come sooner when it's high.
+ * that would take this bait here, times how much they want it. Bites come
+ * sooner when it's high.
  */
 export function biteActivity(baitId, locationIndex, hour) {
   const list = candidates(baitId, locationIndex, hour);
   const total = list.reduce((sum, [, weight]) => sum + weight, 0);
   if (!total) return 0;
-  return list.reduce((sum, [, weight, hunger]) => sum + weight * hunger, 0) / total;
+  const hunger = list.reduce((sum, [, weight, hunger]) => sum + weight * hunger, 0) / total;
+  // How much the local fish want this bait: a bait nobody here favours still
+  // gets the odd bite, but far less often than the right one.
+  const location = LOCATIONS[locationIndex] ?? LOCATIONS[0];
+  const population = Object.values(location.fish).reduce((sum, weight) => sum + weight, 0);
+  const appeal = Math.min(1, Math.max(0.12, total / (population * 2)));
+  return hunger * appeal;
 }
 
 export function rollFish(baitId, locationIndex, random = Math.random, reach = 0.5, hour = 18) {

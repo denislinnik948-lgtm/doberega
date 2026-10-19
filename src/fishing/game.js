@@ -223,7 +223,8 @@ export class FishingGame {
   nextWait() {
     const hunger = biteActivity(this.bait, this.location, this.hour);
     const spotPace = LOCATIONS[this.location]?.pace ?? 1;
-    const pace = Math.min(2.2, Math.max(0.3, hunger * 1.2 * spotPace * this.biteBoost));
+    // The floor is low so a bait no local fish wants really does go quiet.
+    const pace = Math.min(2.2, Math.max(0.1, hunger * 1.2 * spotPace * this.biteBoost));
     // Mostly a short wait, sometimes a quick one, now and then a long lull.
     const lull = this.random() < 0.1 ? 6 + this.random() * 12 : 0;
     const wait = 2.5 + 11 * this.random() ** 1.6 + lull;
