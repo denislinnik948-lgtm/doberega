@@ -1,4 +1,4 @@
-# doberega — ASCII fishing
+# Doberega — тиша та спокій
 
 A small, dependency-free canvas prototype for a calm lake scene rendered as a regular ASCII character field. The screen grid and distant forest glyphs are generated on resize or when character spacing changes. Water animation is a separate mathematical model, so the same wave sampling can later feed another renderer.
 

@@ -10,7 +10,7 @@ const KEY = "stillwater.lang";
 const STRINGS = {
   en: {
     locale: "en-US",
-    title: "doberega — ASCII fishing",
+    title: "Doberega — peace and quiet",
     "a11y.scene": "An ASCII lake at sunset where you can fish",
     "a11y.canvas": "A lake at sunset made of ASCII characters. Tap the water to cast; hold Space or a finger on the water to reel in.",
     "a11y.clock": "Time of day",
@@ -134,7 +134,7 @@ const STRINGS = {
 
   uk: {
     locale: "uk-UA",
-    title: "doberega — ASCII-рибалка",
+    title: "Доберега — тиша та спокій",
     "a11y.scene": "ASCII-озеро на заході сонця, де можна рибалити",
     "a11y.canvas": "Водойма на заході сонця з ASCII-символів. Торкніться води, щоб закинути вудку; тримайте пробіл або палець на воді, щоб тягти.",
     "a11y.clock": "Час доби",

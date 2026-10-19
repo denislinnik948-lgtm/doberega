@@ -351,18 +351,11 @@ const PAINTERS = {
     tickedBorder(px, 2, 2, w - 4, h - 4, random, P.soft);
   },
   /** Title tab: double outline with a notch below, like a speech bubble. */
+  /** Title plate: a plain rectangle with a double border. */
   tab(px, w, h) {
-    const notch = 4;
-    const bodyH = h - notch;
-    px.rect(0, 0, w, bodyH, P.bone);
-    px.rect(1, 1, w - 2, bodyH - 2, P.ink);
-    px.outlineRect(3, 3, w - 6, bodyH - 6, P.light);
-    const cx = Math.floor(w / 2);
-    for (let k = 0; k < notch + 1; k += 1) {
-      const half = notch - k;
-      px.rect(cx - half - 1, bodyH - 1 + k, half * 2 + 2, 1, P.bone);
-      if (half > 0) px.rect(cx - half, bodyH - 1 + k, half * 2, 1, P.ink);
-    }
+    px.rect(0, 0, w, h, P.bone);
+    px.rect(1, 1, w - 2, h - 2, P.ink);
+    px.outlineRect(3, 3, w - 6, h - 6, P.light);
   },
 };
 
