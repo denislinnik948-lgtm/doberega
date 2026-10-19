@@ -55,24 +55,26 @@ export const SCENES = {
     water: {},
     foreground: { reeds: 1, rock: true, lilyPads: 5 },
   },
-  /** Stony ford: a flowing river, rocks breaking the surface, a grassy near bank. */
+  /**
+   * River under a castle: a stone keep and towers on a rocky hill across the
+   * water, thatched huts by the shore, misty blue hills behind.
+   */
   river: {
-    horizon: 0.44,
+    horizon: 0.46,
     ridges: [
-      { top: 0.37, amplitude: 0.06, seed: 0.7, fill: "#45555a", glyph: "#64747a", texture: ".:'", density: 0.14 },
-      { top: 0.415, amplitude: 0.028, seed: 2.9, fill: "#2e3d38", glyph: "#45574b", texture: "^.*", density: 0.3 },
+      { top: 0.36, amplitude: 0.075, seed: 0.9, fill: "#4a5a66", glyph: "#6a7a84", texture: ".:'", density: 0.12 },
+      { top: 0.42, amplitude: 0.03, seed: 2.9, fill: "#2f3e38", glyph: "#46584b", texture: "^.*", density: 0.3 },
     ],
-    forest: { heightScale: 1.2, spacingScale: 1.1, broadleaf: 0.45 },
-    banks: { style: "grass", left: (depth) => Math.max(0, depth - 0.42) * 0.55, right: () => 0 },
-    structures: {},
-    water: {
-      flow: 26,
-      rocks: [
-        { x: 0.26, y: 0.6, r: 0.034 }, { x: 0.37, y: 0.65, r: 0.028 }, { x: 0.48, y: 0.58, r: 0.024 },
-        { x: 0.61, y: 0.67, r: 0.04 }, { x: 0.73, y: 0.6, r: 0.028 }, { x: 0.85, y: 0.7, r: 0.046 },
-      ],
+    forest: { heightScale: 1.1, spacingScale: 1.2, broadleaf: 0.55, gaps: [[0.5, 0.92]] },
+    structures: {
+      castle: { x: 0.7, width: 0.24 },
+      houses: { at: [0.16, 0.27, 0.95], scale: 0.6 },
     },
-    foreground: { reeds: 0.45, rock: false, lilyPads: 0 },
+    water: {
+      flow: 22,
+      rocks: [{ x: 0.3, y: 0.66, r: 0.03 }, { x: 0.83, y: 0.74, r: 0.038 }],
+    },
+    foreground: { reeds: 0.9, rock: true, lilyPads: 0 },
   },
   /** Reservoir bay: wide water, low far hills, a concrete dam and power lines. */
   reservoir: {

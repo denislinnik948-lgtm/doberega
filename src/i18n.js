@@ -109,7 +109,7 @@ const STRINGS = {
         sonar: "Fish find the bait sooner",
       },
       location: {
-        pond: "Village pond", lake: "Quiet lake", river: "Stony ford", reservoir: "Reservoir bay", bridge: "Old bridge",
+        pond: "Village pond", lake: "Quiet lake", river: "Castle river", reservoir: "Reservoir bay", bridge: "Old bridge",
       },
     },
     rules: [
@@ -230,7 +230,7 @@ const STRINGS = {
         sonar: "Риба знаходить наживку швидше",
       },
       location: {
-        pond: "Ставок за селом", lake: "Тихе озеро", river: "Кам'яний брід", reservoir: "Затока водосховища", bridge: "Старий міст",
+        pond: "Ставок за селом", lake: "Тихе озеро", river: "Ріка під замком", reservoir: "Затока водосховища", bridge: "Старий міст",
       },
     },
     rules: [

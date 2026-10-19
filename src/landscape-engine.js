@@ -195,7 +195,137 @@ export function createStructures(width, height, cellWidth, lineHeight) {
     }
   }
 
+  if (structures.castle) addCastle(structures.castle, width, height, cellWidth, lineHeight, { cells, lights, shapes });
+
   return { cells, lights, shapes };
+}
+
+/**
+ * A stone castle on a rocky hill above the far shore: curtain wall with a gate,
+ * corner towers under tiled cones, a tall keep, banners, and windows and
+ * torches that glow at dusk.
+ */
+function addCastle({ x: fx, width: fw }, width, height, cellWidth, lineHeight, out) {
+  const grid = new Map();
+  const put = (x, y, glyph, color, light = false) => {
+    const cell = { ...cellAt(x, y, cellWidth, lineHeight), glyph, color };
+    grid.set(`${cell.column},${cell.row}`, { cell, light });
+  };
+  const rowsOf = (fraction) => Math.max(2, Math.round((height * fraction) / lineHeight));
+  const cx = width * fx;
+  const halfWidth = (width * fw) / 2;
+  const shore = shorelineY(cx, height) - lineHeight * 0.3;
+  const hillRows = rowsOf(0.075);
+  const ground = shore - hillRows * lineHeight;
+  const stone = (column, row, lit) => {
+    const noise = hash2(column, row, 1501);
+    return lit ? (noise > 0.4 ? "#a8a28c" : "#8f8a76") : noise > 0.5 ? "#6c685a" : "#5a574b";
+  };
+
+  // Rocky hill, wider at the waterline.
+  const hillBase = halfWidth * 1.45;
+  // Craggy sides: the slope bulges and steps rather than running straight.
+  const spanAt = (t) => hillBase + (halfWidth * 1.08 - hillBase) * Math.sqrt(t) + Math.sin(t * 9) * cellWidth * 1.2;
+  const outline = [];
+  for (let i = 0; i <= 8; i += 1) outline.push([cx - spanAt(i / 8), shore + lineHeight * 0.5 - (i / 8) * (shore - ground + lineHeight * 0.5)]);
+  for (let i = 8; i >= 0; i -= 1) outline.push([cx + spanAt(i / 8), shore + lineHeight * 0.5 - (i / 8) * (shore - ground + lineHeight * 0.5)]);
+  out.shapes.push({ points: outline, color: "#2f302a" });
+  for (let r = 0; r <= hillRows; r += 1) {
+    const t = r / hillRows;
+    const span = spanAt(t);
+    const y = shore - r * lineHeight;
+    for (let x = cx - span; x <= cx + span; x += cellWidth) {
+      const noise = hash2(Math.round(x / cellWidth), r, 1777);
+      const edge = x < cx - span + cellWidth || x > cx + span - cellWidth;
+      const glyph = edge ? (x < cx ? "/" : "\\") : t < 0.3 && noise > 0.6 ? "," : "#%:^.&"[Math.floor(noise * 6)];
+      put(x, y, glyph, t < 0.3 && noise > 0.6 ? "#4f6b3a" : noise > 0.7 ? "#6e6a5a" : "#45443b");
+    }
+  }
+
+  // A block of masonry with optional battlements, slits and lit windows.
+  const block = (centerX, half, rows, { merlons = true, windows = [] } = {}) => {
+    const x0 = centerX - (half + 0.5) * cellWidth;
+    const x1 = centerX + (half + 0.5) * cellWidth;
+    const top = ground - (rows - 0.5) * lineHeight;
+    out.shapes.push({ points: [[x0, ground + lineHeight * 0.5], [x0, top], [x1, top], [x1, ground + lineHeight * 0.5]], color: "#4a483f" });
+    for (let r = 0; r < rows; r += 1) {
+      const y = ground - r * lineHeight;
+      for (let c = -half; c <= half; c += 1) {
+        const x = centerX + c * cellWidth;
+        const column = Math.round(x / cellWidth);
+        const lit = c < 0;
+        const window = windows.find(([wr, wc]) => wr === r && wc === c);
+        if (window) {
+          put(x, y, window[2] ? "#" : "|", window[2] ? "#e2b85e" : "#262520", window[2]);
+          continue;
+        }
+        const glyph = Math.abs(c) === half ? "|" : (r + (c & 1)) % 3 === 0 ? "=" : hash2(column, r, 31) > 0.5 ? ":" : "#";
+        put(x, y, glyph, stone(column, r, lit));
+      }
+    }
+    if (merlons) {
+      for (let c = -half; c <= half; c += 2) put(centerX + c * cellWidth, ground - rows * lineHeight, "#", stone(c, rows, c < 0));
+    }
+    return ground - rows * lineHeight;
+  };
+
+  // Tiled cone on a tower, with a banner on a pole at the top.
+  const cone = (centerX, half, base, flag) => {
+    const rows = half + 2;
+    out.shapes.push({ points: [[centerX - (half + 1.5) * cellWidth, base + lineHeight * 0.5], [centerX, base - (rows - 0.5) * lineHeight], [centerX + (half + 1.5) * cellWidth, base + lineHeight * 0.5]], color: "#4a2620" });
+    for (let r = 0; r < rows; r += 1) {
+      const span = Math.max(0, Math.round(half + 1 - ((half + 1) * r) / (rows - 1)));
+      for (let c = -span; c <= span; c += 1) {
+        const glyph = r === rows - 1 ? "^" : c === -span ? "/" : c === span ? "\\" : "=";
+        put(centerX + c * cellWidth, base - r * lineHeight, glyph, c < 0 ? "#8a4a36" : "#6a3428");
+      }
+    }
+    if (flag) banner(centerX, base - rows * lineHeight);
+  };
+  const banner = (x, y) => {
+    put(x, y, "|", "#3a3530");
+    put(x, y - lineHeight, "|", "#3a3530");
+    put(x + cellWidth, y - lineHeight, ">", "#c0503c");
+    put(x + cellWidth * 2, y - lineHeight, "~", "#a8402f");
+  };
+
+  const wallRows = rowsOf(0.05);
+  const towerRows = rowsOf(0.1);
+  const keepRows = rowsOf(0.14);
+  const towerHalf = 2;
+
+  // Back to front: keep and slender tower, then corner towers, then the wall.
+  const keepX = cx + halfWidth * 0.18;
+  const keepTop = block(keepX, 4, keepRows, {
+    windows: [[keepRows - 3, -2, true], [keepRows - 3, 2, true], [keepRows - 6, 0, true], [wallRows + 1, -2, false], [wallRows + 1, 2, false]],
+  });
+  banner(keepX, keepTop - lineHeight);
+  const turretX = cx - halfWidth * 0.32;
+  const turretTop = block(turretX, 1, rowsOf(0.12), { merlons: false, windows: [[rowsOf(0.12) - 3, 0, true]] });
+  cone(turretX, 1, turretTop, true);
+  for (const side of [-1, 1]) {
+    const x = cx + side * halfWidth;
+    const top = block(x, towerHalf, towerRows, { merlons: false, windows: [[towerRows - 3, 0, side > 0], [wallRows - 1, 0, false]] });
+    cone(x, towerHalf, top, side < 0);
+  }
+  const wallTop = block(cx, Math.round((halfWidth - towerHalf * cellWidth) / cellWidth), wallRows);
+
+  // Arched gate with a torch either side.
+  const gateX = cx - halfWidth * 0.15;
+  for (let r = 0; r < Math.min(3, wallRows - 1); r += 1) {
+    for (let c = -1; c <= 1; c += 1) {
+      const glyph = r === 2 ? (c === 0 ? "_" : c < 0 ? "(" : ")") : c === 0 ? " " : c < 0 ? "(" : ")";
+      put(gateX + c * cellWidth, ground - r * lineHeight, glyph === " " ? "." : glyph, glyph === " " ? "#14120f" : "#3a3630");
+    }
+  }
+  put(gateX - cellWidth * 2.2, ground - lineHeight * 2, "*", "#ffa040", true);
+  put(gateX + cellWidth * 2.2, ground - lineHeight * 2, "*", "#ffa040", true);
+  put(cx + halfWidth * 0.55, wallTop, "*", "#ffa040", true);
+
+  for (const { cell, light } of grid.values()) {
+    out.cells.push(cell);
+    if (light) out.lights.push(cell);
+  }
 }
 
 /** Near banks (grassy or rocky) that frame the water at the sides of the view. */

@@ -170,7 +170,7 @@ function landscape(px, w, h, random, kind) {
 
   // Sky: dark overhead, warm and light toward the horizon, dithered.
   px.dither(x0, m, x1, horizon, P.dark, P.soft, -0.1);
-  const sx = Math.round(w * (kind === "river" ? 0.62 : 0.34));
+  const sx = Math.round(w * (kind === "river" ? 0.3 : 0.34));
   const sy = horizon - Math.round(10 * unit);
   const sr = Math.max(4, Math.round(7 * unit));
   for (let y = sy - sr * 3; y < horizon; y += 1) {
@@ -227,20 +227,35 @@ function landscape(px, w, h, random, kind) {
     for (let x = x0 + 2; x < x1; x += 2 + Math.floor(random() * 4)) pine(px, x, horizon + 1, Math.round((8 + random() * 14) * unit), P.ink);
     px.rect(x0, horizon, w - 2 * m, 1, P.ink);
   } else if (kind === "river") {
-    ridge(px, x0, x1, horizon, 9 * unit, 4, P.dark, horizon + 1);
-    for (let x = x0 + 4; x < x1; x += 5 + Math.floor(random() * 8)) pine(px, x, horizon + 1, Math.round((5 + random() * 7) * unit), P.deep);
-    // Banks converging to the horizon, with streaks of current between them.
-    for (let y = horizon; y < h - m; y += 1) {
-      const t = (y - horizon) / (h - m - horizon);
-      const left = Math.round(x0 + (w * 0.4) * (1 - t) + 2 - t * 4);
-      const right = Math.round(x1 - (w * 0.4) * (1 - t) - 2 + t * 4);
-      px.rect(x0, y, Math.max(0, left - x0), 1, P.ink);
-      px.rect(right, y, Math.max(0, x1 - right), 1, P.ink);
-      if (y % 2 === 0 && right - left > 8) px.rect(left + 2 + Math.floor(random() * (right - left - 8)), y, 2 + Math.floor(t * 6), 1, P.soft);
+    ridge(px, x0, x1, horizon, 14 * unit, 0.9, P.dark, horizon + 1);
+    for (let x = x0 + 2; x < Math.round(w * 0.46); x += 3 + Math.floor(random() * 5)) pine(px, x, horizon + 1, Math.round((5 + random() * 8) * unit), P.deep);
+    // Castle on a rocky hill: curtain wall, coned towers, a tall keep.
+    const cx = Math.round(w * 0.7);
+    const ground = horizon - Math.round(7 * unit);
+    for (let y = ground; y <= horizon; y += 1) {
+      const half = Math.round(w * 0.13 + (y - ground) * 1.6);
+      px.rect(cx - half, y, half * 2, 1, P.ink);
     }
-    for (let i = 0; i < 14; i += 1) {
-      const y = horizon + Math.floor(random() * (h - horizon - m));
-      px.rect(x0 + Math.floor(random() * 10 * unit), y, 2, 1, P.mid);
+    const block = (x, half, tall) => px.rect(x - half, ground - tall, half * 2 + 1, tall, P.deep);
+    block(cx, Math.round(w * 0.11), Math.round(9 * unit));
+    block(cx + Math.round(w * 0.03), Math.round(w * 0.035), Math.round(24 * unit));
+    for (const tx of [-0.11, -0.04, 0.11]) {
+      const x = cx + Math.round(w * tx);
+      const tall = Math.round((tx === -0.04 ? 20 : 17) * unit);
+      const half = Math.round(w * (tx === -0.04 ? 0.012 : 0.02));
+      block(x, half, tall);
+      for (let k = 0; k <= half + 3; k += 1) px.rect(x - half - 1 + k, ground - tall - k, (half + 1 - k) * 2 + 1, 1, P.ember);
+      px.rect(x, ground - tall - half - 7, 1, 4, P.ink);
+      px.rect(x + 1, ground - tall - half - 7, 3, 2, P.ember);
+    }
+    for (let x = cx - Math.round(w * 0.11); x < cx + Math.round(w * 0.11); x += 3) px.rect(x, ground - Math.round(9 * unit) - 2, 2, 2, P.deep);
+    for (const [wx, wy] of [[0.02, 15], [0.04, 15], [0.03, 20], [-0.04, 14], [0.11, 12]]) px.rect(cx + Math.round(w * wx), ground - Math.round(wy * unit), 1, 2, P.gold);
+    px.rect(x0, horizon, w - 2 * m, 1, P.ink);
+    // Reeds at the near corners.
+    for (let i = 0; i < w / 5; i += 1) {
+      const x = random() < 0.5 ? x0 + Math.floor(random() * w * 0.2) : x1 - 1 - Math.floor(random() * w * 0.2);
+      const tall = Math.round((10 + random() * 26) * unit);
+      for (let k = 0; k < tall; k += 1) px.set(x, h - m - 1 - k, random() < 0.3 ? P.dark : P.ink);
     }
   } else if (kind === "reservoir") {
     ridge(px, x0, x1, horizon, 26 * unit, 0.5, P.dark, horizon + 1);
