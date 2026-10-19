@@ -377,7 +377,9 @@ button { font: inherit; color: inherit; }
 .card-art { display: grid; height: 64px; place-items: center; }
 .card strong { font-size: 30px; font-weight: 500; }
 .card small { min-height: 21px; color: var(--light); font-size: 18px; line-height: 1.4; }
-.card-owned { color: var(--gold); font-size: 22px; }
+/* Price and stock sit on separate lines so neither gets lost. */
+.card-price { color: var(--gold); font-size: 26px; line-height: 1.1; }
+.card-stock { margin-top: -6px; color: var(--light); font-size: 20px; letter-spacing: 0.02em; opacity: 0.85; }
 .card .pixel-btn { width: 100%; }
 
 .trophy-wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 18px; }
@@ -484,7 +486,7 @@ button { font: inherit; color: inherit; }
 /* ---------- Shop extras ---------- */
 
 .stepper { display: flex; align-items: center; gap: 8px; }
-.stepper .pixel-btn-square { width: 36px; min-height: 36px; font-size: 22px; }
+.stepper .pixel-btn-square { width: 40px; min-height: 40px; font-size: 28px; line-height: 1; }
 .stepper-value { min-width: 40px; color: var(--bone); font-size: 30px; text-align: center; }
 
 /* ---------- Settings ---------- */

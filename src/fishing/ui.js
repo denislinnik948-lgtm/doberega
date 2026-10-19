@@ -401,7 +401,8 @@ export class AnglerUI {
       return element("li", { className: "card" }, [
         element("div", { className: "card-art" }, [baitSprite(id, 4)]),
         element("strong", { textContent: nameOf("bait", id) }),
-        element("span", { className: "card-owned", textContent: t("shop.perPiece", { price: bait.price, count: progress.baits[id] ?? 0 }) }),
+        element("span", { className: "card-price", textContent: t("shop.each", { price: bait.price }) }),
+        element("span", { className: "card-stock", textContent: t("shop.inPack", { count: progress.baits[id] ?? 0 }) }),
         this.stepper(id, bait.price),
         element("button", {
           className: "pixel-btn pixel-btn-primary",
@@ -437,7 +438,8 @@ export class AnglerUI {
     const hookCard = element("li", { className: "card" }, [
       element("div", { className: "card-art" }, [hookSprite(4)]),
       element("strong", { textContent: t("shop.hooks") }),
-      element("span", { className: "card-owned", textContent: t("shop.perPiece", { price: HOOK_PRICE, count: progress.hooks }) }),
+      element("span", { className: "card-price", textContent: t("shop.each", { price: HOOK_PRICE }) }),
+      element("span", { className: "card-stock", textContent: t("shop.inPack", { count: progress.hooks }) }),
       this.stepper("hooks", HOOK_PRICE),
       element("button", {
         className: "pixel-btn pixel-btn-primary",
