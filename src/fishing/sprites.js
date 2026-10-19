@@ -145,6 +145,11 @@ const FISH_LOOKS = {
     len: 20, h: 8, peak: 0.6, back: "#46462c", side: "#96965e", belly: "#dedac0", fin: "#7a7a5a", lowFin: "#8a8a66", tailFin: "#7a7a5a", eye: "#9cb6d0",
     dorsal: [[0.28, 0.8, 4, "spiny"]], anal: [0.18, 0.3, 2], tail: "fork", pattern: "speckle", finDots: "#2e2e1e", bigEye: true,
   },
+  // Valerka: a clownfish. Orange, three black-edged white bands, rounded fins edged in black.
+  valerka: {
+    len: 26, h: 14, peak: 0.5, back: "#d8601a", side: "#f07a20", belly: "#f8a040", fin: "#f07a20", lowFin: "#f07a20", tailFin: "#f07a20", eye: "#f08a2a",
+    dorsal: [[0.3, 0.72, 4, "round"]], anal: [0.18, 0.36, 3, "round"], tail: "round", pattern: "clown", finEdge: "#141414", stem: 0.45, head: 0.9,
+  },
   // Live bait: a small roach-like fish.
   livebait: {
     len: 15, h: 6, peak: 0.55, back: "#3d5a63", side: "#c6d0d2", belly: "#eef0ea", fin: "#8c8478", lowFin: "#d0603a", tailFin: "#a0705a", eye: "#d8382a",
@@ -197,7 +202,7 @@ function fishGrid(species) {
       for (let k = 1; k <= height; k += 1) {
         // Spiny fins: a comb of rays with gaps along the top.
         if (kind === "spiny" && k >= height - 1 && x % 2 === 1) continue;
-        let c = k === height ? shade(color, 0.85) : color;
+        let c = k === height ? (look.finEdge ?? shade(color, 0.85)) : color;
         if (dots && (x + k) % 3 === 0) c = dots;
         grid.set(x0 + x, base + side * k, c);
       }
@@ -222,7 +227,8 @@ function fishGrid(species) {
       const a = Math.abs(dy);
       if (look.tail === "fork" && a < v * h * 0.26 && v > 0.4) continue;
       if (look.tail === "deep" && a < v * h * 0.3 && v > 0.35) continue;
-      grid.set(x0 + x, y0 + dy, a > spread - 1.2 ? shade(look.tailFin, 0.8) : look.tailFin);
+      const rim = x < 1 || a > spread - 1.2;
+      grid.set(x0 + x, y0 + dy, rim ? (look.finEdge ?? shade(look.tailFin, 0.8)) : look.tailFin);
     }
   }
 
@@ -247,6 +253,15 @@ function fishGrid(species) {
         // Pale, slightly elongated bean spots in staggered rows.
         const row = Math.floor((y - top) / 2.2);
         if ((x + row * 2) % 5 < 2 && (y + row) % 2 === 0) color = look.spotColor;
+      }
+      if (look.pattern === "clown") {
+        // White bands behind the head, mid-body (bulging forward) and at the tail root, each edged in black.
+        for (const [center, bulge] of [[0.84, 0], [0.5, 0.07], [0.06, 0]]) {
+          const c = center + bulge * (1 - Math.abs(t - 0.5) * 2);
+          const d = Math.abs(u - c);
+          if (d < 0.05) color = "#f6f4ee";
+          else if (d < 0.085) color = "#141414";
+        }
       }
       if (look.pattern === "speckle" && t < 0.75 && hash(x, y, 21) < 0.2) color = shade(look.back, 0.75);
       if (look.pattern === "mottle" && t < 0.75) {

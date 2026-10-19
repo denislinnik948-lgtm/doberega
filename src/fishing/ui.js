@@ -270,7 +270,13 @@ export class AnglerUI {
     setContent($("#catch-art"), fishSprite(fish.species, 4, nameOf("fish", fish.species)));
     $("#catch-weight").textContent = formatWeight(fish.weight);
     $("#catch-price").textContent = `+${price} ₴`;
-    $("#catch-trophy").textContent = `−${cost} ₴`;
+    // Valerka can't be sold or let go: the only choice is a free trophy.
+    const unique = Boolean(fish.unique);
+    $("#catch-trophy").textContent = unique ? t("catch.free") : `−${cost} ₴`;
+    $("#sell-button").hidden = unique;
+    $("#release-button").hidden = unique;
+    $("#catch-note").hidden = !unique;
+    $("#catch-note").textContent = unique ? t("catch.unique") : "";
     const mount = $("#mount-button");
     mount.disabled = this.progress.money < cost;
     mount.title = mount.disabled ? t("catch.noMoney") : "";
@@ -295,6 +301,7 @@ export class AnglerUI {
       // Escape releases the fish rather than leaving the game stuck.
       dialog.oncancel = (event) => {
         event.preventDefault();
+        if (unique) return;
         if (performance.now() - Number(dialog.dataset.openedAt ?? 0) >= DIALOG_GUARD_MS) finish({ type: "release" });
       };
       this.openGuarded(dialog);

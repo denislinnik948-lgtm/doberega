@@ -39,6 +39,8 @@ const STRINGS = {
     "catch.mount": "Trophy",
     "catch.release": "Release",
     "catch.noMoney": "Not enough money for a trophy",
+    "catch.free": "free",
+    "catch.unique": "One of a kind: it can only become a trophy",
     "shop.title": "Shop",
     "shop.bait": "Bait",
     "shop.rods": "Rods",
@@ -89,7 +91,7 @@ const STRINGS = {
     names: {
       fish: {
         yorzh: "Ruffe", plitka: "Roach", krasnopirka: "Rudd", karas: "Crucian carp", okun: "Perch", lyn: "Tench",
-        lyasch: "Bream", korop: "Carp", shchuka: "Pike", sudak: "Zander", som: "Catfish", boot: "Old boot",
+        lyasch: "Bream", korop: "Carp", shchuka: "Pike", sudak: "Zander", som: "Catfish", valerka: "Valerka", boot: "Old boot",
       },
       bait: {
         bread: "Bread", worm: "Worm", maggot: "Maggot", bloodworm: "Bloodworm", barley: "Pearl barley",
@@ -161,6 +163,8 @@ const STRINGS = {
     "catch.mount": "Трофей",
     "catch.release": "Відпустити",
     "catch.noMoney": "Бракує грошей на трофей",
+    "catch.free": "безкоштовно",
+    "catch.unique": "Єдина у своєму роді: її можна лише зберегти як трофей",
     "shop.title": "Магазин",
     "shop.bait": "Наживка",
     "shop.rods": "Вудки",
@@ -211,7 +215,7 @@ const STRINGS = {
     names: {
       fish: {
         yorzh: "Йорж", plitka: "Плітка", krasnopirka: "Краснопірка", karas: "Карась", okun: "Окунь", lyn: "Лин",
-        lyasch: "Лящ", korop: "Короп", shchuka: "Щука", sudak: "Судак", som: "Сом", boot: "Старий чобіт",
+        lyasch: "Лящ", korop: "Короп", shchuka: "Щука", sudak: "Судак", som: "Сом", valerka: "Валерка", boot: "Старий чобіт",
       },
       bait: {
         bread: "Хліб", worm: "Черв'як", maggot: "Опариш", bloodworm: "Мотиль", barley: "Перловка",

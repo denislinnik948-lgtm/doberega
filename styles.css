@@ -269,6 +269,9 @@ button { font: inherit; color: inherit; }
 .pack-hooks { margin-left: auto; color: var(--bone); }
 .pack-hooks.is-empty { color: var(--ember); }
 .sheet-heading .pack-hooks + form { margin-left: 0; }
+.catch-actions [hidden] { display: none; }
+.catch-note { margin: 6px 0 0; color: var(--gold); font-size: 18px; text-align: center; }
+.catch-note[hidden] { display: none; }
 .focus-sink { position: absolute; width: 1px; height: 1px; overflow: hidden; outline: none; }
 
 /* ---------- Fight ---------- */

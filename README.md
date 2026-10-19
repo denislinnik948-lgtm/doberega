@@ -49,6 +49,7 @@ The game opens on a **main menu** over the live lake: a slider of fishing spots 
 - **Fight:** hold **Space** or a finger on the water. The tension bar fills at rate X while pulling and drains at 1.5X when released, while the fish swims off at a random pace. A full bar snaps the line. Small fish come in within one full bar; heavy ones need several pulls.
 - **Catch:** sell, mount as a trophy, or release. Every escape or catch uses one bait (bread excepted).
 - **Snags and junk:** reeling in an empty line rarely hooks a snag (≈2% at the pond up to ≈6% at the old bridge) or an old boot (≈1%). A snag won't move and pulling hard snaps the line (hook lost); giving it slack lets the hook work free (only the bait is lost). The boot comes in heavy but doesn't fight, and sells for 2 ₴ — or makes a joke trophy.
+- **Valerka:** a joke — a clownfish that has no business in these waters. Any bite, anywhere, on any bait, has a 1 in 25,000 chance to be Valerka (about once in 190 hours of fishing). It has no price and can't be released: the only choice is to keep it as a free trophy. The handbook never mentions it.
 - **Hooks:** bought per piece (5 to start); no hook, no cast. A big fish that snaps the line takes the hook with it.
 - **Handbook:** opens with a page on everything that affects the bite (spot, cast distance, bait, time of day, rod, hooks, float, extras), then each fish's weight range, waters, favourite bait and feeding times.
 
