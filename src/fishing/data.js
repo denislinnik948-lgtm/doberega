@@ -91,13 +91,19 @@ export function activePeriods(species) {
  */
 export const BAITS = {
   bread: { price: 0, free: true, others: 0, size: 0, maxSize: 0.22, species: { plitka: 4, krasnopirka: 4, karas: 3, yorzh: 1 } },
+  dough: { price: 2, size: 0.4, maxSize: 0.45, species: { karas: 4, plitka: 3, krasnopirka: 3, korop: 0.6, lyasch: 0.6 } },
   worm: { price: 3, size: 0.6, species: { plitka: 3, karas: 3, okun: 3, yorzh: 3, lyn: 2, lyasch: 1 } },
   maggot: { price: 4, size: 0.5, species: { plitka: 4, krasnopirka: 3, yorzh: 2, lyasch: 2, karas: 2 } },
-  bloodworm: { price: 5, size: 0.5, species: { yorzh: 3, plitka: 3, karas: 2, lyn: 3, okun: 2 } },
   barley: { price: 4, size: 0.8, species: { karas: 3, lyasch: 3, plitka: 2, korop: 2, lyn: 1 } },
+  bloodworm: { price: 5, size: 0.5, species: { yorzh: 3, plitka: 3, karas: 2, lyn: 3, okun: 2 } },
+  potato: { price: 5, size: 0.7, species: { korop: 2, karas: 2.5, lyasch: 1 } },
+  peas: { price: 6, size: 0.9, species: { lyasch: 4, korop: 3, lyn: 2, plitka: 1 } },
   corn: { price: 7, size: 1, species: { karas: 2, lyasch: 3, korop: 4, lyn: 2 } },
+  liver: { price: 12, size: 0.9, species: { som: 2.2, sudak: 1, yorzh: 1.5 } },
+  fishstrip: { price: 15, size: 1.1, species: { sudak: 3, shchuka: 1.5, som: 2, okun: 1.5 } },
   boilie: { price: 20, size: 1.6, species: { korop: 6, lyasch: 1 } },
   livebait: { price: 25, size: 1.4, species: { okun: 2, shchuka: 4, sudak: 4, som: 1 } },
+  crayfish: { price: 30, size: 1.6, species: { som: 3, sudak: 2, okun: 2, shchuka: 1 } },
   frog: { price: 45, size: 1.8, species: { som: 6, shchuka: 1 } },
 };
 
@@ -257,32 +263,70 @@ export function rollFish(baitId, locationIndex, random = Math.random, reach = 0.
   return { species, weight, big: big && !bait.maxSize };
 }
 
-/** Handbook entries, derived from the catalog so they never drift from the game. */
+/*
+ * Handbook pages, derived from the catalog so they never drift from the game:
+ * a new fish, spot or bait shows up in the handbook by itself.
+ */
+
+/** How common a fish is somewhere, from its share of that water's population. */
+function abundance(spot, id) {
+  const share = (spot.fish[id] ?? 0) / Math.max(...Object.values(spot.fish));
+  return share >= 0.6 ? "common" : share >= 0.3 ? "regular" : "rare";
+}
+
+/** How a species usually bites: the temper it leans to most. */
+function biteStyle(id) {
+  const style = NIBBLE[id];
+  if (!style) return "nibbler";
+  const tempers = ["greedy", "nibbler", "wary", "teaser"];
+  return tempers[style.tempers.indexOf(Math.max(...style.tempers))];
+}
+
 export function handbookEntries() {
   // Valerka stays a secret: the handbook never mentions it.
   return Object.entries(FISH).filter(([, fish]) => !fish.junk && !fish.unique).map(([id, fish]) => {
-    // Places as trait sets (type, depth, bottom); the UI words them.
-    const seen = new Set();
-    const places = LOCATIONS
-      .filter((spot) => (spot.fish[id] ?? 0) >= 1)
+    const spots = LOCATIONS
+      .filter((spot) => (spot.fish[id] ?? 0) > 0)
       .sort((a, b) => b.fish[id] - a.fish[id])
-      .map((spot) => spot.traits)
-      .filter((traits) => {
-        const key = `${traits.type}|${traits.depth}|${traits.bottom}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-    const baits = Object.entries(BAITS)
-      .filter(([, bait]) => (bait.species[id] ?? 0) >= 3)
-      .map(([baitId]) => baitId);
+      .map((spot) => ({ id: spot.id, abundance: abundance(spot, id), maxKg: Math.min(fish.max, spot.maxKg ?? fish.max) }));
+    // Favourite baits first, then ones it takes now and then.
+    const liked = Object.entries(BAITS)
+      .filter(([, bait]) => (bait.species[id] ?? 0) > 0)
+      .sort(([, a], [, b]) => b.species[id] - a.species[id]);
     return {
       id,
-      places,
-      baits,
+      spots,
+      baits: liked.filter(([, bait]) => bait.species[id] >= 3).map(([baitId]) => baitId),
+      alsoBaits: liked.filter(([, bait]) => bait.species[id] < 3).map(([baitId]) => baitId),
       times: activePeriods(id),
+      style: biteStyle(id),
+      pricePerKg: fish.pricePerKg,
       range: `${formatWeight(fish.min)} – ${formatWeight(fish.max)}`,
     };
   });
+}
+
+/** One page per fishing spot: its water, who lives there and how it fishes. */
+export function spotEntries() {
+  return LOCATIONS.map((spot) => ({
+    id: spot.id,
+    traits: spot.traits,
+    fish: Object.entries(spot.fish).sort(([, a], [, b]) => b - a).map(([id]) => id),
+    maxKg: spot.maxKg,
+    bigOdds: Math.round(1 / spot.bigChance),
+    pace: (spot.pace ?? 1) > 1.02 ? "fast" : (spot.pace ?? 1) < 0.9 ? "slow" : "normal",
+    snags: spot.snagChance >= 0.05 ? "many" : spot.snagChance >= 0.03 ? "some" : "few",
+  }));
+}
+
+/** One page per bait: price, who takes it, and whether it tempts big fish. */
+export function baitEntries() {
+  return Object.entries(BAITS).map(([id, bait]) => ({
+    id,
+    price: bait.price,
+    free: Boolean(bait.free),
+    fish: Object.entries(bait.species).sort(([, a], [, b]) => b - a).filter(([fishId]) => FISH[fishId] && !FISH[fishId].unique).map(([fishId, liking]) => ({ id: fishId, favourite: liking >= 3 })),
+    size: bait.maxSize ? "small" : bait.size >= 1.3 ? "big" : bait.size >= 0.8 ? "medium" : "small",
+  }));
 }
 

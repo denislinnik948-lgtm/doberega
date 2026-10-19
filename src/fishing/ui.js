@@ -1,6 +1,6 @@
 import {
   BAITS, EXTRAS, FISH, HOOK_PRICE, LOCATIONS, RODS,
-  fishPrice, formatMoney, formatWeight, handbookEntries, trophyCost,
+  baitEntries, fishPrice, formatMoney, formatWeight, handbookEntries, spotEntries, trophyCost,
 } from "./data.js";
 import {
   bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, hookSprite, packSprite, rodSprite,
@@ -26,7 +26,6 @@ function element(tag, props = {}, children = []) {
 const rodArt = (id, scale) => rodSprite(RODS[id].tier, scale);
 const countLabel = (count) => (count === Infinity ? "∞" : `×${count}`);
 /** "lake (medium, sand, weed)" — a fishing spot's type, depth and bottom in words. */
-const describePlace = (traits) => `${traitValue("type", traits.type)} (${traitValue("depth", traits.depth)}, ${traitValue("bottom", traits.bottom)})`.toLowerCase();
 
 /** DOM side of the game: main menu, HUD, loadout, toasts and dialogs. */
 export class AnglerUI {
@@ -77,6 +76,9 @@ export class AnglerUI {
     }
     for (const tab of document.querySelectorAll("#trophy-dialog .tab")) {
       tab.addEventListener("click", () => this.showTrophyTab(tab.dataset.tab));
+    }
+    for (const tab of document.querySelectorAll("#handbook-dialog .tab")) {
+      tab.addEventListener("click", () => this.showHandbookTab(tab.dataset.tab));
     }
 
     this.applyLanguage();
@@ -670,27 +672,75 @@ export class AnglerUI {
     if (!this.packDialog.open) this.packDialog.showModal();
   }
 
-  openHandbook() {
-    const rules = element("li", { className: "handbook-page handbook-rules" }, [
-      element("strong", { textContent: t("handbook.rules") }),
-      element("dl", {}, handbookRules().flatMap(([title, text]) => [element("dt", { textContent: title }), element("dd", { textContent: text })])),
-    ]);
-    frame(rules, "box", 699);
-    $("#handbook-list").replaceChildren(rules, ...handbookEntries().map((entry) => {
-      const page = element("li", { className: "handbook-page" }, [
-        element("div", { className: "handbook-fish" }, [fishSprite(entry.id, 2)]),
+  openHandbook(tab = "fish") {
+    this.showHandbookTab(tab);
+    if (!this.handbookDialog.open) this.handbookDialog.showModal();
+  }
+
+  /** The handbook in four tabs; the first three are built from the game's own data. */
+  showHandbookTab(id) {
+    for (const tab of document.querySelectorAll("#handbook-dialog .tab")) {
+      const active = tab.dataset.tab === id;
+      tab.classList.toggle("is-active", active);
+      tab.setAttribute("aria-selected", String(active));
+    }
+    const lower = (text) => text.toLocaleLowerCase(locale());
+    const list = (items) => items.join(", ");
+    const page = (art, title, subtitle, lines, seed) => {
+      const node = element("li", { className: `handbook-page${art ? "" : " handbook-text"}` }, [
+        art ? element("div", { className: "handbook-art" }, [art]) : "",
         element("div", {}, [
-          element("strong", { textContent: nameOf("fish", entry.id) }),
-          element("small", { textContent: entry.range }),
-          element("p", { textContent: t("handbook.where", { places: entry.places.map(describePlace).join("; ") || t("handbook.whereNone") }) }),
-          element("p", { textContent: t("handbook.baits", { baits: entry.baits.map((id) => nameOf("bait", id).toLowerCase()).join(", ") || t("handbook.baitsNone") }) }),
-          element("p", { textContent: t("handbook.active", { times: entry.times.map(periodName).join(", ") }) }),
+          element("strong", { textContent: title }),
+          subtitle ? element("small", { textContent: subtitle }) : "",
+          ...lines.filter(Boolean).map((text) => element("p", { textContent: text })),
         ]),
       ]);
-      frame(page, "box", 700 + entry.id.length);
-      return page;
-    }));
-    this.handbookDialog.showModal();
+      frame(node, "box", seed);
+      return node;
+    };
+    let pages;
+    if (id === "fish") {
+      // Small fish are drawn bigger so all of them read at a glance.
+      pages = handbookEntries().map((entry, index) => page(fishSprite(entry.id, FISH[entry.id].max < 4 ? 3 : 2), nameOf("fish", entry.id), t("handbook.weight", { range: entry.range, price: entry.pricePerKg }), [
+        t("handbook.livesIn", { spots: entry.spots.map((spot) => t("handbook.spotIn", { spot: nameOf("location", spot.id), abundance: nameOf("abundance", spot.abundance), kg: formatWeight(spot.maxKg) })).join("; ") }),
+        t("handbook.baits", { baits: entry.baits.length ? lower(list(entry.baits.map((bait) => nameOf("bait", bait)))) : t("handbook.baitsNone") }),
+        entry.alsoBaits.length ? t("handbook.alsoBaits", { baits: lower(list(entry.alsoBaits.map((bait) => nameOf("bait", bait)))) }) : "",
+        t("handbook.active", { times: entry.times.map(periodName).join(", ") }),
+        t("handbook.bites", { style: nameOf("biteStyle", entry.style) }),
+      ], 700 + index));
+    } else if (id === "spots") {
+      pages = spotEntries().map((spot, index) => {
+        const picture = element("div", { className: "handbook-spot" });
+        picture.dataset.variant = LOCATIONS.find((place) => place.id === spot.id).kind;
+        frame(picture, "location", 40 + index);
+        return page(picture, nameOf("location", spot.id), t("handbook.spotTraits", {
+          type: traitValue("type", spot.traits.type), depth: lower(traitValue("depth", spot.traits.depth)),
+          bottom: lower(traitValue("bottom", spot.traits.bottom)), current: lower(traitValue("current", spot.traits.current)),
+        }), [
+          t("handbook.spotFish", { fish: lower(list(spot.fish.map((fish) => nameOf("fish", fish)))) }),
+          t("handbook.spotMax", { kg: formatWeight(spot.maxKg), odds: spot.bigOdds }),
+          `${nameOf("pace", spot.pace)} · ${nameOf("snags", spot.snags)}`,
+        ], 760 + index);
+      });
+    } else if (id === "baits") {
+      pages = baitEntries().map((bait, index) => {
+        const favourites = bait.fish.filter((fish) => fish.favourite).map((fish) => nameOf("fish", fish.id));
+        const others = bait.fish.filter((fish) => !fish.favourite).map((fish) => nameOf("fish", fish.id));
+        return page(baitSprite(bait.id, 3), nameOf("bait", bait.id), `${bait.free ? t("handbook.baitFree") : t("handbook.baitPrice", { price: bait.price })} · ${nameOf("baitSize", bait.size)}`, [
+          favourites.length ? t("handbook.baitFish", { fish: lower(list(favourites)) }) : "",
+          others.length ? t("handbook.baitOthers", { fish: lower(list(others)) }) : "",
+        ], 820 + index);
+      });
+    } else {
+      const rules = element("li", { className: "handbook-page handbook-rules" }, [
+        element("dl", {}, handbookRules().flatMap(([title, text]) => [element("dt", { textContent: title }), element("dd", { textContent: text })])),
+      ]);
+      frame(rules, "box", 699);
+      pages = [rules];
+    }
+    const listNode = $("#handbook-list");
+    listNode.replaceChildren(...pages);
+    listNode.scrollTop = 0;
   }
 
   /* ---------- Trophies ---------- */

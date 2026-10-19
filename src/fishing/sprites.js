@@ -441,6 +441,70 @@ const BAIT_SPRITES = {
     return grid.outline(P.ink);
   },
   livebait: () => fishGrid("livebait"),
+  // A pinch of pale dough rolled into two balls.
+  dough: () => {
+    const grid = new Grid(18, 12);
+    for (const [cx, cy, r] of [[6, 6, 4], [12, 7, 3]]) {
+      for (let dx = -r; dx <= r; dx += 1) {
+        for (let dy = -r; dy <= r; dy += 1) {
+          if (dx * dx + dy * dy > r * r) continue;
+          grid.set(cx + dx, cy + dy, dx + dy < -r * 0.6 ? "#f4e8c0" : dx + dy > r * 0.7 ? "#bfa66a" : "#e2cf92");
+        }
+      }
+    }
+    return grid.outline(P.ink);
+  },
+  // Green peas, lit from the upper left.
+  peas: () => {
+    const grid = new Grid(18, 12);
+    for (const [cx, cy] of [[4, 8], [8, 9], [12, 8], [6, 4], [10, 5], [14, 4]]) {
+      for (let dx = -1; dx <= 1; dx += 1) for (let dy = -1; dy <= 1; dy += 1) grid.set(cx + dx, cy + dy, dx + dy < 0 ? "#a6d05c" : dx + dy > 0 ? "#557a2a" : "#7aa83c");
+    }
+    return grid.outline(P.ink);
+  },
+  // Boiled potato cubes.
+  potato: () => {
+    const grid = new Grid(18, 12);
+    for (const [x0, y0] of [[2, 5], [9, 3], [11, 7]]) {
+      for (let dx = 0; dx < 5; dx += 1) for (let dy = 0; dy < 4; dy += 1) grid.set(x0 + dx, y0 + dy, dy === 0 ? "#f0dc9a" : dx === 4 ? "#a88c48" : "#dcc277");
+    }
+    return grid.outline(P.ink);
+  },
+  // A dark red piece of chicken liver.
+  liver: () => {
+    const grid = new Grid(18, 12);
+    for (let x = 2; x < 16; x += 1) {
+      const top = 4 + Math.round(Math.sin(x * 0.7) * 1.2);
+      const bottom = 8 + Math.round(Math.cos(x * 0.5) * 1.3);
+      for (let y = top; y <= bottom; y += 1) grid.set(x, y, y === top ? "#b8544a" : hash(x, y, 3) < 0.2 ? "#5a1c18" : "#7c2a24");
+    }
+    return grid.outline(P.ink);
+  },
+  // A silver strip of fish with the red cut showing.
+  fishstrip: () => {
+    const grid = new Grid(18, 12);
+    for (let x = 2; x < 15; x += 1) {
+      const y0 = 7 - Math.round((x - 2) * 0.3);
+      for (let k = 0; k < 3; k += 1) grid.set(x, y0 + k, k === 0 ? "#dfe6e6" : k === 1 ? ((x % 2) ? "#a8b4b4" : "#c4cece") : "#6e7a7a");
+    }
+    for (let k = 0; k < 3; k += 1) grid.set(15, 3 + k, "#c0504a");
+    return grid.outline(P.ink);
+  },
+  // A river crayfish facing right: fanned tail, segmented body, two open claws and long feelers.
+  crayfish: () => fromRows([
+    "................cc",
+    "..............cc..",
+    ".........CCC.cc...",
+    "........CCLCC.....",
+    "...LLLLLLL........",
+    "TTBBBBBBBBBBe.....",
+    "TTDBDBDBBBBB......",
+    "...DDDDDDD........",
+    "........CCDCC.....",
+    ".........CCC.cc...",
+    "..............cc..",
+    "................cc",
+  ], { T: "#6a4428", B: "#8a5a34", L: "#b07a48", D: "#5a3a20", C: "#a0603a", c: "#6a4a30", e: P.ink }).outline(P.ink),
   bloodworm: () => {
     const grid = new Grid(18, 12);
     for (const [ox, oy, phase] of [[2, 3, 0], [3, 7, 1.7], [8, 5, 3.1]]) {

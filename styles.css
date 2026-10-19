@@ -569,8 +569,12 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
 .pack-name { position: absolute; right: 2px; bottom: 20px; left: 2px; overflow: hidden; color: var(--bone); font-size: 18px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 
 .handbook { display: grid; gap: 10px; min-height: 0; max-height: min(64vh, 620px); overflow-y: auto; margin: 0; padding: 0 6px 0 0; list-style: none; }
-.handbook-page { display: grid; grid-template-columns: 110px 1fr; align-items: center; gap: 14px; padding: 14px 16px; }
-.handbook-fish { display: grid; place-items: center; }
+.handbook-page { display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: 14px; padding: 14px 16px; }
+.handbook-page.handbook-text { grid-template-columns: 1fr; }
+.handbook-art { display: grid; place-items: center; }
+/* A small picture of each water, painted like the menu's spot picture. */
+.handbook-spot { width: 120px; height: 76px; }
+.handbook-tabs .pixel-btn { min-height: 44px; padding-inline: 6px; }
 .handbook-page strong { display: block; color: var(--bone); font-size: 22px; font-weight: 500; }
 .handbook-page small { color: var(--gold); font-size: 18px; }
 .handbook-page p { margin: 4px 0 0; color: var(--light); font-size: 18px; }
