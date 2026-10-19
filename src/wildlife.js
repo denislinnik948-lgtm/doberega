@@ -1,7 +1,8 @@
 /**
  * Ducks. Now and then, by day, a small group paddles out from the bank,
  * wanders the water toward a couple of random spots and leaves; at dusk any
- * ducks still out head for the edge. Positions are in screen
+ * ducks still out head for the edge. They always enter and leave across a
+ * screen edge (a side or the bottom). Positions are in screen
  * pixels; `isWater(x, y)` keeps them off banks and rocks.
  */
 export class Ducks {
@@ -20,42 +21,73 @@ export class Ducks {
     this.timer = 25 + this.random() * 40;
   }
 
+  /**
+   * A point just off-screen where open water meets the edge: left, right or
+   * bottom. Sides are skipped where a bank or cliff runs to the edge.
+   */
+  edgePoint(side, width, height, horizonY, isWater) {
+    const random = this.random;
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      if (side === "bottom") {
+        const x = width * (0.2 + random() * 0.6);
+        if (isWater(x, height * 0.92)) return { x, y: height + 30, side };
+      } else {
+        const y = horizonY + (height - horizonY) * (0.15 + random() * 0.5);
+        const probeX = side === "left" ? width * 0.03 : width * 0.97;
+        if (isWater(probeX, y)) return { x: side === "left" ? -30 : width + 30, y, side };
+      }
+    }
+    return null;
+  }
+
   spawn(width, height, horizonY, isWater) {
     const random = this.random;
     const count = 1 + Math.floor(random() * 3);
-    // Paddle out from the left or right edge, or from the far shore.
-    const fromSide = random() < 0.7;
-    let x;
-    let y;
-    for (let attempt = 0; attempt < 10; attempt += 1) {
-      if (fromSide) {
-        x = random() < 0.5 ? -20 : width + 20;
-        y = horizonY + (height - horizonY) * (0.12 + random() * 0.45);
-        const probeX = x < 0 ? width * 0.08 : width * 0.92;
-        if (isWater(probeX, y)) break;
-      } else {
-        x = width * (0.15 + random() * 0.7);
-        y = horizonY + height * 0.05;
-        if (isWater(x, y)) break;
-      }
+    // Paddle in from just off-screen — a side or the bottom edge — never out of thin air.
+    const sides = ["left", "right", "bottom"].sort(() => random() - 0.5);
+    let entry = null;
+    for (const side of sides) {
+      entry = this.edgePoint(side, width, height, horizonY, isWater);
+      if (entry) break;
     }
-    const waypoints = Array.from({ length: 1 + Math.floor(random() * 2) }, () => ({
-      x: width * (0.15 + random() * 0.7),
-      y: horizonY + (height - horizonY) * (0.15 + random() * 0.5),
-    }));
-    // Finally swim off past the far edge.
-    waypoints.push({ x: x < width / 2 ? width + 60 : -60, y: horizonY + (height - horizonY) * (0.1 + random() * 0.5) });
+    if (!entry) return;
+
+    const waypoints = [];
+    for (let i = 0, wanted = 1 + Math.floor(random() * 2); i < 20 && waypoints.length < wanted; i += 1) {
+      const point = { x: width * (0.15 + random() * 0.7), y: horizonY + (height - horizonY) * (0.15 + random() * 0.5) };
+      if (isWater(point.x, point.y)) waypoints.push(point);
+    }
+    // Finally leave past an edge — preferably a different one.
+    const exitSides = ["left", "right", "bottom"].filter((side) => side !== entry.side).sort(() => random() - 0.5);
+    let exit = null;
+    for (const side of [...exitSides, entry.side]) {
+      exit = this.edgePoint(side, width, height, horizonY, isWater);
+      if (exit) break;
+    }
+    // Aim well past the edge so the whole flock, trailing the leader, slips out of view.
+    const out = exit ?? entry;
+    waypoints.push({
+      x: out.side === "left" ? -180 : out.side === "right" ? width + 180 : out.x,
+      y: out.side === "bottom" ? height + 180 : out.y,
+      side: out.side,
+    });
+
+    // Followers start further out along the way in.
+    const first = waypoints[0];
+    const length = Math.hypot(first.x - entry.x, first.y - entry.y) || 1;
+    const back = { x: (entry.x - first.x) / length, y: (entry.y - first.y) / length };
     const ducks = Array.from({ length: count }, (_, i) => ({
-      x: x - (x < width / 2 ? 1 : -1) * i * 34,
-      y: y + (i % 2 ? 10 : -6) * Math.min(i, 1),
-      heading: x < width / 2 ? 1 : -1,
+      x: entry.x + back.x * i * 34,
+      y: entry.y + back.y * i * 34 + (i % 2 ? 8 : 0),
+      heading: first.x >= entry.x ? 1 : -1,
       phase: random() * Math.PI * 2,
       wake: [],
     }));
-    this.flocks.push({ ducks, waypoints, speed: 16 + random() * 12 });
+    this.flocks.push({ ducks, waypoints, exit: waypoints[waypoints.length - 1], speed: 16 + random() * 12 });
   }
 
   update(dt, time, width, height, horizonY, isWater, daytime = true) {
+    const random = this.random;
     this.timer -= dt;
     if (!daytime) {
       // Night: no new ducks, and stragglers make for the edge.
@@ -66,12 +98,15 @@ export class Ducks {
     }
 
     for (const flock of this.flocks) {
-      const goal = flock.waypoints[0];
+      // After the last waypoint, keep paddling toward the exit until everyone is out of sight.
+      const goal = flock.waypoints[0] ?? flock.exit;
       flock.ducks.forEach((duck, index) => {
         // Followers trail the leader; the leader heads for the next waypoint.
         const leader = flock.ducks[0];
-        const tx = index === 0 ? goal.x : leader.x - leader.heading * index * 30;
-        const ty = index === 0 ? goal.y : leader.y + (index % 2 ? 10 : -8);
+        // A follower that got stuck behind a rock makes its own way out instead.
+        const own = duck.solo;
+        const tx = own ? own.x : index === 0 ? goal.x : leader.x - leader.heading * index * 30;
+        const ty = own ? own.y : index === 0 ? goal.y : leader.y + (index % 2 ? 10 : -8);
         const dx = tx - duck.x;
         const dy = ty - duck.y;
         const distance = Math.hypot(dx, dy) || 1;
@@ -79,31 +114,55 @@ export class Ducks {
         let nx = duck.x + (dx / distance) * speed * dt;
         let ny = duck.y + (dy / distance) * speed * dt + Math.sin(time * 1.3 + duck.phase) * 3 * dt;
         // Steer around banks and rocks instead of walking over them.
-        const onScreen = nx > 0 && nx < width;
+        // Off-screen, on the way in or out, there's nothing to steer around.
+        const onScreen = nx > 0 && nx < width && ny < height;
         if (onScreen && !isWater(nx, ny)) {
-          nx = duck.x + (dy / distance) * speed * dt;
-          ny = duck.y - (dx / distance) * speed * dt;
-          if (!isWater(nx, ny)) {
-            nx = duck.x;
-            ny = duck.y;
-          }
+          // Slide along the obstacle: try one side, then the other.
+          const side = (duck.side ??= random() < 0.5 ? 1 : -1);
+          const options = [side, -side].map((turn) => ({
+            x: duck.x + turn * (dy / distance) * speed * dt,
+            y: duck.y - turn * (dx / distance) * speed * dt,
+          }));
+          const free = options.find((option) => isWater(option.x, option.y));
+          nx = free ? free.x : duck.x;
+          ny = free ? free.y : duck.y;
         }
         // A leader that can't get anywhere gives up on this waypoint.
         duck.stuck = nx === duck.x && ny === duck.y ? (duck.stuck ?? 0) + dt : 0;
+        // Circling an obstacle without getting closer counts as stuck too.
+        if (distance < (duck.best ?? Infinity) - 5) {
+          duck.best = distance;
+          duck.circling = 0;
+        } else {
+          duck.circling = (duck.circling ?? 0) + dt;
+        }
+        if (duck.circling > 4) {
+          duck.stuck = Math.max(duck.stuck, 3.5);
+          duck.circling = 0;
+          duck.best = Infinity;
+        }
+        if (index > 0 && duck.stuck > 3) duck.solo = { x: duck.x, y: height + 180 };
         if (index === 0 && duck.stuck > 2) {
-          flock.waypoints.shift();
+          // Give up on this waypoint; on the way out, head straight down past the bottom edge.
+          if (flock.waypoints.length > 1) flock.waypoints.shift();
+          else flock.exit = flock.waypoints[0] = { x: duck.x, y: height + 180, side: "bottom" };
           duck.stuck = 0;
+          duck.best = Infinity;
         }
         if (Math.abs(nx - duck.x) > 0.01) duck.heading = nx > duck.x ? 1 : -1;
         if (!duck.wake.length || time - duck.wake[0].t > 0.15) duck.wake.unshift({ x: duck.x, y: duck.y, t: time });
         if (duck.wake.length > 14) duck.wake.length = 14;
         duck.x = nx;
         duck.y = ny;
-        if (index === 0 && distance < 12) flock.waypoints.shift();
+        if (index === 0 && distance < 12) {
+          flock.waypoints.shift();
+          duck.best = Infinity;
+        }
       });
     }
-    // Gone once the last waypoint (off-screen) is reached.
-    this.flocks = this.flocks.filter((flock) => flock.waypoints.length > 0);
+    // Gone only once the whole flock has paddled past the edge.
+    const offScreen = (duck) => duck.x < -25 || duck.x > width + 25 || duck.y > height + 25;
+    this.flocks = this.flocks.filter((flock) => flock.waypoints.length > 0 || !flock.ducks.every(offScreen));
   }
 
   /** The first duck within `radius` px of a point, if any. */

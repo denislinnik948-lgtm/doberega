@@ -31,7 +31,7 @@ Time of day matters for fishing: every species has its own feeding hours (`activ
 ## Weather and wildlife
 
 - **Rain** (`src/weather.js`) comes and goes on its own — 1–2.5 minute showers between 6–14 minute dry spells, fading in and out over ~12 s. It brings slanted streaks, splashes on the water, a heavier cloud cover and a dimmer scene, with a rain cloud beside the clock. Fish bite noticeably faster in the rain (about 40% sooner in a heavy shower). `?rain=1` forces rain.
-- **Ducks** (`src/wildlife.js`): every minute or two, one to three ducks (by day only) paddle out from the bank, wander toward a couple of random spots on the water and leave, steering around banks and rocks, with a wake behind them. A duck that swims over the float eats the bait (the hook stays): "Качка з'їла наживку". Reeling in early saves it.
+- **Ducks** (`src/wildlife.js`): every minute or two, one to three ducks (by day only) paddle in from just off-screen — a side or the bottom edge, never where a bank or cliff meets the edge — wander toward a couple of random spots on the water and leave past another edge, steering around banks and rocks, with a wake behind them. A duck that swims over the float eats the bait (the hook stays): "Качка з'їла наживку". Reeling in early saves it.
 
 Both are explained in the handbook.
 
