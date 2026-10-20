@@ -8,7 +8,7 @@ import { FishingGame, TUNING } from "./fishing/game.js";
 import { BAITS, LOCATIONS, RODS } from "./fishing/data.js";
 import { baitCount, loadProgress, onProgressSaved, replaceProgress, saveProgress } from "./fishing/store.js";
 import { Cloud } from "./cloud.js";
-import { applyTheme, isDarkFantasy } from "./theme.js";
+import { applyTheme, isDarkFantasy, onThemeChange } from "./theme.js";
 import { NightEvents } from "./night-events.js";
 import { AnglerUI } from "./fishing/ui.js";
 
@@ -129,6 +129,12 @@ const cloud = new Cloud({
   onChange: () => ui.renderAccount(),
 });
 ui.setCloud(cloud);
+// A new style repaints the whole scene in its colours.
+onThemeChange(() => {
+  renderer.lightKey = null;
+  renderer.paletteKey = "";
+  resize();
+});
 onProgressSaved(() => cloud.schedulePush());
 window.addEventListener("pagehide", () => cloud.flush());
 cloud.init();
