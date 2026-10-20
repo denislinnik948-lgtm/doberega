@@ -84,7 +84,7 @@ export function createAmbient({ scene, structures, ridgeCells, bankCells, width,
  * `haze` drifts in front of them (smoke, mist, cloud); both take the daylight
  * tint. `glow` holds lights that stay bright at night.
  */
-export function fillAmbient(ambient, { ground, haze, glow }, time, dayTime, rain = 0) {
+export function fillAmbient(ambient, { ground, haze, glow }, time, dayTime, rain = 0, dark = false) {
   ground.clear();
   haze.clear();
   glow.clear();
@@ -122,7 +122,10 @@ export function fillAmbient(ambient, { ground, haze, glow }, time, dayTime, rain
 
   // Mist drifts slowly along the far shore.
   // Rain clears the mist away.
-  const strength = mistStrength(dayTime) * Math.max(0, 1 - rain * 4);
+  // Dark fantasy keeps a pall of mist all day and lets it flood the water by night.
+  const night = dayTime < 0.2 || dayTime > 0.9 ? 1 : 0;
+  const base = dark ? Math.min(1, mistStrength(dayTime) * 1.4 + 0.2 + night * 0.45) : mistStrength(dayTime);
+  const strength = base * Math.max(0, 1 - rain * 4);
   if (strength > 0.05) {
     for (const cell of ambient.mist) {
       // Thickest right on the waterline, thinning upward into the trees.

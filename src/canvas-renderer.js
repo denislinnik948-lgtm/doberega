@@ -479,6 +479,56 @@ export class CanvasWaterRenderer {
     }
   }
 
+  /**
+   * Dark fantasy nights: wisps over the far water, a pale figure on the far
+   * shore and red eyes near the bank. Positions are fractions of the visible
+   * slice of the scene; fading mixes each colour toward the night water.
+   */
+  drawNightEvents(night, time) {
+    const { glow } = this.ambientBatches;
+    const { cellWidth, lineHeight } = this;
+    const { left, width } = this.frame;
+    const mix = (from, to, t) => {
+      const channel = (shift) => Math.round(((from >> shift) & 255) * (1 - t) + ((to >> shift) & 255) * t);
+      return (channel(16) << 16) | (channel(8) << 8) | channel(0);
+    };
+    const NIGHT = 0x101820;
+    for (const wisp of night.wisps) {
+      const x = left + wisp.x * width;
+      const y = this.shorelineY(x) + lineHeight * (0.8 + wisp.rise * 1.6);
+      const strength = night.depth * wisp.flicker;
+      // A bright core with a soft halo either side, bright enough to read through the cold grade.
+      glow.push(x, y, wisp.flicker > 0.8 ? "@" : "O", mix(NIGHT, 0xb8ffc8, strength));
+      glow.push(x - cellWidth, y, "(", mix(NIGHT, 0x4cf078, strength * 0.85));
+      glow.push(x + cellWidth, y, ")", mix(NIGHT, 0x4cf078, strength * 0.85));
+      glow.push(x, y - lineHeight * 0.9, "'", mix(NIGHT, 0x4cf078, strength * 0.6));
+      // A trembling reflection beneath it.
+      glow.push(x + Math.sin(time * 4 + wisp.x * 40) * 1.5, y + lineHeight * 1.3, "~", mix(NIGHT, 0x3cd868, strength * 0.75));
+    }
+    if (night.figure && night.figure.alpha > 0.02) {
+      const x = left + night.figure.x * width;
+      const base = this.shorelineY(x) - lineHeight * 0.4;
+      const color = mix(NIGHT, 0xeef2f8, night.figure.alpha * night.depth);
+      // A hooded shape, a little taller than the reeds on the far bank.
+      const rows = [" o ", "/|\\", "/|\\", "/_\\"];
+      rows.forEach((row, index) => {
+        [...row].forEach((glyph, k) => {
+          if (glyph !== " ") glow.push(x + (k - 1) * cellWidth, base - (rows.length - 1 - index) * lineHeight, glyph, color);
+        });
+      });
+    }
+    if (night.eyes && night.eyes.alpha > 0.02) {
+      const x = left + night.eyes.x * width;
+      const y = this.height * night.eyes.y;
+      const color = mix(NIGHT, 0xff1408, night.eyes.alpha);
+      const halo = mix(NIGHT, 0xa01810, night.eyes.alpha);
+      for (const ex of [x, x + cellWidth * 2.2]) {
+        glow.push(ex, y, "@", color);
+        glow.push(ex, y + lineHeight * 0.9, "~", halo);
+      }
+    }
+  }
+
   /** A static foreground rock, cropped to its bounds so the overlay copies only a small image. */
   createRockImage(rock) {
     const { pixelRatio } = this;
@@ -1049,7 +1099,8 @@ export class CanvasWaterRenderer {
     if (sky.moon.up && sky.moon.y < 0.52) pushDisc(this.discBatch, this.moonDisc, sky.moon.x * width, sky.moon.y * height, cellWidth, lineHeight, "moon");
     if (sky.sun.up && sky.sun.y < 0.52) pushDisc(this.discBatch, this.sunDisc, sky.sun.x * width, sky.sun.y * height, cellWidth, lineHeight, "sun");
     this.fillForest(time);
-    fillAmbient(this.ambient, this.ambientBatches, time, dayTime, this.rain);
+    fillAmbient(this.ambient, this.ambientBatches, time, dayTime, this.rain, Boolean(env.dark));
+    if (env.night) this.drawNightEvents(env.night, time);
     this.fillWater(time, config, ripples);
     this.fillSurface(time, ripples);
     this.fillRain(time, this.rain);

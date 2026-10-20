@@ -8,6 +8,8 @@ import { FishingGame, TUNING } from "./fishing/game.js";
 import { BAITS, LOCATIONS, RODS } from "./fishing/data.js";
 import { baitCount, loadProgress, onProgressSaved, replaceProgress, saveProgress } from "./fishing/store.js";
 import { Cloud } from "./cloud.js";
+import { applyTheme, isDarkFantasy } from "./theme.js";
+import { NightEvents } from "./night-events.js";
 import { AnglerUI } from "./fishing/ui.js";
 
 // The water look is fixed: a still lake, gentle swell speed, soft glints.
@@ -31,6 +33,23 @@ const DAY_START = 0.68;
 // `?rain=1` forces rain (0..1); otherwise showers come and go on their own.
 const weather = new Weather({ forced: params.has("rain") ? Number(params.get("rain")) : null });
 const ducks = new Ducks();
+// The chosen style's palette must be in place before any frame is painted.
+applyTheme();
+
+// Dark fantasy nights. Each event is also announced on the window as
+// "doberega:night" ({ type }) so sounds can hook in later without touching this.
+const OMENS = 6;
+const nightEvents = new NightEvents({
+  onEvent: (type, data) => {
+    window.dispatchEvent(new CustomEvent("doberega:night", { detail: { type } }));
+    if (type === "omen" && mode === "fishing") ui.toast(t(`omen.${data.index % OMENS}`), "", 3200);
+    if (type === "eyesSink") {
+      // The eyes slip under, leaving rings on the water.
+      const x = renderer.frame.left + data.x * renderer.frame.width;
+      addRipple({ ...renderer.screenToPlane(x, height * data.y), time: lastElapsed, strength: 0.5, size: 0.8 });
+    }
+  },
+});
 
 const canvas = document.querySelector("#water-canvas");
 const renderer = new CanvasWaterRenderer(canvas);
@@ -183,7 +202,7 @@ function tryCast(x, y) {
 }
 
 // `?debug` exposes the game for manual testing from the console.
-if (params.has("debug")) window.doberega = { game, progress, ui, cloud, renderNow, renderer, config, ripples, weather, ducks };
+if (params.has("debug")) window.doberega = { game, progress, ui, cloud, nightEvents, renderNow, renderer, config, ripples, weather, ducks };
 
 const pullable = () => ["waiting", "nibble", "bite", "fight"].includes(game.phase);
 
@@ -255,7 +274,13 @@ function renderNow(now = performance.now()) {
   game.hour = dayTime * 24;
   ui.setClock(dayTime);
   ui.setWeather(weather.intensity);
-  renderer.render(elapsed, config, ripples, anglerView(elapsed), dayTime, { rain: weather.intensity, ducks: ducks.all });
+  nightEvents.update(step, elapsed, dayTime, isDarkFantasy());
+  renderer.render(elapsed, config, ripples, anglerView(elapsed), dayTime, {
+    rain: weather.intensity,
+    ducks: ducks.all,
+    dark: isDarkFantasy(),
+    night: nightEvents.visible(elapsed),
+  });
 }
 
 // A phone held upright would squeeze the landscape sideways. Instead the scene

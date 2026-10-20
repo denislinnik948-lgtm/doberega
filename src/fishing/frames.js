@@ -408,6 +408,11 @@ export function repaint(element) {
   paint(element);
 }
 
+/** Repaint every frame on the page (after the palette changes). */
+export function repaintAll() {
+  document.querySelectorAll(".framed").forEach((element) => paint(element));
+}
+
 /** Frame every element matching `[data-frame]` inside `root`. */
 export function frameAll(root = document) {
   root.querySelectorAll("[data-frame]").forEach((element, index) => frame(element, element.dataset.frame, 11 + index * 97));

@@ -5,7 +5,8 @@ import {
 import {
   bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, hookSprite, packSprite, rodSprite,
 } from "./sprites.js";
-import { frame, frameAll, repaint, setContent } from "./frames.js";
+import { frame, frameAll, repaint, repaintAll, setContent } from "./frames.js";
+import { THEMES, setTheme, theme } from "../theme.js";
 import { validNickname } from "../cloud.js";
 import { baitCount, saveProgress } from "./store.js";
 import {
@@ -47,14 +48,7 @@ export class AnglerUI {
     this.shopQuantities = {};
 
     frameAll();
-    document.querySelectorAll(".coin-slot").forEach((slot) => slot.append(coinSprite(3)));
-    $("#shop-icon").append(bagSprite(3));
-    $("#pack-icon").append(packSprite(3));
-    $("#trophy-icon").append(cupSprite(3));
-    $("#exit-button").append(exitSprite(3));
-    $("#settings-icon").append(gearSprite(3));
-    $("#pack-slot-sprite").append(packSprite(3));
-    $("#pack-hook-sprite").append(hookSprite(2));
+    this.paintIcons();
 
     this.packSlot.addEventListener("click", () => {
       if (!this.busy) this.openPack();
@@ -82,6 +76,34 @@ export class AnglerUI {
     }
 
     this.applyLanguage();
+  }
+
+  /** The fixed pixel icons; drawn again when the style's palette changes. */
+  paintIcons() {
+    const icon = (selector, sprite) => {
+      const node = $(selector);
+      node.querySelector(":scope > canvas.sprite")?.remove();
+      node.append(sprite);
+    };
+    document.querySelectorAll(".coin-slot").forEach((slot) => slot.replaceChildren(coinSprite(3)));
+    $("#shop-icon").replaceChildren(bagSprite(3));
+    $("#pack-icon").replaceChildren(packSprite(3));
+    $("#trophy-icon").replaceChildren(cupSprite(3));
+    icon("#exit-button", exitSprite(3));
+    $("#settings-icon").replaceChildren(gearSprite(3));
+    $("#pack-slot-sprite").replaceChildren(packSprite(3));
+    $("#pack-hook-sprite").replaceChildren(hookSprite(2));
+    this.clockNight = null;
+  }
+
+  /** Switch the visual style: repaint frames, icons and pictures in its palette. */
+  switchTheme(id) {
+    setTheme(id);
+    repaintAll();
+    this.paintIcons();
+    this.renderSpot();
+    this.render();
+    this.raining = null;
   }
 
   /** Put every fixed text and label in the current language, then redraw the rest. */
@@ -119,6 +141,18 @@ export class AnglerUI {
         this.openSettings();
       },
     })));
+    $("#style-options").replaceChildren(...THEMES.map((id) => element("button", {
+      className: `pixel-btn${id === theme() ? " pixel-btn-primary" : ""}`,
+      type: "button",
+      role: "radio",
+      ariaChecked: String(id === theme()),
+      textContent: t(`style.${id}`),
+      onclick: () => {
+        this.switchTheme(id);
+        this.openSettings();
+      },
+    })));
+    $("#style-hint").textContent = t(theme() === "dark" ? "style.darkHint" : "style.classicHint");
     if (!this.settingsDialog.open) this.settingsDialog.showModal();
   }
 
