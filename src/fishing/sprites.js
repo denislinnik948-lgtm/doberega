@@ -87,7 +87,7 @@ function fromRows(rows, palette) {
  * most of its belly. `u` runs along the body from the tail root (0) to the
  * snout (1). Fins are [from, to, height] in `u`.
  */
-const FISH_LOOKS = {
+export const FISH_LOOKS = {
   // Roach: silvery, blue-grey back, red eye, orange-red lower fins.
   plitka: {
     len: 30, h: 11, peak: 0.55, back: "#3d5a63", side: "#c6d0d2", belly: "#eef0ea", fin: "#8c8478", lowFin: "#d0603a", tailFin: "#a0705a", eye: "#d8382a",

@@ -4,8 +4,20 @@
     {
       "name": "stillwater",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8000"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8000"
+      ],
       "port": 8000
+    },
+    {
+      "name": "card-saver",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "tools/cards/save.py"
+      ],
+      "port": 8001
     }
   ]
 }
