@@ -24,7 +24,7 @@ The far landscape keeps moving too (`src/ambient-engine.js`, redrawn every frame
 
 ## Colour grade
 
-Each style bakes a colour grade into the scene itself (`GRADES` in `src/theme.js`): the land layer is regraded once per rebuild, and woods, grass, water, reflections and the sky take graded colours, while the sun, its glints, lit windows and night lights keep their warmth. The classic style uses a soft, cool evening grade — muted colour shifted toward slate blue, a little darker — so the lake reads as a calm dusk scene; dark fantasy drains far more colour out.
+Each style bakes a colour grade into the scene itself (`GRADES` in `src/theme.js`): the land layer is regraded once per rebuild, and woods, grass, water, reflections and the sky take graded colours, while the sun, its glints, lit windows and night lights keep their warmth. The classic style uses a soft, cool evening grade — muted colour shifted toward slate blue at full brightness, with a soft vignette at the edges, so the lake reads as a calm dusk scene; dark fantasy drains far more colour out.
 
 ## Dark fantasy style
 

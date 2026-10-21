@@ -75,7 +75,7 @@ export function onThemeChange(listener) {
 // How much colour each style keeps, how dark it goes and the cold cast it adds.
 // Classic is a soft cool evening grade; dark fantasy drains nearly all life out.
 const GRADES = {
-  classic: { keep: 0.58, gain: 0.88, cast: [0.84, 0.98, 1.24] },
+  classic: { keep: 0.68, gain: 1.1, cast: [0.88, 0.99, 1.16] },
   dark: { keep: 0.38, gain: 0.8, cast: [0.92, 0.97, 1.12] },
 };
 
@@ -92,8 +92,8 @@ export function gradeSky(sky) {
   return {
     ...sky,
     sky: sky.sky.map((stop) => gradeRgb(stop)),
-    land: sky.land.map((value) => value * 0.92),
-    water: sky.water.map((value) => value * 0.92),
+    land: sky.land,
+    water: sky.water,
     cloudShade: gradeRgb(sky.cloudShade),
     cloudLit: gradeRgb(sky.cloudLit).map((c, i) => c * 0.6 + sky.cloudLit[i] * 0.4),
   };

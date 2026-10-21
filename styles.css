@@ -34,10 +34,9 @@ body.theme-dark {
   --ember: #a3262a;
 }
 /* The close-up overlay (reeds, rod, ducks) follows each style's grade. */
-.scene-overlay { filter: saturate(0.72) brightness(0.92); }
-/* The scene is graded colder and darker, with a heavy vignette. */
-/* The scene's own colours carry the grade; only the close-up overlay (reeds, rod) is toned here. */
+.scene-overlay { filter: saturate(0.8); }
 body.theme-dark .scene-overlay { filter: saturate(0.45) brightness(0.8) contrast(1.08); }
+/* The scene is graded colder and darker, with a heavy vignette. */
 body.theme-dark .scene::after {
   background:
     radial-gradient(ellipse at 50% 45%, transparent 45%, rgba(4, 3, 8, 0.65) 100%),
@@ -103,7 +102,10 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
   inset: 0;
   content: "";
   pointer-events: none;
-  background: linear-gradient(0deg, rgba(3, 12, 10, 0.2), transparent 22%, transparent 84%, rgba(4, 14, 12, 0.2));
+  /* A soft vignette closing in from the edges, over a faint top and bottom shade. */
+  background:
+    radial-gradient(ellipse 78% 72% at 50% 48%, transparent 50%, rgba(4, 8, 14, 0.55) 100%),
+    linear-gradient(0deg, rgba(3, 12, 10, 0.2), transparent 22%, transparent 84%, rgba(4, 14, 12, 0.2));
 }
 
 /* ---------- Painted frames ---------- */
