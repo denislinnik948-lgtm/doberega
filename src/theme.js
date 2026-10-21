@@ -10,17 +10,17 @@ const KEY = "stillwater.theme";
 
 const CLASSIC = { ...P };
 
-// Cold ash and slate, tarnished gold, blood-red instead of warm ember.
+// Old stone: neutral greys with a faint warm cast, tarnished gold, blood red.
 const DARK_FANTASY = {
-  ink: "#07080b",
-  deep: "#0f1016",
-  dark: "#1d1c26",
-  mid: "#3b3848",
-  soft: "#6c6578",
-  light: "#a9a1b3",
-  bone: "#d8d1c4",
-  gold: "#b39556",
-  goldDark: "#5c4624",
+  ink: "#0a0a09",
+  deep: "#141412",
+  dark: "#262521",
+  mid: "#46433c",
+  soft: "#787369",
+  light: "#aba598",
+  bone: "#dbd5c6",
+  gold: "#b0955a",
+  goldDark: "#5c4a2a",
   ember: "#a3262a",
 };
 
@@ -72,12 +72,31 @@ export function onThemeChange(listener) {
  * little darker. Pure function of a colour, so it can grade cells, layers and
  * the sky alike.
  */
-export function gradeRgb([r, g, b]) {
+// How much colour each style keeps, how dark it goes and the cold cast it adds.
+// Classic is a soft cool evening grade; dark fantasy drains nearly all life out.
+const GRADES = {
+  classic: { keep: 0.58, gain: 0.88, cast: [0.84, 0.98, 1.24] },
+  dark: { keep: 0.38, gain: 0.8, cast: [0.92, 0.97, 1.12] },
+};
+
+/** Grade a colour for the current style (or a given one). */
+export function gradeRgb([r, g, b], style = current) {
+  const { keep, gain, cast } = GRADES[style];
   const lum = 0.3 * r + 0.59 * g + 0.11 * b;
-  // Keep a little of the hue, push the rest toward a cold grey.
-  const keep = 0.38;
-  const cold = [lum * 0.92, lum * 0.97, lum * 1.12];
-  return [0, 1, 2].map((i) => Math.max(0, Math.min(255, ([r, g, b][i] * keep + cold[i] * (1 - keep)) * 0.8)));
+  return [r, g, b].map((c, i) => Math.max(0, Math.min(255, (c * keep + lum * cast[i] * (1 - keep)) * gain)));
+}
+
+/** The current style's sky: a soft cool grade for classic, the full dark fantasy treatment otherwise. */
+export function gradeSky(sky) {
+  if (current === "dark") return darkSky(sky);
+  return {
+    ...sky,
+    sky: sky.sky.map((stop) => gradeRgb(stop)),
+    land: sky.land.map((value) => value * 0.92),
+    water: sky.water.map((value) => value * 0.92),
+    cloudShade: gradeRgb(sky.cloudShade),
+    cloudLit: gradeRgb(sky.cloudLit).map((c, i) => c * 0.6 + sky.cloudLit[i] * 0.4),
+  };
 }
 
 export function gradeHex(hex) {

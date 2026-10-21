@@ -8,7 +8,7 @@ import { birdsAt, createSkyCells, discOffsets, lightSky, pushDisc, sampleSky, se
 import { createLilyPads, createReeds, createRocks, rockGlyphs } from "./foreground-engine.js";
 import { GlyphBatch, createBackend } from "./glyph-backend.js";
 import { createAmbient, fillAmbient } from "./ambient-engine.js";
-import { darkSky, gradeHex, gradeInt, gradeRgb, isDarkFantasy } from "./theme.js";
+import { gradeHex, gradeInt, gradeRgb, gradeSky } from "./theme.js";
 import { ROD_LOOKS } from "./fishing/sprites.js";
 
 const WATER_RAMP = "    ..,:;~-=+*#%@W";
@@ -161,7 +161,7 @@ export class CanvasWaterRenderer {
 
     this.lilyPads = createLilyPads(width, height, cellWidth, lineHeight, this.frame);
     for (const pad of this.lilyPads) {
-      for (const cell of [...pad.cells, ...pad.flower]) cell.colorValue = hexToInt(isDarkFantasy() ? gradeHex(cell.color) : cell.color);
+      for (const cell of [...pad.cells, ...pad.flower]) cell.colorValue = hexToInt(gradeHex(cell.color));
     }
     const covered = new Set();
     for (const pad of this.lilyPads) for (const cell of pad.cells) covered.add(cell.row * columns + cell.column);
@@ -205,10 +205,8 @@ export class CanvasWaterRenderer {
     this.moonDisc = discOffsets(this.sun.radius * 0.8, cellWidth, lineHeight);
     this.ridgeCells = createRidgeGlyphs(width, height, cellWidth, lineHeight);
     this.forestCells = createForestGlyphs(width, height, cellWidth, lineHeight, this.sun.x);
-    // Dark fantasy bakes its cold, lifeless grade into the scene's own colours.
-    this.dark = isDarkFantasy();
-    const tone = (hex) => (this.dark ? gradeHex(hex) : hex);
-    for (const cell of this.forestCells) cell.colorValue = hexToInt(tone(cell.color));
+    // Each style's colour grade is baked into the scene's own colours.
+    for (const cell of this.forestCells) cell.colorValue = hexToInt(gradeHex(cell.color));
     this.shoreCells = createShoreGlyphs(width, height, cellWidth, lineHeight, this.sun.x);
     const structures = createStructures(width, height, cellWidth, lineHeight);
     this.structureCells = structures.cells;
@@ -220,7 +218,7 @@ export class CanvasWaterRenderer {
       scene, structures, ridgeCells: this.ridgeCells, bankCells: this.bankCells,
       width, height, cellWidth, lineHeight, shorelineY: (x) => this.shorelineY(x),
     });
-    if (this.dark) for (const cell of [...this.ambient.breeze, ...this.ambient.leaves]) cell.colorValue = gradeInt(cell.colorValue);
+    for (const cell of [...this.ambient.breeze, ...this.ambient.leaves]) cell.colorValue = gradeInt(cell.colorValue);
     this.waterRocks = this.createWaterRocks();
     const bend = scene.water.bend;
     this.waterParams = {
@@ -256,7 +254,7 @@ export class CanvasWaterRenderer {
     const put = (cell, raw) => {
       if (cell.row < 0 || cell.row >= rows || cell.column < 0 || cell.column >= columns) return;
       // Reflections mirror the graded land, so the water matches the shore.
-      const color = this.dark ? gradeHex(raw) : raw;
+      const color = gradeHex(raw);
       if (!indexOf.has(color)) {
         indexOf.set(color, this.backdropColors.length);
         this.backdropColors.push(color);
@@ -272,7 +270,7 @@ export class CanvasWaterRenderer {
   }
 
   updatePalette(rawWater, sky) {
-    const waterColor = this.dark ? gradeHex(rawWater) : rawWater;
+    const waterColor = gradeHex(rawWater);
     const horizon = toHex(sky.sky[3]);
     const key = `${waterColor}|${horizon}`;
     if (this.paletteKey === key) return;
@@ -346,7 +344,7 @@ export class CanvasWaterRenderer {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     paint(ctx);
-    if (this.dark) {
+    {
       // Grade the whole painted layer once: hills, banks, buildings, cliffs, water body.
       const image = ctx.getImageData(0, 0, layer.width, layer.height);
       const data = image.data;
@@ -1101,7 +1099,7 @@ export class CanvasWaterRenderer {
     this.rain = env.rain ?? 0;
     if (!this.width || !this.height) return;
     const { width, height, cellWidth, lineHeight } = this;
-    const sky = this.dark ? darkSky(skyAt(dayTime)) : skyAt(dayTime);
+    const sky = gradeSky(skyAt(dayTime));
 
     const stale = this.lightKey === null
       || Math.abs(time - this.lightKey.time) >= LIGHT_INTERVAL

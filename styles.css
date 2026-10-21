@@ -20,19 +20,21 @@
   --ember: #c4643e;
 }
 
-/* Dark fantasy: cold ash and slate, tarnished gold, blood-red accents. */
+/* Dark fantasy: old stone greys, tarnished gold, blood-red accents. */
 body.theme-dark {
-  --ink: #07080b;
-  --deep: #0f1016;
-  --dark: #1d1c26;
-  --mid: #3b3848;
-  --soft: #6c6578;
-  --light: #a9a1b3;
-  --bone: #d8d1c4;
-  --gold: #b39556;
-  --gold-dark: #5c4624;
+  --ink: #0a0a09;
+  --deep: #141412;
+  --dark: #262521;
+  --mid: #46433c;
+  --soft: #787369;
+  --light: #aba598;
+  --bone: #dbd5c6;
+  --gold: #b0955a;
+  --gold-dark: #5c4a2a;
   --ember: #a3262a;
 }
+/* The close-up overlay (reeds, rod, ducks) follows each style's grade. */
+.scene-overlay { filter: saturate(0.72) brightness(0.92); }
 /* The scene is graded colder and darker, with a heavy vignette. */
 /* The scene's own colours carry the grade; only the close-up overlay (reeds, rod) is toned here. */
 body.theme-dark .scene-overlay { filter: saturate(0.45) brightness(0.8) contrast(1.08); }
