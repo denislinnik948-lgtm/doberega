@@ -65,6 +65,8 @@ export class CanvasWaterRenderer {
     this.forestBatch = new GlyphBatch();
     this.waterBatch = new GlyphBatch(32768);
     this.surfaceBatch = new GlyphBatch();
+    // The wreck's faint green glow at Pripyat after dark, drawn unlit over it.
+    this.wreckGlowBatch = new GlyphBatch();
     this.skyTime = null;
     this.paletteKey = "";
   }
@@ -314,6 +316,7 @@ export class CanvasWaterRenderer {
     this.lightKey = null;
     this.rockImages = this.rocks.map((rock) => this.createRockImage(rock));
     this.bridgeImage = scene.foreground.bridge ? this.createBridgeImage(scene.foreground.bridge) : null;
+    this.signImage = scene.foreground.sign ? this.createSignImage(scene.foreground.sign) : null;
     this.skyTime = null;
   }
 
@@ -701,6 +704,101 @@ export class CanvasWaterRenderer {
     return { image, left, top, width, height };
   }
 
+  /**
+   * A rusty radiation warning sign leaning on its post among the reeds,
+   * pre-rendered once per layout: a yellow triangle with the black trefoil,
+   * flaking at the edges. `x` is its place across the visible view.
+   */
+  createSignImage({ x: fx, lean }) {
+    const { height, cellWidth, lineHeight, pixelRatio } = this;
+    const size = Math.min(this.frame.width, height * 1.5);
+    const footX = this.frame.left + this.frame.width * fx;
+    const footY = height + lineHeight;
+    const post = height * 0.3;
+    const side = size * 0.1;
+    const left = Math.floor(footX - post * 0.6);
+    const top = Math.floor(footY - post - side * 1.2);
+    const width = Math.ceil(post * 1.2);
+    const imageHeight = Math.ceil(height - top);
+    const image = document.createElement("canvas");
+    image.width = Math.max(1, Math.round(width * pixelRatio));
+    image.height = Math.max(1, Math.round(imageHeight * pixelRatio));
+    const ctx = image.getContext("2d");
+    ctx.setTransform(pixelRatio, 0, 0, pixelRatio, -left * pixelRatio, -top * pixelRatio);
+    ctx.translate(footX, footY);
+    ctx.rotate(lean);
+    ctx.font = this.font;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    // The post: an old steel pipe, rusted through in places.
+    ctx.fillStyle = "#1a120a";
+    ctx.fillRect(-cellWidth * 0.55, -post, cellWidth * 1.1, post);
+    for (let y = -lineHeight * 0.5, r = 0; y > -post; y -= lineHeight, r += 1) {
+      ctx.fillStyle = hash2(r, 1, 1801) > 0.6 ? "#8a4a24" : "#5a3a24";
+      ctx.fillText(hash2(r, 2, 1801) > 0.8 ? ":" : "|", 0, y);
+    }
+    // The plate, hung a little crooked on the post.
+    ctx.translate(0, -post);
+    ctx.rotate(-lean * 0.4);
+    const h = side * 0.87;
+    const corners = [[0, -h * 0.62], [side / 2, h * 0.38], [-side / 2, h * 0.38]];
+    const path = (scale) => {
+      ctx.beginPath();
+      corners.forEach(([cx, cy], i) => (i ? ctx.lineTo(cx * scale, cy * scale) : ctx.moveTo(cx * scale, cy * scale)));
+      ctx.closePath();
+    };
+    path(1.12);
+    ctx.fillStyle = "#24180c";
+    ctx.fill();
+    path(1);
+    ctx.fillStyle = "#b8922e";
+    ctx.fill();
+    // The trefoil: three blades round a hub.
+    const cy = h * 0.04;
+    const outer = side * 0.24;
+    const inner = side * 0.07;
+    ctx.fillStyle = "#1c1610";
+    for (let k = 0; k < 3; k += 1) {
+      const mid = -Math.PI / 2 + (k * Math.PI * 2) / 3;
+      ctx.beginPath();
+      ctx.arc(0, cy, outer, mid - Math.PI / 6, mid + Math.PI / 6);
+      ctx.arc(0, cy, inner * 1.5, mid + Math.PI / 6, mid - Math.PI / 6, true);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.beginPath();
+    ctx.arc(0, cy, inner, 0, Math.PI * 2);
+    ctx.fill();
+    // Rust eats in from the edges and runs down from the bolt.
+    path(1);
+    ctx.save();
+    ctx.clip();
+    for (let i = 0; i < 90; i += 1) {
+      const t = hash2(i, 3, 1802);
+      const edge = Math.floor(hash2(i, 4, 1802) * 3);
+      const [ax, ay] = corners[edge];
+      const [bx, by] = corners[(edge + 1) % 3];
+      const pull = hash2(i, 5, 1802) * 0.3;
+      const px = (ax + (bx - ax) * t) * (1 - pull);
+      const py = (ay + (by - ay) * t) * (1 - pull);
+      ctx.fillStyle = hash2(i, 6, 1802) > 0.5 ? "#7a4320" : "#93582a";
+      ctx.fillText(".:,;"[i % 4], px, py);
+    }
+    // Patches where the paint has flaked off altogether.
+    for (const [k, [cx, cy]] of corners.entries()) {
+      ctx.beginPath();
+      ctx.arc(cx * 0.8, cy * 0.8, side * (0.07 + hash2(k, 7, 1802) * 0.06), 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(122, 67, 32, 0.75)";
+      ctx.fill();
+    }
+    ctx.fillStyle = "rgba(110, 58, 26, 0.55)";
+    ctx.fillRect(-side * 0.03, -h * 0.5, side * 0.06, h * 0.45);
+    ctx.restore();
+    ctx.fillStyle = "#3a2a1a";
+    ctx.fillText("o", 0, -h * 0.4);
+    return { image, left, top, width, height: imageHeight };
+  }
+
   /** The wooden railing of the bridge we fish from, pre-rendered once per layout. */
   createBridgeImage(railFraction) {
     const { width, height, cellWidth, lineHeight, pixelRatio } = this;
@@ -923,7 +1021,7 @@ export class CanvasWaterRenderer {
       const [sx, sy] = snap(x, waterline + lineHeight * 0.6);
       foam.push({ x: sx, y: sy, noise: hash2(Math.round(x / cellWidth), 3, 1702), downstream: x < cx });
     }
-    return { stone, foam };
+    return { stone, foam, wreck: true };
   }
 
   fillSurface(time, ripples) {
@@ -982,6 +1080,30 @@ export class CanvasWaterRenderer {
     }
 
     for (const bird of birdsAt(time, this.width, this.height)) batch.push(bird.x, bird.y, bird.glyph, BIRD_COLOR);
+  }
+
+  /**
+   * After dark the wreck at Pripyat glows a faint, sickly green: a few of its
+   * plates at a time, breathing slowly, and a pale sheen on the water around it.
+   */
+  fillWreckGlow(time, night) {
+    const batch = this.wreckGlowBatch;
+    batch.clear();
+    const strength = clamp((night - 0.25) / 0.5, 0, 1);
+    const wreck = this.waterRocks.find((rock) => rock.wreck);
+    if (!wreck || strength < 0.02) return;
+    const breath = 0.75 + 0.25 * Math.sin(time * 0.45);
+    const { stone } = wreck;
+    for (let i = 0, k = 0; i < stone.length; i += 4, k += 1) {
+      const pulse = Math.sin(time * (0.5 + hash2(k, 1, 1803) * 0.6) + hash2(k, 2, 1803) * 20);
+      if (pulse < -0.3) continue;
+      const alpha = Math.round(255 * strength * breath * (0.4 + 0.45 * pulse));
+      batch.push(stone[i], stone[i + 1], stone[i + 2], pulse > 0.85 ? 0xb6f08a : 0x6fd060, 0, alpha);
+    }
+    for (const cell of wreck.foam) {
+      const wave = Math.sin(time * 1.1 + cell.noise * 30);
+      if (wave > 0.2) batch.push(cell.x, cell.y, wave > 0.8 ? "~" : "-", 0x58b050, 0, Math.round(255 * strength * breath * 0.45 * wave));
+    }
   }
 
   /** Vertical bob of the water surface at a screen point, for things floating on it. */
@@ -1201,6 +1323,8 @@ export class CanvasWaterRenderer {
     const ctx = this.overlayContext;
     ctx.clearRect(0, 0, this.width, this.height);
     for (const rock of this.rockImages) ctx.drawImage(rock.image, rock.left, rock.top, rock.width, rock.height);
+    const sign = this.signImage;
+    if (sign) ctx.drawImage(sign.image, sign.left, sign.top, sign.width, sign.height);
     this.drawDucks(ctx, time, this.ducks);
     if (angler && !angler.hidden) this.renderAngler(ctx, angler, "line");
 
@@ -1419,6 +1543,8 @@ export class CanvasWaterRenderer {
     backend.drawGlyphs(this.waterBatch, water);
     backend.drawGlyphs(this.glintBatch);
     backend.drawGlyphs(this.surfaceBatch, water);
+    this.fillWreckGlow(time, sky.stars);
+    if (this.wreckGlowBatch.count) backend.drawGlyphs(this.wreckGlowBatch);
     backend.drawGlyphs(this.grassBatches.near, land);
     backend.drawGlyphs(this.grassBatches.flies);
     if (this.rain > 0.02) backend.drawGlyphs(this.rainBatch, [1.15, 1.15, 1.15, 0.4 + 0.5 * this.rain]);

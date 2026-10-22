@@ -102,7 +102,8 @@ export const SCENES = {
     // A weak current sets slowly toward the plant's outflow; the water is murky.
     // The wreck: a rusting ship listing near the far bank, bow up (centre, width as screen fractions).
     water: { drift: { x: 0.0016, y: 0 }, body: "#353120", wreck: { x: 0.3, y: 0.52, w: 0.15 } },
-    foreground: { reeds: 1.6, rock: false, lilyPads: 0 },
+    // A rusty radiation sign leans among the reeds on the right.
+    foreground: { reeds: 1.6, rock: false, lilyPads: 0, sign: { x: 0.84, lean: 0.2 } },
   },
   /**
    * Old bridge over a fast river: we stand at the wooden railing looking
