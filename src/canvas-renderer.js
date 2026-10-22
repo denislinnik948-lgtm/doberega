@@ -536,9 +536,11 @@ export class CanvasWaterRenderer {
       }
     } else {
       // Flat out to both screen edges at the outermost treetops, so no sky shows at the sides.
-      ctx.moveTo(0, this.treeline[0]);
-      this.treeline.forEach((top, column) => ctx.lineTo((column + 0.5) * this.cellWidth, top));
-      ctx.lineTo(width, this.treeline[this.treeline.length - 1]);
+      // (The treeline holds one column past the screen, which no tree reaches: leave it out.)
+      const tops = this.treeline.subarray(0, this.columns);
+      ctx.moveTo(0, tops[0]);
+      tops.forEach((top, column) => ctx.lineTo((column + 0.5) * this.cellWidth, top));
+      ctx.lineTo(width, tops[tops.length - 1]);
       // Back along the wavy shoreline itself, a little into the water, so no sky shows under the trees.
       for (let x = width; x >= 0; x -= 8) ctx.lineTo(x, this.shorelineY(x) + this.lineHeight * 0.4);
       ctx.closePath();
