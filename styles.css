@@ -205,6 +205,13 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
   pointer-events: none;
 }
 .hud-top > * { pointer-events: auto; }
+.hud-left { display: flex; align-items: flex-start; gap: 10px; }
+/* Groundbait in the water: an icon and a bar of the time it has left. */
+.groundbait-chip { display: flex; align-items: center; gap: 10px; min-height: 60px; padding: 8px 14px 8px 10px; }
+.groundbait-chip[hidden] { display: none; }
+.groundbait-icon .sprite { display: block; }
+.groundbait-bar { display: block; width: 80px; height: 12px; background: var(--ink); box-shadow: 0 0 0 2px var(--mid); }
+.groundbait-fill { display: block; height: 100%; background: var(--gold); transition: width 400ms steps(4); }
 .hud-top .clock { min-height: 60px; }
 
 .chip {
@@ -681,6 +688,8 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
   .icon-btn { width: 52px; height: 52px; }
   .chip { min-height: 48px; font-size: 22px; }
   .hud-top .clock { min-height: 52px; font-size: 26px; }
+  .groundbait-chip { min-height: 52px; padding: 6px 10px 6px 8px; }
+  .groundbait-bar { width: 52px; }
   .bait-chip { min-height: 48px; font-size: 22px; }
 
   /* Dialogs use almost the whole screen and scroll inside. */

@@ -67,7 +67,14 @@
       <!-- In-game HUD. -->
       <!-- In-game HUD: the clock on the left, the way out on the right. -->
       <div class="hud hud-top game-only">
-        <div class="clock" data-frame="box" data-i18n-aria="a11y.clock"><span class="clock-icon" aria-hidden="true"></span><span class="clock-value">16:00</span><span class="weather-icon" data-i18n-aria="a11y.rain" hidden></span></div>
+        <div class="hud-left">
+          <div class="clock" data-frame="box" data-i18n-aria="a11y.clock"><span class="clock-icon" aria-hidden="true"></span><span class="clock-value">16:00</span><span class="weather-icon" data-i18n-aria="a11y.rain" hidden></span></div>
+          <!-- This water is baited: how much of the 24 game hours is left. -->
+          <div class="groundbait-chip" id="groundbait-chip" data-frame="box" role="img" hidden>
+            <span class="groundbait-icon" id="groundbait-icon" aria-hidden="true"></span>
+            <span class="groundbait-bar" aria-hidden="true"><span class="groundbait-fill" id="groundbait-fill"></span></span>
+          </div>
+        </div>
         <button id="exit-button" class="icon-btn" data-frame="box" type="button" data-i18n-aria="a11y.exit" data-i18n-title="a11y.exitTitle"></button>
       </div>
 

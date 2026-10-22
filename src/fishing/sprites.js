@@ -549,6 +549,23 @@ const BAIT_SPRITES = {
   ], { o: P.ink, G: "#5f8f5a", L: P.light, d: P.dark, W: P.bone, i: P.ink }),
 };
 
+BAIT_SPRITES.spoon = () => fromRows([
+  "......oo........",
+  ".....oSSo.......",
+  "....oSWWSo......",
+  "....oSWSSo......",
+  "...oSWSSSSo.....",
+  "...oSSSSSSo.....",
+  "...oSSRRSSo.....",
+  "....oSRRSo......",
+  ".....oSSo.......",
+  "......oo........",
+  "......oHo.......",
+  ".....oHoHo......",
+  "....oHo.oHo.....",
+  ".....o...o......",
+], { o: P.ink, S: "#b9c2c4", W: "#f2f4ee", R: P.ember, H: "#8a8f88" });
+
 export function baitSprite(id, scale = 3) {
   return BAIT_SPRITES[id]().toCanvas(scale);
 }
@@ -712,6 +729,22 @@ const EXTRA_SPRITES = {
     for (let k = 0; k < 4; k += 1) grid.set(13 + (k % 2), 8 + k, P.gold);
     return grid.outline(P.ink);
   },
+  spinreel: () => fromRows([
+    "................",
+    ".....oooooo.....",
+    "....oMMMMMMo....",
+    "...oMGGGGGGMo...",
+    "...oMGoooGGMo.oo",
+    "...oMGoLoGGMooHo",
+    "...oMGoooGGMo.oo",
+    "...oMGGGGGGMo...",
+    "....oMMMMMMo....",
+    ".....oooooo.....",
+    ".......oMo......",
+    "...ooooMMMoooo..",
+    "...oddddddddddo.",
+    "....oooooooooo..",
+  ], { o: P.ink, M: P.mid, G: P.soft, L: P.light, H: P.gold, d: P.dark }),
   sonar: () => fromRows([
     "................",
     ".oooooooooooooo.",
@@ -729,6 +762,25 @@ const EXTRA_SPRITES = {
     "................",
   ], { o: P.ink, M: P.mid, k: P.deep, G: P.gold, L: P.soft, d: P.dark }),
 };
+
+/** A tied sack of groundbait, crumbs spilling from the top. */
+export function groundbaitSprite(scale = 3) {
+  return fromRows([
+    "......y.y.......",
+    ".....y.yy.y.....",
+    "......oooo......",
+    ".....oTTTTo.....",
+    "......oRRo......",
+    ".....oBBBBo.....",
+    "....oBBbBBBo....",
+    "...oBBBBBbBBo...",
+    "...oBbBBBBBBo...",
+    "...oBBBBbBBBo...",
+    "...oBBBBBBbBo...",
+    "....oBbBBBBo....",
+    ".....oooooo.....",
+  ], { o: P.ink, y: "#e0c068", T: "#c9a35a", R: P.ember, B: "#9a7a46", b: "#7a5e34" }).toCanvas(scale);
+}
 
 export function extraSprite(id, scale = 3) {
   return EXTRA_SPRITES[id]().toCanvas(scale);

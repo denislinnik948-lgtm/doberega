@@ -27,6 +27,10 @@ export function normalizeProgress(saved) {
     if (state.rods.includes(saved.rod)) state.rod = saved.rod;
     if (BAITS[saved.bait]) state.bait = saved.bait;
     if (Array.isArray(saved.extras)) state.extras = saved.extras.filter((id) => EXTRAS[id]);
+    if (Number.isFinite(saved.groundbait)) state.groundbait = Math.max(0, saved.groundbait);
+    if (saved.baited && typeof saved.baited === "object") {
+      state.baited = Object.fromEntries(Object.entries(saved.baited).filter(([id, hours]) => LOCATIONS.some((spot) => spot.id === id) && Number.isFinite(hours) && hours > 0));
+    }
     // Every trophy needs a stable id so it is published to the cloud only once.
     if (Array.isArray(saved.trophies)) state.trophies = saved.trophies.map((trophy) => ({ ...trophy, id: trophy.id ?? `${trophy.date}-${trophy.species}-${trophy.weight}` }));
     if (Number.isFinite(saved.caught)) state.caught = saved.caught;

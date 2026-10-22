@@ -915,6 +915,25 @@ export class CanvasWaterRenderer {
   }
 
   /** Rod from the angler's hands (bottom right) toward the cast; it bends under tension. */
+  /**
+   * The rod's swing through a cast, as offsets of the tip (in screen fractions)
+   * and extra bend: overhead, the rod goes up and back over the shoulder, then
+   * whips forward; underhand, it dips toward the water and swings up.
+   */
+  castSwing(style, t) {
+    const keys = style === "over"
+      ? [[0, 0, 0, 0], [0.3, 0.12, -0.5, -0.08], [0.5, -0.04, 0.12, 0.18], [0.72, 0, 0.03, 0.04], [1, 0, 0, 0]]
+      : [[0, 0, 0, 0], [0.3, -0.05, 0.2, 0.1], [0.55, 0, -0.12, -0.05], [0.8, 0, -0.02, 0], [1, 0, 0, 0]];
+    let i = 1;
+    while (i < keys.length - 1 && t > keys[i][0]) i += 1;
+    const [t0, ...a] = keys[i - 1];
+    const [t1, ...b] = keys[i];
+    const u = clamp((t - t0) / (t1 - t0), 0, 1);
+    const s = u * u * (3 - 2 * u);
+    const [dx, dy, bend] = a.map((value, k) => value + (b[k] - value) * s);
+    return { dx, dy, bend };
+  }
+
   rodGeometry(angler) {
     const { height } = this;
     const { left, width } = this.frame;
@@ -931,6 +950,15 @@ export class CanvasWaterRenderer {
       bend += 0.22 * pull;
     } else if (angler.phase === "bite" || angler.phase === "nibble") {
       tip.y += height * 0.004 * Math.sin(angler.time * 30) * (angler.phase === "bite" ? 1 : 0.4);
+    } else if (angler.phase === "casting") {
+      const swing = this.castSwing(angler.castStyle, angler.castProgress);
+      tip.x += swing.dx * width;
+      tip.y += swing.dy * height;
+      bend += swing.bend;
+    } else if (angler.phase === "retrieving" && angler.pulling) {
+      // Reeling the spoon in: the rod leans down and loads a little.
+      tip.y += height * 0.03;
+      bend += 0.06;
     }
     // Control point pushed sideways from the shaft makes the curve.
     const dx = tip.x - base.x;
@@ -951,11 +979,21 @@ export class CanvasWaterRenderer {
       if (angler.phase === "ready" || angler.phase === "landed") {
         end = { x: rod.tip.x, y: rod.tip.y + height * 0.06 };
       } else if (angler.phase === "casting") {
+        // The bait hangs from the tip through the swing, then flies off on its own arc:
+        // high from an overhead cast, low and flat from an underhand one.
         const t = angler.castProgress;
-        end = {
-          x: rod.tip.x + (angler.target.x - rod.tip.x) * t,
-          y: rod.tip.y + (angler.target.y - rod.tip.y) * t - Math.sin(t * Math.PI) * height * 0.22,
-        };
+        const over = angler.castStyle === "over";
+        const release = over ? 0.45 : 0.5;
+        if (t < release) {
+          end = { x: rod.tip.x, y: rod.tip.y + height * 0.04 };
+        } else {
+          const from = this.rodGeometry({ ...angler, castProgress: release }).tip;
+          const u = (t - release) / (1 - release);
+          end = {
+            x: from.x + (angler.target.x - from.x) * u,
+            y: from.y + height * 0.04 + (angler.target.y - from.y - height * 0.04) * u - Math.sin(u * Math.PI) * height * (over ? 0.3 : 0.08),
+          };
+        }
       } else if (angler.phase === "fight") {
         end = angler.fish;
       } else {
@@ -964,7 +1002,8 @@ export class CanvasWaterRenderer {
         end = { x: angler.target.x + angler.bob.x, y: angler.target.y + angler.bob.y + angler.float.offset + drift };
       }
 
-      const taut = angler.phase === "fight" ? Math.min(1, angler.tension * 1.6 + (angler.pulling ? 0.4 : 0)) : 0;
+      const taut = angler.phase === "fight" ? Math.min(1, angler.tension * 1.6 + (angler.pulling ? 0.4 : 0))
+        : angler.phase === "retrieving" && angler.pulling ? 0.8 : 0;
       const sag = angler.phase === "casting" ? 0 : (1 - taut) * height * 0.035;
       ctx.beginPath();
       ctx.moveTo(rod.tip.x, rod.tip.y);
@@ -976,7 +1015,26 @@ export class CanvasWaterRenderer {
       ctx.font = `600 ${size}px ${MONO_FONT}`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      if (angler.phase === "fight" && (angler.snag || angler.junk)) {
+      if (angler.lure && (angler.phase === "retrieving" || angler.phase === "bite")) {
+        if (angler.phase === "bite") {
+          // A fish hit the spoon: the water boils where it struck.
+          ctx.fillStyle = "#e6efe9";
+          for (let i = 0; i < 4; i += 1) {
+            const a = angler.time * 9 + i * 1.6;
+            ctx.fillText(i % 2 ? "*" : "~", end.x + Math.cos(a) * size * 0.6, end.y + Math.sin(a * 1.4) * size * 0.25);
+          }
+        } else if (angler.pulling) {
+          // The spoon flashes as it wobbles through the water, a little wake behind it.
+          ctx.fillStyle = Math.sin(angler.time * 26) > 0 ? "#eef2ec" : "#9fb0ae";
+          ctx.fillText("o", end.x, end.y);
+          ctx.fillStyle = "rgba(200, 220, 214, 0.6)";
+          ctx.fillText("~", end.x, end.y - size * 0.55);
+        } else {
+          // Paused, it flutters down out of sight: just a glint.
+          ctx.fillStyle = "rgba(200, 214, 210, 0.55)";
+          ctx.fillText(".", end.x, end.y);
+        }
+      } else if (angler.phase === "fight" && (angler.snag || angler.junk)) {
         // A snag or an old boot doesn't thrash: the line just goes tight.
       } else if (angler.phase === "fight") {
         // Thrashing water where the fish fights.

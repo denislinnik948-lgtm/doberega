@@ -88,6 +88,8 @@ export function activePeriods(species) {
  * `size` scales the chance of a big fish; `maxSize` caps the weight range
  * (bread only ever tempts tiddlers); `others` is how often fish that don't
  * favour it still bite; `price` is per piece; `free` never runs out.
+ * A `lure` (the spoon) isn't used up by casting: it is reeled back in, needs a
+ * spinning reel, and is only lost when the line breaks.
  */
 export const BAITS = {
   bread: { price: 0, free: true, others: 0, size: 0, maxSize: 0.22, species: { plitka: 4, krasnopirka: 4, karas: 3, yorzh: 1 } },
@@ -106,6 +108,8 @@ export const BAITS = {
   livebait: { price: 25, size: 1.4, species: { okun: 2, shchuka: 4, sudak: 4, som: 1 } },
   crayfish: { price: 30, size: 1.6, species: { som: 3, sudak: 2, okun: 2, shchuka: 1 } },
   frog: { price: 45, size: 1.8, species: { som: 6, shchuka: 1 } },
+  // A spinner for predators; sold among the extras.
+  spoon: { price: 180, lure: true, size: 1.2, others: 0, species: { okun: 5, shchuka: 4, sudak: 3, som: 0.6, yorzh: 0.5 } },
 };
 
 /** `maxKg` is the weight a rod handles comfortably; heavier fish strain it fast. */
@@ -130,7 +134,16 @@ export const EXTRAS = {
   net: { price: 4500 },
   braid: { price: 7000 },
   sonar: { price: 12000 },
+  // Lets you fish the spoon.
+  spinreel: { price: 1500 },
 };
+
+/**
+ * Groundbait: a consumable thrown into the water you're at. For `hours` of
+ * game time that water bites `boost` times as often; it keeps working while
+ * you're away and counts down as the game runs.
+ */
+export const GROUNDBAIT = { price: 60, hours: 24, boost: 1.7 };
 
 /**
  * Fishing spots. `fish` weights who lives there; `bigChance` is the base odds
@@ -180,6 +193,9 @@ export const START_STATE = {
   rod: "willow",
   bait: "worm",
   extras: [],
+  groundbait: 0,
+  // Game hours of groundbait left at each water, by spot id.
+  baited: {},
   trophies: [],
   caught: 0,
   location: 0,

@@ -1,10 +1,11 @@
-import { BOOT_CHANCE, LOCATIONS, NIBBLE, RODS, biteActivity, rollFish } from "./data.js";
+import { BAITS, BOOT_CHANCE, GROUNDBAIT, LOCATIONS, NIBBLE, RODS, biteActivity, rollFish } from "./data.js";
 
 /**
  * Fishing state machine. Positions are normalized to the viewport (0..1) so the
  * game survives resizes; the renderer converts them to pixels.
  *
  * ready → casting → waiting → nibble → bite → fight → landed
+ * With the spoon: ready → casting → retrieving → bite → fight → landed
  * Pulling while waiting just reels in (bait kept). Pulling during a nibble
  * twitch, or not pulling once the float has sunk, loses the fish and the bait.
  * A pull during a brief dip in the nibble has a chance to hook.
@@ -12,10 +13,19 @@ import { BOOT_CHANCE, LOCATIONS, NIBBLE, RODS, biteActivity, rollFish } from "./
  * Fight: while pulling, the tension bar fills at rate X and the fish comes in;
  * while released it drains at 1.5X and the fish swims off at a random pace.
  * A small fish comes in within one full bar; bigger ones need several pulls.
+ *
+ * Spinning: after the cast, holding reels the spoon in toward the bank. A
+ * fish may strike while it moves: most often just after a jerk (a short pull)
+ * or as it flutters down in the pause after one, far less on a steady
+ * retrieve. A strike is a bite like on the float: pull within the window. If
+ * the spoon reaches the bank untouched, it's simply cast again.
  */
 
 export const TUNING = {
-  castDuration: 0.75,
+  // A short cast close in is swung underhand; a long one goes overhead.
+  castUnder: 0.8,
+  castOver: 1.15,
+  overheadReach: 0.45,
   // Average time to strike once the float goes under; each bite varies around it.
   biteWindow: 1.35,
   dipHookChance: 0.5,
@@ -25,6 +35,15 @@ export const TUNING = {
   // Cast landing band (normalized y): far edge of the water and the nearest spot.
   farY: 0.52,
   nearY: 0.9,
+  // Spinning: how much of the way in one second of reeling covers, and how
+  // likely a strike is per second while jerking, fluttering down after a jerk
+  // or reeling steadily (times how keen the fish are).
+  retrieveSpeed: 0.24,
+  jerkWindow: 0.45,
+  flutterWindow: 0.6,
+  strikeJerk: 0.15,
+  strikeFlutter: 0.06,
+  strikeSteady: 0.04,
 };
 
 /** Rates for a fish of `weight` kg on a rod; exported for balance tests. */
@@ -95,16 +114,27 @@ export class FishingGame {
     return this.phase !== "ready";
   }
 
-  /** Cast toward a normalized water point with the chosen rod, bait, spot and extras. */
-  cast(target, rodId, baitId, { location = 0, extras = [] } = {}) {
+  /**
+   * Cast toward a normalized water point with the chosen rod, bait, spot and
+   * extras; `groundbait` is whether this water is baited.
+   */
+  cast(target, rodId, baitId, { location = 0, extras = [], groundbait = false } = {}) {
     if (this.phase !== "ready") return false;
     this.rod = rodId;
     this.bait = baitId;
     this.location = location;
     this.extras = extras;
+    this.groundbait = groundbait;
     this.target = { ...target };
+    this.castStyle = this.reach() > TUNING.overheadReach ? "over" : "under";
+    this.castDuration = this.castStyle === "over" ? TUNING.castOver : TUNING.castUnder;
     this.enter("casting");
     return true;
+  }
+
+  /** Whether the bait on the line is a lure that is reeled in (the spoon). */
+  get spinning() {
+    return Boolean(BAITS[this.bait]?.lure);
   }
 
   press() {
@@ -112,6 +142,10 @@ export class FishingGame {
     this.pulling = true;
 
     switch (this.phase) {
+      case "retrieving":
+        // Each press is a jerk of the spoon.
+        this.jerkAge = 0;
+        break;
       case "waiting": {
         // Reeling in an empty line: usually just a recast, rarely a snag or a boot.
         const roll = this.random();
@@ -141,6 +175,8 @@ export class FishingGame {
     if (!this.pulling) return;
     this.pulling = false;
     if (this.phase === "fight") this.behavior = pickBehavior(this.rates.strain, this.random);
+    // Let go after a jerk and the spoon flutters down.
+    if (this.phase === "retrieving") this.pauseAge = 0;
   }
 
   enter(phase) {
@@ -205,7 +241,7 @@ export class FishingGame {
 
   /** Where the hooked fish is: it moves from the cast point toward the angler, up to the water's edge. */
   fishPosition() {
-    const landing = { x: this.landingX, y: this.landingY ?? 0.98 };
+    const landing = this.landing();
     const t = 1 - this.distance;
     return {
       x: this.target.x + (landing.x - this.target.x) * t,
@@ -219,16 +255,75 @@ export class FishingGame {
     return Math.min(1, Math.max(0, (TUNING.nearY - y) / (TUNING.nearY - TUNING.farY)));
   }
 
-  /** Seconds until the next bite: shorter when the local fish are feeding. */
-  nextWait() {
+  /** How keen the fish here are right now on this bait: about 0.1 (dead) to 2.2. */
+  keenness() {
     const hunger = biteActivity(this.bait, this.location, this.hour);
     const spotPace = LOCATIONS[this.location]?.pace ?? 1;
     // The floor is low so a bait no local fish wants really does go quiet.
     const pace = Math.min(2.2, Math.max(0.1, hunger * 1.2 * spotPace * this.biteBoost));
+    // Groundbait draws the fish in.
+    return pace * (this.groundbait ? GROUNDBAIT.boost : 1);
+  }
+
+  /** Seconds until the next bite: shorter when the local fish are feeding. */
+  nextWait() {
     // Mostly a short wait, sometimes a quick one, now and then a long lull.
     const lull = this.random() < 0.1 ? 6 + this.random() * 12 : 0;
     const wait = 2.5 + 11 * this.random() ** 1.6 + lull;
-    return (wait / pace) * (this.extras.includes("sonar") ? 0.55 : 1);
+    return (wait / this.keenness()) * (this.extras.includes("sonar") ? 0.55 : 1);
+  }
+
+  /** Where a reeled-in spoon (or a hooked fish) ends up: the water's edge below the rod. */
+  landing() {
+    return { x: this.landingX, y: this.landingY ?? 0.98 };
+  }
+
+  /** Spinning: reel the spoon in while pulling; a fish may strike as it moves. */
+  updateRetrieve(dt) {
+    const random = this.random;
+    if (this.pulling) {
+      this.jerkAge += dt;
+      this.retrieved = Math.min(1, this.retrieved + TUNING.retrieveSpeed * dt);
+      const end = this.landing();
+      this.target = {
+        x: this.lureFrom.x + (end.x - this.lureFrom.x) * this.retrieved,
+        y: this.lureFrom.y + (end.y - this.lureFrom.y) * this.retrieved,
+      };
+      this.wakeClock -= dt;
+      if (this.wakeClock <= 0) {
+        this.wakeClock = 0.35;
+        this.ripple(this.target, 0.18, 0.16);
+      }
+    } else {
+      this.pauseAge += dt;
+    }
+    if (this.retrieved >= 1) {
+      // Back at the bank without a touch: cast again.
+      this.emit("retrieved");
+      this.reset();
+      return;
+    }
+    // Dragged along the bottom, the spoon can catch on a snag.
+    const snagChance = LOCATIONS[this.location]?.snagChance ?? 0.02;
+    if (this.pulling && random() < snagChance * 0.25 * dt) {
+      this.startSnag();
+      return;
+    }
+    const jerking = this.pulling && this.jerkAge < TUNING.jerkWindow;
+    const fluttering = !this.pulling && this.retrieved > 0 && this.pauseAge < TUNING.flutterWindow;
+    const odds = jerking ? TUNING.strikeJerk : fluttering ? TUNING.strikeFlutter : this.pulling ? TUNING.strikeSteady : 0;
+    if (!odds || random() >= odds * this.keenness() * (this.extras.includes("sonar") ? 1.3 : 1) * dt) return;
+    const fish = rollFish(this.bait, this.location, random, this.reach(), this.hour);
+    if (!fish) return;
+    // A strike: from here on it's a bite like on the float. The reel stops; pull to hook it.
+    this.fish = fish;
+    this.pulling = false;
+    this.heading = random() * Math.PI * 2;
+    this.biteWindow = TUNING.biteWindow * (0.6 + random() * 0.8) * (NIBBLE[fish.species]?.window ?? 1);
+    this.float.sink = 1;
+    this.ripple(this.target, 0.7, 0.4);
+    this.enter("bite");
+    this.emit("strike");
   }
 
   /**
@@ -272,11 +367,24 @@ export class FishingGame {
 
     switch (this.phase) {
       case "casting":
-        if (this.clock >= TUNING.castDuration) {
+        if (this.clock >= this.castDuration) {
           this.ripple(this.target, 0.65, 0.42);
-          this.waitTime = this.nextWait();
-          this.enter("waiting");
+          if (this.spinning) {
+            this.lureFrom = { ...this.target };
+            this.retrieved = 0;
+            this.jerkAge = Infinity;
+            this.pauseAge = Infinity;
+            this.wakeClock = 0;
+            this.enter("retrieving");
+          } else {
+            this.waitTime = this.nextWait();
+            this.enter("waiting");
+          }
         }
+        break;
+
+      case "retrieving":
+        this.updateRetrieve(dt);
         break;
 
       case "waiting":
