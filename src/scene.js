@@ -170,18 +170,20 @@ export function nearBankY(x, height) {
 }
 
 /**
- * The half-sunk ship at Pripyat, in screen pixels: the deck and keel lines
+ * The half-sunk ship at Pripyat, in scene pixels: the deck and keel lines
  * along the hull (u = 0 stern, under water .. 1 bow, raised high), the
  * wheelhouse toward the stern, and whether a point is part of it.
  */
 export function wreckShape(width, height) {
   const wreck = active.water.wreck;
   if (!wreck) return null;
-  const cx = wreck.x * width;
+  // Placed across the visible slice, so it stays in view on a narrow phone
+  // screen, and never smaller than a fifth of the screen height in length.
+  const cx = view.left + wreck.x * view.frameWidth;
   const waterline = wreck.y * height;
-  const half = (wreck.w * width) / 2;
-  // Heights scale with the ship's width: far off, it is smaller all round.
-  const size = (wreck.w / 0.2) * height;
+  const half = Math.max(wreck.w * view.frameWidth, height * 0.2) / 2;
+  // Heights scale with the ship's length.
+  const size = half * 6.2;
   const deck = (u) => waterline - size * (0.012 + 0.075 * u ** 1.7);
   // The raked stem lifts the hull clear of the water at the bow.
   const keel = (u) => waterline - size * 0.004 - (u > 0.86 ? ((u - 0.86) / 0.14) * size * 0.055 : 0);
