@@ -777,7 +777,7 @@ export class CanvasWaterRenderer {
     const footX = this.frame.left + this.frame.width * fx;
     const footY = height + lineHeight;
     const post = height * 0.3;
-    const side = size * 0.16;
+    const side = size * 0.11;
     const left = Math.floor(footX - post * 0.6);
     const top = Math.floor(footY - post - side * 1.2);
     const width = Math.ceil(post * 1.2);
