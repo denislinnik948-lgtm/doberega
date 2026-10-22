@@ -1,7 +1,7 @@
 /**
  * Mystic nights: will-o'-the-wisps drifting over the far water, a pale figure
  * that stands on the far shore and fades, two red eyes surfacing near the
- * bank, and the odd omen in words. Only deep in the night. Every event goes
+ * bank. Only deep in the night. Every event goes
  * through `onEvent(type)`, the hook for sounds later.
  */
 
@@ -23,7 +23,7 @@ export class NightEvents {
     this.figure = null;
     this.eyes = null;
     // Seconds until the next of each rare event.
-    this.next = { figure: 40 + random() * 80, eyes: 25 + random() * 60, omen: 60 + random() * 120 };
+    this.next = { figure: 40 + random() * 80, eyes: 25 + random() * 60 };
     this.wisps = Array.from({ length: WISPS }, (_, i) => ({ phase: random() * 100, lane: (i + 0.5) / WISPS, speed: 0.02 + random() * 0.03 }));
   }
 
@@ -58,11 +58,6 @@ export class NightEvents {
     if (this.eyes && time - this.eyes.start > this.eyes.life) {
       if (!this.eyes.sank) this.onEvent("eyesSink", this.eyes);
       this.eyes = null;
-    }
-
-    if (this.next.omen <= 0) {
-      this.next.omen = 150 + random() * 210;
-      this.onEvent("omen", { index: Math.floor(random() * 1000) });
     }
   }
 

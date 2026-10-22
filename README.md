@@ -28,7 +28,7 @@ The scene bakes a colour grade into its own colours (`GRADE` in `src/theme.js`):
 
 ## Mystic nights
 
-Deep in the night strange things happen (`src/night-events.js`): will-o'-the-wisps drift over the far water, a pale hooded figure stands on the far shore and fades, two red eyes surface near the bank before slipping under in rings, and now and then an omen appears while fishing (“Десь удалині вдарив дзвін…”). Each event is announced as a `doberega:night` window event (`detail.type`: figure, eyes, eyesSink, omen), ready for sounds later.
+Deep in the night strange things happen (`src/night-events.js`): will-o'-the-wisps drift over the far water, a pale hooded figure stands on the far shore and fades, and two red eyes surface near the bank before slipping under in rings. Each event is announced as a `doberega:night` window event (`detail.type`: figure, eyes, eyesSink), ready for sounds later.
 
 ## Season
 

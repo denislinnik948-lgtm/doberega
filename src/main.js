@@ -33,14 +33,12 @@ const DAY_START = 0.68;
 // `?rain=1` forces rain (0..1); otherwise showers come and go on their own.
 const weather = new Weather({ forced: params.has("rain") ? Number(params.get("rain")) : null });
 const ducks = new Ducks();
-// Mystic nights: lights over the water, a figure on the far shore, eyes, omens.
+// Mystic nights: lights over the water, a figure on the far shore, eyes by the bank.
 // Each event is also announced on the window as
 // "doberega:night" ({ type }) so sounds can hook in later without touching this.
-const OMENS = 6;
 const nightEvents = new NightEvents({
   onEvent: (type, data) => {
     window.dispatchEvent(new CustomEvent("doberega:night", { detail: { type } }));
-    if (type === "omen" && mode === "fishing") ui.toast(t(`omen.${data.index % OMENS}`), "", 3200);
     if (type === "eyesSink") {
       // The eyes slip under, leaving rings on the water.
       const x = renderer.frame.left + data.x * renderer.frame.width;
