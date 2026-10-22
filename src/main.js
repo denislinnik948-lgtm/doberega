@@ -296,21 +296,30 @@ const MIN_ASPECT = 1.15;
 
 /**
  * An iPhone web app with a see-through status bar lays the page out one status
- * bar short: the bottom of the screen is left bare. Measure the gap against the
- * real screen and let the scene cover it. Only on iOS home-screen apps.
+ * bar short, leaving the bottom of the screen bare whatever the page asks for.
+ * There, give the scene the full height of the physical screen outright.
+ * Only on iOS home-screen apps; everywhere else the stylesheet's inset holds.
  */
-function fillScreenGap() {
-  let gap = 0;
-  if (window.navigator.standalone === true) {
-    const portrait = window.innerHeight >= window.innerWidth;
-    const screenHeight = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
-    gap = Math.max(0, Math.min(80, screenHeight - window.innerHeight));
+function fillScreen() {
+  // The page itself too, so nothing above the scene clips it short.
+  const nodes = [document.documentElement, document.body, canvas.parentElement];
+  if (window.navigator.standalone !== true) {
+    for (const node of nodes) {
+      node.style.height = "";
+      node.style.bottom = "";
+    }
+    return;
   }
-  document.documentElement.style.setProperty("--screen-gap", `${gap}px`);
+  const portrait = window.innerHeight >= window.innerWidth;
+  const screenHeight = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
+  for (const node of nodes) {
+    node.style.bottom = "auto";
+    node.style.height = `${Math.max(screenHeight, window.innerHeight)}px`;
+  }
 }
 
 function resize() {
-  fillScreenGap();
+  fillScreen();
   const bounds = canvas.parentElement.getBoundingClientRect();
   const viewWidth = Math.round(bounds.width);
   height = Math.round(bounds.height);

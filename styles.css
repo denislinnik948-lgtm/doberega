@@ -49,14 +49,10 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
 .scene {
   /*
    * Always exactly the screen, whatever the browser bars or the keyboard did.
-   * --screen-gap stretches it over the strip an iPhone web app leaves unlaid at
-   * the bottom (see fillScreenGap in main.js).
+   * In an iPhone web app main.js sets the full screen height instead (fillScreen).
    */
   position: fixed;
-  top: 0;
-  right: 0;
-  bottom: calc(-1 * var(--screen-gap, 0px));
-  left: 0;
+  inset: 0;
   overflow: hidden;
   isolation: isolate;
   background: #14221f;
