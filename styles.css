@@ -23,6 +23,8 @@
 * { box-sizing: border-box; }
 
 html, body { width: 100%; min-width: 320px; min-height: 100%; margin: 0; }
+/* Played like an app: no rubber-band scrolling, tap flashes or long-press callouts. */
+html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
 
 body {
   overflow: hidden;

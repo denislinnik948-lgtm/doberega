@@ -408,3 +408,7 @@ if (window.ResizeObserver) {
 }
 
 resize();
+
+// Installed on a phone's home screen, the game still opens without a connection (see sw.js).
+// Debug sessions skip it so files are always loaded straight from the server.
+if ("serviceWorker" in navigator && !params.has("debug")) navigator.serviceWorker.register("./sw.js").catch(() => {});
