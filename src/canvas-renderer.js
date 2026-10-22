@@ -921,9 +921,10 @@ export class CanvasWaterRenderer {
    * whips forward; underhand, it dips toward the water and swings up.
    */
   castSwing(style, t) {
+    // [time, tip dx, tip dy, bend]: a slow lift, an easy swing, a long settle.
     const keys = style === "over"
-      ? [[0, 0, 0, 0], [0.3, 0.12, -0.5, -0.08], [0.5, -0.04, 0.12, 0.18], [0.72, 0, 0.03, 0.04], [1, 0, 0, 0]]
-      : [[0, 0, 0, 0], [0.3, -0.05, 0.2, 0.1], [0.55, 0, -0.12, -0.05], [0.8, 0, -0.02, 0], [1, 0, 0, 0]];
+      ? [[0, 0, 0, 0], [0.3, 0.08, -0.36, -0.05], [0.4, 0.06, -0.33, -0.06], [0.66, -0.02, 0.06, 0.1], [0.84, 0, 0.02, 0.03], [1, 0, 0, 0]]
+      : [[0, 0, 0, 0], [0.3, -0.03, 0.14, 0.06], [0.4, -0.03, 0.15, 0.06], [0.6, 0, -0.07, -0.03], [0.8, 0, -0.01, 0], [1, 0, 0, 0]];
     let i = 1;
     while (i < keys.length - 1 && t > keys[i][0]) i += 1;
     const [t0, ...a] = keys[i - 1];
@@ -983,12 +984,14 @@ export class CanvasWaterRenderer {
         // high from an overhead cast, low and flat from an underhand one.
         const t = angler.castProgress;
         const over = angler.castStyle === "over";
-        const release = over ? 0.45 : 0.5;
+        const release = over ? 0.52 : 0.48;
         if (t < release) {
           end = { x: rod.tip.x, y: rod.tip.y + height * 0.04 };
         } else {
           const from = this.rodGeometry({ ...angler, castProgress: release }).tip;
-          const u = (t - release) / (1 - release);
+          // Eased out: quick off the rod, gently slowing as it drops onto the water.
+          const linear = (t - release) / (1 - release);
+          const u = 1 - (1 - linear) ** 2;
           end = {
             x: from.x + (angler.target.x - from.x) * u,
             y: from.y + height * 0.04 + (angler.target.y - from.y - height * 0.04) * u - Math.sin(u * Math.PI) * height * (over ? 0.3 : 0.08),

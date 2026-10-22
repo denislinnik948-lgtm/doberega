@@ -22,9 +22,9 @@ import { BAITS, BOOT_CHANCE, GROUNDBAIT, LOCATIONS, NIBBLE, RODS, biteActivity, 
  */
 
 export const TUNING = {
-  // A short cast close in is swung underhand; a long one goes overhead.
-  castUnder: 0.8,
-  castOver: 1.15,
+  // A short cast close in is swung underhand; a long one goes overhead. Both unhurried.
+  castUnder: 1.4,
+  castOver: 1.9,
   overheadReach: 0.45,
   // Average time to strike once the float goes under; each bite varies around it.
   biteWindow: 1.35,
