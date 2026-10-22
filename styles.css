@@ -47,9 +47,16 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
 .sprite { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
 
 .scene {
-  /* Always exactly the screen, whatever the browser bars or the keyboard did. */
+  /*
+   * Always exactly the screen, whatever the browser bars or the keyboard did.
+   * --screen-gap stretches it over the strip an iPhone web app leaves unlaid at
+   * the bottom (see fillScreenGap in main.js).
+   */
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: calc(-1 * var(--screen-gap, 0px));
+  left: 0;
   overflow: hidden;
   isolation: isolate;
   background: #14221f;

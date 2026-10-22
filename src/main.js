@@ -289,7 +289,23 @@ function renderNow(now = performance.now()) {
 // a slice of it, centred on what the spot is about.
 const MIN_ASPECT = 1.15;
 
+/**
+ * An iPhone web app with a see-through status bar lays the page out one status
+ * bar short: the bottom of the screen is left bare. Measure the gap against the
+ * real screen and let the scene cover it. Only on iOS home-screen apps.
+ */
+function fillScreenGap() {
+  let gap = 0;
+  if (window.navigator.standalone === true) {
+    const portrait = window.innerHeight >= window.innerWidth;
+    const screenHeight = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
+    gap = Math.max(0, Math.min(80, screenHeight - window.innerHeight));
+  }
+  document.documentElement.style.setProperty("--screen-gap", `${gap}px`);
+}
+
 function resize() {
+  fillScreenGap();
   const bounds = canvas.parentElement.getBoundingClientRect();
   const viewWidth = Math.round(bounds.width);
   height = Math.round(bounds.height);
