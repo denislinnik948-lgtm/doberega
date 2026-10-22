@@ -28,6 +28,23 @@ html, body { width: 100%; min-width: 320px; min-height: 100%; margin: 0; }
  * shifted under the status bar; no rubber-band, no double-tap zoom, no tap flashes.
  */
 html, body { position: fixed; inset: 0; overflow: hidden; overscroll-behavior: none; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+/* iPhone home-screen app: unpinned, the scene takes the whole screen as 100vh (see main.js). */
+html.ios-app, html.ios-app body { position: static; height: 100vh; }
+html.ios-app .scene { position: absolute; inset: auto; top: 0; left: 0; width: 100%; height: 100vh; }
+#layout-report {
+  position: fixed;
+  z-index: 100;
+  top: calc(env(safe-area-inset-top, 0px) + 70px);
+  left: 8px;
+  right: 8px;
+  margin: 0;
+  padding: 10px;
+  color: #e9e3cf;
+  font: 13px/1.4 ui-monospace, Menlo, monospace;
+  white-space: pre-wrap;
+  background: rgba(10, 16, 14, 0.92);
+  border: 2px solid #e9e3cf;
+}
 /* Nothing gets selected or pops a callout on a long press (holding to reel in), except text fields. */
 * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }

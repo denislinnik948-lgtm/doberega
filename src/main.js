@@ -294,32 +294,59 @@ function renderNow(now = performance.now()) {
 // a slice of it, centred on what the spot is about.
 const MIN_ASPECT = 1.15;
 
-/**
- * An iPhone web app with a see-through status bar lays the page out one status
- * bar short, leaving the bottom of the screen bare whatever the page asks for.
- * There, give the scene the full height of the physical screen outright.
- * Only on iOS home-screen apps; everywhere else the stylesheet's inset holds.
+/*
+ * An iPhone home-screen app with a see-through status bar lays out (and clips
+ * anything pinned with position: fixed to) a viewport one status bar short,
+ * leaving the bottom of the screen bare. There the page drops the pinning and
+ * the scene simply takes 100vh, which is the whole screen (see .ios-app in
+ * styles.css).
  */
-function fillScreen() {
-  // The page itself too, so nothing above the scene clips it short.
-  const nodes = [document.documentElement, document.body, canvas.parentElement];
-  if (window.navigator.standalone !== true) {
-    for (const node of nodes) {
-      node.style.height = "";
-      node.style.bottom = "";
-    }
+document.documentElement.classList.toggle("ios-app", window.navigator.standalone === true);
+
+// A focused field (or a stray gesture) can scroll even a pinned page on iOS; put it back.
+const unscroll = () => {
+  if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
+};
+window.addEventListener("scroll", unscroll, { passive: true });
+document.addEventListener("focusout", () => setTimeout(unscroll, 50));
+
+/** Triple tap on the menu title: what the phone reports about its screen, to chase layout bugs. */
+function layoutReport() {
+  const probe = (css) => {
+    const node = Object.assign(document.createElement("div"), { style: `position:absolute;visibility:hidden;height:${css}` });
+    document.body.append(node);
+    const value = node.getBoundingClientRect().height;
+    node.remove();
+    return Math.round(value);
+  };
+  const safe = (side) => probe(`env(safe-area-inset-${side}, 0px)`);
+  const scene = canvas.parentElement.getBoundingClientRect();
+  return [
+    `standalone ${window.navigator.standalone === true} · display-mode ${window.matchMedia("(display-mode: standalone)").matches ? "standalone" : "browser"}`,
+    `inner ${window.innerWidth}×${window.innerHeight} · screen ${screen.width}×${screen.height} · dpr ${window.devicePixelRatio}`,
+    `visual ${Math.round(window.visualViewport?.width ?? 0)}×${Math.round(window.visualViewport?.height ?? 0)} @${Math.round(window.visualViewport?.offsetTop ?? 0)} · scroll ${window.scrollX},${window.scrollY}`,
+    `100vh ${probe("100vh")} · 100dvh ${probe("100dvh")} · 100lvh ${probe("100lvh")} · 100svh ${probe("100svh")}`,
+    `safe top ${safe("top")} bottom ${safe("bottom")} left ${safe("left")} right ${safe("right")}`,
+    `html ${document.documentElement.clientHeight} · scene ${Math.round(scene.top)}..${Math.round(scene.bottom)} · canvas ${height}`,
+  ].join("\n");
+}
+let titleTaps = [];
+document.querySelector("#menu-title")?.addEventListener("click", () => {
+  const now = performance.now();
+  titleTaps = [...titleTaps.filter((time) => now - time < 700), now];
+  if (titleTaps.length < 3) return;
+  titleTaps = [];
+  let panel = document.querySelector("#layout-report");
+  if (panel) {
+    panel.remove();
     return;
   }
-  const portrait = window.innerHeight >= window.innerWidth;
-  const screenHeight = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
-  for (const node of nodes) {
-    node.style.bottom = "auto";
-    node.style.height = `${Math.max(screenHeight, window.innerHeight)}px`;
-  }
-}
+  panel = Object.assign(document.createElement("pre"), { id: "layout-report", textContent: layoutReport() });
+  panel.addEventListener("click", () => panel.remove());
+  document.body.append(panel);
+});
 
 function resize() {
-  fillScreen();
   const bounds = canvas.parentElement.getBoundingClientRect();
   const viewWidth = Math.round(bounds.width);
   height = Math.round(bounds.height);
