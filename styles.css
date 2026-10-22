@@ -23,8 +23,14 @@
 * { box-sizing: border-box; }
 
 html, body { width: 100%; min-width: 320px; min-height: 100%; margin: 0; }
-/* Played like an app: no rubber-band scrolling, tap flashes or long-press callouts. */
-html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
+/*
+ * Played like an app: the page is pinned to the screen, so it can't be scrolled or
+ * shifted under the status bar; no rubber-band, no double-tap zoom, no tap flashes.
+ */
+html, body { position: fixed; inset: 0; overflow: hidden; overscroll-behavior: none; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+/* Nothing gets selected or pops a callout on a long press (holding to reel in), except text fields. */
+* { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
 
 body {
   overflow: hidden;
@@ -41,16 +47,12 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
 .sprite { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
 
 .scene {
-  position: relative;
-  width: 100%;
-  height: 100vh;
-  height: 100dvh;
-  min-height: 520px;
+  /* Always exactly the screen, whatever the browser bars or the keyboard did. */
+  position: fixed;
+  inset: 0;
   overflow: hidden;
   isolation: isolate;
   background: #14221f;
-  user-select: none;
-  -webkit-user-select: none;
 }
 
 /* Both canvases may be wider than the screen on a phone; main.js sizes and shifts them. */
@@ -565,7 +567,7 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
 .reveal-btn { flex: none; min-width: 96px; padding: 0 10px; border: 2px solid var(--soft); color: var(--light); font-size: 18px; background: var(--deep); cursor: pointer; }
 .reveal-btn:hover { color: var(--bone); border-color: var(--bone); }
 .account-submit { min-height: 52px; margin-top: 4px; font-size: 22px; }
-.account-signout { margin-top: 4px; }
+.link-btn.account-signout { justify-self: center; margin-top: 6px; color: var(--mid); }
 .account-email[hidden] { display: none; }
 /* A quiet text button for secondary actions like password recovery. */
 .link-btn { justify-self: start; padding: 2px 0; border: 0; color: var(--light); font-size: 18px; text-decoration: underline; text-underline-offset: 3px; background: none; cursor: pointer; }

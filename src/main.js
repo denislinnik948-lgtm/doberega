@@ -391,6 +391,13 @@ window.addEventListener("blur", () => {
 });
 
 window.addEventListener("resize", resize, { passive: true });
+// Phones: the scene follows the visible screen (browser bars, rotation), and pinch zoom
+// and long-press menus stay out of the game (double-tap zoom is off in styles.css).
+window.visualViewport?.addEventListener("resize", resize, { passive: true });
+for (const type of ["gesturestart", "gesturechange", "gestureend"]) document.addEventListener(type, (event) => event.preventDefault());
+document.addEventListener("contextmenu", (event) => {
+  if (!event.target.closest?.("input, textarea")) event.preventDefault();
+});
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     hiddenAt = performance.now();
