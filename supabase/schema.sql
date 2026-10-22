@@ -94,6 +94,34 @@ create table if not exists public.admins (
 );
 alter table public.admins enable row level security;
 
+-- The admins' own devices, kept out of the stats (old events included).
+create table if not exists public.excluded_visitors (
+  visitor text primary key,
+  added_at timestamptz not null default now()
+);
+alter table public.excluded_visitors enable row level security;
+
+-- Called by the game when an admin is signed in: this device stops counting.
+-- Returns whether the caller is an admin (the game then stops sending events).
+create or replace function public.exclude_my_device(device_visitor text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not exists (select 1 from public.admins where user_id = auth.uid()) then
+    return false;
+  end if;
+  insert into public.excluded_visitors (visitor) values (left(device_visitor, 64))
+  on conflict do nothing;
+  return true;
+end;
+$$;
+
+revoke all on function public.exclude_my_device(text) from public, anon;
+grant execute on function public.exclude_my_device(text) to authenticated;
+
 -- Everything the stats page shows, for the last `period_days` days (accounts: all time too).
 drop function if exists public.dashboard_stats(int);
 create or replace function public.dashboard_stats(period_days int default 30)
@@ -110,21 +138,26 @@ begin
     raise exception 'Not allowed' using errcode = '42501';
   end if;
 
+  -- Every event except those from the admins' own devices.
+  with counted as (
+    select * from events ev
+    where not exists (select 1 from excluded_visitors x where x.visitor = ev.visitor)
+  )
   select json_build_object(
     'days', period_days,
     'period', json_build_object(
-      'visitors', (select count(distinct visitor) from events where type = 'visit' and created_at >= since),
-      'visits', (select count(*) from events where type = 'visit' and created_at >= since),
-      'fishers', (select count(distinct visitor) from events where type = 'fish' and created_at >= since),
-      'catchers', (select count(distinct visitor) from events where type = 'catch' and created_at >= since),
+      'visitors', (select count(distinct visitor) from counted where type = 'visit' and created_at >= since),
+      'visits', (select count(*) from counted where type = 'visit' and created_at >= since),
+      'fishers', (select count(distinct visitor) from counted where type = 'fish' and created_at >= since),
+      'catchers', (select count(distinct visitor) from counted where type = 'catch' and created_at >= since),
       'signups', (select count(*) from auth.users where created_at >= since),
-      'appVisitors', (select count(distinct visitor) from events where type = 'visit' and app and created_at >= since),
+      'appVisitors', (select count(distinct visitor) from counted where type = 'visit' and app and created_at >= since),
       'returning', (select count(*) from (
-        select visitor from events where type = 'visit' and created_at >= since
+        select visitor from counted where type = 'visit' and created_at >= since
         group by visitor having count(distinct created_at::date) > 1) r)
     ),
     'allTime', json_build_object(
-      'visitors', (select count(distinct visitor) from events where type = 'visit'),
+      'visitors', (select count(distinct visitor) from counted where type = 'visit'),
       'users', (select count(*) from auth.users),
       'active7', (select count(*) from auth.users where last_sign_in_at > now() - interval '7 days'),
       'saves', (select count(*) from saves),
@@ -133,19 +166,19 @@ begin
     ),
     'daily', (select coalesce(json_agg(d order by d.day), '[]'::json) from (
       select g.day::date as day,
-        (select count(distinct visitor) from events e where e.type = 'visit' and e.created_at >= g.day and e.created_at < g.day + interval '1 day') as visitors,
-        (select count(distinct visitor) from events e where e.type = 'catch' and e.created_at >= g.day and e.created_at < g.day + interval '1 day') as catchers,
+        (select count(distinct visitor) from counted e where e.type = 'visit' and e.created_at >= g.day and e.created_at < g.day + interval '1 day') as visitors,
+        (select count(distinct visitor) from counted e where e.type = 'catch' and e.created_at >= g.day and e.created_at < g.day + interval '1 day') as catchers,
         (select count(*) from auth.users u where u.created_at >= g.day and u.created_at < g.day + interval '1 day') as signups
       from generate_series(since, date_trunc('day', now()), interval '1 day') as g(day)
     ) d),
     'sources', (select coalesce(json_agg(s), '[]'::json) from (
       select coalesce(nullif(source, ''), 'direct') as name, count(distinct visitor) as visitors
-      from events where type = 'visit' and created_at >= since
+      from counted where type = 'visit' and created_at >= since
       group by 1 order by 2 desc limit 8
     ) s),
     'devices', (select coalesce(json_agg(x), '[]'::json) from (
       select coalesce(device, 'unknown') as name, count(distinct visitor) as visitors
-      from events where type = 'visit' and created_at >= since
+      from counted where type = 'visit' and created_at >= since
       group by 1 order by 2 desc
     ) x),
     -- Newest accounts: nickname, or the email half hidden.

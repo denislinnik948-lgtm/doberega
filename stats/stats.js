@@ -1,4 +1,5 @@
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "../src/cloud-config.js";
+import { markOwnDevice } from "../src/analytics.js";
 
 /**
  * The stats page: sign in with an admin account of the game, then everything
@@ -222,6 +223,8 @@ async function load() {
   $("#refresh").disabled = false;
   if (!error) {
     render(data);
+    // The admin's own browser keeps out of the numbers from now on.
+    markOwnDevice(client);
     return;
   }
   if (error.code === "42501" || /not allowed/i.test(error.message)) {

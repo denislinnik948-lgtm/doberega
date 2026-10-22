@@ -1,6 +1,7 @@
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./cloud-config.js";
 import { LOCATIONS } from "./fishing/data.js";
 import { hasProgress, normalizeProgress } from "./fishing/store.js";
+import { markOwnDevice } from "./analytics.js";
 
 // Loaded on demand, only when accounts are configured.
 const SUPABASE_JS = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm";
@@ -57,10 +58,16 @@ export class Cloud {
         if (event === "PASSWORD_RECOVERY") this.recovering = true;
         this.onChange();
         // Supabase calls back from inside its own lock; sync after it returns.
-        if (event === "SIGNED_IN") setTimeout(() => this.reconcile(), 0);
+        if (event === "SIGNED_IN") setTimeout(() => {
+          this.reconcile();
+          markOwnDevice(this.client);
+        }, 0);
       });
       this.onChange();
-      if (this.user) await this.reconcile();
+      if (this.user) {
+        markOwnDevice(this.client);
+        await this.reconcile();
+      }
     } catch (error) {
       this.fail(error);
     }
