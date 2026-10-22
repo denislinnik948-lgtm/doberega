@@ -179,7 +179,7 @@ export const LOCATIONS = [
     fish: { okun: 4, plitka: 3, shchuka: 2.5, sudak: 1.5, lyasch: 1.5, yorzh: 1 },
   },
   {
-    id: "reservoir", snagChance: 0.04, kind: "reservoir", water: "#6e6848",
+    id: "reservoir", snagChance: 0.04, kind: "reservoir", water: "#5f7a6c",
     traits: { type: "reservoir", depth: "deep", bottom: "clayLogs", current: "weak" },
     bigChance: 1 / 30, maxKg: 40, pace: 0.9,
     fish: { lyasch: 3, sudak: 2, shchuka: 2, korop: 2, okun: 2, som: 0.8 },

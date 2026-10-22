@@ -777,7 +777,7 @@ export class CanvasWaterRenderer {
     const footX = this.frame.left + this.frame.width * fx;
     const footY = height + lineHeight;
     const post = height * 0.3;
-    const side = size * 0.1;
+    const side = size * 0.16;
     const left = Math.floor(footX - post * 0.6);
     const top = Math.floor(footY - post - side * 1.2);
     const width = Math.ceil(post * 1.2);
@@ -799,65 +799,69 @@ export class CanvasWaterRenderer {
       ctx.fillStyle = hash2(r, 1, 1801) > 0.6 ? "#8a4a24" : "#5a3a24";
       ctx.fillText(hash2(r, 2, 1801) > 0.8 ? ":" : "|", 0, y);
     }
-    // The plate, hung a little crooked on the post.
+    // The plate, hung a little crooked on the post: a triangle of glyphs on a
+    // dark backing, like the rocks, the trefoil picked out in dark glyphs.
     ctx.translate(0, -post);
     ctx.rotate(-lean * 0.4);
     const h = side * 0.87;
-    const corners = [[0, -h * 0.62], [side / 2, h * 0.38], [-side / 2, h * 0.38]];
-    const path = (scale) => {
-      ctx.beginPath();
-      corners.forEach(([cx, cy], i) => (i ? ctx.lineTo(cx * scale, cy * scale) : ctx.moveTo(cx * scale, cy * scale)));
-      ctx.closePath();
-    };
-    path(1.12);
-    ctx.fillStyle = "#24180c";
-    ctx.fill();
-    path(1);
-    ctx.fillStyle = "#b8922e";
-    ctx.fill();
-    // The trefoil: three blades round a hub.
-    const cy = h * 0.04;
-    const outer = side * 0.24;
-    const inner = side * 0.07;
-    ctx.fillStyle = "#1c1610";
-    for (let k = 0; k < 3; k += 1) {
-      const mid = -Math.PI / 2 + (k * Math.PI * 2) / 3;
-      ctx.beginPath();
-      ctx.arc(0, cy, outer, mid - Math.PI / 6, mid + Math.PI / 6);
-      ctx.arc(0, cy, inner * 1.5, mid + Math.PI / 6, mid - Math.PI / 6, true);
-      ctx.closePath();
-      ctx.fill();
-    }
+    const apex = -h * 0.62;
+    const foot = h * 0.38;
+    const halfAt = (y) => (side / 2) * ((y - apex) / (foot - apex));
     ctx.beginPath();
-    ctx.arc(0, cy, inner, 0, Math.PI * 2);
+    ctx.moveTo(0, apex - lineHeight * 0.6);
+    ctx.lineTo(halfAt(foot) + cellWidth * 0.9, foot + lineHeight * 0.5);
+    ctx.lineTo(-halfAt(foot) - cellWidth * 0.9, foot + lineHeight * 0.5);
+    ctx.closePath();
+    ctx.fillStyle = "#1c140b";
     ctx.fill();
-    // Rust eats in from the edges and runs down from the bolt.
-    path(1);
-    ctx.save();
-    ctx.clip();
-    for (let i = 0; i < 90; i += 1) {
-      const t = hash2(i, 3, 1802);
-      const edge = Math.floor(hash2(i, 4, 1802) * 3);
-      const [ax, ay] = corners[edge];
-      const [bx, by] = corners[(edge + 1) % 3];
-      const pull = hash2(i, 5, 1802) * 0.3;
-      const px = (ax + (bx - ax) * t) * (1 - pull);
-      const py = (ay + (by - ay) * t) * (1 - pull);
-      ctx.fillStyle = hash2(i, 6, 1802) > 0.5 ? "#7a4320" : "#93582a";
-      ctx.fillText(".:,;"[i % 4], px, py);
+    // Dull ochre paint under the glyphs, inside the dark rim.
+    ctx.beginPath();
+    ctx.moveTo(0, apex + lineHeight * 0.2);
+    ctx.lineTo(halfAt(foot) - cellWidth * 0.3, foot - lineHeight * 0.3);
+    ctx.lineTo(-halfAt(foot) + cellWidth * 0.3, foot - lineHeight * 0.3);
+    ctx.closePath();
+    ctx.fillStyle = "#7a5e1a";
+    ctx.fill();
+    const hubY = h * 0.08;
+    const outer = side * 0.22;
+    for (let row = 0, y = apex + lineHeight * 0.3; y <= foot; y += lineHeight, row += 1) {
+      const half = halfAt(y);
+      const columns = Math.max(0, Math.floor(half / cellWidth));
+      for (let c = -columns; c <= columns; c += 1) {
+        const x = c * cellWidth;
+        const noise = hash2(c + 50, row, 1804);
+        const edge = Math.abs(c) === columns || y + lineHeight > foot;
+        // Around the hub: three blades 120 degrees apart (one pointing down), a gap, the dot in the middle.
+        const r = Math.hypot(x, y - hubY) / outer;
+        const angle = (Math.atan2(y - hubY, x) * 180) / Math.PI + 90;
+        const blade = ((angle % 120) + 120) % 120;
+        const inTrefoil = r < 0.22 || (r > 0.36 && r < 1 && blade > 30 && blade < 90);
+        let glyph;
+        let color;
+        if (edge) {
+          glyph = y + lineHeight > foot ? (noise > 0.5 ? "=" : "_") : c < 0 ? "/" : c > 0 ? "\\" : "^";
+          color = noise > 0.55 ? "#8a4a22" : "#5e3818";
+        } else if (inTrefoil) {
+          // A dark backing cell under each trefoil glyph, so the symbol reads as a shape.
+          ctx.fillStyle = "#2a1d0e";
+          ctx.fillRect(x - cellWidth / 2, y - lineHeight / 2, cellWidth, lineHeight);
+          glyph = r < 0.22 ? "@" : "#%#"[Math.floor(noise * 3)];
+          color = "#4a3418";
+        } else if (noise < 0.22) {
+          // Rust eating through the paint.
+          glyph = ".:,;"[Math.floor(noise * 18) % 4];
+          color = noise < 0.1 ? "#7a4320" : "#93582a";
+        } else {
+          glyph = "#=:#"[Math.floor(noise * 4)];
+          color = noise > 0.7 ? "#d8b445" : "#b8922e";
+        }
+        ctx.fillStyle = color;
+        ctx.fillText(glyph, x, y);
+      }
     }
-    // Patches where the paint has flaked off altogether.
-    for (const [k, [cx, cy]] of corners.entries()) {
-      ctx.beginPath();
-      ctx.arc(cx * 0.8, cy * 0.8, side * (0.07 + hash2(k, 7, 1802) * 0.06), 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(122, 67, 32, 0.75)";
-      ctx.fill();
-    }
-    ctx.fillStyle = "rgba(110, 58, 26, 0.55)";
-    ctx.fillRect(-side * 0.03, -h * 0.5, side * 0.06, h * 0.45);
-    ctx.restore();
+    // The bolt it hangs from.
     ctx.fillStyle = "#3a2a1a";
-    ctx.fillText("o", 0, -h * 0.4);
+    ctx.fillText("o", 0, apex + lineHeight * 0.3);
     return { image, left, top, width, height: imageHeight };
   }
 

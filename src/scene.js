@@ -85,7 +85,7 @@ export const SCENES = {
   /**
    * Pripyat: the cooling reservoir by the Chornobyl power plant, seen across
    * flat water. The plant stretches along the far shore over a low line of
-   * willows, the woods are dry yellow and brown, the water murky, a rusting
+   * willows, the woods are dry yellow and brown, the water a little murky, a rusting
    * ship lies half sunk near the far bank, and dry reeds frame the view.
    */
   reservoir: {
@@ -101,7 +101,7 @@ export const SCENES = {
     dry: true,
     // A weak current sets slowly toward the plant's outflow; the water is murky.
     // The wreck: a rusting ship listing near the far bank, bow up (centre, width as screen fractions).
-    water: { drift: { x: 0.0016, y: 0 }, body: "#353120", wreck: { x: 0.3, y: 0.52, w: 0.15 } },
+    water: { drift: { x: 0.0016, y: 0 }, body: "#22302a", wreck: { x: 0.3, y: 0.52, w: 0.15 } },
     // A rusty radiation sign leans among the reeds on the right.
     foreground: { reeds: 1.6, rock: false, lilyPads: 0, sign: { x: 0.84, lean: 0.2 } },
   },
