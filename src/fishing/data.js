@@ -22,8 +22,8 @@ export const FISH = {
   lyn: { min: 0.3, max: 3.5, pricePerKg: 50, active: { base: 0.2, peaks: [[6, 3, 1], [13, 4, 0.5], [21, 2.5, 0.7]] } },
   lyasch: { min: 0.4, max: 5, pricePerKg: 35, active: { base: 0.25, peaks: [[5, 3, 0.8], [12, 4, 0.7], [22, 3, 0.7]] } },
   korop: { min: 1, max: 18, pricePerKg: 45, active: { base: 0.25, peaks: [[7, 3, 0.9], [14, 4, 0.8], [23, 3, 0.6]] } },
-  shchuka: { min: 1, max: 14, pricePerKg: 55, lure: true, active: { base: 0.2, peaks: [[9, 3, 1], [17, 3, 0.9]] } },
-  sudak: { min: 0.8, max: 10, pricePerKg: 70, lure: true, active: { base: 0.15, peaks: [[11, 3, 0.5], [20, 3, 0.9], [5, 3, 0.7]] } },
+  shchuka: { min: 1, max: 14, pricePerKg: 45, lure: true, active: { base: 0.2, peaks: [[9, 3, 1], [17, 3, 0.9]] } },
+  sudak: { min: 0.8, max: 10, pricePerKg: 55, lure: true, active: { base: 0.15, peaks: [[11, 3, 0.5], [20, 3, 0.9], [5, 3, 0.7]] } },
   som: { min: 5, max: 60, pricePerKg: 40, active: { base: 0.1, peaks: [[14, 4, 0.65], [1, 4, 0.6], [22, 3, 0.35]] } },
   // A joke: Valerka, a clownfish that has no business in a Ukrainian pond. Priceless, trophy only.
   valerka: { min: 0.12, max: 0.28, pricePerKg: 0, unique: true, active: { base: 1, peaks: [] } },
@@ -113,7 +113,7 @@ export const BAITS = {
   crayfish: { price: 30, size: 1.6, species: { som: 3, okun: 2 } },
   frog: { price: 45, size: 1.8, species: { som: 6 } },
   // A spinner for predators; sold among the extras.
-  spoon: { price: 180, lure: true, size: 1.2, others: 0, species: { okun: 4, shchuka: 5, sudak: 4, som: 0.4 } },
+  spoon: { price: 300, lure: true, size: 1.2, others: 0, species: { okun: 4, shchuka: 5, sudak: 4, som: 0.4 } },
 };
 
 /** Baits taken out of the game, with their price: a save that still holds some is paid back. */
@@ -122,13 +122,13 @@ export const RETIRED_BAITS = { potato: 5, liver: 12, fishstrip: 15 };
 /** `maxKg` is the weight a rod handles comfortably; heavier fish strain it fast. */
 export const RODS = {
   willow: { tier: 1, maxKg: 0.6, price: 0, reel: 0.95 },
-  hazel: { tier: 2, maxKg: 1.2, price: 250, reel: 1 },
-  bamboo: { tier: 3, maxKg: 2, price: 1000, reel: 1 },
-  telescope: { tier: 4, maxKg: 3.5, price: 3200, reel: 1.05 },
-  glass: { tier: 5, maxKg: 6, price: 8500, reel: 1.05 },
-  carbon: { tier: 6, maxKg: 10, price: 22000, reel: 1.1 },
-  carp: { tier: 7, maxKg: 18, price: 45000, reel: 1.15 },
-  catfish: { tier: 8, maxKg: 40, price: 120000, reel: 1.2 },
+  hazel: { tier: 2, maxKg: 1.2, price: 300, reel: 1 },
+  bamboo: { tier: 3, maxKg: 2, price: 1500, reel: 1 },
+  telescope: { tier: 4, maxKg: 3.5, price: 5000, reel: 1.05 },
+  glass: { tier: 5, maxKg: 6, price: 14000, reel: 1.05 },
+  carbon: { tier: 6, maxKg: 10, price: 38000, reel: 1.1 },
+  carp: { tier: 7, maxKg: 18, price: 85000, reel: 1.15 },
+  catfish: { tier: 8, maxKg: 40, price: 220000, reel: 1.2 },
 };
 
 /** Hooks are consumables; a big fish that snaps the line takes one with it. */
@@ -138,11 +138,11 @@ export const HOOK_PRICE = 6;
 export const EXTRAS = {
   handbook: { price: 900 },
   glowfloat: { price: 900 },
-  net: { price: 4500 },
-  braid: { price: 7000 },
-  sonar: { price: 12000 },
+  net: { price: 7500 },
+  braid: { price: 12000 },
+  sonar: { price: 20000 },
   // Lets you fish the spoon.
-  spinreel: { price: 1500 },
+  spinreel: { price: 2500 },
 };
 
 /**
@@ -150,7 +150,7 @@ export const EXTRAS = {
  * game time that water bites `boost` times as often; it keeps working while
  * you're away and counts down as the game runs.
  */
-export const GROUNDBAIT = { price: 60, hours: 24, boost: 1.7 };
+export const GROUNDBAIT = { price: 90, hours: 24, boost: 1.7 };
 
 /**
  * Fishing spots. `fish` weights who lives there; `bigChance` is the base odds
