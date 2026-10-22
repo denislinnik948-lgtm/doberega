@@ -8,7 +8,7 @@ import { birdsAt, createSkyCells, discOffsets, lightSky, pushDisc, sampleSky, se
 import { createLilyPads, createReeds, createRocks, rockGlyphs } from "./foreground-engine.js";
 import { GlyphBatch, createBackend } from "./glyph-backend.js";
 import { createAmbient, fillAmbient } from "./ambient-engine.js";
-import { gradeHex, gradeInt, gradeRgb, gradeSky, isAutumn } from "./theme.js";
+import { gradeHex, gradeImageData, gradeInt, gradeSky, isAutumn } from "./theme.js";
 import { createGrass, fillGrass } from "./grass-engine.js";
 import { ROD_LOOKS } from "./fishing/sprites.js";
 
@@ -429,14 +429,7 @@ export class CanvasWaterRenderer {
     {
       // Grade the whole painted layer once: hills, banks, buildings, cliffs, water body.
       const image = ctx.getImageData(0, 0, layer.width, layer.height);
-      const data = image.data;
-      for (let i = 0; i < data.length; i += 4) {
-        if (!data[i + 3]) continue;
-        const [r, g, b] = gradeRgb([data[i], data[i + 1], data[i + 2]]);
-        data[i] = r;
-        data[i + 1] = g;
-        data[i + 2] = b;
-      }
+      gradeImageData(image.data);
       ctx.putImageData(image, 0, 0);
     }
     return layer;

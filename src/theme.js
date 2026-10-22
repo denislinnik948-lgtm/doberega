@@ -59,6 +59,27 @@ export function gradeRgb([r, g, b]) {
   return [r, g, b].map((c, i) => Math.max(0, Math.min(255, (c * keep + lum * cast[i] * (1 - keep)) * gain)));
 }
 
+/**
+ * Grade every opaque pixel of RGBA image data in place: the same sums as
+ * gradeRgb, unrolled, so a whole screen-sized layer (millions of pixels)
+ * grades in milliseconds without making an array per pixel.
+ */
+export function gradeImageData(data) {
+  const { keep, gain, cast } = GRADE;
+  const rest = 1 - keep;
+  const [castR, castG, castB] = cast;
+  for (let i = 0; i < data.length; i += 4) {
+    if (!data[i + 3]) continue;
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    const lum = 0.3 * r + 0.59 * g + 0.11 * b;
+    data[i] = Math.max(0, Math.min(255, (r * keep + lum * castR * rest) * gain));
+    data[i + 1] = Math.max(0, Math.min(255, (g * keep + lum * castG * rest) * gain));
+    data[i + 2] = Math.max(0, Math.min(255, (b * keep + lum * castB * rest) * gain));
+  }
+}
+
 /** The sky with the grade applied; the lit side of clouds keeps some of its warmth. */
 export function gradeSky(sky) {
   return {

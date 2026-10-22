@@ -1,5 +1,5 @@
 import { CanvasWaterRenderer } from "./canvas-renderer.js";
-import { activeScene, currentAt } from "./scene.js";
+import { activeScene, currentAt, setScene } from "./scene.js";
 import { DAY_SECONDS, dayTimeAt } from "./daycycle.js";
 import { nameOf, t } from "./i18n.js";
 import { Weather } from "./weather.js";
@@ -88,16 +88,26 @@ const progress = loadProgress();
 const game = new FishingGame({ onEvent: handleGameEvent });
 let mode = "menu";
 
-// Each spot has its own landscape and water tint, already behind the menu.
+// Each spot has its own landscape and water tint. Building one takes a moment,
+// so leafing through spots in the menu only changes the picture there: the
+// scene behind the menu (barely visible through it) is built once you go fishing.
+let builtSpot = null;
 function applySpot() {
   const spot = LOCATIONS[progress.location];
+  builtSpot = progress.location;
   config.waterColor = spot.water;
-  renderer.setScene(spot.kind, config);
-  // Each spot centres a phone's view on its own point of interest.
+  setScene(spot.kind);
+  // One rebuild: resize lays the new scene out (and centres a phone's view on its point of interest).
   if (width) resize();
+  else renderer.setScene(spot.kind, config);
   ducks.reset();
   // Casts can land from just past the far shore to near the bank.
   TUNING.farY = activeScene().horizon + 0.05;
+}
+
+/** Build the chosen spot's scene if the menu moved on since the last one. */
+function ensureSpot() {
+  if (builtSpot !== progress.location) applySpot();
 }
 
 function setMode(next) {
@@ -112,12 +122,28 @@ function setMode(next) {
 
 const ui = new AnglerUI(progress, {
   onFish: () => {
-    ui.chooseBestBait();
-    setMode("fishing");
-    track("fish");
+    const go = () => {
+      ui.chooseBestBait();
+      setMode("fishing");
+      track("fish");
+    };
+    if (builtSpot === progress.location) return go();
+    // A new spot: say so on the button, let that paint, then build the scene and go.
+    const button = document.querySelector("#fish-button");
+    button.disabled = true;
+    button.textContent = t("menu.loading");
+    requestAnimationFrame(() => setTimeout(() => {
+      ensureSpot();
+      button.disabled = false;
+      button.textContent = t("menu.fish");
+      go();
+    }, 0));
   },
   onExit: () => setMode("menu"),
-  onSpotChange: applySpot,
+  // In the menu only the picture changes; the scene is built on Fish.
+  onSpotChange: () => {
+    if (mode !== "menu") applySpot();
+  },
   isFishing: () => mode === "fishing",
 });
 applySpot();
