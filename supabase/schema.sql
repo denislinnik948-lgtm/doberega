@@ -138,10 +138,14 @@ begin
     raise exception 'Not allowed' using errcode = '42501';
   end if;
 
-  -- Every event except those from the admins' own devices.
+  -- Every event except those from the admins' own devices; every account but the admins'.
   with counted as (
     select * from events ev
     where not exists (select 1 from excluded_visitors x where x.visitor = ev.visitor)
+  ),
+  players as (
+    select * from auth.users u
+    where not exists (select 1 from admins a where a.user_id = u.id)
   )
   select json_build_object(
     'days', period_days,
@@ -150,7 +154,7 @@ begin
       'visits', (select count(*) from counted where type = 'visit' and created_at >= since),
       'fishers', (select count(distinct visitor) from counted where type = 'fish' and created_at >= since),
       'catchers', (select count(distinct visitor) from counted where type = 'catch' and created_at >= since),
-      'signups', (select count(*) from auth.users where created_at >= since),
+      'signups', (select count(*) from players where created_at >= since),
       'appVisitors', (select count(distinct visitor) from counted where type = 'visit' and app and created_at >= since),
       'returning', (select count(*) from (
         select visitor from counted where type = 'visit' and created_at >= since
@@ -158,17 +162,17 @@ begin
     ),
     'allTime', json_build_object(
       'visitors', (select count(distinct visitor) from counted where type = 'visit'),
-      'users', (select count(*) from auth.users),
-      'active7', (select count(*) from auth.users where last_sign_in_at > now() - interval '7 days'),
-      'saves', (select count(*) from saves),
-      'fishCaught', (select coalesce(sum(case when progress->>'caught' ~ '^\d+$' then (progress->>'caught')::bigint end), 0) from saves),
-      'trophies', (select count(*) from trophies)
+      'users', (select count(*) from players),
+      'active7', (select count(*) from players where last_sign_in_at > now() - interval '7 days'),
+      'saves', (select count(*) from saves where user_id in (select id from players)),
+      'fishCaught', (select coalesce(sum(case when progress->>'caught' ~ '^\d+$' then (progress->>'caught')::bigint end), 0) from saves where user_id in (select id from players)),
+      'trophies', (select count(*) from trophies where user_id in (select id from players))
     ),
     'daily', (select coalesce(json_agg(d order by d.day), '[]'::json) from (
       select g.day::date as day,
         (select count(distinct visitor) from counted e where e.type = 'visit' and e.created_at >= g.day and e.created_at < g.day + interval '1 day') as visitors,
         (select count(distinct visitor) from counted e where e.type = 'catch' and e.created_at >= g.day and e.created_at < g.day + interval '1 day') as catchers,
-        (select count(*) from auth.users u where u.created_at >= g.day and u.created_at < g.day + interval '1 day') as signups
+        (select count(*) from players u where u.created_at >= g.day and u.created_at < g.day + interval '1 day') as signups
       from generate_series(since, date_trunc('day', now()), interval '1 day') as g(day)
     ) d),
     'sources', (select coalesce(json_agg(s), '[]'::json) from (
@@ -186,7 +190,7 @@ begin
       select coalesce(nullif(raw_user_meta_data->>'nickname', ''),
                       left(split_part(email, '@', 1), 2) || '***@' || split_part(email, '@', 2)) as name,
              created_at, last_sign_in_at
-      from auth.users order by created_at desc limit 10
+      from players order by created_at desc limit 10
     ) r)
   ) into result;
   return result;
