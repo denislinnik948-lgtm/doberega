@@ -84,8 +84,8 @@ export const SCENES = {
       houses: { at: [0.82, 0.95], scale: 0.6, roof: "#b04a30", walls: "#d6cfbc" },
       archBridge: { from: 0.03, to: 0.2, arches: 3 },
     },
-    // Glacial emerald water over a pale stony bottom.
-    water: { body: "#17423c" },
+    // Glacial turquoise water over a pale stony bottom.
+    water: { body: "#11423f" },
     foreground: { reeds: 0.5, rock: false, lilyPads: 0 },
   },
   /** Reservoir bay: wide water, low far hills, a concrete dam and power lines. */

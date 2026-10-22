@@ -2,7 +2,7 @@ import { sampleWater } from "./water-engine.js";
 import { createForestGlyphs } from "./forest-engine.js";
 import { activeScene, bankWidths, isOpenWater, nearBankY, setScene, shorelineY, sunPosition, view } from "./scene.js";
 import { skyAt, toHex, toInt } from "./daycycle.js";
-import { clamp, hash2, hexToInt, mixColor } from "./noise.js";
+import { clamp, hash2, hexToInt, mixColor, valueNoise } from "./noise.js";
 import { createBankGlyphs, createRidgeGlyphs, createShoreGlyphs, createStructures, ridgeTop } from "./landscape-engine.js";
 import { birdsAt, createSkyCells, discOffsets, lightSky, pushDisc, sampleSky, setCloudColors, setCloudiness } from "./sky-engine.js";
 import { createLilyPads, createReeds, createRocks, rockGlyphs } from "./foreground-engine.js";
@@ -18,6 +18,9 @@ const MONO_FONT = '"SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospa
 const GAME_ISOMETRIC_SLOPE = 0.5;
 const WATER_BANDS = 10;
 const REFLECTION_LEVELS = 3;
+// Water from deep (0) to shallow (last): darker over the depths, lighter and clearer near the banks.
+const DEPTH_LEVELS = 4;
+const DEEP_WATER = "#0e1c23";
 const SPRAY_COLOR = hexToInt("#d3e2dc");
 const BIRD_COLOR = hexToInt("#1f272b");
 // Clouds and stars drift slowly enough to resample a few times per second;
@@ -158,9 +161,32 @@ export class CanvasWaterRenderer {
     return isOpenWater(x, y, this.width, this.height);
   }
 
+  /**
+   * How shallow the water is at a screen point, 0 (deep) to 1: shallow along
+   * the far shore, toward the bank we stand on and beside river banks, with
+   * the odd shoal, deepest out in the middle.
+   */
+  shallowAt(x, y) {
+    const { width, height } = this;
+    const shore = this.shorelineY(x);
+    const across = (y - shore) / Math.max(1, height - shore);
+    let shallow = Math.max(0, 1 - across / 0.1);
+    const bank = nearBankY(x, height);
+    // Without a bank of our own, the water still shelves toward our feet.
+    shallow = Math.max(shallow, Number.isFinite(bank) ? 1 - (bank - y) / (height * 0.16) : (y / height - 0.82) / 0.18);
+    const { left, right } = bankWidths(y / height);
+    if (left || right) {
+      const edge = Math.min(Math.abs(x - left * width), Math.abs(x - width * (1 - right)));
+      shallow = Math.max(shallow, 1 - edge / (width * 0.07));
+    }
+    shallow += (valueNoise(x * 0.006, y * 0.012, 77) - 0.5) * 0.35;
+    return clamp(shallow, 0, 1);
+  }
+
   rebuildGrid(config) {
     if (!this.width || !this.height) return;
 
+    this.waterColor = config.waterColor;
     this.cellWidth = Math.max(4, Number(config.spacing));
     this.lineHeight = Math.max(Number(config.charSize) * 1.14, this.cellWidth * 1.22);
     const { width, height, cellWidth, lineHeight } = this;
@@ -203,6 +229,7 @@ export class CanvasWaterRenderer {
           pathWidth: width * (0.016 + 0.11 * distance),
           sunPath: 0,
           reflectionLevel: Math.min(REFLECTION_LEVELS - 1, Math.floor(distance * 6)),
+          depthLevel: Math.min(DEPTH_LEVELS - 1, Math.floor(this.shallowAt(screenX, screenY) * DEPTH_LEVELS)),
           column,
           row,
         });
@@ -294,6 +321,10 @@ export class CanvasWaterRenderer {
       mixColor(waterColor, horizon, (1 - band / (WATER_BANDS - 1)) ** 1.6 * 0.62)
     ));
     this.waterBandColors = bands.map(hexToInt);
+    // Each band again from deep (darker) to shallow (lighter, more of the water's own colour).
+    this.waterDepthColors = Array.from({ length: DEPTH_LEVELS }, (_, level) => bands.map((band) => (
+      hexToInt(mixColor(band, waterColor, level * 0.14, 0.82 + level * 0.12))
+    )));
     this.reflectionColors = this.backdropColors.map((color) => Array.from(
       { length: REFLECTION_LEVELS },
       (_, level) => hexToInt(mixColor(color, bands[1], 0.16 + level * 0.2, 0.92)),
@@ -529,9 +560,34 @@ export class CanvasWaterRenderer {
     for (let x = 0; x <= width + 8; x += 8) ctx.lineTo(x, this.shorelineY(x) + this.lineHeight * 0.3);
     ctx.lineTo(width, height);
     ctx.closePath();
-    // Near black, so the sparse water strokes stand out against it.
-    ctx.fillStyle = scene.water.body ?? "#0b161b";
+    // Dark over the depths so the strokes stand out, lighter and greener over the shallows.
+    const deep = scene.water.body ?? DEEP_WATER;
+    ctx.fillStyle = deep;
     ctx.fill();
+    {
+      // A coarse map of the shallows, smoothed as it is stretched over the water.
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(mixColor(deep, this.waterColor ?? "#3f7f86", 0.42).slice(i, i + 2), 16));
+      const map = document.createElement("canvas");
+      map.width = Math.ceil(width / (this.cellWidth * 2));
+      map.height = Math.ceil(height / this.lineHeight);
+      const mapContext = map.getContext("2d");
+      const image = mapContext.createImageData(map.width, map.height);
+      for (let row = 0; row < map.height; row += 1) {
+        for (let column = 0; column < map.width; column += 1) {
+          const i = (row * map.width + column) * 4;
+          image.data[i] = r;
+          image.data[i + 1] = g;
+          image.data[i + 2] = b;
+          image.data[i + 3] = Math.round(255 * this.shallowAt(((column + 0.5) * width) / map.width, ((row + 0.5) * height) / map.height));
+        }
+      }
+      mapContext.putImageData(image, 0, 0);
+      ctx.save();
+      ctx.clip();
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(map, 0, 0, width, height);
+      ctx.restore();
+    }
 
     // The grassy bank we stand on: dark earth that the grass blades cover.
     if (scene.nearBank) {
@@ -568,16 +624,11 @@ export class CanvasWaterRenderer {
           ctx.fillText(cell.glyph, cell.x, cell.y);
         }
       }
-      // Trees on the banks get a dark backing so they stand out from the grass.
-      ctx.fillStyle = "#0f1811";
-      ctx.beginPath();
-      const radius = Math.max(this.cellWidth, this.lineHeight) * 0.62;
+      // Trees on the banks get a dark backing that follows their own leaves, so they stand out from the grass.
+      ctx.fillStyle = "#0c140e";
       for (const cell of this.forestCells) {
-        if (!cell.bank) continue;
-        ctx.moveTo(cell.x + radius, cell.y);
-        ctx.arc(cell.x, cell.y, radius, 0, Math.PI * 2);
+        if (cell.bank) ctx.fillRect(cell.x - this.cellWidth * 0.6, cell.y - this.lineHeight * 0.6, this.cellWidth * 1.2, this.lineHeight * 1.2);
       }
-      ctx.fill();
     }
   }
 
@@ -715,7 +766,7 @@ export class CanvasWaterRenderer {
   }
 
   fillWater(time, config, ripples) {
-    const { cellWidth, lineHeight, columns, backdrop, waterBandColors, reflectionColors } = this;
+    const { cellWidth, lineHeight, columns, backdrop, reflectionColors } = this;
     const { centerX, centerY, axisX, axisY } = this.projection;
     const batch = this.waterBatch;
     const waveConfig = { ...config, ...this.waterParams };
@@ -771,7 +822,7 @@ export class CanvasWaterRenderer {
         }
       }
 
-      batch.push(x, y, glyph, waterBandColors[cell.band]);
+      batch.push(x, y, glyph, this.waterDepthColors[cell.depthLevel][cell.band]);
     }
   }
 

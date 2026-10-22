@@ -1,6 +1,7 @@
 import { hash2 } from "./noise.js";
 import { activeScene, bankWidths, nearBankY, shorelineY } from "./scene.js";
 import { gradeInt } from "./theme.js";
+import { inCrown } from "./forest-engine.js";
 
 /**
  * Grass as single strokes: every blade is a "|" glyph turned to its own angle,
@@ -72,9 +73,7 @@ export function createGrass({ width, height, cellWidth, lineHeight, frame, autum
   const scene = activeScene();
   // No grass inside the crowns of trees standing on the banks: they keep their dark backing.
   const crowns = trees.filter((tree) => tree.bank);
-  const covered = (x, y) => crowns.some((tree) => (
-    ((x - tree.centerX) / (tree.maxWidth * 0.72)) ** 2 + ((y - tree.topY - tree.height * 0.42) / (tree.height * 0.33)) ** 2 < 1
-  ));
+  const covered = (x, y) => crowns.some((tree) => inCrown(tree, x, y));
   const palette = (autumn ? AUTUMN : SUMMER).map(gradeInt);
   const horizon = height * scene.horizon;
   const far = field();

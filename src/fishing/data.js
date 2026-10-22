@@ -152,7 +152,7 @@ export const LOCATIONS = [
     fish: { plitka: 3, okun: 3, lyasch: 2, krasnopirka: 2, lyn: 2, shchuka: 1, korop: 1 },
   },
   {
-    id: "castle", snagChance: 0.035, kind: "castle", water: "#3aa88c",
+    id: "castle", snagChance: 0.035, kind: "castle", water: "#34b8b0",
     traits: { type: "lake", depth: "deep", bottom: "stones", current: "none" },
     bigChance: 1 / 45, maxKg: 16, pace: 0.95,
     // Clear, deep and stony: a predator lake.

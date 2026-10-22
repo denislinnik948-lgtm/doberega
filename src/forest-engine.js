@@ -15,7 +15,7 @@ const FOLIAGE = [
 ];
 
 // Trees on the near banks are close and well lit, so their greens read brighter.
-const BANK_FOLIAGE = { shadow: "#26422b", middle: "#385a3c", light: "#7f8c54" };
+const BANK_FOLIAGE = { shadow: "#2a4a30", middle: "#47703f", light: "#9cac62" };
 
 // Autumn crowns: blood red, rust, gold and brown, picked per tree.
 const AUTUMN = [
@@ -267,12 +267,92 @@ function deadGlyph(tree, localX, progress, x, y, cellWidth) {
   return null;
 }
 
+/**
+ * The lobes of foliage that make up a near tree's crown: overlapping clumps
+ * spread over a rounded outline, a crowning one on top. `x` and `r` are in
+ * crown half-widths, `y` in tree height from the top. Lower clumps are in front.
+ */
+function crownClumps(tree) {
+  const count = 6 + Math.floor(hash01(tree.seed * 131) * 4);
+  const clumps = [{ x: (hash01(tree.seed * 151) - 0.5) * 0.3, y: 0.13, r: 0.32 }];
+  for (let i = 0; i < count; i += 1) {
+    const y = 0.12 + hash01(tree.seed * 139 + i * 17) * 0.5;
+    // The crown is widest a little below its middle.
+    const spread = 0.45 + 0.55 * Math.sin(Math.PI * Math.min(1, (y - 0.02) / 0.68));
+    clumps.push({ x: (hash01(tree.seed * 137 + i * 13) - 0.5) * 1.5 * spread, y, r: 0.26 + hash01(tree.seed * 149 + i * 19) * 0.22 });
+  }
+  return clumps.sort((a, b) => a.y - b.y);
+}
+
+/**
+ * A near tree on the river bank: a crown of separate clumps, each lit on the
+ * side facing the sun and dark underneath, with sky-dark gaps between them,
+ * over a trunk that forks into branches reaching up into the clumps.
+ */
+function bankTreeGlyph(tree, localX, progress, x, y, cellWidth) {
+  const clumps = tree.clumps ?? (tree.clumps = crownClumps(tree));
+  const nx = localX / tree.maxWidth;
+  const aspect = tree.height / tree.maxWidth;
+  const noise = hash01(tree.seed * 101 + Math.round(x) * 7 + Math.round(y) * 11);
+  let front = null;
+  for (const clump of clumps) {
+    const dx = (nx - clump.x) / clump.r;
+    const dy = ((progress - clump.y) * aspect) / clump.r;
+    // A ragged edge of leaves rather than a clean circle.
+    const ragged = 1 + (noise - 0.5) * 0.28;
+    if (dx * dx + dy * dy < ragged * ragged) front = { clump, dx, dy };
+  }
+  if (front) {
+    const { clump, dx, dy } = front;
+    // Light from above and the sun's side; clumps low in the crown sit in shade.
+    const light = (dx * tree.lightSide * 0.55 - dy * 0.8) + (noise - 0.5) * 0.5 - (clump.y - 0.3) * 0.9;
+    const rim = dx * dx + dy * dy > 0.7;
+    // Only the deepest shade between clumps opens into gaps.
+    if (light < -0.65 && noise < 0.25) return null;
+    const lit = light > 0.15;
+    const shadow = light < -0.25 || (rim && light < 0);
+    const glyphs = isAutumn() ? ["o", "O", "0", "@"] : ["o", "O", "*", "@"];
+    return {
+      glyph: shadow ? (noise > 0.4 ? "o" : "*") : glyphs[Math.floor(noise * 4)],
+      color: foliageColor(tree, lit, shadow),
+      ...makeSway(tree, progress, cellWidth),
+    };
+  }
+  // Trunk and branches show through below and between the clumps.
+  const bark = "#6c5c45";
+  const lean = Math.sin(tree.seed) * 0.08 * (1 - progress);
+  if (progress > 0.45 && Math.abs(nx - lean) < 0.12) {
+    return { glyph: progress > 0.93 ? "|" : progress < 0.62 ? "Y" : "|", color: bark, swayAmount: 0, swayPhase: tree.swayPhase };
+  }
+  for (const clump of clumps) {
+    if (clump.y < 0.3) continue;
+    // A branch from the trunk at the fork up to the clump's heart.
+    const t = (0.68 - progress) / (0.68 - clump.y);
+    if (t < 0 || t > 1) continue;
+    const bx = clump.x * t;
+    if (Math.abs(nx - bx) < 0.07) return { glyph: clump.x * t > 0 ? "/" : "\\", color: bark, ...makeSway(tree, progress, cellWidth * 0.5) };
+  }
+  return null;
+}
+
+/** Is a screen point inside a bank tree's crown (any of its clumps)? Grass stays out of it. */
+export function inCrown(tree, x, y) {
+  if (!tree.bank || tree.species === "dead") return false;
+  const progress = (y - tree.topY) / tree.height;
+  if (progress < 0 || progress > 0.8) return false;
+  const clumps = tree.clumps ?? (tree.clumps = crownClumps(tree));
+  const nx = (x - tree.centerX) / tree.maxWidth;
+  const aspect = tree.height / tree.maxWidth;
+  return clumps.some((clump) => ((nx - clump.x) / clump.r) ** 2 + (((progress - clump.y) * aspect) / clump.r) ** 2 < 0.85);
+}
+
 function treeGlyph(tree, x, y, cellWidth) {
   const progress = (y - tree.topY) / tree.height;
   if (progress < 0 || progress > 1) return null;
 
   const localX = x - tree.centerX;
   if (tree.species === "dead") return deadGlyph(tree, localX, progress, x, y, cellWidth);
+  if (tree.bank) return bankTreeGlyph(tree, localX, progress, x, y, cellWidth);
   const broad = tree.species === "oak" || tree.species === "round";
   const trunkStart = broad ? 0.78 : 0.86;
   const trunkWidth = cellWidth * (tree.layer === 0 ? 0.38 : 0.5);
@@ -299,8 +379,10 @@ export function createForestGlyphs(width, height, cellWidth, lineHeight, sunX = 
   for (const tree of trees) {
     const firstRow = Math.max(0, Math.floor(tree.topY / lineHeight));
     const lastRow = Math.min(rows - 1, Math.ceil(tree.baseY / lineHeight));
-    const firstColumn = Math.max(0, Math.floor((tree.centerX - tree.maxWidth) / cellWidth) - 1);
-    const lastColumn = Math.min(columns - 1, Math.ceil((tree.centerX + tree.maxWidth) / cellWidth) + 1);
+    // Clumpy bank crowns reach a little past their nominal width.
+    const reach = tree.maxWidth * (tree.bank ? 1.4 : 1);
+    const firstColumn = Math.max(0, Math.floor((tree.centerX - reach) / cellWidth) - 1);
+    const lastColumn = Math.min(columns - 1, Math.ceil((tree.centerX + reach) / cellWidth) + 1);
 
     for (let row = firstRow; row <= lastRow; row += 1) {
       const y = (row + 0.5) * lineHeight;
