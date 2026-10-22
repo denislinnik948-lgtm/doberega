@@ -191,10 +191,10 @@ export class Cloud {
     if (error) console.warn("Trophies were not published:", error.message);
   }
 
-  /** The latest trophies of other anglers (anyone can look, signed in or not). */
+  /** The biggest trophies of other anglers, heaviest first (anyone can look, signed in or not). */
   async otherTrophies(limit = 60) {
     if (!this.client) return { error: "unavailable" };
-    let query = this.client.from("trophies").select("user_id, trophy_id, player, species, weight, spot, bait, caught_at").order("caught_at", { ascending: false }).limit(limit);
+    let query = this.client.from("trophies").select("user_id, trophy_id, player, species, weight, spot, bait, caught_at").order("weight", { ascending: false }).order("caught_at", { ascending: false }).limit(limit);
     if (this.user) query = query.neq("user_id", this.user.id);
     const { data, error } = await query;
     return error ? { error: error.message } : { trophies: data };

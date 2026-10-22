@@ -1001,8 +1001,9 @@ export class AnglerUI {
     });
   }
 
-  /** Draw trophy cards: fish, weight, who caught it (for others), where, on what bait and when. */
+  /** Draw trophy cards, heaviest first: fish, weight, who caught it (for others), where, on what bait and when. */
   fillTrophyWall(trophies, emptyText, hint = "") {
+    trophies = [...trophies].sort((a, b) => b.weight - a.weight);
     const empty = $("#trophy-empty");
     empty.textContent = emptyText;
     empty.hidden = !emptyText;
