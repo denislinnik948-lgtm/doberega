@@ -314,9 +314,16 @@ export function createStructures(width, height, cellWidth, lineHeight) {
  * Confinement over unit 4. `from`..`to` is the stretch of shore it covers.
  */
 function addChnpp({ from, to }, width, height, cellWidth, lineHeight, out) {
-  const { cells, lights, shapes, beacons } = out;
+  const { cells, lights, beacons } = out;
+  // The plant stands in daylight haze across the water: every colour a shade darker than drawn.
+  const tone = (hex) => {
+    const value = parseInt(hex.slice(1), 16);
+    const channel = (shift) => Math.round(((value >> shift) & 255) * 0.64);
+    return `#${((channel(16) << 16) | (channel(8) << 8) | channel(0)).toString(16).padStart(6, "0")}`;
+  };
+  const shapes = { push: (shape) => out.shapes.push({ ...shape, color: tone(shape.color) }) };
   const put = (x, y, glyph, color) => {
-    const cell = { ...cellAt(x, y, cellWidth, lineHeight), glyph, color };
+    const cell = { ...cellAt(x, y, cellWidth, lineHeight), glyph, color: tone(color) };
     cells.push(cell);
     return cell;
   };
