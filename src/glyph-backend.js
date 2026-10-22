@@ -379,7 +379,9 @@ class Canvas2DBackend {
 }
 
 export function createBackend(canvas) {
-  const gl = canvas.getContext("webgl2", { alpha: false, antialias: false, desynchronized: true, powerPreference: "high-performance" });
+  // No `desynchronized` (low-latency) canvas: on some Windows GPUs it lets the screen show a
+  // frame before it is finished, flickering black or without its glyphs.
+  const gl = canvas.getContext("webgl2", { alpha: false, antialias: false, powerPreference: "high-performance" });
   if (gl) {
     try {
       return new WebGLBackend(gl);
@@ -387,5 +389,5 @@ export function createBackend(canvas) {
       console.warn("WebGL2 glyph renderer unavailable, using Canvas 2D.", error);
     }
   }
-  return new Canvas2DBackend(canvas.getContext("2d", { alpha: false, desynchronized: true }));
+  return new Canvas2DBackend(canvas.getContext("2d", { alpha: false }));
 }
