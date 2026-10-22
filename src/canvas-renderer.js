@@ -2,7 +2,7 @@ import { sampleWater } from "./water-engine.js";
 import { createForestGlyphs } from "./forest-engine.js";
 import { activeScene, bankWidths, isOpenWater, nearBankY, setScene, shorelineY, sunPosition, view } from "./scene.js";
 import { skyAt, toHex, toInt } from "./daycycle.js";
-import { clamp, hash2, hexToInt, mixColor } from "./noise.js";
+import { clamp, hash2, hexToInt, mixColor, valueNoise } from "./noise.js";
 import { createBankGlyphs, createRidgeGlyphs, createShoreGlyphs, createStructures, ridgeTop } from "./landscape-engine.js";
 import { birdsAt, createSkyCells, discOffsets, lightSky, pushDisc, sampleSky, setCloudColors, setCloudiness } from "./sky-engine.js";
 import { createLilyPads, createReeds, createRocks, rockGlyphs } from "./foreground-engine.js";
@@ -32,6 +32,8 @@ const LIGHT_INTERVAL = 0.25;
 const SKY_SCALE = 0.25;
 // Tree shadows are painted at a quarter of the screen resolution; they are soft anyway.
 const SHADOW_SCALE = 0.25;
+// Cloud shadows: a tiny map, stretched smoothly over the screen and redrawn a few times a second.
+const CLOUD_MAP = { width: 128, height: 80, interval: 1 / 8 };
 
 export class CanvasWaterRenderer {
   constructor(canvas) {
@@ -90,12 +92,16 @@ export class CanvasWaterRenderer {
     this.height = height;
     this.frame = frame;
     this.pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-    for (const target of [this.canvas, this.overlay]) {
-      target.width = Math.round(width * this.pixelRatio);
-      target.height = Math.round(height * this.pixelRatio);
-    }
+    // The glyph scene is capped at about 2400 device pixels across: its small characters
+    // look the same, and a retina laptop's GPU fills half the pixels. The overlay (rod,
+    // reeds, ducks) keeps full sharpness.
+    this.sceneRatio = Math.min(this.pixelRatio, Math.max(1, 2400 / width));
+    this.canvas.width = Math.round(width * this.sceneRatio);
+    this.canvas.height = Math.round(height * this.sceneRatio);
+    this.overlay.width = Math.round(width * this.pixelRatio);
+    this.overlay.height = Math.round(height * this.pixelRatio);
     this.overlayContext.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
-    this.backend.resize(width, height, this.pixelRatio);
+    this.backend.resize(width, height, this.sceneRatio);
 
     // Game-style 2:1 projection: each world axis rises 1 screen unit per 2 run.
     // This is atan(0.5) ≈ 26.6°, commonly used for isometric game tiles.
@@ -176,15 +182,13 @@ export class CanvasWaterRenderer {
   }
 
   /**
-   * How shallow the water is at a screen point, 0 (deep) to 1: shallow along
-   * the far shore, toward the bank we stand on and beside river banks,
+   * How shallow the water is at a screen point, 0 (deep) to 1: shallow
+   * toward the bank we stand on and beside river banks,
    * deepest out in the middle. A smooth gradient, no patches.
    */
   shallowAt(x, y) {
     const { width, height } = this;
-    const shore = this.shorelineY(x);
-    const across = (y - shore) / Math.max(1, height - shore);
-    let shallow = Math.max(0, 1 - across / 0.1);
+    let shallow = 0;
     const bank = nearBankY(x, height);
     // Without a bank of our own, the water still shelves toward our feet.
     shallow = Math.max(shallow, Number.isFinite(bank) ? 1 - (bank - y) / (height * 0.16) : (y / height - 0.82) / 0.18);
@@ -243,6 +247,10 @@ export class CanvasWaterRenderer {
           sunPath: 0,
           reflectionLevel: Math.min(REFLECTION_LEVELS - 1, Math.floor(distance * 6)),
           depthLevel: Math.min(DEPTH_LEVELS - 1, Math.floor(this.shallowAt(screenX, screenY) * DEPTH_LEVELS)),
+          // Filled in by the water model on first use (a river bend's turn here).
+          bendCos: undefined,
+          bendSin: 0,
+          bendDepth: -1,
           column,
           row,
         });
@@ -278,7 +286,7 @@ export class CanvasWaterRenderer {
     for (const cell of structures.lights) this.lightBatch.push(cell.x, cell.y, cell.glyph, hexToInt(cell.color));
     this.bankCells = createBankGlyphs(width, height, cellWidth, lineHeight, this.sun.x);
     this.grassStale = true;
-    this.waterStale = true;
+    this.cloudTime = undefined;
     this.grass = createGrass({ width, height, cellWidth, lineHeight, frame: this.frame, autumn: isAutumn(), trees: this.trees });
     this.shadowKey = null;
     this.ambient = createAmbient({
@@ -296,6 +304,10 @@ export class CanvasWaterRenderer {
     };
     this.treeline = new Float32Array(columns + 1);
     for (let column = 0; column <= columns; column += 1) this.treeline[column] = this.shorelineY(column * cellWidth);
+    // The sky only shows above the lowest point of the shore, the water only below its highest.
+    this.skyBottom = Math.max(...this.treeline) + lineHeight;
+    // The land starts at the highest crest of the hills (or the treeline without any).
+    this.landTop = Math.min(...this.treeline, ...this.ridgeOutlines.flatMap((points) => points.filter((_, i) => i % 2 === 1))) - lineHeight * 2;
     for (const cell of this.forestCells) {
       // Bank trees get no solid canopy behind them.
       if (cell.bank || cell.glyph === "|" || cell.y - lineHeight * 0.2 > this.treeline[cell.column]) continue;
@@ -306,7 +318,6 @@ export class CanvasWaterRenderer {
     this.font = `${config.charSize}px ${MONO_FONT}`;
     this.reedSize = clamp(Number(config.charSize) * 2, 13, 28);
     this.backend.setFont(this.font, Number(config.charSize));
-    this.backend.setLayer("water", this.createLayer((ctx) => this.paintWaterBody(ctx)));
     this.backend.setLayer("land", this.createLayer((ctx) => this.paintLand(ctx)));
     this.lightKey = null;
     this.rockImages = this.rocks.map((rock) => this.createRockImage(rock));
@@ -423,8 +434,59 @@ export class CanvasWaterRenderer {
         ctx.restore();
       }
       ctx.globalCompositeOperation = "source-over";
+      // Open water stays clear of shadows: it is one smooth surface.
+      const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      for (let row = 0; row < canvas.height; row += 1) {
+        for (let column = 0; column < canvas.width; column += 1) {
+          if (!isOpenWater((column + 0.5) / SHADOW_SCALE, (row + 0.5) / SHADOW_SCALE, width, height)) continue;
+          const i = (row * canvas.width + column) * 4;
+          image.data[i] = image.data[i + 1] = image.data[i + 2] = 255;
+        }
+      }
+      ctx.putImageData(image, 0, 0);
     }
     this.backend.setShadowMap(canvas);
+  }
+
+  /**
+   * Cloud shadows: value noise laid on the ground plane, squeezed toward the
+   * horizon and carried by the wind. Only the ground below the horizon takes
+   * them; hills and mountains stay clean.
+   */
+  paintCloudShadows(time, strength) {
+    const { width, height } = this;
+    if (!this.cloudCanvas) {
+      this.cloudCanvas = document.createElement("canvas");
+      this.cloudCanvas.width = CLOUD_MAP.width;
+      this.cloudCanvas.height = CLOUD_MAP.height;
+    }
+    const canvas = this.cloudCanvas;
+    const ctx = canvas.getContext("2d");
+    const image = this.cloudImage ?? (this.cloudImage = ctx.createImageData(CLOUD_MAP.width, CLOUD_MAP.height));
+    const horizon = height * activeScene().horizon;
+    for (let row = 0; row < CLOUD_MAP.height; row += 1) {
+      const y = ((row + 0.5) / CLOUD_MAP.height) * height;
+      const depth = Math.max(0, (y - horizon) / Math.max(1, height - horizon));
+      const distance = 1 / (depth + 0.12);
+      // Fade in just below the horizon so far land doesn't get hard-edged blots.
+      const fade = strength * clamp(depth / 0.08, 0, 1);
+      for (let column = 0; column < CLOUD_MAP.width; column += 1) {
+        let value = 1;
+        const x = ((column + 0.5) / CLOUD_MAP.width) * width;
+        if (fade > 0.01 && !isOpenWater(x, y, width, height)) {
+          const gx = (((column + 0.5) / CLOUD_MAP.width) - 0.5) * distance * 2.2 + time * 0.045;
+          const gy = distance * 1.3 + time * 0.012;
+          const n = valueNoise(gx * 0.55, gy * 0.55, 91) * 0.65 + valueNoise(gx * 1.3 + 7, gy * 1.3 + 7, 92) * 0.35;
+          const t = clamp((n - 0.48) / 0.22, 0, 1);
+          value = 1 - t * t * (3 - 2 * t) * fade;
+        }
+        const i = (row * CLOUD_MAP.width + column) * 4;
+        image.data[i] = image.data[i + 1] = image.data[i + 2] = Math.round(value * 255);
+        image.data[i + 3] = 255;
+      }
+    }
+    ctx.putImageData(image, 0, 0);
+    this.backend.setCloudMap(canvas);
   }
 
   /** Smooth sky gradient plus the glow around the sun or moon, at low resolution. */
@@ -463,10 +525,10 @@ export class CanvasWaterRenderer {
   /** Rasterize a static, full-screen layer once per rebuild. */
   createLayer(paint) {
     const layer = document.createElement("canvas");
-    layer.width = Math.round(this.width * this.pixelRatio);
-    layer.height = Math.round(this.height * this.pixelRatio);
+    layer.width = Math.round(this.width * this.sceneRatio);
+    layer.height = Math.round(this.height * this.sceneRatio);
     const ctx = layer.getContext("2d");
-    ctx.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
+    ctx.setTransform(this.sceneRatio, 0, 0, this.sceneRatio, 0, 0);
     ctx.font = this.font;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -488,9 +550,9 @@ export class CanvasWaterRenderer {
   }
 
   /**
-   * The water body beneath the glyphs, following the irregular shoreline: its
-   * own layer, drawn under the land and kept out of the cloud and tree
-   * shadows, so the open water stays one smooth surface.
+   * The water body beneath the glyphs, following the irregular shoreline.
+   * Cloud and tree shadows are kept off open water (see their maps), so it
+   * stays one smooth surface.
    */
   paintWaterBody(ctx) {
     const { width, height } = this;
@@ -545,7 +607,25 @@ export class CanvasWaterRenderer {
       ctx.lineTo(width, horizon + height * 0.03);
       ctx.lineTo(0, horizon + height * 0.03);
       ctx.closePath();
-      if (ridge.alpine) {
+      if (ridge.relief) {
+        // Light and shade over the slopes: one pixel per glyph cell, stretched smoothly and clipped to the ridgeline.
+        ctx.save();
+        ctx.clip();
+        ctx.fillStyle = ridge.fill;
+        ctx.fill();
+        const map = document.createElement("canvas");
+        map.width = this.columns;
+        map.height = this.rows;
+        const mapContext = map.getContext("2d");
+        for (const cell of this.ridgeCells) {
+          if (cell.ridge !== index) continue;
+          mapContext.fillStyle = cell.fill;
+          mapContext.fillRect(cell.column, cell.row, 1, 1);
+        }
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(map, 0, 0, this.columns * this.cellWidth, this.rows * this.lineHeight);
+        ctx.restore();
+      } else if (ridge.alpine) {
         // Flat palette blocks, one per glyph cell, clipped to the ridgeline.
         ctx.save();
         ctx.clip();
@@ -564,7 +644,7 @@ export class CanvasWaterRenderer {
       for (const cell of this.ridgeCells) {
         // Breezy meadows are drawn every frame by the ambient layer instead.
         if (cell.ridge !== index || !cell.glyph || this.ambient.breezyRidges.has(index)) continue;
-        if (ridge.alpine) ctx.fillStyle = cell.color;
+        if (ridge.alpine || ridge.relief) ctx.fillStyle = cell.color;
         ctx.fillText(cell.glyph, cell.x, cell.y);
       }
 
@@ -624,16 +704,7 @@ export class CanvasWaterRenderer {
     ctx.fillStyle = mist;
     ctx.fillRect(0, horizon - height * 0.035, width, height * 0.055);
 
-    // Cut the open water out of the land: the water body lies beneath, on its own layer.
-    ctx.save();
-    ctx.globalCompositeOperation = "destination-out";
-    ctx.beginPath();
-    ctx.moveTo(0, height);
-    for (let x = 0; x <= width + 8; x += 8) ctx.lineTo(x, this.shorelineY(x) + this.lineHeight * 0.3);
-    ctx.lineTo(width, height);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
+    this.paintWaterBody(ctx);
 
     // The grassy bank we stand on: dark earth under the blades, fading into the
     // water over a few soft steps instead of a hard edge.
@@ -1304,14 +1375,12 @@ export class CanvasWaterRenderer {
     if (sky.sun.up && sky.sun.y < 0.52) pushDisc(this.discBatch, this.sunDisc, sky.sun.x * width, sky.sun.y * height, cellWidth, lineHeight, "sun");
     this.fillForest(time);
     fillAmbient(this.ambient, this.ambientBatches, time, dayTime, this.rain);
-    // Water and grass are the heaviest to fill: each refreshes every other frame, in turn.
+    // Grass sways slowly, so it is refilled every other frame; the water moves every frame.
     this.frameIndex = (this.frameIndex ?? 0) + 1;
-    const odd = this.frameIndex % 2 === 1;
-    if (!odd || this.grassStale) fillGrass(this.grass, this.grassBatches, time, dayTime, this.rain);
+    if (this.frameIndex % 2 === 0 || this.grassStale) fillGrass(this.grass, this.grassBatches, time, dayTime, this.rain);
     if (env.night) this.drawNightEvents(env.night, time);
-    if (odd || this.waterStale) this.fillWater(time, config, ripples);
+    this.fillWater(time, config, ripples);
     this.grassStale = false;
-    this.waterStale = false;
     this.fillSurface(time, ripples);
     this.fillRain(time, this.rain);
     this.ducks = env.ducks ?? [];
@@ -1322,16 +1391,19 @@ export class CanvasWaterRenderer {
     const dim = 1 - 0.32 * this.rain;
     const land = sky.land.map((value) => value * dim);
     const water = sky.water.map((value) => value * dim);
-    // Cloud shadows drift over land and water while the sun is out; rain clouds over the whole sky instead.
-    const cloudShadow = (sky.light.kind === "sun" ? sky.light.strength * 0.4 : sky.light.kind === "moon" ? sky.light.strength * 0.12 : 0) * (1 - Math.min(1, this.rain * 1.5));
-    backend.setShadow(cloudShadow, time, height * activeScene().horizon);
+    // Cloud shadows drift over the land while the sun is out; rain clouds over the whole sky instead.
+    if (this.cloudTime === undefined || Math.abs(time - this.cloudTime) >= CLOUD_MAP.interval) {
+      this.cloudTime = time;
+      const strength = (sky.light.kind === "sun" ? sky.light.strength * 0.4 : sky.light.kind === "moon" ? sky.light.strength * 0.12 : 0) * (1 - Math.min(1, this.rain * 1.5));
+      this.paintCloudShadows(time, strength);
+    }
     backend.begin();
-    backend.drawLayer("sky", [dim, dim, dim * 1.02]);
+    // The sky is opaque, so it is drawn without blending.
+    backend.drawLayer("sky", [dim, dim, dim * 1.02], false, [0, this.skyBottom], true);
     if (sky.stars > 0.03) backend.drawGlyphs(this.starBatch, [1, 1, 1, sky.stars]);
     backend.drawGlyphs(this.discBatch);
     backend.drawGlyphs(this.skyBatch);
-    backend.drawLayer("water", land);
-    backend.drawLayer("land", land, true);
+    backend.drawLayer("land", land, true, [this.landTop, height]);
     backend.drawGlyphs(this.ambientBatches.ground, land, true);
     backend.drawGlyphs(this.grassBatches.far, land, true);
     // Trees stand above their neighbours' shadows; only clouds darken them.

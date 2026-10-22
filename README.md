@@ -30,6 +30,10 @@ The scene bakes a colour grade into its own colours (`GRADE` in `src/theme.js`):
 
 Deep in the night strange things happen (`src/night-events.js`): will-o'-the-wisps drift over the far water, a pale hooded figure stands on the far shore and fades, and two red eyes surface near the bank before slipping under in rings. Each event is announced as a `doberega:night` window event (`detail.type`: figure, eyes, eyesSink), ready for sounds later.
 
+## Mountains
+
+Hills and mountains on the lake (`relief` in `src/scene.js`) have relief (`reliefCell` in `src/landscape-engine.js`): spurs and gullies run down from the crest, slopes facing the sun are lit and the others shaded, smoothly, with strokes down the steeper faces and the foot fading into the valley haze.
+
 ## Season
 
 **Налаштування → Сезон** picks summer, autumn or auto (`isAutumn()` in `src/theme.js`; auto follows the calendar, autumn from September to November). Autumn turns broadleaf crowns into heavy masses of `0 O @` in blood red, rust, gold and brown (`AUTUMN` in `src/forest-engine.js`; conifers stay green) and the grass yellow.
@@ -44,9 +48,9 @@ Grass on the river banks and on the bank we stand on (pond and lake, `nearBank` 
 
 Trees on the river banks have crowns of separate clumps of leaves (`bankTreeGlyph` in `src/forest-engine.js`), each lit on the sun's side and dark underneath, over a trunk that forks into branches; grass keeps out of the crowns.
 
-Water has depth (`shallowAt` in `src/canvas-renderer.js`): shallow and lighter, with more of the spot's own colour, along the far shore, toward our bank and beside river banks, darker out over the depths, as one smooth gradient. The water body is its own layer, kept out of cloud and tree shadows, so open water never gets blotchy. The castle lake is glacial turquoise.
+Water has depth (`shallowAt` in `src/canvas-renderer.js`): shallow and lighter, with more of the spot's own colour, toward our bank and beside river banks, darker out over the depths, as one smooth gradient. Cloud and tree shadows never fall on open water, so it never gets blotchy. The castle lake is glacial turquoise.
 
-The bank we stand on fades into the water over a few soft steps. Fake shadows are done on the GPU (`SHADE` in `src/glyph-backend.js`): cloud shadows are value noise laid on the ground plane, squeezed toward the horizon and carried by the wind across land, hills and water while the sun is out; tree shadows come from a soft greyscale map (`paintTreeShadows` in `src/canvas-renderer.js`) where every tree throws an ellipse away from the sun or moon, long when the light is low.
+The bank we stand on fades into the water over a few soft steps. Fake shadows come from two small greyscale maps the GPU multiplies in (`SHADE` in `src/glyph-backend.js`): cloud shadows (`paintCloudShadows`, eight times a second) are value noise laid on the ground plane below the horizon, squeezed toward it and carried by the wind while the sun is out, never on hills or open water; tree shadows come from a soft greyscale map (`paintTreeShadows` in `src/canvas-renderer.js`) where every tree throws an ellipse away from the sun or moon, long when the light is low.
 
 ## Time of day
 
@@ -106,7 +110,7 @@ On a phone held upright the landscape isn't squeezed: the scene is laid out at l
 
 ## Rendering
 
-Every character is pushed into a glyph batch (position, glyph, color). WebGL2 draws each batch with a single instanced call from a white glyph atlas tinted on the GPU, so the ~25,000 characters on screen cost a few milliseconds per frame. Static scenery (sky gradient, sun, ridges, forest silhouette, water body) is rasterized once into layer textures; clouds and stars are resampled about 15 times per second. Each batch keeps its own GPU buffers and is only re-uploaded when its contents change; water and grass, the heaviest to fill, refresh on alternate frames (about 30 times a second each), and shadows are worked out once per glyph in the vertex shader. Reeds and the rock are drawn on a light 2D overlay. Browsers without WebGL2 fall back to Canvas 2D with the same batches. 
+Every character is pushed into a glyph batch (position, glyph, color). WebGL2 draws each batch with a single instanced call from a white glyph atlas tinted on the GPU, so the ~25,000 characters on screen cost a few milliseconds per frame. Static scenery (sky gradient, sun, ridges, forest silhouette, water body) is rasterized once into layer textures; clouds and stars are resampled about 15 times per second. Each batch keeps its own GPU buffers and is only re-uploaded when its contents change; the grass refreshes every other frame, the water every frame, and the hottest loops use a sine table (`fastSin` in `src/noise.js`). The glyph scene renders at no more than about 2400 device pixels across (the overlay stays sharp), the sky is drawn without blending and only above the shore, and shadows are sampled once per glyph in the vertex shader. Reeds and the rock are drawn on a light 2D overlay. Browsers without WebGL2 fall back to Canvas 2D with the same batches. 
 
 ## Run locally
 

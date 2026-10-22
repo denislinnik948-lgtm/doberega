@@ -1,9 +1,12 @@
+import { fastSin } from "./noise.js";
+
 const clamp01 = (value) => Math.max(0, Math.min(1, value));
 
 /**
  * Pure water-surface model. It derives coherent motion and luminance from a fixed
- * character cell and elapsed time; it never uses per-frame randomness or mutates
- * the grid. Wave light becomes a character-density threshold in the renderer.
+ * character cell and elapsed time; it never uses per-frame randomness, and the
+ * only thing it keeps on a cell is the turn of a river bend there. Wave light
+ * becomes a character-density threshold in the renderer.
  */
 export function sampleWater(point, time, config, verticalDepth, ripples = []) {
   const speed = config.waveSpeed;
@@ -19,9 +22,15 @@ export function sampleWater(point, time, config, verticalDepth, ripples = []) {
   let by = y;
   if (config.flowAway && config.bend) {
     const { x: cx, y: cy, from, to } = config.bend;
-    const turn = clamp01((from - verticalDepth) / (from - to)) ** 1.4 * Math.PI * 0.5;
-    const cos = Math.cos(-turn);
-    const sin = Math.sin(-turn);
+    // The turn depends only on where the cell is, so a water cell keeps it.
+    if (point.bendCos === undefined || point.bendDepth !== verticalDepth) {
+      const turn = clamp01((from - verticalDepth) / (from - to)) ** 1.4 * Math.PI * 0.5;
+      point.bendCos = Math.cos(-turn);
+      point.bendSin = Math.sin(-turn);
+      point.bendDepth = verticalDepth;
+    }
+    const cos = point.bendCos;
+    const sin = point.bendSin;
     bx = cx + (x - cx) * cos - (y - cy) * sin;
     by = cy + (x - cx) * sin + (y - cy) * cos;
   }
@@ -33,26 +42,26 @@ export function sampleWater(point, time, config, verticalDepth, ripples = []) {
   // making a crisscross interference pattern.
   const downlake = (wx + wy) * 0.7071;
   const acrossLake = (wx - wy) * 0.7071;
-  const crestBend = Math.sin(acrossLake * 0.0032 - t * 0.14 + 1.1) * 36
-    + Math.sin(acrossLake * 0.007 - t * 0.23 + 2.4) * 10;
+  const crestBend = fastSin(acrossLake * 0.0032 - t * 0.14 + 1.1) * 36
+    + fastSin(acrossLake * 0.007 - t * 0.23 + 2.4) * 10;
   const windPath = downlake + crestBend;
-  const swell = Math.sin(windPath * 0.0068 - t * 0.62 + 0.8);
-  const breezeWave = Math.sin(windPath * 0.015 - acrossLake * 0.0045 - t * 0.92 + 2.1);
-  const fineWave = Math.sin(windPath * 0.028 + acrossLake * 0.009 - t * 1.12 + 3.4);
-  const gust = 0.86 + Math.sin(acrossLake * 0.0028 - t * 0.13 + 0.6) * 0.14;
-  const softCurrent = Math.sin(downlake * 0.005 + acrossLake * 0.009 - t * 0.27 + 1.8);
+  const swell = fastSin(windPath * 0.0068 - t * 0.62 + 0.8);
+  const breezeWave = fastSin(windPath * 0.015 - acrossLake * 0.0045 - t * 0.92 + 2.1);
+  const fineWave = fastSin(windPath * 0.028 + acrossLake * 0.009 - t * 1.12 + 3.4);
+  const gust = 0.86 + fastSin(acrossLake * 0.0028 - t * 0.13 + 0.6) * 0.14;
+  const softCurrent = fastSin(downlake * 0.005 + acrossLake * 0.009 - t * 0.27 + 1.8);
   const broadWave = (swell * 0.5 + breezeWave * 0.34 + fineWave * 0.16) * gust + softCurrent * 0.08;
   const displacement = config.waveAmplitude;
 
   // Follow the wind with a restrained drift while keeping the character grid clear.
   const verticalDrift = broadWave * displacement * 0.3;
-  const lateralDrift = Math.sin(acrossLake * 0.009 - t * 0.38 + swell * 0.35) * displacement * 0.08;
+  const lateralDrift = fastSin(acrossLake * 0.009 - t * 0.38 + swell * 0.35) * displacement * 0.08;
   let offsetX = verticalDrift + lateralDrift;
   let offsetY = verticalDrift - lateralDrift;
 
   // Narrow, low-contrast glints travel along the same prevailing wind direction.
-  const sheenA = Math.sin(windPath * 0.021 - acrossLake * 0.007 - t * 1.04 + 1.4);
-  const sheenB = Math.sin(windPath * 0.034 + acrossLake * 0.011 - t * 1.28 + 2.6);
+  const sheenA = fastSin(windPath * 0.021 - acrossLake * 0.007 - t * 1.04 + 1.4);
+  const sheenB = fastSin(windPath * 0.034 + acrossLake * 0.011 - t * 1.28 + 2.6);
   const shimmer = sheenA * 0.68 + sheenB * 0.32;
   const depth = clamp01(verticalDepth);
   let rippleHighlight = 0;
@@ -84,9 +93,9 @@ export function sampleWater(point, time, config, verticalDepth, ripples = []) {
   // Fast water: long bright streaks drawn out along the current.
   let streak = 0;
   if (config.flowAway) {
-    const bend = Math.sin(downlake * 0.006 + acrossLake * 0.002) * 1.6;
-    const lane = Math.max(0, Math.sin(acrossLake * 0.05 + bend));
-    const pulse = 0.55 + 0.45 * Math.sin(downlake * 0.018 + acrossLake * 0.013);
+    const bend = fastSin(downlake * 0.006 + acrossLake * 0.002) * 1.6;
+    const lane = Math.max(0, fastSin(acrossLake * 0.05 + bend));
+    const pulse = 0.55 + 0.45 * fastSin(downlake * 0.018 + acrossLake * 0.013);
     streak = lane ** 10 * pulse * 0.2 - 0.03;
   }
 

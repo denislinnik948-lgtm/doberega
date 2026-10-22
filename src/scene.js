@@ -13,8 +13,8 @@ export const view = { width: 1600, left: 0, frameWidth: 1600 };
 export const SUN = { x: 0.37, y: 0.252, radius: 0.03 };
 
 const LAKE_RIDGES = [
-  { top: 0.335, amplitude: 0.085, seed: 1.6, fill: "#4c5961", glyph: "#6c787d", texture: ".:'", density: 0.16 },
-  { top: 0.385, amplitude: 0.045, seed: 3.4, fill: "#34433f", glyph: "#4b5a52", texture: ".:;", density: 0.2 },
+  { top: 0.335, amplitude: 0.085, seed: 1.6, fill: "#4c5961", glyph: "#6c787d", texture: ".:'", density: 0.16, relief: true },
+  { top: 0.385, amplitude: 0.045, seed: 3.4, fill: "#34433f", glyph: "#4b5a52", texture: ".:;", density: 0.2, relief: true },
   { top: 0.42, amplitude: 0.022, seed: 5.2, fill: "#26352d", glyph: "#3a4c3d", texture: "^^*.", density: 0.34 },
 ];
 

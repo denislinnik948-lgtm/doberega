@@ -1,4 +1,4 @@
-import { hash2 } from "./noise.js";
+import { fastSin, hash2 } from "./noise.js";
 import { activeScene, bankWidths, nearBankY, shorelineY } from "./scene.js";
 import { gradeInt } from "./theme.js";
 import { inCrown } from "./forest-engine.js";
@@ -21,10 +21,6 @@ const DEW = 0xe6f0ea;
 const FIREFLY = 0xd8f080;
 const FIREFLIES = 40;
 
-// A sine table: the grass is filled tens of thousands of times a second, and a lookup is far cheaper than Math.sin.
-const TABLE_SIZE = 4096;
-const SINE = Float32Array.from({ length: TABLE_SIZE }, (_, i) => Math.sin((i / TABLE_SIZE) * Math.PI * 2));
-const fastSin = (angle) => SINE[((Math.round(angle * (TABLE_SIZE / (Math.PI * 2))) % TABLE_SIZE) + TABLE_SIZE) % TABLE_SIZE];
 // How far each segment of a one-, two- or three-part blade leans, as a share of the whole bend.
 const SEGMENT_LEAN = [null, [1], [0.4, 1], [0.24, 0.59, 1]].map((shares) => shares && Float32Array.from(shares));
 

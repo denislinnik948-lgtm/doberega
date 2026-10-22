@@ -48,3 +48,14 @@ export function mixColor(a, b, amount, brightness = 1) {
 
 /** Pack #rrggbb into a 0xRRGGBB integer for glyph batches. */
 export const hexToInt = (hex) => parseInt(hex.slice(1), 16);
+
+// A sine table for the hottest loops (water, grass): a lookup is far cheaper than Math.sin,
+// and at this resolution the error is far below what a glyph can show.
+const SINE_SIZE = 4096;
+const SINE_STEP = SINE_SIZE / (Math.PI * 2);
+const SINE = Float32Array.from({ length: SINE_SIZE }, (_, i) => Math.sin(i / SINE_STEP));
+
+export function fastSin(angle) {
+  const index = Math.round(angle * SINE_STEP) % SINE_SIZE;
+  return SINE[index < 0 ? index + SINE_SIZE : index];
+}
