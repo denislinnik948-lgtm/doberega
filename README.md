@@ -50,7 +50,7 @@ The bank we stand on fades into the water over a few soft steps.
 
 ## Time of day
 
-A full in-game day takes 21 min 20 s of real time, starting mid-afternoon, and each part runs at its own pace: day (07:41–18:43) 10 min, sunset (18:43–22:05) 1 min 30 s, night (22:05–04:48) 8 min 20 s, sunrise (04:48–07:41) 1 min 30 s — so the clock races through dawn and dusk. There is a clock in the menu and HUD: night → dawn → morning → noon → afternoon → evening → dusk → night. Keyframes in `src/daycycle.js` hold the sky gradient, sun/moon glow, cloud colours, star visibility, glint colours and light multipliers for land, water and the foreground; everything between them is blended smoothly. The sun rises on the right, peaks near the top and sets on the left; the moon and stars take over at night, with a pale moon path on the water.
+A full in-game day takes 21 min 20 s of real time and runs off the real clock (Unix time), so every angler sees the same game time; each part runs at its own pace: day (07:41–18:43) 10 min, sunset (18:43–22:05) 1 min 30 s, night (22:05–04:48) 8 min 20 s, sunrise (04:48–07:41) 1 min 30 s — so the clock races through dawn and dusk. There is a clock in the menu and HUD: night → dawn → morning → noon → afternoon → evening → dusk → night. Keyframes in `src/daycycle.js` hold the sky gradient, sun/moon glow, cloud colours, star visibility, glint colours and light multipliers for land, water and the foreground; everything between them is blended smoothly. The sun rises on the right, peaks near the top and sets on the left; the moon and stars take over at night, with a pale moon path on the water.
 
 The sky texture, water palette and glint path refresh four times a second (≈1.3 ms); land and glyph lighting is a multiplier in the WebGL shaders, so the cycle costs almost nothing per frame. URL options: `?time=0.5` pins the clock (0 midnight, 0.25 dawn, 0.5 noon, 0.76 evening), `?day=60` squeezes the whole cycle into 60 seconds, keeping the phase proportions.
 
@@ -82,6 +82,10 @@ The game opens on a **main menu** over the live lake: a slider of fishing spots 
 - **Bait:** 15 kinds, from free bread and cheap dough (small fish only) through worm, maggot, pearl barley, bloodworm, potato, peas and corn to chicken liver, fish strip, boilies, live bait, crayfish and frog for the big ones.
 
 The catalog (fish, bait, rods, extras, spots) lives in `src/fishing/data.js`; fight balance in `src/fishing/game.js` (`fightRates`). Progress is saved in localStorage. Add `?debug` to the URL to expose the game as `window.doberega`.
+
+## Bait and the bite through the day
+
+Thirteen baits: bread, dough, worm, maggot, pearl barley, bloodworm, peas, corn, boilies, live bait, crayfish, frog, and the spoon (potato, chicken liver and fish strip were retired; a save holding any is paid back in full, `RETIRED_BAITS`). Pike and zander are lure fish (`lure` in `FISH`): they take the spoon and almost never a float bait (`FLOAT_PREDATOR`); perch takes both. The handbook lists simply what each fish bites on. Feeding times are set so every water pays about as well by day as by night (catfish keep the night a little better at the old bridge); `balance` scripts compare income per minute by hour and spot.
 
 ## Casting, groundbait and spinning
 

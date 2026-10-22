@@ -8,20 +8,23 @@ import { locale, t } from "../i18n.js";
 
 /**
  * `active` is when each fish feeds: a baseline plus peaks [hour, width, strength]
- * on a 24-hour clock.
+ * on a 24-hour clock. Every water has something worth catching by day as well
+ * as by night: the big fish feed in the day too, a little less keenly.
+ * `lure`: a predator that hunts moving prey, caught on the spoon; on a float
+ * bait it bites only very rarely (FLOAT_PREDATOR).
  */
 export const FISH = {
   yorzh: { min: 0.02, max: 0.2, pricePerKg: 15, active: { base: 0.6, peaks: [[6, 4, 0.5], [20, 5, 0.5]] } },
-  plitka: { min: 0.05, max: 0.6, pricePerKg: 20, active: { base: 0.3, peaks: [[7, 3, 1], [18, 3, 0.8]] } },
+  plitka: { min: 0.05, max: 0.6, pricePerKg: 20, active: { base: 0.35, peaks: [[7, 3, 1], [13, 4, 0.6], [18, 3, 0.8]] } },
   krasnopirka: { min: 0.05, max: 0.7, pricePerKg: 20, active: { base: 0.3, peaks: [[13, 4, 1]] } },
-  karas: { min: 0.1, max: 1.5, pricePerKg: 30, active: { base: 0.25, peaks: [[6, 3, 1], [19, 3, 1]] } },
-  okun: { min: 0.1, max: 1.8, pricePerKg: 40, active: { base: 0.2, peaks: [[10, 4, 1], [17, 3, 0.6]] } },
-  lyn: { min: 0.3, max: 3.5, pricePerKg: 50, active: { base: 0.2, peaks: [[5, 2.5, 1], [21, 2.5, 0.8]] } },
-  lyasch: { min: 0.4, max: 5, pricePerKg: 35, active: { base: 0.25, peaks: [[2, 4, 1], [22, 3, 0.8]] } },
-  korop: { min: 1, max: 18, pricePerKg: 45, active: { base: 0.25, peaks: [[5, 3, 1], [23, 3, 0.8]] } },
-  shchuka: { min: 1, max: 14, pricePerKg: 55, active: { base: 0.2, peaks: [[6, 2.5, 1], [19, 2.5, 1]] } },
-  sudak: { min: 0.8, max: 10, pricePerKg: 70, active: { base: 0.15, peaks: [[21, 3, 1], [4, 3, 0.8]] } },
-  som: { min: 5, max: 60, pricePerKg: 40, active: { base: 0.1, peaks: [[0, 4, 1], [23, 3, 0.6]] } },
+  karas: { min: 0.1, max: 1.5, pricePerKg: 30, active: { base: 0.3, peaks: [[6, 3, 1], [12, 4, 0.6], [19, 3, 1]] } },
+  okun: { min: 0.1, max: 1.8, pricePerKg: 40, active: { base: 0.25, peaks: [[10, 4, 1], [16, 3, 0.8]] } },
+  lyn: { min: 0.3, max: 3.5, pricePerKg: 50, active: { base: 0.2, peaks: [[6, 3, 1], [13, 4, 0.5], [21, 2.5, 0.7]] } },
+  lyasch: { min: 0.4, max: 5, pricePerKg: 35, active: { base: 0.25, peaks: [[5, 3, 0.8], [12, 4, 0.7], [22, 3, 0.7]] } },
+  korop: { min: 1, max: 18, pricePerKg: 45, active: { base: 0.25, peaks: [[7, 3, 0.9], [14, 4, 0.8], [23, 3, 0.6]] } },
+  shchuka: { min: 1, max: 14, pricePerKg: 55, lure: true, active: { base: 0.2, peaks: [[9, 3, 1], [17, 3, 0.9]] } },
+  sudak: { min: 0.8, max: 10, pricePerKg: 70, lure: true, active: { base: 0.15, peaks: [[11, 3, 0.5], [20, 3, 0.9], [5, 3, 0.7]] } },
+  som: { min: 5, max: 60, pricePerKg: 40, active: { base: 0.1, peaks: [[14, 4, 0.65], [1, 4, 0.6], [22, 3, 0.35]] } },
   // A joke: Valerka, a clownfish that has no business in a Ukrainian pond. Priceless, trophy only.
   valerka: { min: 0.12, max: 0.28, pricePerKg: 0, unique: true, active: { base: 1, peaks: [] } },
   // Not a fish: sometimes reeled in instead of an empty hook.
@@ -50,6 +53,9 @@ export const NIBBLE = {
   valerka: { tempers: [3, 3, 1, 3], pace: 0.6, twitches: 1.5, strength: 1.3, window: 1.6 },
   boot: { tempers: [1, 0, 0, 0], pace: 1, twitches: 0, strength: 0.5, window: 1 },
 };
+
+/** How much less a lure predator (pike, zander) wants a float bait than the spoon. */
+export const FLOAT_PREDATOR = 0.02;
 
 /** Chance that any bite, anywhere, on any bait, is Valerka: next to impossible. */
 export const VALERKA_CHANCE = 1 / 25000;
@@ -99,18 +105,19 @@ export const BAITS = {
   maggot: { price: 4, size: 0.5, species: { plitka: 4, krasnopirka: 3, yorzh: 2, lyasch: 2, karas: 2 } },
   barley: { price: 4, size: 0.8, species: { karas: 3, lyasch: 3, plitka: 2, korop: 2, lyn: 1 } },
   bloodworm: { price: 5, size: 0.5, species: { yorzh: 3, plitka: 3, karas: 2, lyn: 3, okun: 2 } },
-  potato: { price: 5, size: 0.7, species: { korop: 2, karas: 2.5, lyasch: 1 } },
   peas: { price: 6, size: 0.9, species: { lyasch: 4, korop: 3, lyn: 2, plitka: 1 } },
   corn: { price: 7, size: 1, species: { karas: 2, lyasch: 3, korop: 4, lyn: 2 } },
-  liver: { price: 12, size: 0.8, species: { som: 1.5, yorzh: 2, okun: 1, sudak: 0.6 } },
-  fishstrip: { price: 15, size: 1.1, species: { sudak: 3, shchuka: 1.5, som: 2, okun: 1.5 } },
   boilie: { price: 20, size: 1.6, species: { korop: 6, lyasch: 1 } },
-  livebait: { price: 25, size: 1.4, species: { okun: 2, shchuka: 4, sudak: 4, som: 1 } },
-  crayfish: { price: 30, size: 1.6, species: { som: 3, sudak: 2, okun: 2, shchuka: 1 } },
-  frog: { price: 45, size: 1.8, species: { som: 6, shchuka: 1 } },
+  // Live bait and crayfish: big perch and catfish (pike and zander go for the spoon).
+  livebait: { price: 25, size: 1.4, species: { okun: 4, som: 2 } },
+  crayfish: { price: 30, size: 1.6, species: { som: 3, okun: 2 } },
+  frog: { price: 45, size: 1.8, species: { som: 6 } },
   // A spinner for predators; sold among the extras.
-  spoon: { price: 180, lure: true, size: 1.2, others: 0, species: { okun: 5, shchuka: 4, sudak: 3, som: 0.6, yorzh: 0.5 } },
+  spoon: { price: 180, lure: true, size: 1.2, others: 0, species: { okun: 4, shchuka: 5, sudak: 4, som: 0.4 } },
 };
+
+/** Baits taken out of the game, with their price: a save that still holds some is paid back. */
+export const RETIRED_BAITS = { potato: 5, liver: 12, fishstrip: 15 };
 
 /** `maxKg` is the weight a rod handles comfortably; heavier fish strain it fast. */
 export const RODS = {
@@ -246,7 +253,11 @@ function candidates(baitId, locationIndex, hour) {
   const bait = BAITS[baitId];
   const location = LOCATIONS[locationIndex] ?? LOCATIONS[0];
   return Object.entries(location.fish)
-    .map(([id, weight]) => [id, weight * (bait.species[id] ?? bait.others ?? 0.08), activity(id, hour)])
+    .map(([id, weight]) => {
+      // Pike and zander hunt moving prey: a float bait hardly ever tempts them.
+      const lureFish = FISH[id].lure && !bait.lure ? FLOAT_PREDATOR : 1;
+      return [id, weight * lureFish * (bait.species[id] ?? bait.others ?? 0.08), activity(id, hour)];
+    })
     .filter(([, weight]) => weight > 0);
 }
 
@@ -317,15 +328,15 @@ export function handbookEntries() {
       .filter((spot) => (spot.fish[id] ?? 0) > 0)
       .sort((a, b) => b.fish[id] - a.fish[id])
       .map((spot) => ({ id: spot.id, abundance: abundance(spot, id), maxKg: Math.min(fish.max, spot.maxKg ?? fish.max) }));
-    // Favourite baits first, then ones it takes now and then.
-    const liked = Object.entries(BAITS)
-      .filter(([, bait]) => (bait.species[id] ?? 0) > 0)
-      .sort(([, a], [, b]) => b.species[id] - a.species[id]);
+    // Just the baits it bites on (a lure predator: the lure only), keenest first.
+    const baits = Object.entries(BAITS)
+      .filter(([, bait]) => (bait.species[id] ?? 0) > 0 && (!fish.lure || bait.lure))
+      .sort(([, a], [, b]) => b.species[id] - a.species[id])
+      .map(([baitId]) => baitId);
     return {
       id,
       spots,
-      baits: liked.filter(([, bait]) => bait.species[id] >= 3).map(([baitId]) => baitId),
-      alsoBaits: liked.filter(([, bait]) => bait.species[id] < 3).map(([baitId]) => baitId),
+      baits,
       times: activePeriods(id),
       style: biteStyle(id),
       pricePerKg: fish.pricePerKg,
@@ -353,7 +364,7 @@ export function baitEntries() {
     id,
     price: bait.price,
     free: Boolean(bait.free),
-    fish: Object.entries(bait.species).sort(([, a], [, b]) => b - a).filter(([fishId]) => FISH[fishId] && !FISH[fishId].unique).map(([fishId, liking]) => ({ id: fishId, favourite: liking >= 3 })),
+    fish: Object.entries(bait.species).sort(([, a], [, b]) => b - a).filter(([fishId]) => FISH[fishId] && !FISH[fishId].unique && (!FISH[fishId].lure || bait.lure)).map(([fishId]) => fishId),
     size: bait.maxSize ? "small" : bait.size >= 1.3 ? "big" : bait.size >= 0.8 ? "medium" : "small",
   }));
 }

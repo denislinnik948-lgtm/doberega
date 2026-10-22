@@ -30,7 +30,10 @@ const config = {
 const params = new URLSearchParams(location.search);
 const DAY_LENGTH = Number(params.get("day")) || DAY_SECONDS;
 const FIXED_TIME = params.has("time") ? Number(params.get("time")) : null;
-const DAY_START = 0.68;
+// The clock is the same for every angler: the day runs off real time (Unix
+// seconds), with the cycle at this clock fraction at the Unix epoch.
+const WORLD_START = 0.68;
+const worldDayTime = () => dayTimeAt(Date.now() / 1000, WORLD_START, DAY_LENGTH);
 // `?rain=1` forces rain (0..1); otherwise showers come and go on their own.
 const weather = new Weather({ forced: params.has("rain") ? Number(params.get("rain")) : null });
 const ducks = new Ducks();
@@ -314,7 +317,7 @@ function renderNow(now = performance.now()) {
   const step = Math.max(0, Math.min(dt, 0.1));
   weather.update(step);
   game.biteBoost = weather.biteBoost;
-  const dayTime = FIXED_TIME ?? dayTimeAt(elapsed, DAY_START, DAY_LENGTH);
+  const dayTime = FIXED_TIME ?? worldDayTime();
   // Ducks only come out between 6:00 and 20:00.
   const hour = (dayTime * 24) % 24;
   ducks.update(step, elapsed, width, height, renderer.shorelineY(width / 2), (x, y) => renderer.isDuckWater(x, y), hour >= 6 && hour < 20);

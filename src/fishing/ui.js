@@ -923,8 +923,7 @@ export class AnglerUI {
       // Small fish are drawn bigger so all of them read at a glance.
       pages = handbookEntries().map((entry, index) => page(fishSprite(entry.id, FISH[entry.id].max < 4 ? 3 : 2), nameOf("fish", entry.id), t("handbook.weight", { range: entry.range, price: entry.pricePerKg }), [
         [t("handbook.livesIn"), entry.spots.map((spot) => t("handbook.spotIn", { spot: nameOf("location", spot.id), abundance: nameOf("abundance", spot.abundance), kg: formatWeight(spot.maxKg) }))],
-        [t("handbook.bestBait"), entry.baits.length ? lower(list(entry.baits.map((bait) => nameOf("bait", bait)))) : t("handbook.baitsNone")],
-        [t("handbook.otherBait"), lower(list(entry.alsoBaits.map((bait) => nameOf("bait", bait))))],
+        [t("handbook.bitesOn"), lower(list(entry.baits.map((bait) => nameOf("bait", bait))))],
         [t("handbook.activeAt"), entry.times.map(periodName).join(", ")],
         [t("handbook.biteLabel"), nameOf("biteStyle", entry.style)],
       ], 700 + index));
@@ -944,11 +943,8 @@ export class AnglerUI {
       });
     } else if (id === "baits") {
       pages = baitEntries().map((bait, index) => {
-        const favourites = bait.fish.filter((fish) => fish.favourite).map((fish) => nameOf("fish", fish.id));
-        const others = bait.fish.filter((fish) => !fish.favourite).map((fish) => nameOf("fish", fish.id));
         return page(baitSprite(bait.id, 3), nameOf("bait", bait.id), `${bait.free ? t("handbook.baitFree") : t("handbook.baitPrice", { price: bait.price })} · ${nameOf("baitSize", bait.size)}`, [
-          [t("handbook.loves"), lower(list(favourites))],
-          [t("handbook.takes"), lower(list(others))],
+          [t("handbook.takenBy"), lower(list(bait.fish.map((fish) => nameOf("fish", fish))))],
         ], 820 + index);
       });
     } else {
