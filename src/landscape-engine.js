@@ -1,5 +1,5 @@
 import { clamp, hash2, valueNoise } from "./noise.js";
-import { activeScene, bankWidths, shorelineY, sunPosition, view } from "./scene.js";
+import { activeScene, bankWidths, shorelineY, view } from "./scene.js";
 
 /** Ridged fractal noise: sharp crests where the smooth noise crosses its midpoint. */
 function ridged(x, y, seed, octaves = 4) {
@@ -144,53 +144,12 @@ export function createRidgeGlyphs(width, height, cellWidth, lineHeight) {
           });
           continue;
         }
-        if (ridge.relief) {
-          cells.push({ x, y, column, row, ridge: ridgeIndex, ...reliefCell(ridge, ridgeIndex, x, y, top, bottom, glyph, noise, width, height, cellWidth) });
-          continue;
-        }
         cells.push({ x, y, column, row, glyph, color: ridge.glyph, fill: ridge.fill, ridge: ridgeIndex });
       }
     }
   });
 
   return cells;
-}
-
-const hexRgb = (hex) => {
-  const n = parseInt(hex.slice(1), 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-};
-
-/**
- * A mountain with relief: spurs and gullies run down from the crest, each
- * slope lit on the side facing the sun and shaded on the other, with strokes
- * running down the steeper faces. The base fades into the valley haze.
- */
-function reliefCell(ridge, ridgeIndex, x, y, top, bottom, edgeGlyph, noise, width, height, cellWidth) {
-  const below = (y - top) / (bottom - top + 1);
-  // Near the crest the faces follow the ridgeline; lower down, spurs (noise) take over.
-  const crestSlope = (ridgeTop(ridge, x + cellWidth * 2, height) - ridgeTop(ridge, x - cellWidth * 2, height)) / (cellWidth * 4);
-  const spur = (valueNoise(x * 0.011 + 0.2, y * 0.022, 40 + ridgeIndex) - valueNoise(x * 0.011 - 0.2, y * 0.022, 40 + ridgeIndex)) * 2.5;
-  const facing = clamp(crestSlope * 5 * Math.max(0, 1 - below * 2) + spur * (0.4 + below), -1, 1);
-  const sunSide = sunPosition(width, height).x > x ? -1 : 1;
-  const light = facing * sunSide;
-  const fill = hexRgb(ridge.fill);
-  const lit = mixRgb(fill, [210, 204, 186], 0.32);
-  const shade = mixRgb(fill, [22, 28, 34], 0.42);
-  let base = mixRgb(fill, light > 0 ? lit : shade, Math.min(1, Math.abs(light) * 1.4));
-  // The valley haze softens the foot of the mountain.
-  base = mixRgb(base, [150, 156, 160], below * below * 0.25);
-  let glyph = edgeGlyph;
-  if (y - top >= cellWidth * 2) {
-    if (Math.abs(facing) > 0.35 && noise < 0.28) glyph = facing > 0 ? "\\" : "/";
-    else if (noise < ridge.density * 1.6) glyph = ridge.texture[Math.floor(hash2(Math.round(x), Math.round(y), 13) * ridge.texture.length)];
-    else glyph = null;
-  }
-  return {
-    glyph,
-    color: toHexRgb(mixRgb(base, light > 0 ? [235, 230, 214] : [12, 16, 20], 0.35)),
-    fill: toHexRgb(base),
-  };
 }
 
 /** A thin, irregular strip of pebbles and sand where the far shore meets the water. */

@@ -13,7 +13,7 @@ English and Ukrainian, switched in **Settings** on the main menu. English is the
 Each spot has its own ASCII landscape, built from a profile in `src/scene.js` (horizon, ridges, forest, near banks, structures, water behaviour, foreground):
 
 - **Ставок за селом** — a pond in open farmland: big sky, a low flat far bank of green meadow and a ploughed strip, scattered round trees and tall poplars, a few small cottages in the distance, a reed fringe along the far waterline, and thick reeds and cattails on both near sides.
-- **Тихе озеро** — layered mountains behind a forested shore, reeds, a boulder and a few lily pads.
+- **Тихе озеро** — an old, tall forest of pines and spruces along the far shore, reeds, a boulder, a few lily pads and a grassy bank at our feet.
 - **Замкове озеро** — after a photo of an alpine lake: a dark wooded hill of distinct tree crowns rises on the left to a sheer limestone cliff topped by an ancient ruined castle (broken grey walls, gutted towers, ivy, no roofs); a snowy alpine massif fills the right, built from glyph cells in a flat palette: `/` and `\` follow the slope, faces facing the sun are lighter, snow runs down the gullies and leaves steep rock bare, woods cover the lower slopes, with blue distance haze; an arched stone bridge sits under the cliff and two red-roofed houses on the far shore. Calm emerald water.
 - **Затока водосховища** — wide open water, low far hills, a concrete dam with gates and lamps, power pylons with sagging wires, concrete blocks in the foreground.
 - **Старий міст** — fishing from a wooden bridge over a fast river: we look downstream past the railing, willow-lined banks recede and the river swings right round a bend, leaving the view past the right edge; the current runs away from us and turns with the bend in long streaks and flecks of foam (no casting onto the railing).
@@ -30,10 +30,6 @@ The scene bakes a colour grade into its own colours (`GRADE` in `src/theme.js`):
 
 Deep in the night strange things happen (`src/night-events.js`): will-o'-the-wisps drift over the far water, a pale hooded figure stands on the far shore and fades, and two red eyes surface near the bank before slipping under in rings. Each event is announced as a `doberega:night` window event (`detail.type`: figure, eyes, eyesSink), ready for sounds later.
 
-## Mountains
-
-Hills and mountains on the lake (`relief` in `src/scene.js`) have relief (`reliefCell` in `src/landscape-engine.js`): spurs and gullies run down from the crest, slopes facing the sun are lit and the others shaded, smoothly, with strokes down the steeper faces and the foot fading into the valley haze.
-
 ## Season
 
 **Налаштування → Сезон** picks summer, autumn or auto (`isAutumn()` in `src/theme.js`; auto follows the calendar, autumn from September to November). Autumn turns broadleaf crowns into heavy masses of `0 O @` in blood red, rust, gold and brown (`AUTUMN` in `src/forest-engine.js`; conifers stay green) and the grass yellow.
@@ -42,15 +38,15 @@ Hills and mountains on the lake (`relief` in `src/scene.js`) have relief (`relie
 
 Fish in the catch window, the handbook and the trophy cabinet are detailed portraits (`src/fishing/fish-portrait.js`), drawn the same way as the social cards in `tools/cards` but in each species' own colours from `FISH_LOOKS`: a rounded, shaded body with its markings, rayed fins, a ringed eye with a glint and a dark outline, shaded in dithered steps.
 
-## Grass, shadows and sparkle
+## Grass and sparkle
 
 Grass on the river banks and on the bank we stand on (pond and lake, `nearBank` in `src/scene.js`) is drawn by `src/grass-engine.js` as single strokes: every blade is a `|` glyph turned to its own angle (the glyph batch carries a rotation per glyph), near blades are two or three segments that bend further toward the tip, and gusts sweep across the field as travelling bands. Dark earth shows between the blades. Flowers dot the grass by day, dew sparkles at sunrise, and fireflies pulse over the grass and the shore at night.
 
 Trees on the river banks have crowns of separate clumps of leaves (`bankTreeGlyph` in `src/forest-engine.js`), each lit on the sun's side and dark underneath, over a trunk that forks into branches; grass keeps out of the crowns.
 
-Water has depth (`shallowAt` in `src/canvas-renderer.js`): shallow and lighter, with more of the spot's own colour, toward our bank and beside river banks, darker out over the depths, as one smooth gradient. Cloud and tree shadows never fall on open water, so it never gets blotchy. The castle lake is glacial turquoise.
+Water has depth (`shallowAt` in `src/canvas-renderer.js`): shallow and lighter, with more of the spot's own colour, toward our bank and beside river banks, darker out over the depths, as one smooth gradient. The castle lake is glacial turquoise.
 
-The bank we stand on fades into the water over a few soft steps. Fake shadows come from two small greyscale maps the GPU multiplies in (`SHADE` in `src/glyph-backend.js`): cloud shadows (`paintCloudShadows`, eight times a second) are value noise laid on the ground plane below the horizon, squeezed toward it and carried by the wind while the sun is out, never on hills or open water; tree shadows come from a soft greyscale map (`paintTreeShadows` in `src/canvas-renderer.js`) where every tree throws an ellipse away from the sun or moon, long when the light is low.
+The bank we stand on fades into the water over a few soft steps.
 
 ## Time of day
 
@@ -110,7 +106,7 @@ On a phone held upright the landscape isn't squeezed: the scene is laid out at l
 
 ## Rendering
 
-Every character is pushed into a glyph batch (position, glyph, color). WebGL2 draws each batch with a single instanced call from a white glyph atlas tinted on the GPU, so the ~25,000 characters on screen cost a few milliseconds per frame. Static scenery (sky gradient, sun, ridges, forest silhouette, water body) is rasterized once into layer textures; clouds and stars are resampled about 15 times per second. Each batch keeps its own GPU buffers and is only re-uploaded when its contents change; the grass refreshes every other frame, the water every frame, and the hottest loops use a sine table (`fastSin` in `src/noise.js`). The glyph scene renders at no more than about 2400 device pixels across (the overlay stays sharp), the sky is drawn without blending and only above the shore, and shadows are sampled once per glyph in the vertex shader. Reeds and the rock are drawn on a light 2D overlay. Browsers without WebGL2 fall back to Canvas 2D with the same batches. 
+Every character is pushed into a glyph batch (position, glyph, color). WebGL2 draws each batch with a single instanced call from a white glyph atlas tinted on the GPU, so the ~25,000 characters on screen cost a few milliseconds per frame. Static scenery (sky gradient, sun, ridges, forest silhouette, water body) is rasterized once into layer textures; clouds and stars are resampled about 15 times per second. Each batch keeps its own GPU buffers and is only re-uploaded when its contents change; the grass refreshes every other frame, the water every frame, and the hottest loops use a sine table (`fastSin` in `src/noise.js`). The sky is drawn without blending and only above the shore, and the land layer only from the highest crest down. Reeds and the rock are drawn on a light 2D overlay. Browsers without WebGL2 fall back to Canvas 2D with the same batches. 
 
 ## Run locally
 

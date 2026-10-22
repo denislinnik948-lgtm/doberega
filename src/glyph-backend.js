@@ -3,9 +3,6 @@
  * color) and full-screen layer canvases; a backend composites them. WebGL2 draws
  * each batch with one instanced call, so tens of thousands of characters cost
  * almost nothing; Canvas 2D is a drop-in fallback.
- *
- * WebGL also darkens the land and water it draws under drifting cloud shadows
- * and the shadows trees cast (a soft greyscale map painted by the scene).
  */
 
 const FIRST_CODE = 32;
@@ -83,29 +80,7 @@ function createAtlasCanvas(font, fontSize, ratio) {
   return { canvas, box };
 }
 
-/*
- * Shadows, shared by glyphs and layers, both from small greyscale maps
- * (white = full light) the scene paints: drifting cloud shadows on texture
- * unit 2, tree shadows on unit 1. `shadow.w` is the mode: 0 none, 1 clouds
- * and trees, 2 clouds only. `screen` = (width, height, pixel ratio) in CSS pixels.
- */
-const SHADE = `
-uniform vec4 shadow;
-uniform vec3 screen;
-uniform sampler2D treeShadow;
-uniform sampler2D cloudShadow;
-float shadeAt(vec2 pos) {
-  if (shadow.w < 0.5) return 1.0;
-  vec2 uv = pos / screen.xy;
-  float cloud = texture(cloudShadow, uv).r;
-  float trees = shadow.w > 1.5 ? 1.0 : texture(treeShadow, uv).r;
-  return min(cloud, trees);
-}
-`;
-
-// Shadows change slowly across the scene, so a glyph takes one shade, worked out at its centre.
 const GLYPH_VERTEX = `#version 300 es
-precision highp float;
 layout(location = 0) in vec2 corner;
 layout(location = 1) in vec4 instance;
 layout(location = 2) in vec4 color;
@@ -114,8 +89,6 @@ uniform vec2 box;
 uniform vec2 grid;
 out vec2 uv;
 out vec4 tint;
-out float shading;
-${SHADE}
 void main() {
   vec2 offset = (corner - 0.5) * box;
   float c = cos(instance.w);
@@ -126,7 +99,6 @@ void main() {
   vec2 cell = vec2(mod(instance.z, grid.x), floor(instance.z / grid.x));
   uv = (cell + corner) / grid;
   tint = color;
-  shading = shadeAt(instance.xy);
 }`;
 
 const GLYPH_FRAGMENT = `#version 300 es
@@ -135,11 +107,10 @@ uniform sampler2D atlas;
 uniform vec4 light;
 in vec2 uv;
 in vec4 tint;
-in float shading;
 out vec4 outColor;
 void main() {
   float alpha = texture(atlas, uv).a * light.a * tint.a;
-  outColor = vec4(min(tint.rgb * light.rgb, vec3(1.0)) * shading * alpha, alpha);
+  outColor = vec4(min(tint.rgb * light.rgb, vec3(1.0)) * alpha, alpha);
 }`;
 
 const LAYER_VERTEX = `#version 300 es
@@ -151,17 +122,15 @@ void main() {
 }`;
 
 const LAYER_FRAGMENT = `#version 300 es
-precision highp float;
+precision mediump float;
 uniform sampler2D layer;
 uniform vec4 light;
 in vec2 uv;
 out vec4 outColor;
-${SHADE}
 void main() {
   vec4 color = texture(layer, uv);
-  vec2 pos = vec2(gl_FragCoord.x, screen.y * screen.z - gl_FragCoord.y) / screen.z;
   // Premultiplied: scale colour by the light, keep coverage.
-  outColor = vec4(min(color.rgb * light.rgb, vec3(color.a)) * shadeAt(pos), color.a);
+  outColor = vec4(min(color.rgb * light.rgb, vec3(color.a)), color.a);
 }`;
 
 class WebGLBackend {
@@ -177,21 +146,6 @@ class WebGLBackend {
       glyphLight: gl.getUniformLocation(this.glyphProgram, "light"),
       layerLight: gl.getUniformLocation(this.layerProgram, "light"),
     };
-    // Each program's shadow uniforms; the tree shadow map sits on texture unit 1, clouds on 2.
-    this.shadeUniforms = new Map([this.glyphProgram, this.layerProgram].map((program) => {
-      gl.useProgram(program);
-      gl.uniform1i(gl.getUniformLocation(program, "treeShadow"), 1);
-      gl.uniform1i(gl.getUniformLocation(program, "cloudShadow"), 2);
-      return [program, { shadow: gl.getUniformLocation(program, "shadow"), screen: gl.getUniformLocation(program, "screen") }];
-    }));
-    const blank = document.createElement("canvas");
-    blank.width = 1;
-    blank.height = 1;
-    const blankContext = blank.getContext("2d");
-    blankContext.fillStyle = "#fff";
-    blankContext.fillRect(0, 0, 1, 1);
-    this.setShadowMap(blank);
-    this.setCloudMap(blank);
 
     const corners = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, corners);
@@ -257,22 +211,6 @@ class WebGLBackend {
     this.layers.set(name, this.texture(canvas, this.layers.get(name)));
   }
 
-  /** The greyscale map of tree shadows (white = full light). */
-  setShadowMap(canvas) {
-    const gl = this.gl;
-    gl.activeTexture(gl.TEXTURE1);
-    this.shadowMap = this.texture(canvas, this.shadowMap);
-    gl.activeTexture(gl.TEXTURE0);
-  }
-
-  /** The greyscale map of drifting cloud shadows (white = full light), refreshed a few times a second. */
-  setCloudMap(canvas) {
-    const gl = this.gl;
-    gl.activeTexture(gl.TEXTURE2);
-    this.cloudMap = this.texture(canvas, this.cloudMap);
-    gl.activeTexture(gl.TEXTURE0);
-  }
-
   /**
    * The batch's own GPU buffers, sized to its capacity. Sharing one buffer
    * between batches made the driver wait for the GPU to finish with the last
@@ -317,14 +255,6 @@ class WebGLBackend {
     }
   }
 
-  /** `shaded`: false for no shadows, true for clouds and trees, "clouds" for cloud shadows only. */
-  applyShade(program, shaded) {
-    const gl = this.gl;
-    const uniforms = this.shadeUniforms.get(program);
-    gl.uniform4f(uniforms.shadow, 0, 0, 0, shaded === "clouds" ? 2 : shaded ? 1 : 0);
-    gl.uniform3f(uniforms.screen, this.width, this.height, this.ratio);
-  }
-
   begin() {
     const gl = this.gl;
     gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
@@ -334,11 +264,10 @@ class WebGLBackend {
 
   /**
    * `light` multiplies the layer's colour: [r, g, b] (values above 1 brighten);
-   * `shaded` lets shadows fall on it; `band` = [top, bottom] in CSS pixels
-   * limits drawing to the rows where the layer can show; `opaque` skips
-   * blending for a layer with no transparency.
+   * `band` = [top, bottom] in CSS pixels limits drawing to the rows where the
+   * layer can show; `opaque` skips blending for a layer with no transparency.
    */
-  drawLayer(name, light = NEUTRAL, shaded = false, band = null, opaque = false) {
+  drawLayer(name, light = NEUTRAL, band = null, opaque = false) {
     const gl = this.gl;
     if (opaque) gl.disable(gl.BLEND);
     if (band) {
@@ -349,7 +278,6 @@ class WebGLBackend {
     }
     gl.useProgram(this.layerProgram);
     gl.uniform4f(this.uniforms.layerLight, light[0], light[1], light[2], 1);
-    this.applyShade(this.layerProgram, shaded);
     gl.bindVertexArray(this.layerVao);
     gl.bindTexture(gl.TEXTURE_2D, this.layers.get(name));
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -357,13 +285,12 @@ class WebGLBackend {
     if (opaque) gl.enable(gl.BLEND);
   }
 
-  /** `light` multiplies glyph colours; its fourth value is opacity. `shaded` lets shadows fall on them. */
-  drawGlyphs(batch, light = NEUTRAL, shaded = false) {
+  /** `light` multiplies glyph colours; its fourth value is opacity. */
+  drawGlyphs(batch, light = NEUTRAL) {
     if (!batch.count) return;
     const gl = this.gl;
     gl.useProgram(this.glyphProgram);
     gl.uniform4f(this.uniforms.glyphLight, light[0], light[1], light[2], light[3] ?? 1);
-    this.applyShade(this.glyphProgram, shaded);
     gl.uniform2f(this.uniforms.viewport, this.width, this.height);
     gl.uniform2f(this.uniforms.box, this.box.width, this.box.height);
     gl.uniform2f(this.uniforms.grid, ATLAS_COLUMNS, ATLAS_ROWS);
@@ -395,11 +322,6 @@ class Canvas2DBackend {
   setLayer(name, canvas) {
     this.layers.set(name, canvas);
   }
-
-  // Shadows need the GPU; the fallback simply goes without them.
-  setShadowMap() {}
-
-  setCloudMap() {}
 
   begin() {
     const ctx = this.ctx;

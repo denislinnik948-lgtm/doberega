@@ -12,12 +12,6 @@ export const view = { width: 1600, left: 0, frameWidth: 1600 };
 
 export const SUN = { x: 0.37, y: 0.252, radius: 0.03 };
 
-const LAKE_RIDGES = [
-  { top: 0.335, amplitude: 0.085, seed: 1.6, fill: "#4c5961", glyph: "#6c787d", texture: ".:'", density: 0.16, relief: true },
-  { top: 0.385, amplitude: 0.045, seed: 3.4, fill: "#34433f", glyph: "#4b5a52", texture: ".:;", density: 0.2, relief: true },
-  { top: 0.42, amplitude: 0.022, seed: 5.2, fill: "#26352d", glyph: "#3a4c3d", texture: "^^*.", density: 0.34 },
-];
-
 /** Bank width on one side of the bridge river at a screen depth (0 top .. 1 bottom); negative means off screen. */
 function riverBank(depth, side) {
   const t = Math.max(0, (depth - 0.4) / 0.6);
@@ -55,11 +49,11 @@ export const SCENES = {
     nearBank: 0.075,
     foreground: { reeds: 2.2, rock: false, lilyPads: 0 },
   },
-  /** Quiet lake: layered mountains behind a forested shore. */
+  /** Quiet lake: an old, tall conifer forest, pines and spruces, stands along the far shore. */
   lake: {
     horizon: 0.47,
-    ridges: LAKE_RIDGES,
-    forest: {},
+    ridges: [],
+    forest: { heightScale: 2.2, spacingScale: 0.75, broadleaf: 0 },
     structures: {},
     water: {},
     nearBank: 0.055,

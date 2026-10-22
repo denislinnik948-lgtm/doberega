@@ -30,7 +30,8 @@ export class Ducks {
     for (let attempt = 0; attempt < 12; attempt += 1) {
       if (side === "bottom") {
         const x = width * (0.2 + random() * 0.6);
-        if (isWater(x, height * 0.92)) return { x, y: height + 30, side };
+        // Only where the water itself runs to the bottom edge (no bank of ours in the way).
+        if (isWater(x, height * 0.92) && isWater(x, height - 2)) return { x, y: height + 30, side };
       } else {
         const y = horizonY + (height - horizonY) * (0.15 + random() * 0.5);
         const probeX = side === "left" ? width * 0.03 : width * 0.97;
@@ -88,6 +89,15 @@ export class Ducks {
 
   update(dt, time, width, height, horizonY, isWater, daytime = true) {
     const random = this.random;
+    // A way out for a duck that is stuck: the nearer side edge first, then the other, then the bottom.
+    const escape = (duck) => {
+      const sides = duck.x < width / 2 ? ["left", "right", "bottom"] : ["right", "left", "bottom"];
+      for (const side of sides) {
+        const point = this.edgePoint(side, width, height, horizonY, isWater);
+        if (point) return { x: side === "left" ? -180 : side === "right" ? width + 180 : point.x, y: side === "bottom" ? height + 180 : point.y, side };
+      }
+      return { x: duck.x < width / 2 ? -180 : width + 180, y: duck.y, side: duck.x < width / 2 ? "left" : "right" };
+    };
     this.timer -= dt;
     if (!daytime) {
       // Night: no new ducks, and stragglers make for the edge.
@@ -141,15 +151,16 @@ export class Ducks {
           duck.circling = 0;
           duck.best = Infinity;
         }
-        if (index > 0 && duck.stuck > 3) duck.solo = { x: duck.x, y: height + 180 };
+        if (index > 0 && duck.stuck > 3) duck.solo = escape(duck);
         if (index === 0 && duck.stuck > 2) {
-          // Give up on this waypoint; on the way out, head straight down past the bottom edge.
+          // Give up on this waypoint; on the way out, make for the nearest open edge.
           if (flock.waypoints.length > 1) flock.waypoints.shift();
-          else flock.exit = flock.waypoints[0] = { x: duck.x, y: height + 180, side: "bottom" };
+          else flock.exit = flock.waypoints[0] = escape(duck);
           duck.stuck = 0;
           duck.best = Infinity;
         }
-        if (Math.abs(nx - duck.x) > 0.01) duck.heading = nx > duck.x ? 1 : -1;
+        // Turn round only when really swimming the other way, not while sliding along a bank.
+        if (Math.abs(nx - duck.x) > speed * dt * 0.4) duck.heading = nx > duck.x ? 1 : -1;
         if (!duck.wake.length || time - duck.wake[0].t > 0.15) duck.wake.unshift({ x: duck.x, y: duck.y, t: time });
         if (duck.wake.length > 14) duck.wake.length = 14;
         duck.x = nx;
