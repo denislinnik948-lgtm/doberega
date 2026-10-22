@@ -83,22 +83,26 @@ export const SCENES = {
     foreground: { reeds: 0.5, rock: false, lilyPads: 0 },
   },
   /**
-   * Pripyat: the cooling reservoir by the Chornobyl power plant. Low far
-   * hills, the plant across the water with power lines running off it,
-   * murky water and a rusting ship half sunk in the bay.
+   * Pripyat: the cooling reservoir by the Chornobyl power plant, seen across
+   * flat water. The plant stretches along the far shore over a low line of
+   * willows, the woods are dry yellow and brown, the water murky, a rusting
+   * ship lies half sunk near the far bank, and dry reeds frame the view.
    */
   reservoir: {
     horizon: 0.42,
     ridges: [
-      { top: 0.37, amplitude: 0.04, seed: 0.3, fill: "#4a575e", glyph: "#66757a", texture: ".:'", density: 0.12 },
-      { top: 0.405, amplitude: 0.02, seed: 2.6, fill: "#34433f", glyph: "#4b5a52", texture: ".:;", density: 0.2 },
+      // Barely a rise: a flat, hazy plain beyond the plant.
+      { top: 0.405, amplitude: 0.006, seed: 2.6, fill: "#5e5640", glyph: "#7c7150", texture: ".:'", density: 0.16 },
     ],
-    forest: { heightScale: 0.55, spacingScale: 1.7, broadleaf: 0.3, gaps: [[0.46, 1.02]] },
-    structures: { chnpp: { from: 0.56, to: 0.95 }, pylons: [0.07, 0.23, 0.39] },
+    forest: { heightScale: 0.6, spacingScale: 1.4, broadleaf: 0.9, round: 0.7, dry: true, gaps: [[0.05, 0.98]] },
+    structures: { chnpp: { from: 0.06, to: 0.97 } },
+    shore: "reeds",
+    // Sun-bleached reeds and dry grass rather than green.
+    dry: true,
     // A weak current sets slowly toward the plant's outflow; the water is murky.
-    // The wreck: a rusting ship listing in the bay, bow up (centre, width as screen fractions).
-    water: { drift: { x: 0.0016, y: 0 }, body: "#1c2a24", wreck: { x: 0.27, y: 0.67, w: 0.2 } },
-    foreground: { reeds: 0, rock: false, lilyPads: 0, blocks: true },
+    // The wreck: a rusting ship listing near the far bank, bow up (centre, width as screen fractions).
+    water: { drift: { x: 0.0016, y: 0 }, body: "#353120", wreck: { x: 0.3, y: 0.52, w: 0.15 } },
+    foreground: { reeds: 1.6, rock: false, lilyPads: 0 },
   },
   /**
    * Old bridge over a fast river: we stand at the wooden railing looking
@@ -175,18 +179,20 @@ export function wreckShape(width, height) {
   const cx = wreck.x * width;
   const waterline = wreck.y * height;
   const half = (wreck.w * width) / 2;
-  const deck = (u) => waterline - height * (0.012 + 0.075 * u ** 1.7);
+  // Heights scale with the ship's width: far off, it is smaller all round.
+  const size = (wreck.w / 0.2) * height;
+  const deck = (u) => waterline - size * (0.012 + 0.075 * u ** 1.7);
   // The raked stem lifts the hull clear of the water at the bow.
-  const keel = (u) => waterline - height * 0.004 - (u > 0.86 ? ((u - 0.86) / 0.14) * height * 0.055 : 0);
-  const house = { from: 0.14, to: 0.4, height: height * 0.045 };
+  const keel = (u) => waterline - size * 0.004 - (u > 0.86 ? ((u - 0.86) / 0.14) * size * 0.055 : 0);
+  const house = { from: 0.14, to: 0.4, height: size * 0.045 };
   const along = (x) => (x - (cx - half)) / (2 * half);
   return {
-    cx, waterline, half, deck, keel, house, along,
+    cx, waterline, half, size, deck, keel, house, along,
     covers(x, y) {
       const u = along(x);
       if (u < 0 || u > 1) return false;
       const top = deck(u) - (u >= house.from && u <= house.to ? house.height : 0);
-      return y > top && y < keel(u) + height * 0.012;
+      return y > top && y < keel(u) + size * 0.012;
     },
   };
 }

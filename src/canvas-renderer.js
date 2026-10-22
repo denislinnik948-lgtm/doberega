@@ -862,7 +862,7 @@ export class CanvasWaterRenderer {
     const { cx, waterline, half, deck, keel, house } = ship;
     const stone = [];
     const foam = [];
-    const rust = [0x7a3e22, 0x5e2f1a, 0x93502c, 0x6b3820];
+    const rust = [0x8c4826, 0x6c361c, 0xa65a30, 0x7c4224];
     const snap = (x, y) => [(Math.floor(x / cellWidth) + 0.5) * cellWidth, (Math.floor(y / lineHeight) + 0.52) * lineHeight];
     const put = (x, y, glyph, color) => {
       const [sx, sy] = snap(x, y);
@@ -911,7 +911,7 @@ export class CanvasWaterRenderer {
       const u = 0.62;
       const footX = cx - half + 2 * half * u;
       const foot = deck(u) - lineHeight;
-      const rows = Math.round((height * 0.07) / lineHeight);
+      const rows = Math.max(3, Math.round((ship.size * 0.07) / lineHeight));
       for (let r = 0; r < rows; r += 1) {
         const x = footX - r * cellWidth * 0.45;
         put(x, foot - r * lineHeight, "\\", 0x4a2e1e);
@@ -1212,6 +1212,7 @@ export class CanvasWaterRenderer {
     ctx.textBaseline = "middle";
     ctx.lineCap = "round";
     const gust = 0.6 + 0.4 * Math.sin(time * 0.21);
+    const dry = activeScene().dry;
 
     for (const reed of this.reeds) {
       const segments = Math.max(2, Math.round(reed.length / step));
@@ -1220,15 +1221,16 @@ export class CanvasWaterRenderer {
         x: reed.baseX + reed.length * (reed.lean * t + reed.curve * t * t + swing * reed.flex * t * t),
         y: reed.baseY - reed.length * t,
       });
-      const shade = reed.depth < 0.5 ? "#2c3b2c" : "#223024";
-      const rim = reed.lit ? "#71804f" : "#46573c";
+      // Dry reeds at Pripyat: straw and old brown instead of green.
+      const shade = dry ? (reed.depth < 0.5 ? "#4a3b22" : "#3a2e1a") : reed.depth < 0.5 ? "#2c3b2c" : "#223024";
+      const rim = dry ? (reed.lit ? "#c9a85e" : "#8c7242") : reed.lit ? "#71804f" : "#46573c";
       const points = Array.from({ length: segments + 1 }, (_, i) => at(i / segments));
 
       // A solid silhouette hides the water glyphs behind each stalk.
       ctx.beginPath();
       points.forEach((point, i) => (i ? ctx.lineTo(point.x, point.y) : ctx.moveTo(point.x, point.y)));
       ctx.lineWidth = size * (reed.kind === "grass" ? 0.3 : 0.4);
-      ctx.strokeStyle = "#0b1410";
+      ctx.strokeStyle = dry ? "#150f08" : "#0b1410";
       ctx.stroke();
       if (reed.kind === "cattail") {
         const top = at(0.86);

@@ -262,42 +262,65 @@ function landscape(px, w, h, random, kind) {
     }
     px.rect(x0, horizon, w - 2 * m, 1, P.ink);
   } else if (kind === "reservoir") {
-    ridge(px, x0, x1, horizon, 26 * unit, 0.5, P.dark, horizon + 1);
-    ridge(px, x0, x1, horizon, 13 * unit, 3, P.deep, horizon + 1);
-    // The Chornobyl plant: the long reactor block, the striped stack, the silver arch.
-    const plantX = Math.round(w * 0.5);
-    const plantW = Math.round(w * 0.3);
-    const blockH = Math.round(5 * unit);
-    px.rect(plantX, horizon - blockH, plantW, blockH + 1, P.soft);
-    px.rect(plantX, horizon - blockH, plantW, 1, P.light);
-    px.rect(plantX + Math.round(plantW * 0.15), horizon - blockH - Math.round(3 * unit), Math.round(plantW * 0.3), Math.round(3 * unit), P.soft);
-    const stackX = plantX + Math.round(plantW * 0.55);
-    const stackH = Math.round(20 * unit);
-    for (let y = 0; y < stackH; y += 1) {
-      const band = stackH - y < Math.round(8 * unit) ? Math.floor((stackH - y) / Math.max(1, Math.round(2 * unit))) % 2 : -1;
-      px.rect(stackX, horizon - y, Math.max(2, Math.round(unit * 1.5)), 1, band === 0 ? P.ember : band === 1 ? P.bone : P.light);
+    // Pripyat: the Chornobyl plant along a flat far shore, as seen across the cooling pond.
+    const u = (n) => Math.max(1, Math.round(n * unit));
+    const at = (f) => Math.round(w * f);
+    // The cooling tower, a broad waisted cone with a dark unfinished rim.
+    const towerX = at(0.13);
+    const towerH = u(16);
+    for (let y = 0; y < towerH; y += 1) {
+      const half = Math.round(w * (0.042 + 0.024 * (1 - y / towerH) ** 1.5));
+      px.rect(towerX - half, horizon - y, half * 2, 1, y >= towerH - u(1.5) ? P.mid : P.soft);
+      px.rect(towerX - half, horizon - y, Math.round(half * 0.8), 1, y >= towerH - u(1.5) ? P.mid : P.light);
     }
-    const archX = plantX + plantW;
-    const archR = Math.round(w * 0.08);
+    // Units 5 and 6 under their cranes, with rust-red panels.
+    px.rect(at(0.25), horizon - u(7), at(0.13), u(7) + 1, P.soft);
+    for (let x = at(0.25); x < at(0.38); x += u(4)) px.rect(x, horizon - u(7), u(2), u(2), P.ember);
+    for (const [f, reach] of [[0.26, 0.05], [0.32, -0.04], [0.37, 0.05]]) {
+      const x = at(f);
+      const top = horizon - u(f === 0.32 ? 20 : 16);
+      for (let y = top; y < horizon - u(7); y += 1) px.set(x, y, P.mid);
+      const from = Math.min(x, x + at(reach));
+      px.rect(from - (reach > 0 ? u(2) : 0), top + 1, Math.abs(at(reach)) + u(2), 1, P.mid);
+    }
+    // The lone steel gantry.
+    px.rect(at(0.46), horizon - u(10), 1, u(10), P.dark);
+    px.rect(at(0.51), horizon - u(10), 1, u(10), P.dark);
+    px.rect(at(0.455), horizon - u(10), at(0.06), u(2), P.dark);
+    // The New Safe Confinement.
+    const archX = at(0.6);
+    const archR = at(0.065);
     for (let dx = -archR; dx <= archR; dx += 1) {
-      const top = Math.round(Math.sqrt(Math.max(0, 1 - (dx / archR) ** 2)) * archR * 0.75);
-      px.rect(archX + dx, horizon - top, 1, top + 1, Math.abs(dx) % 3 === 0 ? P.light : P.bone);
+      const top = Math.round(Math.sqrt(Math.max(0, 1 - (dx / archR) ** 2)) * archR * 0.7);
+      px.rect(archX + dx, horizon - top, 1, top + 1, Math.abs(dx) % 3 === 0 ? P.soft : P.light);
     }
-    // A rusty wreck in the bay, bow up.
-    const wreckX = Math.round(w * 0.2);
-    const wreckY = Math.round(horizon + (h - horizon) * 0.45);
-    const wreckW = Math.round(w * 0.2);
+    // The long main block with its two red-and-white stacks.
+    px.rect(at(0.67), horizon - u(6), at(0.3), u(6) + 1, P.light);
+    px.rect(at(0.76), horizon - u(9), at(0.11), u(3), P.light);
+    for (const [f, tall] of [[0.72, 24], [0.94, 27]]) {
+      const x = at(f);
+      const stackH = u(tall);
+      const band = Math.max(1, u(2));
+      for (let y = 0; y < stackH; y += 1) px.rect(x, horizon - y, Math.max(2, u(1.5)), 1, Math.floor(y / band) % 2 ? P.bone : P.ember);
+    }
+    // Willows along the far waterline, yellowing.
+    for (let x = x0; x < x1; x += 1) px.rect(x, horizon - Math.round(random() * 2 * unit), 1, u(2), random() < 0.5 ? P.goldDark : P.dark);
+    // A rusty wreck near the far bank, bow up.
+    const wreckX = at(0.22);
+    const wreckY = Math.round(horizon + (h - horizon) * 0.2);
+    const wreckW = at(0.14);
     for (let dx = 0; dx < wreckW; dx += 1) {
-      const rise = Math.round((dx / wreckW) ** 1.7 * 6 * unit);
-      px.rect(wreckX + dx, wreckY - rise - Math.round(unit), 1, rise + Math.round(unit) + 1, dx % 4 === 0 ? P.goldDark : P.ember);
+      const rise = Math.round((dx / wreckW) ** 1.7 * 5 * unit);
+      px.rect(wreckX + dx, wreckY - rise - u(1), 1, rise + u(1) + 1, dx % 4 === 0 ? P.goldDark : P.ember);
     }
-    px.rect(wreckX + Math.round(wreckW * 0.2), wreckY - Math.round(4 * unit), Math.round(wreckW * 0.2), Math.round(3 * unit), P.goldDark);
-    // Pylons on the far ridge.
-    for (const px0 of [0.1, 0.27]) {
-      const x = Math.round(w * px0);
-      const top = horizon - Math.round(30 * unit);
-      for (let y = top; y < horizon - 10 * unit; y += 1) px.set(x, y, P.ink);
-      px.rect(x - 3, top + 2, 7, 1, P.ink);
+    px.rect(wreckX + Math.round(wreckW * 0.15), wreckY - u(3.5), Math.round(wreckW * 0.25), u(2.5), P.goldDark);
+    // Dry reeds in the near corners.
+    for (const side of [0, 1]) {
+      for (let k = 0; k < 9; k += 1) {
+        const x = side ? x1 - 1 - Math.floor(random() * w * 0.12) : x0 + Math.floor(random() * w * 0.12);
+        const tall = Math.round((h - horizon) * (0.3 + random() * 0.45));
+        for (let y = 0; y < tall; y += 1) px.set(x + Math.round((y / tall) ** 2 * (side ? -2 : 2) * unit), h - 1 - y, y > tall * 0.6 ? P.gold : P.goldDark);
+      }
     }
   } else if (kind === "bridge") {
     ridge(px, x0, x1, horizon, 12 * unit, 1.3, P.dark, horizon + 1);

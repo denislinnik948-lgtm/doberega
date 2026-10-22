@@ -25,10 +25,18 @@ const AUTUMN = [
   { share: 0.1, shadow: "#46220f", middle: "#743a1e", light: "#a15a32" },
 ];
 
-/** A broadleaf tree's autumn palette, or null for the odd one still green. */
-function autumnPalette(tree) {
+// Dry woods at Pripyat: yellowing willows, ochre and old brown, with a little olive.
+const DRY = [
+  { share: 0.35, shadow: "#5a5222", middle: "#8a7c30", light: "#c2ac4a" },
+  { share: 0.3, shadow: "#5c4420", middle: "#8e6a30", light: "#bf9248" },
+  { share: 0.2, shadow: "#3e3a1e", middle: "#62602c", light: "#8f8a40" },
+  { share: 0.15, shadow: "#46301a", middle: "#6e4a28", light: "#9a6c3c" },
+];
+
+/** A broadleaf tree's autumn (or dry) palette, or null for the odd one still green. */
+function autumnPalette(tree, palettes = AUTUMN) {
   let pick = hash01(tree.seed * 83);
-  for (const palette of AUTUMN) {
+  for (const palette of palettes) {
     if (pick < palette.share) return palette;
     pick -= palette.share;
   }
@@ -140,9 +148,10 @@ function createTrees(width, height, sunX) {
 
 function foliageColor(tree, lit, shadow = false) {
   const broad = tree.species === "oak" || tree.species === "round";
-  const palette = (broad && isAutumn() && autumnPalette(tree)) || (tree.bank ? BANK_FOLIAGE : FOLIAGE[tree.layer]);
+  const dry = activeScene().forest.dry;
+  const palette = (dry && autumnPalette(tree, DRY)) || (broad && isAutumn() && autumnPalette(tree)) || (tree.bank ? BANK_FOLIAGE : FOLIAGE[tree.layer]);
   // Distant autumn woods keep to their darker tones.
-  if (AUTUMN.includes(palette) && tree.layer === 0) return shadow ? palette.shadow : palette.middle;
+  if ((AUTUMN.includes(palette) || DRY.includes(palette)) && tree.layer === 0) return shadow ? palette.shadow : palette.middle;
   if (shadow) return palette.shadow;
   return lit ? palette.light : palette.middle;
 }
