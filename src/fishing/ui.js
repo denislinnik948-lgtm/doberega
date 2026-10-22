@@ -140,7 +140,7 @@ export class AnglerUI {
   openSettings() {
     const options = $("#language-options");
     options.replaceChildren(...LANGUAGES.map(({ id, label }) => element("button", {
-      className: `pixel-btn${id === language() ? " pixel-btn-primary" : ""}`,
+      className: `pixel-btn tab${id === language() ? " is-active" : ""}`,
       type: "button",
       role: "radio",
       ariaChecked: String(id === language()),
@@ -153,7 +153,7 @@ export class AnglerUI {
       },
     })));
     $("#season-options").replaceChildren(...SEASONS.map((id) => element("button", {
-      className: `pixel-btn${id === season() ? " pixel-btn-primary" : ""}`,
+      className: `pixel-btn tab${id === season() ? " is-active" : ""}`,
       type: "button",
       role: "radio",
       ariaChecked: String(id === season()),
@@ -700,7 +700,7 @@ export class AnglerUI {
         element("span", { className: "card-stock", textContent: t("shop.inPack", { count: progress.baits[id] ?? 0 }) }),
         this.stepper(id, bait.price),
         element("button", {
-          className: "pixel-btn pixel-btn-primary",
+          className: "pixel-btn pixel-btn-buy",
           type: "button",
           disabled: progress.money < total,
           onclick: pay(total, () => {
@@ -720,7 +720,7 @@ export class AnglerUI {
         owned
           ? element("span", { className: "card-owned", textContent: t("shop.owned") })
           : element("button", {
-            className: "pixel-btn pixel-btn-primary",
+            className: "pixel-btn pixel-btn-buy",
             type: "button",
             disabled: progress.money < rod.price,
             onclick: pay(rod.price, () => {
@@ -739,7 +739,7 @@ export class AnglerUI {
       element("span", { className: "card-stock", textContent: t("shop.inPack", { count: progress.hooks }) }),
       this.stepper("hooks", HOOK_PRICE),
       element("button", {
-        className: "pixel-btn pixel-btn-primary",
+        className: "pixel-btn pixel-btn-buy",
         type: "button",
         disabled: progress.money < hookQty * HOOK_PRICE,
         onclick: pay(hookQty * HOOK_PRICE, () => {
@@ -759,7 +759,7 @@ export class AnglerUI {
         element("span", { className: "card-stock", textContent: t("shop.inPack", { count: stock }) }),
         this.stepper(id, price),
         element("button", {
-          className: "pixel-btn pixel-btn-primary",
+          className: "pixel-btn pixel-btn-buy",
           type: "button",
           disabled: progress.money < qty * price,
           onclick: pay(qty * price, () => {
@@ -784,7 +784,7 @@ export class AnglerUI {
         owned
           ? element("span", { className: "card-owned", textContent: t("shop.owned") })
           : element("button", {
-            className: "pixel-btn pixel-btn-primary",
+            className: "pixel-btn pixel-btn-buy",
             type: "button",
             disabled: progress.money < extra.price,
             onclick: pay(extra.price, () => {

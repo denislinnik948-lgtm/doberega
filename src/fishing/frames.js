@@ -70,65 +70,67 @@ function alongEdges(x, y, w, h, fn) {
   }
 }
 
-/** A thorny, slightly broken bone line with knots and spikes. */
+/*
+ * Frame lines are drawn in muted greens rather than bright bone, so a window
+ * reads as a calm panel and its text and buttons stand out, not its edges.
+ */
+const EDGE = "#7f998c";
+const EDGE_SOFT = "#58726a";
+const EDGE_FAINT = "#3a5650";
+
+/** A thorny, slightly broken line with the odd knot and spike. */
 function thornyBorder(px, x, y, w, h, random) {
-  px.outlineRect(x, y, w, h, P.bone);
+  px.outlineRect(x, y, w, h, EDGE);
   let next = 3;
   let index = 0;
   alongEdges(x, y, w, h, (ex, ey, ox, oy) => {
     index += 1;
     if (index < next) return;
-    next = index + 3 + Math.floor(random() * 6);
+    next = index + 6 + Math.floor(random() * 10);
     const roll = random();
-    if (roll < 0.35) {
-      // Spike sticking out (or occasionally in).
-      const dir = random() < 0.75 ? 1 : -1;
-      const len = 1 + Math.floor(random() * 2);
-      for (let k = 1; k <= len; k += 1) px.set(ex + ox * k * dir, ey + oy * k * dir, P.bone);
-    } else if (roll < 0.6) {
+    if (roll < 0.25) {
+      // A short spike sticking out.
+      px.set(ex + ox, ey + oy, EDGE_SOFT);
+    } else if (roll < 0.45) {
       // Knot: a little bump on both sides of the line.
-      px.set(ex + ox, ey + oy, P.bone);
-      px.set(ex - ox, ey - oy, P.bone);
-      px.set(ex + oy, ey + ox, P.light);
-    } else if (roll < 0.72) {
+      px.set(ex + ox, ey + oy, EDGE_SOFT);
+      px.set(ex - ox, ey - oy, EDGE_SOFT);
+    } else if (roll < 0.6) {
       // Small gap in the line.
-      px.set(ex, ey, P.light);
-    } else if (roll < 0.86) {
-      px.set(ex + ox, ey + oy, P.light);
+      px.set(ex, ey, EDGE_SOFT);
     }
   });
 }
 
-/** Tangled branches growing out of a corner. */
+/** A small tangle of branches growing out of a corner. */
 function cornerTangle(px, cx, cy, dx, dy, size, random) {
-  for (let branch = 0; branch < 9; branch += 1) {
+  for (let branch = 0; branch < 5; branch += 1) {
     let x = cx;
     let y = cy;
     const alongX = random() < 0.5;
-    const steps = Math.round(size * (0.5 + random() * 0.7));
+    const steps = Math.round(size * (0.4 + random() * 0.5));
     for (let s = 0; s < steps; s += 1) {
       const r = random();
       if (alongX) {
         x += dx * (r < 0.7 ? 1 : 0);
-        y += dy * (r > 0.55 ? (random() < 0.5 ? 1 : -1) : 0);
+        y += dy * (r > 0.6 ? (random() < 0.5 ? 1 : -1) : 0);
       } else {
         y += dy * (r < 0.7 ? 1 : 0);
-        x += dx * (r > 0.55 ? (random() < 0.5 ? 1 : -1) : 0);
+        x += dx * (r > 0.6 ? (random() < 0.5 ? 1 : -1) : 0);
       }
-      px.set(x, y, s % 5 === 4 ? P.light : P.bone);
-      if (random() < 0.18) px.set(x + (alongX ? 0 : dx), y + (alongX ? dy : 0), P.bone);
+      px.set(x, y, s > steps * 0.6 ? EDGE_SOFT : EDGE);
     }
   }
-  // A dense knot right at the corner.
-  for (let k = 0; k < size * 2; k += 1) {
-    const x = cx + Math.round((random() - 0.3) * 5) * dx;
-    const y = cy + Math.round((random() - 0.3) * 5) * dy;
-    px.set(x, y, random() < 0.7 ? P.bone : P.light);
+  // A knot right at the corner.
+  for (let k = 0; k < size; k += 1) {
+    const x = cx + Math.round((random() - 0.3) * 4) * dx;
+    const y = cy + Math.round((random() - 0.3) * 4) * dy;
+    px.set(x, y, random() < 0.6 ? EDGE : EDGE_SOFT);
   }
 }
 
 /** Short ticks on a thin line, with tiny boxes at the corners (the caption box). */
-function tickedBorder(px, x, y, w, h, random, color = P.bone) {
+function tickedBorder(px, x, y, w, h, random, color = EDGE_SOFT) {
   px.outlineRect(x, y, w, h, color);
   let next = 4;
   let index = 0;
@@ -366,7 +368,7 @@ const PAINTERS = {
     const m = 5;
     px.dither(m, m, w - m, h - m, P.dark, P.deep, -0.15);
     thornyBorder(px, m, m, w - 2 * m, h - 2 * m, random);
-    const size = Math.min(16, Math.floor(Math.min(w, h) / 6));
+    const size = Math.min(10, Math.floor(Math.min(w, h) / 8));
     cornerTangle(px, m, m, 1, 1, size, random);
     cornerTangle(px, w - m - 1, m, -1, 1, size, random);
     cornerTangle(px, m, h - m - 1, 1, -1, size, random);
@@ -392,14 +394,12 @@ const PAINTERS = {
   /** Recessed slot for items. */
   well(px, w, h, random) {
     px.dither(2, 2, w - 2, h - 2, P.deep, P.ink, 0.1);
-    tickedBorder(px, 2, 2, w - 4, h - 4, random, P.soft);
+    tickedBorder(px, 2, 2, w - 4, h - 4, random, EDGE_FAINT);
   },
-  /** Title tab: double outline with a notch below, like a speech bubble. */
-  /** Title plate: a plain rectangle with a double border. */
+  /** Title plate: a dark rectangle with one quiet outline. */
   tab(px, w, h) {
-    px.rect(0, 0, w, h, P.bone);
-    px.rect(1, 1, w - 2, h - 2, P.ink);
-    px.outlineRect(3, 3, w - 6, h - 6, P.light);
+    px.rect(0, 0, w, h, P.ink);
+    px.outlineRect(0, 0, w, h, EDGE_SOFT);
   },
 };
 
