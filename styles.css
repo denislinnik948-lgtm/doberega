@@ -541,21 +541,38 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
 .account-body { display: grid; gap: 10px; }
 .account-form { display: grid; gap: 10px; margin: 0; }
 .account-note { margin: 0; color: var(--light); font-size: 19px; line-height: 1.3; }
-.account-status { margin: 0; color: var(--gold); font-size: 19px; }
+/* Sync state with a dot: gold while waiting, pale once safely in the cloud. */
+.account-status { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--gold); font-size: 19px; }
+.account-status::before { content: ""; flex: none; width: 8px; height: 8px; background: var(--gold); box-shadow: 0 0 0 2px var(--ink); }
+.account-status.is-synced { color: var(--light); }
+.account-status.is-synced::before { background: var(--light); }
 .account-error, .account-message.is-bad { color: var(--ember); }
 .account-hint { margin: 0; color: var(--mid); font-size: 17px; line-height: 1.3; }
-.account-name { margin: 0; color: var(--bone); font-size: 22px; }
-.account-email { margin: 0; color: var(--light); font-size: 18px; }
+.account-name { margin: 0; color: var(--bone); font-size: 24px; line-height: 1.1; overflow-wrap: anywhere; }
+.account-email { margin: 0; color: var(--light); font-size: 18px; overflow-wrap: anywhere; }
+/* The profile: a lettered badge beside the name and email. */
+.account-profile { display: flex; align-items: center; gap: 12px; }
+.account-avatar { display: grid; flex: none; width: 52px; height: 52px; place-items: center; color: var(--ink); font-size: 32px; line-height: 1; background: var(--gold); box-shadow: 0 0 0 2px var(--ink), 0 0 0 4px var(--gold-dark); }
+.account-who { display: grid; gap: 2px; min-width: 0; }
+.account-tabs .tab { min-height: 44px; }
+/* Labelled fields: the label stays above while typing; passwords have a Show button. */
+.field { display: grid; gap: 4px; }
+.field-label { color: var(--light); font-size: 18px; }
+.field-row { display: flex; gap: 8px; }
+.field-row .text-input { flex: 1; min-width: 0; }
+.field-row .pixel-btn { flex: none; min-height: 46px; padding-inline: 16px; }
+.field-hint { color: var(--mid); font-size: 16px; line-height: 1.25; }
+.reveal-btn { flex: none; min-width: 96px; padding: 0 10px; border: 2px solid var(--soft); color: var(--light); font-size: 18px; background: var(--deep); cursor: pointer; }
+.reveal-btn:hover { color: var(--bone); border-color: var(--bone); }
+.account-submit { min-height: 52px; margin-top: 4px; font-size: 22px; }
+.account-signout { margin-top: 4px; }
 .account-email[hidden] { display: none; }
-.nickname-row { display: flex; gap: 8px; }
-.nickname-row .text-input { flex: 1; min-width: 0; }
-.nickname-row .pixel-btn { flex: none; min-height: 46px; padding-inline: 16px; }
 /* A quiet text button for secondary actions like password recovery. */
 .link-btn { justify-self: start; padding: 2px 0; border: 0; color: var(--light); font-size: 18px; text-decoration: underline; text-underline-offset: 3px; background: none; cursor: pointer; }
 .link-btn:hover { color: var(--bone); }
-.account-message { min-height: 1.3em; margin: 0; color: var(--gold); font-size: 18px; }
-.account-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.account-actions .pixel-btn { min-height: 46px; }
+.account-message { margin: 0; color: var(--gold); font-size: 18px; line-height: 1.3; }
+.account-message:empty { display: none; }
+.link-btn:disabled { opacity: 0.5; cursor: default; }
 .text-input {
   width: 100%;
   min-height: 46px;

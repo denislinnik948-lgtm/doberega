@@ -25,6 +25,18 @@ function element(tag, props = {}, children = []) {
 }
 
 const rodArt = (id, scale) => rodSprite(RODS[id].tier, scale);
+
+/** The account server's usual complaints in plain words; anything else as it came. */
+function friendlyError(message) {
+  const text = message.toLowerCase();
+  if (text.includes("invalid login")) return t("account.err.credentials");
+  if (text.includes("already registered") || text.includes("already been registered") || text.includes("already exists")) return t("account.err.exists");
+  if (text.includes("rate limit") || text.includes("too many")) return t("account.err.rate");
+  if (text.includes("fetch") || text.includes("network")) return t("account.err.network");
+  if (text.includes("password") && text.includes("character")) return t("account.short");
+  if (text.includes("email") && text.includes("invalid")) return t("account.needEmail");
+  return t("account.error", { message });
+}
 const countLabel = (count) => (count === Infinity ? "∞" : `×${count}`);
 /** "lake (medium, sand, weed)" — a fishing spot's type, depth and bottom in words. */
 
@@ -205,9 +217,10 @@ export class AnglerUI {
     const body = $("#account-body");
     const cloud = this.cloud;
     const mode = !cloud?.enabled ? "off" : !cloud.user ? "out" : cloud.recovering ? "recover" : "in";
-    // Rebuild only when the kind of view changes, so typing isn't lost on redraws.
-    if (body.dataset.mode !== mode || !body.firstChild) {
-      body.dataset.mode = mode;
+    // Rebuild only when the kind of view (or the sign-in tab) changes, so typing isn't lost on redraws.
+    const view = mode === "out" ? `out:${this.accountTab ?? "signIn"}` : mode;
+    if (body.dataset.mode !== view || !body.firstChild) {
+      body.dataset.mode = view;
       this.accountMessage = null;
       body.replaceChildren(...this.buildAccount(mode));
     }
@@ -216,117 +229,196 @@ export class AnglerUI {
     if (mode === "recover" && !$("#account-dialog").open) $("#account-dialog").showModal();
   }
 
-  /** The account view's elements for one mode: off, out (sign in), in (profile) or recover. */
+  /**
+   * The account view's elements for one mode: off, out (tabs to sign in or
+   * create an account, or a "forgot password" screen), recover (set a new
+   * password) or in (the profile).
+   */
   buildAccount(mode) {
     const cloud = this.cloud;
+    const tab = this.accountTab ?? "signIn";
     const note = (text, className = "account-note") => element("p", { className, textContent: text });
-    const input = (props, label) => {
-      const node = element("input", { className: "text-input", ...props, placeholder: label });
-      node.setAttribute("aria-label", label);
-      return node;
-    };
     const message = () => element("p", { className: "account-message", role: "status" });
+    const submitButton = (key) => element("button", { className: "pixel-btn pixel-btn-primary account-submit", type: "submit", textContent: t(key) });
     const say = (text, bad = false) => {
       this.accountMessage = { text, bad };
       this.renderAccount();
     };
-    const passwordOk = (field) => {
-      if (field.value.length >= 6) return true;
+    // A field with its label above it (it stays while typing); passwords can be shown.
+    const field = (label, props, hint = "") => {
+      const input = element("input", { className: "text-input", id: `account-${props.name}`, spellcheck: false, ...props });
+      const row = [input];
+      if (props.type === "password") {
+        const reveal = element("button", { className: "reveal-btn", type: "button", textContent: t("account.show") });
+        reveal.setAttribute("aria-pressed", "false");
+        reveal.onclick = () => {
+          const shown = input.type === "text";
+          input.type = shown ? "password" : "text";
+          reveal.textContent = t(shown ? "account.show" : "account.hide");
+          reveal.setAttribute("aria-pressed", String(!shown));
+          input.focus();
+        };
+        row.push(reveal);
+      }
+      const node = element("div", { className: "field" }, [
+        element("label", { className: "field-label", htmlFor: input.id, textContent: label }),
+        element("div", { className: "field-row" }, row),
+        hint ? element("small", { className: "field-hint", textContent: hint }) : "",
+      ]);
+      return { node, input };
+    };
+    const longEnough = (password) => {
+      if (password.input.value.length >= 6) return true;
       say(t("account.short"), true);
+      password.input.focus();
       return false;
     };
 
     if (mode === "off") return [note(t("account.unavailable"))];
 
     if (mode === "out") {
-      const email = input({ type: "email", name: "email", autocomplete: "email" }, t("account.email"));
-      const password = input({ type: "password", name: "password", autocomplete: "current-password" }, t("account.password"));
-      const submit = async (action) => {
-        if (!email.value.includes("@")) return say(t("account.needEmail"), true);
-        if (!passwordOk(password)) return;
-        password.autocomplete = action === "signUp" ? "new-password" : "current-password";
+      const switchTo = (next) => {
+        this.accountTab = next;
         this.accountMessage = null;
-        const result = await cloud[action](email.value.trim(), password.value);
-        if (result?.confirm) this.accountMessage = { text: t("account.checkEmail") };
-        else if (!result?.error) password.value = "";
+        cloud.error = "";
         this.renderAccount();
+        $("#account-body .text-input")?.focus();
       };
-      const forgot = async () => {
-        if (!email.value.includes("@")) return say(t("account.needEmail"), true);
-        const result = await cloud.resetPassword(email.value.trim());
-        if (!result?.error) say(t("account.resetSent", { email: email.value.trim() }));
+      // The email typed on one tab carries over to the others.
+      const email = field(t("account.email"), { type: "email", name: "email", autocomplete: "email", inputMode: "email", autocapitalize: "off", value: this.accountEmail ?? "" });
+      email.input.addEventListener("input", () => { this.accountEmail = email.input.value; });
+      const emailOk = () => {
+        if (/^\S+@\S+\.\S+$/.test(email.input.value.trim())) return true;
+        say(t("account.needEmail"), true);
+        email.input.focus();
+        return false;
       };
-      return [element("form", { className: "account-form", noValidate: true, onsubmit: (event) => { event.preventDefault(); submit("signIn"); } }, [
-        note(t("account.intro")),
-        email,
-        password,
-        element("div", { className: "account-actions" }, [
-          element("button", { className: "pixel-btn pixel-btn-primary", type: "submit", textContent: t("account.signIn") }),
-          element("button", { className: "pixel-btn", type: "button", textContent: t("account.signUp"), onclick: () => submit("signUp") }),
+
+      if (tab === "forgot") {
+        return [element("form", { className: "account-form", noValidate: true, onsubmit: async (event) => {
+          event.preventDefault();
+          if (!emailOk()) return;
+          const result = await cloud.resetPassword(email.input.value.trim());
+          if (!result?.error) say(t("account.resetSent", { email: email.input.value.trim() }));
+        } }, [
+          note(t("account.forgotIntro")),
+          email.node,
+          submitButton("account.sendLink"),
+          message(),
+          element("button", { className: "link-btn", type: "button", textContent: t("account.back"), onclick: () => switchTo("signIn") }),
+        ])];
+      }
+
+      const signUp = tab === "signUp";
+      const password = field(t("account.password"), { type: "password", name: "password", autocomplete: signUp ? "new-password" : "current-password" }, signUp ? t("account.passwordHint") : "");
+      const nickname = signUp ? field(t("account.nicknameOptional"), { type: "text", name: "nickname", autocomplete: "nickname", maxLength: 16 }, t("account.nicknameHint")) : null;
+      const tabs = element("div", { className: "tabs account-tabs", role: "tablist" }, ["signIn", "signUp"].map((id) => {
+        const button = element("button", { className: `pixel-btn tab${tab === id ? " is-active" : ""}`, type: "button", role: "tab", textContent: t(id === "signIn" ? "account.tabSignIn" : "account.tabSignUp"), onclick: () => switchTo(id) });
+        button.setAttribute("aria-selected", String(tab === id));
+        return button;
+      }));
+      return [
+        tabs,
+        element("form", { className: "account-form", noValidate: true, onsubmit: async (event) => {
+          event.preventDefault();
+          if (!emailOk() || !longEnough(password)) return;
+          const nick = nickname ? nickname.input.value.trim() : "";
+          if (nick && !validNickname(nick)) {
+            say(t("account.nickRules"), true);
+            nickname.input.focus();
+            return;
+          }
+          this.accountMessage = null;
+          const result = await cloud[signUp ? "signUp" : "signIn"](email.input.value.trim(), password.input.value);
+          if (result?.error) return;
+          if (result?.confirm) {
+            say(t("account.checkEmail"));
+            return;
+          }
+          if (nick) await cloud.setNickname(nick);
+          this.accountTab = "signIn";
+          this.accountMessage = { text: t(signUp ? "account.created" : "account.welcome") };
+          this.renderAccount();
+        } }, [
+          note(t(signUp ? "account.signUpIntro" : "account.signInIntro")),
+          email.node,
+          password.node,
+          nickname ? nickname.node : "",
+          submitButton(signUp ? "account.signUp" : "account.signIn"),
+          message(),
+          signUp ? "" : element("button", { className: "link-btn", type: "button", textContent: t("account.forgot"), onclick: () => switchTo("forgot") }),
         ]),
-        element("button", { className: "link-btn", type: "button", textContent: t("account.forgot"), onclick: forgot }),
-        message(),
-      ])];
+      ];
     }
 
     if (mode === "recover") {
-      const password = input({ type: "password", name: "new-password", autocomplete: "new-password" }, t("account.newPassword"));
+      const password = field(t("account.newPassword"), { type: "password", name: "new-password", autocomplete: "new-password" }, t("account.passwordHint"));
       return [element("form", { className: "account-form", noValidate: true, onsubmit: async (event) => {
         event.preventDefault();
-        if (!passwordOk(password)) return;
-        const result = await cloud.setPassword(password.value);
+        if (!longEnough(password)) return;
+        const result = await cloud.setPassword(password.input.value);
         if (!result?.error) say(t("account.passwordSaved"));
       } }, [
         note(t("account.recoverIntro")),
-        password,
-        element("button", { className: "pixel-btn pixel-btn-primary", type: "submit", textContent: t("account.setPassword") }),
+        password.node,
+        submitButton("account.setPassword"),
         message(),
       ])];
     }
 
-    // Signed in: who you are, sync state, a nickname, and the way out.
-    const nickname = input({ type: "text", name: "nickname", autocomplete: "nickname", maxLength: 16, value: cloud.user.user_metadata?.nickname ?? "" }, t("account.nickname"));
+    // Signed in: who you are and whether progress is safe, a nickname, and the way out.
+    const nickname = field(t("account.nickname"), { type: "text", name: "nickname", autocomplete: "nickname", maxLength: 16, value: cloud.user.user_metadata?.nickname ?? "" }, t("account.nicknameHint"));
+    nickname.input.addEventListener("input", () => this.renderAccount());
+    nickname.node.querySelector(".field-row").append(element("button", { className: "pixel-btn pixel-btn-primary nickname-save", type: "submit", textContent: t("account.saveNickname") }));
     return [
-      note("", "account-name"),
-      note("", "account-email"),
-      note("", "account-status"),
-      element("form", { className: "account-form nickname-form", noValidate: true, onsubmit: async (event) => {
-        event.preventDefault();
-        if (!validNickname(nickname.value)) return say(t("account.nickRules"), true);
-        const result = await cloud.setNickname(nickname.value);
-        if (!result?.error) say(t("account.nicknameSaved"));
-      } }, [
-        element("label", { className: "setting-label", textContent: t("account.nickname") }),
-        element("div", { className: "nickname-row" }, [
-          nickname,
-          element("button", { className: "pixel-btn pixel-btn-primary", type: "submit", textContent: t("account.saveNickname") }),
-        ]),
-        note(t("account.nicknameHint"), "account-hint"),
+      element("div", { className: "account-profile" }, [
+        element("span", { className: "account-avatar" }),
+        element("div", { className: "account-who" }, [note("", "account-name"), note("", "account-email")]),
       ]),
+      element("p", { className: "account-status" }),
+      element("form", { className: "account-form", noValidate: true, onsubmit: async (event) => {
+        event.preventDefault();
+        if (!validNickname(nickname.input.value)) {
+          say(t("account.nickRules"), true);
+          return;
+        }
+        const result = await cloud.setNickname(nickname.input.value);
+        if (!result?.error) say(t("account.nicknameSaved"));
+      } }, [nickname.node]),
       message(),
-      element("button", { className: "pixel-btn", type: "button", textContent: t("account.signOut"), onclick: () => cloud.signOut() }),
+      element("button", { className: "pixel-btn account-signout", type: "button", textContent: t("account.signOut"), onclick: () => cloud.signOut() }),
     ];
   }
 
-  /** Refresh the parts of the account view that change: names, sync time, busy state, messages. */
+  /** Refresh the parts of the account view that change: names, sync state, busy state, messages. */
   updateAccount(mode) {
     const cloud = this.cloud;
     const body = $("#account-body");
     if (mode === "off") return;
     for (const button of body.querySelectorAll("button")) button.disabled = cloud.busy;
-    if (mode === "in") {
-      const nickname = cloud.user.user_metadata?.nickname;
-      const time = cloud.lastSync && new Date(cloud.lastSync).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
-      body.querySelector(".account-name").textContent = t("account.signedIn", { name: cloud.displayName });
-      const email = body.querySelector(".account-email");
-      email.textContent = nickname ? t("account.emailLine", { email: cloud.user.email }) : "";
-      email.hidden = !nickname;
-      body.querySelector(".account-status").textContent = time ? t("account.synced", { time }) : t("account.notSynced");
+    // The main button says it is working instead of a separate line.
+    const submit = body.querySelector(".account-submit");
+    if (submit) {
+      submit.dataset.label ??= submit.textContent;
+      submit.textContent = cloud.busy ? t("account.working") : submit.dataset.label;
     }
-    // Common failures in plain words; anything else shows the server's message.
+    if (mode === "in") {
+      const nickname = cloud.user.user_metadata?.nickname ?? "";
+      const time = cloud.lastSync && new Date(cloud.lastSync).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
+      body.querySelector(".account-avatar").textContent = (cloud.displayName[0] ?? "?").toLocaleUpperCase(locale());
+      body.querySelector(".account-name").textContent = cloud.displayName;
+      const email = body.querySelector(".account-email");
+      email.textContent = cloud.user.email;
+      email.hidden = !nickname;
+      const status = body.querySelector(".account-status");
+      status.textContent = cloud.busy ? t("account.syncing") : time ? t("account.synced", { time }) : t("account.notSynced");
+      status.classList.toggle("is-synced", Boolean(time) && !cloud.busy);
+      // Save is only offered once the nickname has actually changed.
+      body.querySelector(".nickname-save").disabled = cloud.busy || body.querySelector("#account-nickname").value.trim() === nickname;
+    }
     const message = body.querySelector(".account-message");
-    const failure = cloud.error && { text: t("account.error", { message: cloud.error }), bad: true };
-    const shown = cloud.busy ? { text: t("account.working") } : failure || this.accountMessage;
+    const failure = cloud.error && { text: friendlyError(cloud.error), bad: true };
+    const shown = failure || this.accountMessage;
     message.textContent = shown?.text ?? "";
     message.classList.toggle("is-bad", Boolean(shown?.bad));
   }
