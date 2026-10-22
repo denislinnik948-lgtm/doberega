@@ -1196,16 +1196,30 @@ export class CanvasWaterRenderer {
    */
   castSwing(style, t) {
     // [time, tip dx, tip dy, bend]: a slow lift, an easy swing, a long settle.
+    // One smooth curve runs through the keys (a monotone cubic), so the rod
+    // never stops dead at a key: it only rests at the start and the end.
     const keys = style === "over"
-      ? [[0, 0, 0, 0], [0.3, 0.08, -0.36, -0.05], [0.4, 0.06, -0.33, -0.06], [0.66, -0.02, 0.06, 0.1], [0.84, 0, 0.02, 0.03], [1, 0, 0, 0]]
-      : [[0, 0, 0, 0], [0.3, -0.03, 0.14, 0.06], [0.4, -0.03, 0.15, 0.06], [0.6, 0, -0.07, -0.03], [0.8, 0, -0.01, 0], [1, 0, 0, 0]];
+      ? [[0, 0, 0, 0], [0.34, 0.07, -0.35, -0.055], [0.66, -0.02, 0.06, 0.1], [0.84, 0, 0.02, 0.03], [1, 0, 0, 0]]
+      : [[0, 0, 0, 0], [0.34, -0.03, 0.145, 0.06], [0.6, 0, -0.07, -0.03], [0.8, 0, -0.01, 0], [1, 0, 0, 0]];
+    t = clamp(t, 0, 1);
     let i = 1;
     while (i < keys.length - 1 && t > keys[i][0]) i += 1;
-    const [t0, ...a] = keys[i - 1];
-    const [t1, ...b] = keys[i];
-    const u = clamp((t - t0) / (t1 - t0), 0, 1);
-    const s = u * u * (3 - 2 * u);
-    const [dx, dy, bend] = a.map((value, k) => value + (b[k] - value) * s);
+    const k0 = keys[i - 1];
+    const k1 = keys[i];
+    const span = k1[0] - k0[0];
+    const u = (t - k0[0]) / span;
+    // Slope at a key: the mean of its neighbours' slopes, flat at a turning point and at both ends.
+    const slope = (index, channel) => {
+      if (index === 0 || index === keys.length - 1) return 0;
+      const before = (keys[index][channel] - keys[index - 1][channel]) / (keys[index][0] - keys[index - 1][0]);
+      const after = (keys[index + 1][channel] - keys[index][channel]) / (keys[index + 1][0] - keys[index][0]);
+      return before * after <= 0 ? 0 : (before + after) / 2;
+    };
+    const h00 = 2 * u ** 3 - 3 * u ** 2 + 1;
+    const h10 = u ** 3 - 2 * u ** 2 + u;
+    const h01 = -2 * u ** 3 + 3 * u ** 2;
+    const h11 = u ** 3 - u ** 2;
+    const [dx, dy, bend] = [1, 2, 3].map((c) => h00 * k0[c] + h10 * span * slope(i - 1, c) + h01 * k1[c] + h11 * span * slope(i, c));
     return { dx, dy, bend };
   }
 
@@ -1259,17 +1273,26 @@ export class CanvasWaterRenderer {
         const t = angler.castProgress;
         const over = angler.castStyle === "over";
         const release = over ? 0.52 : 0.48;
+        // On the line the bait trails the tip a moment behind, as a weight would.
+        const hanging = (progress) => {
+          const tip = this.rodGeometry({ ...angler, castProgress: Math.max(0, progress - 0.05) }).tip;
+          return { x: tip.x, y: tip.y + height * 0.04 };
+        };
         if (t < release) {
-          end = { x: rod.tip.x, y: rod.tip.y + height * 0.04 };
+          end = hanging(t);
         } else {
-          const from = this.rodGeometry({ ...angler, castProgress: release }).tip;
+          const from = hanging(release);
           // Eased out: quick off the rod, gently slowing as it drops onto the water.
           const linear = (t - release) / (1 - release);
           const u = 1 - (1 - linear) ** 2;
-          end = {
+          const flight = {
             x: from.x + (angler.target.x - from.x) * u,
-            y: from.y + height * 0.04 + (angler.target.y - from.y - height * 0.04) * u - Math.sin(u * Math.PI) * height * (over ? 0.3 : 0.08),
+            y: from.y + (angler.target.y - from.y) * u - Math.sin(u * Math.PI) * height * (over ? 0.3 : 0.08),
           };
+          // Just after release the bait still carries the swing's motion, then the flight takes over.
+          const follow = hanging(t);
+          const w = linear < 0.22 ? (linear / 0.22) ** 2 * (3 - 2 * (linear / 0.22)) : 1;
+          end = { x: follow.x + (flight.x - follow.x) * w, y: follow.y + (flight.y - follow.y) * w };
         }
       } else if (angler.phase === "fight") {
         end = angler.fish;
