@@ -2,13 +2,20 @@ import { fastSin } from "./noise.js";
 
 const clamp01 = (value) => Math.max(0, Math.min(1, value));
 
+const NO_RIPPLES = [];
+
+// The sample is written into one shared object: the renderer reads it at once
+// for each of thousands of cells a frame, so there is nothing to allocate.
+const result = { x: 0, y: 0, density: 0 };
+
 /**
  * Pure water-surface model. It derives coherent motion and luminance from a fixed
  * character cell and elapsed time; it never uses per-frame randomness, and the
- * only thing it keeps on a cell is the turn of a river bend there. Wave light
- * becomes a character-density threshold in the renderer.
+ * only things it keeps on a cell are the turn of a river bend there and its
+ * wind coordinates on still water. Wave light becomes a character-density
+ * threshold in the renderer. The returned sample is reused by the next call.
  */
-export function sampleWater(point, time, config, verticalDepth, ripples = []) {
+export function sampleWater(point, time, config, verticalDepth, ripples = NO_RIPPLES) {
   const speed = config.waveSpeed;
   const t = time * speed;
   const x = point.x;
@@ -34,14 +41,25 @@ export function sampleWater(point, time, config, verticalDepth, ripples = []) {
     bx = cx + (x - cx) * cos - (y - cy) * sin;
     by = cy + (x - cx) * sin + (y - cy) * cos;
   }
-  const wx = config.flowAway ? bx + drift : x - drift;
-  const wy = (config.flowAway ? by : y) + drift;
-
   // A light breeze sends broad, nearly parallel wavelets from the far shore
   // toward the viewer. Small crosswind terms gently bend the crests instead of
-  // making a crisscross interference pattern.
-  const downlake = (wx + wy) * 0.7071;
-  const acrossLake = (wx - wy) * 0.7071;
+  // making a crisscross interference pattern. On still water a cell's wind
+  // coordinates never change, so they are kept on it.
+  let downlake;
+  let acrossLake;
+  if (!drift && !config.flowAway) {
+    if (point.downlake === undefined) {
+      point.downlake = (x + y) * 0.7071;
+      point.acrossLake = (x - y) * 0.7071;
+    }
+    downlake = point.downlake;
+    acrossLake = point.acrossLake;
+  } else {
+    const wx = config.flowAway ? bx + drift : x - drift;
+    const wy = (config.flowAway ? by : y) + drift;
+    downlake = (wx + wy) * 0.7071;
+    acrossLake = (wx - wy) * 0.7071;
+  }
   const crestBend = fastSin(acrossLake * 0.0032 - t * 0.14 + 1.1) * 36
     + fastSin(acrossLake * 0.007 - t * 0.23 + 2.4) * 10;
   const windPath = downlake + crestBend;
@@ -107,9 +125,8 @@ export function sampleWater(point, time, config, verticalDepth, ripples = []) {
       + rippleHighlight * 0.75,
   );
 
-  return {
-    x: x + offsetX,
-    y: y + offsetY,
-    density,
-  };
+  result.x = x + offsetX;
+  result.y = y + offsetY;
+  result.density = density;
+  return result;
 }

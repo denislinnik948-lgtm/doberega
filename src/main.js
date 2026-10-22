@@ -426,9 +426,19 @@ function resize() {
   animationFrame = requestAnimationFrame(draw);
 }
 
+/*
+ * Frame pacing: the water moves slowly, so 60 frames a second is all it needs;
+ * a 120 Hz screen would otherwise draw everything twice as often for nothing.
+ * Under the menu or an open window the scene is mostly hidden: 30 is plenty.
+ */
+let lastDrawn = -Infinity;
 function draw(now) {
-  renderNow(now);
   animationFrame = requestAnimationFrame(draw);
+  const covered = mode === "menu" || document.querySelector("dialog[open]");
+  // A little slack, so a 60 Hz screen never skips a frame it should draw.
+  if (now - lastDrawn < (covered ? 1000 / 30 : 1000 / 60) - 3) return;
+  lastDrawn = now;
+  renderNow(now);
 }
 
 function capturePointer(target, pointerId) {

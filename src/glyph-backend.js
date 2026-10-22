@@ -195,10 +195,13 @@ class WebGLBackend {
     return texture;
   }
 
-  resize(width, height, ratio) {
+  /** `frame` is the slice of the canvas on screen; nothing is drawn outside it. */
+  resize(width, height, ratio, frame = { left: 0, width }) {
     this.width = width;
     this.height = height;
     this.ratio = ratio;
+    this.clipLeft = Math.max(0, Math.floor(frame.left * ratio) - 2);
+    this.clipWidth = Math.ceil(frame.width * ratio) + 4;
   }
 
   setFont(font, fontSize) {
@@ -258,6 +261,9 @@ class WebGLBackend {
   begin() {
     const gl = this.gl;
     gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+    // On a phone the canvas is wider than the screen: shade only the part on show.
+    gl.enable(gl.SCISSOR_TEST);
+    gl.scissor(this.clipLeft, 0, this.clipWidth, gl.drawingBufferHeight);
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
   }
@@ -273,15 +279,14 @@ class WebGLBackend {
     if (band) {
       const top = Math.max(0, Math.floor(band[0] * this.ratio));
       const bottom = Math.min(gl.drawingBufferHeight, Math.ceil(band[1] * this.ratio));
-      gl.enable(gl.SCISSOR_TEST);
-      gl.scissor(0, gl.drawingBufferHeight - bottom, gl.drawingBufferWidth, Math.max(0, bottom - top));
+      gl.scissor(this.clipLeft, gl.drawingBufferHeight - bottom, this.clipWidth, Math.max(0, bottom - top));
     }
     gl.useProgram(this.layerProgram);
     gl.uniform4f(this.uniforms.layerLight, light[0], light[1], light[2], 1);
     gl.bindVertexArray(this.layerVao);
     gl.bindTexture(gl.TEXTURE_2D, this.layers.get(name));
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-    if (band) gl.disable(gl.SCISSOR_TEST);
+    if (band) gl.scissor(this.clipLeft, 0, this.clipWidth, gl.drawingBufferHeight);
     if (opaque) gl.enable(gl.BLEND);
   }
 

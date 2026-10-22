@@ -55,7 +55,9 @@ const SINE_SIZE = 4096;
 const SINE_STEP = SINE_SIZE / (Math.PI * 2);
 const SINE = Float32Array.from({ length: SINE_SIZE }, (_, i) => Math.sin(i / SINE_STEP));
 
+// The table size is a power of two, so wrapping the index (negative ones too) is a bit mask.
+const SINE_MASK = SINE_SIZE - 1;
+
 export function fastSin(angle) {
-  const index = Math.round(angle * SINE_STEP) % SINE_SIZE;
-  return SINE[index < 0 ? index + SINE_SIZE : index];
+  return SINE[Math.round(angle * SINE_STEP) & SINE_MASK];
 }

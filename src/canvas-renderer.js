@@ -93,7 +93,7 @@ export class CanvasWaterRenderer {
       target.height = Math.round(height * this.pixelRatio);
     }
     this.overlayContext.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
-    this.backend.resize(width, height, this.pixelRatio);
+    this.backend.resize(width, height, this.pixelRatio, frame);
 
     // Game-style 2:1 projection: each world axis rises 1 screen unit per 2 run.
     // This is atan(0.5) ≈ 26.6°, commonly used for isometric game tiles.
@@ -203,6 +203,7 @@ export class CanvasWaterRenderer {
     const rows = Math.ceil(height / lineHeight);
     this.columns = columns;
     this.rows = rows;
+    this.rowWobble = null;
 
     this.lilyPads = createLilyPads(width, height, cellWidth, lineHeight, this.frame);
     for (const pad of this.lilyPads) {
@@ -219,6 +220,8 @@ export class CanvasWaterRenderer {
       const band = Math.min(WATER_BANDS - 1, Math.floor(clamp((screenY - meanHorizon) / (height - meanHorizon), 0, 1) ** 0.75 * WATER_BANDS));
       for (let column = 0; column < columns; column += 1) {
         const screenX = (column + 0.5) * cellWidth;
+        // On a phone only a slice of the scene is on screen: water outside it is never seen.
+        if (screenX < this.frame.left - cellWidth * 2 || screenX > this.frame.left + this.frame.width + cellWidth * 2) continue;
         const shore = this.shorelineY(screenX);
         if (screenY < shore + lineHeight * 0.35) continue;
         if (covered.has(row * columns + column)) continue;
@@ -938,6 +941,9 @@ export class CanvasWaterRenderer {
     const glints = this.glintBatch;
     batch.clear();
     glints.clear();
+    // The reflection wobble depends only on the row: one sine per row, not per cell.
+    const rowWobble = this.rowWobble ?? (this.rowWobble = new Float32Array(this.rows + 1));
+    for (let row = 0; row <= this.rows; row += 1) rowWobble[row] = Math.sin(row * 0.83 + wobbleTime) * cellWidth * 0.7 * amplitudeScale;
 
     for (const cell of this.waterCells) {
       const sample = sampleWater(cell, time, waveConfig, cell.depth, ripples);
@@ -969,7 +975,7 @@ export class CanvasWaterRenderer {
       // Mirror the shore, wobbling the sampled column with waves and ripples.
       const mirrorY = 2 * cell.shore - cell.screenY - lineHeight * 0.3;
       if (mirrorY > 0) {
-        const wobble = Math.sin(cell.row * 0.83 + wobbleTime) * cellWidth * 0.7 * (0.25 + cell.distance * 4) * amplitudeScale;
+        const wobble = rowWobble[cell.row] * (0.25 + cell.distance * 4);
         const column = cell.column + Math.round((shiftX * 1.4 + wobble) / cellWidth);
         const source = column >= 0 && column < columns
           ? backdrop[Math.floor(mirrorY / lineHeight) * columns + column]
@@ -1389,7 +1395,8 @@ export class CanvasWaterRenderer {
 
   renderOverlay(time, angler) {
     const ctx = this.overlayContext;
-    ctx.clearRect(0, 0, this.width, this.height);
+    // Only the slice on screen is ever seen (a phone shows part of a wider canvas).
+    ctx.clearRect(this.frame.left, 0, this.frame.width, this.height);
     for (const rock of this.rockImages) ctx.drawImage(rock.image, rock.left, rock.top, rock.width, rock.height);
     this.drawDucks(ctx, time, this.ducks);
     if (angler && !angler.hidden) this.renderAngler(ctx, angler, "line");
@@ -1440,6 +1447,7 @@ export class CanvasWaterRenderer {
         ctx.stroke();
       }
 
+      let fill = null;
       for (let i = 0; i < segments; i += 1) {
         const t = i / segments;
         const point = points[i];
@@ -1454,7 +1462,11 @@ export class CanvasWaterRenderer {
         } else if (i === segments - 1 && reed.kind !== "cattail") {
           glyph = reed.kind === "grass" ? "," : "'";
         }
-        ctx.fillStyle = color;
+        // Setting a colour makes the canvas parse it: only when it changes.
+        if (color !== fill) {
+          ctx.fillStyle = color;
+          fill = color;
+        }
         ctx.fillText(glyph, point.x, point.y);
       }
     }
@@ -1469,7 +1481,7 @@ export class CanvasWaterRenderer {
     if (this.shade > 0.01) {
       ctx.globalCompositeOperation = "source-atop";
       ctx.fillStyle = `rgba(6, 10, 22, ${this.shade.toFixed(3)})`;
-      ctx.fillRect(0, 0, this.width, this.height);
+      ctx.fillRect(this.frame.left, 0, this.frame.width, this.height);
       ctx.globalCompositeOperation = "source-over";
     }
 
@@ -1495,19 +1507,21 @@ export class CanvasWaterRenderer {
     const batch = this.rainBatch;
     batch.clear();
     if (intensity < 0.02) return;
-    const { width, height } = this;
-    const drops = Math.round(intensity * 900);
+    const { height } = this;
+    // Rain falls only over the visible slice, just as densely.
+    const { left, width } = this.frame;
+    const drops = Math.round(intensity * 900 * (width / this.width));
     for (let i = 0; i < drops; i += 1) {
       const speed = 380 + hash2(i, 3, 77) * 220;
       const span = height * 1.2;
       const y = ((hash2(i, 2, 77) * span + time * speed) % span) - height * 0.1;
-      const x = (((hash2(i, 1, 77) * width + y * 0.2) % width) + width) % width;
+      const x = left + ((((hash2(i, 1, 77) * width + y * 0.2) % width) + width) % width);
       batch.push(x, y, hash2(i, 4, 77) > 0.35 ? "\\" : "|", 0xa8bcc6);
     }
     const cells = this.waterCells;
     if (!cells.length) return;
     const bucket = Math.floor(time * 8);
-    const splashes = Math.round(intensity * 170);
+    const splashes = Math.round(intensity * 170 * (this.frame.width / this.width));
     for (let i = 0; i < splashes; i += 1) {
       const cell = cells[Math.floor(hash2(i, bucket, 91) * cells.length)];
       batch.push(cell.screenX, cell.screenY, hash2(i, bucket, 13) > 0.6 ? "o" : ".", 0xc8d6dc);
