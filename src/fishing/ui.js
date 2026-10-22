@@ -45,6 +45,8 @@ export class AnglerUI {
     this.handbookDialog = $("#handbook-dialog");
     this.settingsDialog = $("#settings-dialog");
     this.packSlot = $("#pack-slot");
+    this.baitDialog = $("#bait-dialog");
+    this.baitButton = $("#bait-chip");
     this.shopQuantities = {};
 
     frameAll();
@@ -52,6 +54,9 @@ export class AnglerUI {
 
     this.packSlot.addEventListener("click", () => {
       if (!this.busy) this.openPack();
+    });
+    this.baitButton.addEventListener("click", () => {
+      if (!this.busy) this.openBait();
     });
 
     $("#spot-prev").addEventListener("click", () => this.shiftSpot(-1));
@@ -361,6 +366,7 @@ export class AnglerUI {
   setBusy(busy) {
     this.busy = busy;
     this.packSlot.disabled = busy;
+    this.baitButton.disabled = busy;
     $("#exit-button").disabled = busy;
   }
 
@@ -374,12 +380,12 @@ export class AnglerUI {
     trophyCount.textContent = String(progress.trophies.length);
     trophyCount.hidden = progress.trophies.length === 0;
 
-    // The bait in use sits beside the backpack button.
-    const chip = $("#bait-chip");
+    // The bait in use, bottom left; tapping it opens the bait picker.
+    const chip = this.baitButton;
     $("#bait-chip-sprite").replaceChildren(baitSprite(progress.bait, 3));
     $("#bait-chip-count").textContent = countLabel(this.baitCount);
     chip.classList.toggle("is-empty", this.baitCount <= 0);
-    chip.setAttribute("aria-label", `${t("a11y.bait")}: ${nameOf("bait", progress.bait)}, ${countLabel(this.baitCount)}`);
+    chip.setAttribute("aria-label", `${t("a11y.chooseBait")}: ${nameOf("bait", progress.bait)}, ${countLabel(this.baitCount)}`);
     this.packSlot.setAttribute("aria-label", `${t("menu.pack")}: ${nameOf("rod", progress.rod)}, ${t("shop.upTo", { weight: formatWeight(rod.maxKg) })}`);
 
     $("#pack-hook-count").textContent = `×${progress.hooks}`;
@@ -684,16 +690,29 @@ export class AnglerUI {
       id === progress.rod, rodArt(id, 3), nameOf("rod", id), formatWeight(RODS[id].maxKg),
       choose(() => { progress.rod = id; }),
     )));
-    $("#pack-baits").replaceChildren(...this.ownedBaits().map((id) => tile(
-      id === progress.bait, baitSprite(id, 3), nameOf("bait", id), countLabel(baitCount(progress, id)),
-      choose(() => { progress.bait = id; }),
-    )));
     $("#pack-extras").replaceChildren(...progress.extras.map((id) => tile(
       false, extraSprite(id, 3), nameOf("extra", id), id === "handbook" ? t("pack.read") : "",
       id === "handbook" ? () => this.openHandbook() : () => {},
     )));
     $("#pack-extras-empty").hidden = progress.extras.length > 0;
     if (!this.packDialog.open) this.packDialog.showModal();
+  }
+
+  /** The bait picker: every bait you have, with how much is left; picking one puts it on the hook. */
+  openBait() {
+    const { progress } = this;
+    $("#bait-list").replaceChildren(...this.ownedBaits().map((id) => element("li", {}, [element("button", {
+      className: `pick pack-item${id === progress.bait ? " is-selected" : ""}`,
+      type: "button",
+      title: nameOf("bait", id),
+      ariaPressed: String(id === progress.bait),
+      onclick: () => {
+        progress.bait = id;
+        this.commit();
+        this.baitDialog.close();
+      },
+    }, [baitSprite(id, 3), element("span", { className: "pack-name", textContent: nameOf("bait", id) }), element("span", { className: "pick-tag", textContent: countLabel(baitCount(progress, id)) })])])));
+    if (!this.baitDialog.open) this.baitDialog.showModal();
   }
 
   openHandbook(tab = "fish") {

@@ -231,7 +231,12 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
   gap: 10px;
   transition: opacity 200ms steps(4), transform 200ms steps(4);
 }
-.is-fishing .loadout { opacity: 0.4; transform: translateY(6px); }
+.pack-hud {
+  right: calc(env(safe-area-inset-right, 0px) + clamp(12px, 3vw, 28px));
+  bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(12px, 3vh, 24px));
+  transition: opacity 200ms steps(4), transform 200ms steps(4);
+}
+.is-fishing :is(.loadout, .pack-hud) { opacity: 0.4; transform: translateY(6px); }
 
 .slot {
   position: relative;
@@ -261,9 +266,10 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
 .pick.is-selected { border-color: var(--bone); }
 .pick-tag { position: absolute; right: 2px; bottom: 6px; left: 2px; color: var(--gold); font-size: 18px; line-height: 1; text-align: center; }
 
-/* The bait in use, shown beside the backpack button. */
+/* The bait in use, bottom left: tap it to change bait. */
 .bait-chip {
   display: inline-flex;
+  cursor: pointer;
   align-items: center;
   gap: 8px;
   min-height: 52px;
@@ -273,6 +279,9 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
   font-variant-numeric: tabular-nums;
 }
 .bait-chip-sprite .sprite { display: block; }
+.bait-chip:hover:not(:disabled) .sprite { transform: translateY(-2px); }
+.bait-chip:active:not(:disabled) { transform: translateY(2px); }
+.bait-chip:disabled { cursor: default; }
 .bait-chip.is-empty { color: var(--ember); }
 .pack-hooks { margin-left: auto; color: var(--bone); }
 .pack-hooks.is-empty { color: var(--ember); }

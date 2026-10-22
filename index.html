@@ -66,15 +66,17 @@
         <button id="exit-button" class="icon-btn" data-frame="box" type="button" data-i18n-aria="a11y.exit" data-i18n-title="a11y.exitTitle"></button>
       </div>
 
-      <!-- Gear: one backpack button (rod and bait are changed inside), with the bait in use beside it. -->
+      <!-- Gear: the bait in use bottom left (tap to change it), the backpack (rods, extras) bottom right. -->
       <div class="hud loadout game-only" id="loadout">
+        <button class="bait-chip" id="bait-chip" data-frame="box" type="button" aria-haspopup="dialog">
+          <span class="bait-chip-sprite" id="bait-chip-sprite"></span>
+          <span class="bait-chip-count" id="bait-chip-count">×5</span>
+        </button>
+      </div>
+      <div class="hud pack-hud game-only">
         <button class="slot" id="pack-slot" data-frame="well" type="button" aria-haspopup="dialog" data-i18n-aria="menu.pack">
           <span class="slot-sprite" id="pack-slot-sprite"></span>
         </button>
-        <div class="bait-chip" id="bait-chip" data-frame="box">
-          <span class="bait-chip-sprite" id="bait-chip-sprite"></span>
-          <span class="bait-chip-count" id="bait-chip-count">×5</span>
-        </div>
       </div>
 
       <div class="fight-hud" id="fight-hud" hidden>
@@ -129,11 +131,19 @@
       <div class="pack-body">
         <h3 data-i18n="pack.rods">Rods</h3>
         <ul class="item-row" id="pack-rods"></ul>
-        <h3 data-i18n="pack.bait">Bait</h3>
-        <ul class="item-row" id="pack-baits"></ul>
         <h3 data-i18n="pack.extras">Extras</h3>
         <ul class="item-row" id="pack-extras"></ul>
         <p class="empty-note" id="pack-extras-empty" data-i18n="pack.empty">Nothing yet</p>
+      </div>
+    </dialog>
+
+    <dialog class="sheet sheet-wide" id="bait-dialog" data-frame="ornate" aria-labelledby="bait-title">
+      <header class="sheet-heading">
+        <h2 class="title-tab" id="bait-title" data-frame="tab" data-i18n="pack.bait">Bait</h2>
+        <form method="dialog"><button class="pixel-btn pixel-btn-square" type="submit" data-i18n-aria="a11y.close">✕</button></form>
+      </header>
+      <div class="pack-body">
+        <ul class="item-row" id="bait-list"></ul>
       </div>
     </dialog>
 
