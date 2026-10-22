@@ -122,7 +122,7 @@ export const SCENES = {
     // The current runs away from us, then turns right with the bend
     // (pivot and the depths where the turn starts and completes).
     water: { flow: 60, flowAway: true, bend: { x: 1.05, y: 0.68, from: 0.66, to: 0.43 }, drift: { away: 0.009 } },
-    foreground: { reeds: 0.35, rock: false, lilyPads: 0, bridge: 0.875 },
+    foreground: { reeds: 0, rock: false, lilyPads: 0, bridge: 0.875 },
     // Fast water carries no mist.
     mist: false,
   },

@@ -105,7 +105,7 @@ void main() {
  * Shadows, shared by glyphs and layers: cloud shadows are value noise laid on
  * the ground plane (squeezed toward the horizon, carried by the wind), tree
  * shadows come from a greyscale map. `shadow` = (cloud strength, time,
- * horizon y, mode: 0 none, 1 clouds and trees, 2 clouds only);
+ * horizon y, mode: 0 none, 1 clouds and trees, 2 clouds only, 3 both faint);
  * `screen` = (width, height, pixel ratio) in CSS pixels.
  */
 const SHADE = `
@@ -130,8 +130,10 @@ float shade() {
   vec2 ground = vec2((pos.x / screen.x - 0.5) * distance * 2.2, distance * 1.3 + above * 14.0);
   ground += vec2(shadow.y * 0.045, shadow.y * 0.012);
   float n = noise(ground * 0.55) * 0.65 + noise(ground * 1.3 + 7.0) * 0.35;
-  float cloud = 1.0 - smoothstep(0.48, 0.7, n) * shadow.x;
-  float trees = shadow.w > 1.5 ? 1.0 : texture(treeShadow, pos / screen.xy).r;
+  // On water (mode 3) shadows are faint: it mirrors the bright sky around them.
+  float faint = shadow.w > 2.5 ? 0.4 : 1.0;
+  float cloud = 1.0 - smoothstep(0.48, 0.7, n) * shadow.x * faint;
+  float trees = shadow.w > 1.5 && shadow.w < 2.5 ? 1.0 : mix(1.0, texture(treeShadow, pos / screen.xy).r, faint);
   return min(cloud, trees);
 }
 `;
@@ -286,11 +288,11 @@ class WebGLBackend {
     this.shadow = [strength, time, horizon];
   }
 
-  /** `shaded`: false for no shadows, true for clouds and trees, "clouds" for cloud shadows only. */
+  /** `shaded`: false for no shadows, true for clouds and trees, "clouds" for cloud shadows only, "faint" for both, lighter. */
   applyShade(program, shaded) {
     const gl = this.gl;
     const uniforms = this.shadeUniforms.get(program);
-    gl.uniform4f(uniforms.shadow, this.shadow[0], this.shadow[1], this.shadow[2], shaded === "clouds" ? 2 : shaded ? 1 : 0);
+    gl.uniform4f(uniforms.shadow, this.shadow[0], this.shadow[1], this.shadow[2], shaded === "faint" ? 3 : shaded === "clouds" ? 2 : shaded ? 1 : 0);
     gl.uniform3f(uniforms.screen, this.width, this.height, this.ratio);
   }
 

@@ -14,8 +14,8 @@ import { inCrown } from "./forest-engine.js";
  * `near` (the bank we stand on at the bottom of the view, drawn over the water).
  */
 
-const SUMMER = [0x12261c, 0x1c3a29, 0x28543c, 0x376e50, 0x52906a];
-const AUTUMN = [0x28281a, 0x3a3c22, 0x52502a, 0x6e6632, 0x8c7c3c];
+const SUMMER = [0x183222, 0x234832, 0x316248, 0x427e5a, 0x5e9c72];
+const AUTUMN = [0x30301e, 0x444628, 0x5e5c30, 0x7a7238, 0x988a44];
 const FLOWERS = [0xd8662a, 0xe0a030, 0xc8442c];
 const DEW = 0xe6f0ea;
 const FIREFLY = 0xd8f080;
@@ -107,7 +107,7 @@ export function createGrass({ width, height, cellWidth, lineHeight, frame, autum
       bottom: height + lineHeight,
       left: frame.left - cellWidth,
       right: frame.left + frame.width + cellWidth,
-      inside: (x, y) => y > nearBankY(x, height) + lineHeight * 0.15,
+      inside: (x, y) => y > nearBankY(x, height) - lineHeight * 0.1,
       covered: () => false,
       // Close up, the grass catches more light.
       lift: 1,

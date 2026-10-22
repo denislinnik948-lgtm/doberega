@@ -111,7 +111,7 @@ export function onThemeChange(listener) {
 // How much colour each style keeps, how dark it goes and the cold cast it adds.
 // Classic is a soft cool evening grade; dark fantasy drains nearly all life out.
 const GRADES = {
-  classic: { keep: 0.68, gain: 1.1, cast: [0.88, 0.99, 1.16] },
+  classic: { keep: 0.78, gain: 1.15, cast: [0.9, 0.99, 1.12] },
   dark: { keep: 0.38, gain: 0.8, cast: [0.92, 0.97, 1.12] },
 };
 

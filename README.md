@@ -34,6 +34,10 @@ Each style bakes a colour grade into the scene itself (`GRADES` in `src/theme.js
 
 **Налаштування → Сезон** picks summer, autumn or auto (`isAutumn()` in `src/theme.js`; auto follows the calendar, autumn from September to November). Autumn turns broadleaf crowns into heavy masses of `0 O @` in blood red, rust, gold and brown (`AUTUMN` in `src/forest-engine.js`; conifers stay green) and the grass yellow.
 
+## Fish pictures
+
+Fish in the catch window, the handbook and the trophy cabinet are detailed portraits (`src/fishing/fish-portrait.js`), drawn the same way as the social cards in `tools/cards` but in each species' own colours from `FISH_LOOKS`: a rounded, shaded body with its markings, rayed fins, a ringed eye with a glint and a dark outline, shaded in dithered steps.
+
 ## Grass, shadows and sparkle
 
 Grass on the river banks and on the bank we stand on (pond and lake, `nearBank` in `src/scene.js`) is drawn by `src/grass-engine.js` as single strokes: every blade is a `|` glyph turned to its own angle (the glyph batch carries a rotation per glyph), near blades are two or three segments that bend further toward the tip, and gusts sweep across the field as travelling bands. Dark earth shows between the blades. Flowers dot the grass by day, dew sparkles at sunrise, and fireflies pulse over the grass and the shore at night.
@@ -42,7 +46,7 @@ Trees on the river banks have crowns of separate clumps of leaves (`bankTreeGlyp
 
 Water has depth (`shallowAt` in `src/canvas-renderer.js`): shallow and lighter, with more of the spot's own colour, along the far shore, toward our bank and beside river banks, with the odd shoal; darker out over the depths. The castle lake is glacial turquoise.
 
-Fake shadows are done on the GPU (`SHADE` in `src/glyph-backend.js`): cloud shadows are value noise laid on the ground plane, squeezed toward the horizon and carried by the wind across land, hills and water while the sun is out; tree shadows come from a soft greyscale map (`paintTreeShadows` in `src/canvas-renderer.js`) where every tree throws an ellipse away from the sun or moon, long when the light is low.
+The bank we stand on fades into the water over a few soft steps. Fake shadows are done on the GPU (`SHADE` in `src/glyph-backend.js`): cloud shadows are value noise laid on the ground plane, squeezed toward the horizon and carried by the wind across land, hills and water while the sun is out; tree shadows come from a soft greyscale map (`paintTreeShadows` in `src/canvas-renderer.js`) where every tree throws an ellipse away from the sun or moon, long when the light is low.
 
 ## Time of day
 

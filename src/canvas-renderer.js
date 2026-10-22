@@ -20,7 +20,7 @@ const WATER_BANDS = 10;
 const REFLECTION_LEVELS = 3;
 // Water from deep (0) to shallow (last): darker over the depths, lighter and clearer near the banks.
 const DEPTH_LEVELS = 4;
-const DEEP_WATER = "#0e1c23";
+const DEEP_WATER = "#142a32";
 const SPRAY_COLOR = hexToInt("#d3e2dc");
 const BIRD_COLOR = hexToInt("#1f272b");
 // Clouds and stars drift slowly enough to resample a few times per second;
@@ -179,7 +179,7 @@ export class CanvasWaterRenderer {
       const edge = Math.min(Math.abs(x - left * width), Math.abs(x - width * (1 - right)));
       shallow = Math.max(shallow, 1 - edge / (width * 0.07));
     }
-    shallow += (valueNoise(x * 0.006, y * 0.012, 77) - 0.5) * 0.35;
+    shallow += (valueNoise(x * 0.006, y * 0.012, 77) - 0.5) * 0.14;
     return clamp(shallow, 0, 1);
   }
 
@@ -589,15 +589,20 @@ export class CanvasWaterRenderer {
       ctx.restore();
     }
 
-    // The grassy bank we stand on: dark earth that the grass blades cover.
+    // The grassy bank we stand on: dark earth under the blades, fading into the
+    // water over a few soft steps instead of a hard edge.
     if (scene.nearBank) {
-      ctx.beginPath();
-      ctx.moveTo(0, height);
-      for (let x = 0; x <= width + 8; x += 8) ctx.lineTo(x, nearBankY(x, height));
-      ctx.lineTo(width, height);
-      ctx.closePath();
-      ctx.fillStyle = "#0a110c";
-      ctx.fill();
+      const steps = 6;
+      for (let step = steps; step >= 0; step -= 1) {
+        const rise = step * this.lineHeight * 0.35;
+        ctx.beginPath();
+        ctx.moveTo(0, height);
+        for (let x = 0; x <= width + 8; x += 8) ctx.lineTo(x, nearBankY(x, height) - rise + this.lineHeight * 0.8);
+        ctx.lineTo(width, height);
+        ctx.closePath();
+        ctx.fillStyle = step ? `rgba(20, 34, 26, ${0.16})` : "#14221a";
+        ctx.fill();
+      }
     }
 
     // Near banks (grass or rock) cover the water at the sides.
@@ -615,7 +620,7 @@ export class CanvasWaterRenderer {
         ctx.lineTo(outer, height);
         ctx.closePath();
         // Near black between the blades, like earth in deep grass.
-        ctx.fillStyle = cliff ? "#121614" : "#0b130e";
+        ctx.fillStyle = cliff ? "#121614" : "#111c14";
         ctx.fill();
       }
       if (!this.ambient.grassBanks) {
@@ -1283,9 +1288,9 @@ export class CanvasWaterRenderer {
     // Cottage windows and dam lamps glow as the light fades.
     backend.drawGlyphs(this.lightBatch, [1, 1, 1, Math.min(1, 0.12 + sky.stars)]);
     backend.drawGlyphs(this.ambientBatches.glow);
-    backend.drawGlyphs(this.waterBatch, water, true);
+    backend.drawGlyphs(this.waterBatch, water, "faint");
     backend.drawGlyphs(this.glintBatch);
-    backend.drawGlyphs(this.surfaceBatch, water, true);
+    backend.drawGlyphs(this.surfaceBatch, water, "faint");
     backend.drawGlyphs(this.grassBatches.near, land, true);
     backend.drawGlyphs(this.grassBatches.flies);
     if (this.rain > 0.02) backend.drawGlyphs(this.rainBatch, [1.15, 1.15, 1.15, 0.4 + 0.5 * this.rain]);

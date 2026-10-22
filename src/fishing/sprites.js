@@ -1,4 +1,5 @@
 import { P } from "./palette.js";
+import { fishPortrait } from "./fish-portrait.js";
 
 /**
  * Procedural 16-bit sprites for the game UI: fish, rods, bait and icons.
@@ -328,8 +329,19 @@ function bootGrid() {
   ], { o: P.ink, B: "#6a7862", b: "#93a284", S: "#45463c", g: "#8fc06a" });
 }
 
+/**
+ * A fish for the UI: the detailed portrait (as on the social cards) in the
+ * fish's own colours, shown at the size the plain sprite used to take up.
+ * The old boot keeps its simple sprite.
+ */
 export function fishSprite(species, scale = 4, label = "") {
-  return (species === "boot" ? bootGrid() : fishGrid(species)).toCanvas(scale, label);
+  if (species === "boot") return bootGrid().toCanvas(scale, label);
+  const look = FISH_LOOKS[species];
+  const portrait = fishPortrait(look);
+  const grid = new Grid(portrait.width, portrait.height);
+  grid.cells = portrait.cells;
+  const shownWidth = (look.len + (look.whiskers ? 10 : 5)) * scale * 1.15;
+  return grid.toCanvas(shownWidth / portrait.width, label);
 }
 
 /* ---------- Rods ---------- */
