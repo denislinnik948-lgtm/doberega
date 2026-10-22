@@ -2,7 +2,7 @@ import { sampleWater } from "./water-engine.js";
 import { createForestGlyphs } from "./forest-engine.js";
 import { activeScene, bankWidths, isOpenWater, nearBankY, setScene, shorelineY, sunPosition, view } from "./scene.js";
 import { skyAt, toHex, toInt } from "./daycycle.js";
-import { clamp, hash2, hexToInt, mixColor, valueNoise } from "./noise.js";
+import { clamp, hash2, hexToInt, mixColor } from "./noise.js";
 import { createBankGlyphs, createRidgeGlyphs, createShoreGlyphs, createStructures, ridgeTop } from "./landscape-engine.js";
 import { birdsAt, createSkyCells, discOffsets, lightSky, pushDisc, sampleSky, setCloudColors, setCloudiness } from "./sky-engine.js";
 import { createLilyPads, createReeds, createRocks, rockGlyphs } from "./foreground-engine.js";
@@ -163,8 +163,8 @@ export class CanvasWaterRenderer {
 
   /**
    * How shallow the water is at a screen point, 0 (deep) to 1: shallow along
-   * the far shore, toward the bank we stand on and beside river banks, with
-   * the odd shoal, deepest out in the middle.
+   * the far shore, toward the bank we stand on and beside river banks,
+   * deepest out in the middle. A smooth gradient, no patches.
    */
   shallowAt(x, y) {
     const { width, height } = this;
@@ -179,7 +179,6 @@ export class CanvasWaterRenderer {
       const edge = Math.min(Math.abs(x - left * width), Math.abs(x - width * (1 - right)));
       shallow = Math.max(shallow, 1 - edge / (width * 0.07));
     }
-    shallow += (valueNoise(x * 0.006, y * 0.012, 77) - 0.5) * 0.14;
     return clamp(shallow, 0, 1);
   }
 
@@ -279,6 +278,7 @@ export class CanvasWaterRenderer {
     this.font = `${config.charSize}px ${MONO_FONT}`;
     this.reedSize = clamp(Number(config.charSize) * 2, 13, 28);
     this.backend.setFont(this.font, Number(config.charSize));
+    this.backend.setLayer("water", this.createLayer((ctx) => this.paintWaterBody(ctx)));
     this.backend.setLayer("land", this.createLayer((ctx) => this.paintLand(ctx)));
     this.lightKey = null;
     this.rockImages = this.rocks.map((rock) => this.createRockImage(rock));
@@ -459,7 +459,50 @@ export class CanvasWaterRenderer {
     return layer;
   }
 
-  /** Ridges, the forest silhouette, shore, mist and the dark water body. */
+  /**
+   * The water body beneath the glyphs, following the irregular shoreline: its
+   * own layer, drawn under the land and kept out of the cloud and tree
+   * shadows, so the open water stays one smooth surface.
+   */
+  paintWaterBody(ctx) {
+    const { width, height } = this;
+    const scene = activeScene();
+    ctx.beginPath();
+    ctx.moveTo(0, height);
+    for (let x = 0; x <= width + 8; x += 8) ctx.lineTo(x, this.shorelineY(x) + this.lineHeight * 0.3);
+    ctx.lineTo(width, height);
+    ctx.closePath();
+    // Dark over the depths so the strokes stand out, lighter and greener over the shallows.
+    const deep = scene.water.body ?? DEEP_WATER;
+    ctx.fillStyle = deep;
+    ctx.fill();
+    {
+      // A coarse map of the shallows, smoothed as it is stretched over the water.
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(mixColor(deep, this.waterColor ?? "#3f7f86", 0.3).slice(i, i + 2), 16));
+      const map = document.createElement("canvas");
+      map.width = Math.ceil(width / (this.cellWidth * 2));
+      map.height = Math.ceil(height / this.lineHeight);
+      const mapContext = map.getContext("2d");
+      const image = mapContext.createImageData(map.width, map.height);
+      for (let row = 0; row < map.height; row += 1) {
+        for (let column = 0; column < map.width; column += 1) {
+          const i = (row * map.width + column) * 4;
+          image.data[i] = r;
+          image.data[i + 1] = g;
+          image.data[i + 2] = b;
+          image.data[i + 3] = Math.round(255 * this.shallowAt(((column + 0.5) * width) / map.width, ((row + 0.5) * height) / map.height));
+        }
+      }
+      mapContext.putImageData(image, 0, 0);
+      ctx.save();
+      ctx.clip();
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(map, 0, 0, width, height);
+      ctx.restore();
+    }
+  }
+
+  /** Ridges, the forest silhouette, shore, mist and the near banks. */
   paintLand(ctx) {
     const { width, height } = this;
     const scene = activeScene();
@@ -554,40 +597,16 @@ export class CanvasWaterRenderer {
     ctx.fillStyle = mist;
     ctx.fillRect(0, horizon - height * 0.035, width, height * 0.055);
 
-    // Dark water body beneath the glyphs, following the irregular shoreline.
+    // Cut the open water out of the land: the water body lies beneath, on its own layer.
+    ctx.save();
+    ctx.globalCompositeOperation = "destination-out";
     ctx.beginPath();
     ctx.moveTo(0, height);
     for (let x = 0; x <= width + 8; x += 8) ctx.lineTo(x, this.shorelineY(x) + this.lineHeight * 0.3);
     ctx.lineTo(width, height);
     ctx.closePath();
-    // Dark over the depths so the strokes stand out, lighter and greener over the shallows.
-    const deep = scene.water.body ?? DEEP_WATER;
-    ctx.fillStyle = deep;
     ctx.fill();
-    {
-      // A coarse map of the shallows, smoothed as it is stretched over the water.
-      const [r, g, b] = [1, 3, 5].map((i) => parseInt(mixColor(deep, this.waterColor ?? "#3f7f86", 0.42).slice(i, i + 2), 16));
-      const map = document.createElement("canvas");
-      map.width = Math.ceil(width / (this.cellWidth * 2));
-      map.height = Math.ceil(height / this.lineHeight);
-      const mapContext = map.getContext("2d");
-      const image = mapContext.createImageData(map.width, map.height);
-      for (let row = 0; row < map.height; row += 1) {
-        for (let column = 0; column < map.width; column += 1) {
-          const i = (row * map.width + column) * 4;
-          image.data[i] = r;
-          image.data[i + 1] = g;
-          image.data[i + 2] = b;
-          image.data[i + 3] = Math.round(255 * this.shallowAt(((column + 0.5) * width) / map.width, ((row + 0.5) * height) / map.height));
-        }
-      }
-      mapContext.putImageData(image, 0, 0);
-      ctx.save();
-      ctx.clip();
-      ctx.imageSmoothingEnabled = true;
-      ctx.drawImage(map, 0, 0, width, height);
-      ctx.restore();
-    }
+    ctx.restore();
 
     // The grassy bank we stand on: dark earth under the blades, fading into the
     // water over a few soft steps instead of a hard edge.
@@ -1279,6 +1298,7 @@ export class CanvasWaterRenderer {
     if (sky.stars > 0.03) backend.drawGlyphs(this.starBatch, [1, 1, 1, sky.stars]);
     backend.drawGlyphs(this.discBatch);
     backend.drawGlyphs(this.skyBatch);
+    backend.drawLayer("water", land);
     backend.drawLayer("land", land, true);
     backend.drawGlyphs(this.ambientBatches.ground, land, true);
     backend.drawGlyphs(this.grassBatches.far, land, true);
@@ -1288,9 +1308,9 @@ export class CanvasWaterRenderer {
     // Cottage windows and dam lamps glow as the light fades.
     backend.drawGlyphs(this.lightBatch, [1, 1, 1, Math.min(1, 0.12 + sky.stars)]);
     backend.drawGlyphs(this.ambientBatches.glow);
-    backend.drawGlyphs(this.waterBatch, water, "faint");
+    backend.drawGlyphs(this.waterBatch, water);
     backend.drawGlyphs(this.glintBatch);
-    backend.drawGlyphs(this.surfaceBatch, water, "faint");
+    backend.drawGlyphs(this.surfaceBatch, water);
     backend.drawGlyphs(this.grassBatches.near, land, true);
     backend.drawGlyphs(this.grassBatches.flies);
     if (this.rain > 0.02) backend.drawGlyphs(this.rainBatch, [1.15, 1.15, 1.15, 0.4 + 0.5 * this.rain]);

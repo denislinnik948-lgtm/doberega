@@ -44,7 +44,7 @@ Grass on the river banks and on the bank we stand on (pond and lake, `nearBank` 
 
 Trees on the river banks have crowns of separate clumps of leaves (`bankTreeGlyph` in `src/forest-engine.js`), each lit on the sun's side and dark underneath, over a trunk that forks into branches; grass keeps out of the crowns.
 
-Water has depth (`shallowAt` in `src/canvas-renderer.js`): shallow and lighter, with more of the spot's own colour, along the far shore, toward our bank and beside river banks, with the odd shoal; darker out over the depths. The castle lake is glacial turquoise.
+Water has depth (`shallowAt` in `src/canvas-renderer.js`): shallow and lighter, with more of the spot's own colour, along the far shore, toward our bank and beside river banks, darker out over the depths, as one smooth gradient. The water body is its own layer, kept out of cloud and tree shadows, so open water never gets blotchy. The castle lake is glacial turquoise.
 
 The bank we stand on fades into the water over a few soft steps. Fake shadows are done on the GPU (`SHADE` in `src/glyph-backend.js`): cloud shadows are value noise laid on the ground plane, squeezed toward the horizon and carried by the wind across land, hills and water while the sun is out; tree shadows come from a soft greyscale map (`paintTreeShadows` in `src/canvas-renderer.js`) where every tree throws an ellipse away from the sun or moon, long when the light is low.
 
