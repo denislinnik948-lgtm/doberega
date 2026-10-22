@@ -774,10 +774,12 @@ export class CanvasWaterRenderer {
   createSignImage({ x: fx, lean }) {
     const { height, cellWidth, lineHeight, pixelRatio } = this;
     const size = Math.min(this.frame.width, height * 1.5);
-    const footX = this.frame.left + this.frame.width * fx;
     const footY = height + lineHeight;
     const post = height * 0.3;
-    const side = size * 0.08;
+    // On a narrow phone screen the plate keeps enough glyphs to read.
+    const side = Math.max(size * 0.08, height * 0.065);
+    // The leaning plate stays clear of the right edge.
+    const footX = Math.min(this.frame.left + this.frame.width * fx, this.frame.left + this.frame.width - side * 0.75 - post * Math.sin(lean));
     const left = Math.floor(footX - post * 0.6);
     const top = Math.floor(footY - post - side * 1.2);
     const width = Math.ceil(post * 1.2);
@@ -1389,8 +1391,6 @@ export class CanvasWaterRenderer {
     const ctx = this.overlayContext;
     ctx.clearRect(0, 0, this.width, this.height);
     for (const rock of this.rockImages) ctx.drawImage(rock.image, rock.left, rock.top, rock.width, rock.height);
-    const sign = this.signImage;
-    if (sign) ctx.drawImage(sign.image, sign.left, sign.top, sign.width, sign.height);
     this.drawDucks(ctx, time, this.ducks);
     if (angler && !angler.hidden) this.renderAngler(ctx, angler, "line");
 
@@ -1403,8 +1403,15 @@ export class CanvasWaterRenderer {
     ctx.lineCap = "round";
     const gust = 0.6 + 0.4 * Math.sin(time * 0.21);
     const dry = activeScene().dry;
+    // The sign stands among the reeds: the farther two thirds behind it, the nearest in front.
+    let sign = this.signImage;
+    const drawSign = () => {
+      ctx.drawImage(sign.image, sign.left, sign.top, sign.width, sign.height);
+      sign = null;
+    };
 
     for (const reed of this.reeds) {
+      if (sign && reed.depth > 0.66) drawSign();
       const segments = Math.max(2, Math.round(reed.length / step));
       const swing = (Math.sin(time * 0.95 + reed.phase) * 0.65 + Math.sin(time * 0.37 + reed.baseX * 0.01) * 0.35) * gust;
       const at = (t) => ({
@@ -1451,6 +1458,8 @@ export class CanvasWaterRenderer {
         ctx.fillText(glyph, point.x, point.y);
       }
     }
+
+    if (sign) drawSign();
 
     // The railing stands between us and the reeds by the far abutments.
     if (this.bridgeImage) ctx.drawImage(this.bridgeImage.image, 0, this.bridgeImage.top, this.width, this.height - this.bridgeImage.top);
