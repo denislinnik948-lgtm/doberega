@@ -37,16 +37,21 @@ const worldDayTime = () => dayTimeAt(Date.now() / 1000, WORLD_START, DAY_LENGTH)
 // `?rain=1` forces rain (0..1); otherwise showers come and go on their own.
 const weather = new Weather({ forced: params.has("rain") ? Number(params.get("rain")) : null });
 const ducks = new Ducks();
-// Mystic nights: lights over the water, a figure on the far shore, eyes by the bank.
+// Mystic nights: lights over the water, an apparition by the far shore, eyes by the bank.
 // Each event is also announced on the window as
 // "doberega:night" ({ type }) so sounds can hook in later without touching this.
 const nightEvents = new NightEvents({
   onEvent: (type, data) => {
-    window.dispatchEvent(new CustomEvent("doberega:night", { detail: { type } }));
+    window.dispatchEvent(new CustomEvent("doberega:night", { detail: { type, kind: data?.kind } }));
     if (type === "eyesSink") {
       // The eyes slip under, leaving rings on the water.
       const x = renderer.frame.left + data.x * renderer.frame.width;
       addRipple({ ...renderer.screenToPlane(x, height * data.y), time: lastElapsed, strength: 0.5, size: 0.8 });
+    }
+    if (type === "mavkaSink") {
+      // The mavka walks under at the far edge, and rings spread where she went.
+      const x = renderer.frame.left + data.x * renderer.frame.width;
+      addRipple({ ...renderer.screenToPlane(x, renderer.shorelineY(x) + height * 0.02), time: lastElapsed, strength: 0.4, size: 0.6 });
     }
   },
 });

@@ -653,18 +653,7 @@ export class CanvasWaterRenderer {
       // A trembling reflection beneath it.
       glow.push(x + Math.sin(time * 4 + wisp.x * 40) * 1.5, y + lineHeight * 1.3, "~", mix(NIGHT, 0x3cd868, strength * 0.75));
     }
-    if (night.figure && night.figure.alpha > 0.02) {
-      const x = left + night.figure.x * width;
-      const base = this.shorelineY(x) - lineHeight * 0.4;
-      const color = mix(NIGHT, 0xeef2f8, night.figure.alpha * night.depth);
-      // A hooded shape, a little taller than the reeds on the far bank.
-      const rows = [" o ", "/|\\", "/|\\", "/_\\"];
-      rows.forEach((row, index) => {
-        [...row].forEach((glyph, k) => {
-          if (glyph !== " ") glow.push(x + (k - 1) * cellWidth, base - (rows.length - 1 - index) * lineHeight, glyph, color);
-        });
-      });
-    }
+    if (night.figure && night.figure.alpha > 0.02) this.drawApparition(night.figure, night.depth, time, mix, NIGHT);
     if (night.eyes && night.eyes.alpha > 0.02) {
       const x = left + night.eyes.x * width;
       const y = this.height * night.eyes.y;
@@ -675,6 +664,79 @@ export class CanvasWaterRenderer {
         glow.push(ex, y + lineHeight * 0.9, "~", halo);
       }
     }
+  }
+
+  /** The night's apparition by the far shore (see night-events.js), drawn as glowing glyphs. */
+  drawApparition(figure, depth, time, mix, NIGHT) {
+    const { glow } = this.ambientBatches;
+    const { cellWidth, lineHeight } = this;
+    const { left, width } = this.frame;
+    const x = left + figure.x * width;
+    const shore = this.shorelineY(x);
+    const strength = figure.alpha * depth;
+    const pale = mix(NIGHT, 0xdfe6ee, strength);
+    const dim = mix(NIGHT, 0x8a96a4, strength * 0.8);
+    const warm = mix(NIGHT, 0xffcf78, strength);
+    const warmDim = mix(NIGHT, 0xc08a3c, strength * 0.7);
+    // Rows of a glyph picture, bottom row on `base`; spaces are left empty.
+    const draw = (rows, cx, base, color, clip = Infinity) => {
+      rows.forEach((row, index) => {
+        const y = base - (rows.length - 1 - index) * lineHeight;
+        if (y > clip) return;
+        [...row].forEach((glyph, k) => {
+          if (glyph !== " ") glow.push(cx + (k - (row.length - 1) / 2) * cellWidth, y, glyph, color);
+        });
+      });
+    };
+    if (figure.kind === "boat") {
+      // On the far water just off the shore; the hull dark, the lantern warm, its light trembling below.
+      const y = shore + lineHeight * (1.4 + figure.sink * 0.8);
+      const fade = 1 - figure.sink;
+      draw(["\\_____/"], x, y, mix(NIGHT, 0x8a94a0, strength * 0.8 * fade));
+      // The boatman, hooded and still, standing at the stern.
+      draw([" ^", "/|", " |"], x - cellWidth * 2, y - lineHeight, mix(NIGHT, 0xc8d0da, strength * 0.85 * fade));
+      draw(["o", "|"], x + cellWidth * 3, y - lineHeight, mix(NIGHT, 0xffcf78, strength * fade));
+      for (let k = 1; k <= 3; k += 1) glow.push(x + cellWidth * 2 + Math.sin(time * 3 + k) * 2, y + lineHeight * k * 0.8, k === 1 ? "~" : "-", mix(NIGHT, 0xc08a3c, strength * fade * (0.7 - k * 0.15)));
+      return;
+    }
+    if (figure.kind === "lantern") {
+      const y = shore - lineHeight * 1.2;
+      const lx = x + figure.sway * 2;
+      glow.push(lx, y, "o", warm);
+      glow.push(lx - cellWidth, y, "(", warmDim);
+      glow.push(lx + cellWidth, y, ")", warmDim);
+      glow.push(lx, y - lineHeight * 0.8, "'", warmDim);
+      for (let k = 1; k <= 3; k += 1) glow.push(lx + Math.sin(time * 4 + k * 2) * 2, shore + lineHeight * (0.6 + k * 0.7), k === 1 ? "~" : "-", mix(NIGHT, 0xc08a3c, figure.alpha * depth * (0.6 - k * 0.12)));
+      return;
+    }
+    if (figure.kind === "angler") {
+      // Sitting on the far bank, rod out over the water; at a third of the way through he casts.
+      const base = shore - lineHeight * 0.4;
+      const dir = figure.dir;
+      draw([" o", "/|", "_|\\"], x, base, pale);
+      const cast = figure.progress > 0.33;
+      // The rod: raised high before the cast, out over the water after it.
+      const steps = 4;
+      for (let k = 1; k <= steps; k += 1) {
+        const rise = cast ? 0.6 : 1.4;
+        glow.push(x + dir * (k + 0.5) * cellWidth, base - lineHeight * (1 + k * rise * 0.5), dir > 0 ? "/" : "\\", dim);
+      }
+      if (cast) {
+        // The line drops to a float that glows faintly green.
+        const tipX = x + dir * (steps + 0.5) * cellWidth;
+        const floatX = tipX + dir * cellWidth * 2;
+        const settle = Math.min(1, (figure.progress - 0.33) / 0.1);
+        glow.push(floatX, shore + lineHeight * (0.9 + 0.3 * Math.sin(time * 2)), "|", mix(NIGHT, 0x9cf0a0, strength * settle));
+        if (settle < 1) glow.push(floatX, shore + lineHeight * 1.3, "o", mix(NIGHT, 0x8ab0c0, strength * (1 - settle)));
+      }
+      return;
+    }
+    // The mavka: pale, long hair down her back; past the halfway mark she walks into the water.
+    const sinking = Math.max(0, (figure.progress - 0.45) / 0.25);
+    const base = shore - lineHeight * 0.4 + sinking * lineHeight * 4.2;
+    // Whatever has gone under the waterline isn't drawn.
+    draw([" @ ", "(|)", "/|\\", "/ \\"], x, base, mix(NIGHT, 0xe4f0ee, strength), shore - lineHeight * 0.1);
+    if (sinking > 0) glow.push(x, shore + lineHeight * 0.7, sinking < 1 ? "~" : "-", mix(NIGHT, 0x9fc0c8, strength * (1 - sinking * 0.5)));
   }
 
   /** A static foreground rock, cropped to its bounds so the overlay copies only a small image. */

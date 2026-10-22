@@ -1,11 +1,27 @@
 /**
- * Mystic nights: will-o'-the-wisps drifting over the far water, a pale figure
- * that stands on the far shore and fades, two red eyes surfacing near the
+ * Mystic nights: will-o'-the-wisps drifting over the far water, an
+ * apparition by the far shore now and then, two red eyes surfacing near the
  * bank. Only deep in the night. Every event goes
  * through `onEvent(type)`, the hook for sounds later.
+ *
+ * The apparition is one of four, picked at random each time:
+ * - boat: a boat with no oars and a lantern on its bow drifts along the far
+ *   water and sinks away into the mist;
+ * - angler: a ghostly angler sits on the far bank, makes one cast, and
+ *   dissolves with his rod;
+ * - mavka: a pale girl with long hair stands at the water's edge, walks into
+ *   the water and is gone, leaving rings;
+ * - lantern: just a lantern's light walking along the far shore; it stops,
+ *   sways and goes out.
  */
 
 const WISPS = 4;
+const APPARITIONS = {
+  boat: { life: [30, 40] },
+  angler: { life: [18, 24] },
+  mavka: { life: [16, 20] },
+  lantern: { life: [20, 28] },
+};
 
 /** How deep into the night it is (0 by day, 1 in the dead of night), with soft edges. */
 export function nightDepth(dayTime) {
@@ -44,11 +60,19 @@ export class NightEvents {
     for (const key of Object.keys(this.next)) this.next[key] -= dt;
 
     if (!this.figure && this.next.figure <= 0) {
-      this.figure = { start: time, life: 14 + random() * 8, x: 0.15 + random() * 0.7 };
+      const kinds = Object.keys(APPARITIONS);
+      const kind = kinds[Math.floor(random() * kinds.length)];
+      const [shortest, longest] = APPARITIONS[kind].life;
+      this.figure = { kind, start: time, life: shortest + random() * (longest - shortest), x: 0.15 + random() * 0.7, dir: random() < 0.5 ? -1 : 1, sank: false };
       this.next.figure = 120 + random() * 180;
-      this.onEvent("figure");
+      this.onEvent("figure", this.figure);
     }
-    if (this.figure && time - this.figure.start > this.figure.life) this.figure = null;
+    const figure = this.figure;
+    if (figure && figure.kind === "mavka" && !figure.sank && time - figure.start > figure.life * 0.6) {
+      figure.sank = true;
+      this.onEvent("mavkaSink", { x: figure.x });
+    }
+    if (figure && time - figure.start > figure.life) this.figure = null;
 
     if (!this.eyes && this.next.eyes <= 0) {
       this.eyes = { start: time, life: 3 + random() * 1.5, x: 0.2 + random() * 0.6, y: 0.62 + random() * 0.18, sank: false };
@@ -59,6 +83,23 @@ export class NightEvents {
       if (!this.eyes.sank) this.onEvent("eyesSink", this.eyes);
       this.eyes = null;
     }
+  }
+
+  /** Where the apparition is and how it looks this frame: `progress` runs 0..1 over its life. */
+  apparition(time, alpha) {
+    const { kind, start, life, x, dir } = this.figure;
+    const progress = (time - start) / life;
+    if (kind === "boat") {
+      // Drifts a quarter of the view, settling lower as it goes into the mist.
+      return { kind, x: x + dir * 0.22 * progress, alpha, progress, sink: Math.max(0, (progress - 0.7) / 0.3) };
+    }
+    if (kind === "lantern") {
+      // Walks along the shore for the first half, then stops and sways; it gutters before it goes out.
+      const walked = Math.min(progress, 0.5) * 2;
+      const gutter = progress > 0.85 ? 0.5 + 0.5 * Math.sin(time * 23) * Math.sin(time * 7.3) : 1;
+      return { kind, x: x + dir * 0.12 * walked, alpha: alpha * Math.max(0, gutter), progress, sway: progress > 0.5 ? Math.sin(time * 2.2) : Math.sin(time * 6) * 0.3 };
+    }
+    return { kind, x, alpha, progress, dir };
   }
 
   /** What to draw this frame, in fractions of the visible view. */
@@ -80,7 +121,7 @@ export class NightEvents {
     return {
       depth: this.depth,
       wisps,
-      figure: this.figure && { x: this.figure.x, alpha: fade(this.figure) },
+      figure: this.figure && this.apparition(time, fade(this.figure)),
       eyes: this.eyes && { x: this.eyes.x, y: this.eyes.y, alpha: Math.min(1, fade(this.eyes) * 1.6) },
     };
   }
