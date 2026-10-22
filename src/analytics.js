@@ -7,7 +7,10 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./cloud-config.js";
  * phone or computer, and whether the game was opened as a home-screen app.
  * No names, emails or IP addresses are stored. Nothing is sent from a local
  * copy (localhost) or a `?debug` session, so testing doesn't skew the numbers,
- * nor from a device where an admin has signed in (see markOwnDevice).
+ * nor from a device where an admin has signed in (see markOwnDevice), nor
+ * from robots: automated browsers (Vercel's deployment screenshots, link
+ * checkers, search engines) open the page with fresh storage every time and
+ * would each look like a new visitor.
  */
 
 const VISITOR_KEY = "doberega.visitor";
@@ -21,7 +24,9 @@ const ownDevice = () => {
     return false;
   }
 };
-const enabled = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY) && !local && !new URLSearchParams(location.search).has("debug") && !ownDevice();
+const robot = navigator.webdriver === true
+  || /bot\b|crawl|spider|headless|lighthouse|slurp|facebookexternalhit|embedly|vercel|prerender|pagespeed/i.test(navigator.userAgent);
+const enabled = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY) && !local && !robot && !new URLSearchParams(location.search).has("debug") && !ownDevice();
 
 const randomId = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`);
 
@@ -66,10 +71,23 @@ const installed = () => window.matchMedia("(display-mode: standalone)").matches 
 /**
  * Record an event: "visit", "fish", "catch" or "signup". `once` keeps it to
  * one per page session (pressing Fish again later isn't a new visitor action).
+ * `after` (ms) waits that long and only counts it if the page is still open
+ * and on screen: a person looking, not a page loaded for a snapshot.
  */
-export function track(type, { once = true } = {}) {
+export function track(type, { once = true, after = 0 } = {}) {
   if (!enabled || ownDevice() || (once && sent.has(type))) return;
   sent.add(type);
+  if (after > 0) {
+    setTimeout(() => {
+      if (document.visibilityState === "visible") send(type);
+      else sent.delete(type);
+    }, after);
+    return;
+  }
+  send(type);
+}
+
+function send(type) {
   fetch(`${SUPABASE_URL}/rest/v1/events`, {
     method: "POST",
     keepalive: true,

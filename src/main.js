@@ -136,8 +136,9 @@ onSeasonChange(() => {
 onProgressSaved(() => cloud.schedulePush());
 window.addEventListener("pagehide", () => cloud.flush());
 cloud.init();
-// One anonymous "visit" per page open, for the stats page (see analytics.js).
-track("visit");
+// One anonymous "visit" per page open, for the stats page (see analytics.js),
+// counted once the page has been on screen for two seconds.
+track("visit", { after: 2000 });
 
 function toScreen(point) {
   return { x: point.x * width, y: point.y * height };
