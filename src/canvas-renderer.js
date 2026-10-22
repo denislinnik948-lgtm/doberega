@@ -1,6 +1,6 @@
 import { sampleWater } from "./water-engine.js";
 import { createForestGlyphs } from "./forest-engine.js";
-import { activeScene, bankWidths, isOpenWater, nearBankY, setScene, shorelineY, sunPosition, view } from "./scene.js";
+import { activeScene, bankWidths, isOpenWater, nearBankY, setScene, shorelineY, sunPosition, view, wreckShape } from "./scene.js";
 import { skyAt, toHex, toInt } from "./daycycle.js";
 import { clamp, hash2, hexToInt, mixColor } from "./noise.js";
 import { createBankGlyphs, createRidgeGlyphs, createShoreGlyphs, createStructures, ridgeTop } from "./landscape-engine.js";
@@ -822,7 +822,8 @@ export class CanvasWaterRenderer {
   /** Rocks breaking the river surface, with a ring of foam cells around each. */
   createWaterRocks() {
     const { width, height, cellWidth, lineHeight } = this;
-    return (activeScene().water.rocks ?? []).map((rock, index) => {
+    const wreck = activeScene().water.wreck;
+    const rocks = (activeScene().water.rocks ?? []).map((rock, index) => {
       const cx = rock.x * width;
       const cy = rock.y * height;
       const rx = rock.r * Math.min(width, height * 1.6);
@@ -846,6 +847,83 @@ export class CanvasWaterRenderer {
       }
       return { stone, foam };
     });
+    if (wreck) rocks.push(this.createWreck());
+    return rocks;
+  }
+
+  /**
+   * A rusting ship half sunk in the bay, listing, stern under and bow raised:
+   * a streaked hull with rivets, a wheelhouse with its windows gone, a leaning
+   * mast and bits of railing, with foam lapping along the waterline.
+   */
+  createWreck() {
+    const { width, height, cellWidth, lineHeight } = this;
+    const ship = wreckShape(width, height);
+    const { cx, waterline, half, deck, keel, house } = ship;
+    const stone = [];
+    const foam = [];
+    const rust = [0x7a3e22, 0x5e2f1a, 0x93502c, 0x6b3820];
+    const snap = (x, y) => [(Math.floor(x / cellWidth) + 0.5) * cellWidth, (Math.floor(y / lineHeight) + 0.52) * lineHeight];
+    const put = (x, y, glyph, color) => {
+      const [sx, sy] = snap(x, y);
+      stone.push(sx, sy, glyph, color);
+    };
+    for (let x = cx - half; x <= cx + half; x += cellWidth) {
+      const u = ship.along(x);
+      const column = Math.round(x / cellWidth);
+      const top = deck(u);
+      const bottom = keel(u);
+      for (let y = top, r = 0; y <= bottom; y += lineHeight, r += 1) {
+        const noise = hash2(column, r, 1700);
+        let glyph;
+        let color;
+        if (r === 0) {
+          glyph = u > 0.92 ? "/" : noise > 0.3 ? "_" : "=";
+          color = 0xb0663a;
+        } else if (bottom - y < lineHeight) {
+          // The waterline: dark and slimy.
+          glyph = noise > 0.5 ? "=" : "~";
+          color = 0x3a2a1c;
+        } else {
+          glyph = r === 1 && column % 3 === 0 ? "o" : "#%=#"[Math.floor(noise * 4)];
+          // Rust streaks run down the plates.
+          color = column % 5 === 0 ? 0x9c5530 : rust[Math.floor(noise * rust.length)];
+        }
+        put(x, y, glyph, color);
+      }
+      // Bits of railing still standing along the deck.
+      if (u > 0.5 && u < 0.9 && column % 3 === 0 && hash2(column, 9, 1701) > 0.35) put(x, top - lineHeight, "'", 0x8a4a28);
+    }
+    // The wheelhouse, toward the sunk stern, its windows dark holes.
+    const houseRows = Math.max(2, Math.round(house.height / lineHeight));
+    for (let x = cx - half + 2 * half * house.from; x <= cx - half + 2 * half * house.to; x += cellWidth) {
+      const u = ship.along(x);
+      const edge = u - house.from < 0.02 || house.to - u < 0.02;
+      for (let r = 1; r <= houseRows; r += 1) {
+        const y = deck(u) - r * lineHeight;
+        const roof = r === houseRows;
+        const window = r === houseRows - 1 && !edge && Math.round(x / cellWidth) % 2 === 0;
+        put(x, y, roof ? "_" : edge ? "|" : window ? "o" : "#", roof ? 0xa25a32 : window ? 0x1c1612 : rust[(r + Math.round(x / cellWidth)) % rust.length]);
+      }
+    }
+    // A mast leaning back toward the stern, with its crosstree.
+    {
+      const u = 0.62;
+      const footX = cx - half + 2 * half * u;
+      const foot = deck(u) - lineHeight;
+      const rows = Math.round((height * 0.07) / lineHeight);
+      for (let r = 0; r < rows; r += 1) {
+        const x = footX - r * cellWidth * 0.45;
+        put(x, foot - r * lineHeight, "\\", 0x4a2e1e);
+        if (r === Math.round(rows * 0.7)) for (let c = -2; c <= 2; c += 1) if (c) put(x + c * cellWidth, foot - r * lineHeight, "-", 0x4a2e1e);
+      }
+    }
+    // Foam laps along the hull at the waterline.
+    for (let x = cx - half - cellWidth * 3; x <= cx + half + cellWidth * 3; x += cellWidth) {
+      const [sx, sy] = snap(x, waterline + lineHeight * 0.6);
+      foam.push({ x: sx, y: sy, noise: hash2(Math.round(x / cellWidth), 3, 1702), downstream: x < cx });
+    }
+    return { stone, foam };
   }
 
   fillSurface(time, ripples) {

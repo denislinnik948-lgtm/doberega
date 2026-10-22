@@ -264,15 +264,36 @@ function landscape(px, w, h, random, kind) {
   } else if (kind === "reservoir") {
     ridge(px, x0, x1, horizon, 26 * unit, 0.5, P.dark, horizon + 1);
     ridge(px, x0, x1, horizon, 13 * unit, 3, P.deep, horizon + 1);
-    // Dam wall with spillway gates.
-    const damX = Math.round(w * 0.55);
-    const damW = Math.round(w * 0.38);
-    const damH = Math.round(7 * unit);
-    px.rect(damX, horizon - damH, damW, damH + 1, P.soft);
-    px.rect(damX, horizon - damH, damW, 1, P.bone);
-    for (let x = damX + 3; x < damX + damW - 2; x += Math.max(4, Math.round(5 * unit))) px.rect(x, horizon - damH + 2, 2, damH - 2, P.ink);
+    // The Chornobyl plant: the long reactor block, the striped stack, the silver arch.
+    const plantX = Math.round(w * 0.5);
+    const plantW = Math.round(w * 0.3);
+    const blockH = Math.round(5 * unit);
+    px.rect(plantX, horizon - blockH, plantW, blockH + 1, P.soft);
+    px.rect(plantX, horizon - blockH, plantW, 1, P.light);
+    px.rect(plantX + Math.round(plantW * 0.15), horizon - blockH - Math.round(3 * unit), Math.round(plantW * 0.3), Math.round(3 * unit), P.soft);
+    const stackX = plantX + Math.round(plantW * 0.55);
+    const stackH = Math.round(20 * unit);
+    for (let y = 0; y < stackH; y += 1) {
+      const band = stackH - y < Math.round(8 * unit) ? Math.floor((stackH - y) / Math.max(1, Math.round(2 * unit))) % 2 : -1;
+      px.rect(stackX, horizon - y, Math.max(2, Math.round(unit * 1.5)), 1, band === 0 ? P.ember : band === 1 ? P.bone : P.light);
+    }
+    const archX = plantX + plantW;
+    const archR = Math.round(w * 0.08);
+    for (let dx = -archR; dx <= archR; dx += 1) {
+      const top = Math.round(Math.sqrt(Math.max(0, 1 - (dx / archR) ** 2)) * archR * 0.75);
+      px.rect(archX + dx, horizon - top, 1, top + 1, Math.abs(dx) % 3 === 0 ? P.light : P.bone);
+    }
+    // A rusty wreck in the bay, bow up.
+    const wreckX = Math.round(w * 0.2);
+    const wreckY = Math.round(horizon + (h - horizon) * 0.45);
+    const wreckW = Math.round(w * 0.2);
+    for (let dx = 0; dx < wreckW; dx += 1) {
+      const rise = Math.round((dx / wreckW) ** 1.7 * 6 * unit);
+      px.rect(wreckX + dx, wreckY - rise - Math.round(unit), 1, rise + Math.round(unit) + 1, dx % 4 === 0 ? P.goldDark : P.ember);
+    }
+    px.rect(wreckX + Math.round(wreckW * 0.2), wreckY - Math.round(4 * unit), Math.round(wreckW * 0.2), Math.round(3 * unit), P.goldDark);
     // Pylons on the far ridge.
-    for (const px0 of [0.15, 0.32]) {
+    for (const px0 of [0.1, 0.27]) {
       const x = Math.round(w * px0);
       const top = horizon - Math.round(30 * unit);
       for (let y = top; y < horizon - 10 * unit; y += 1) px.set(x, y, P.ink);

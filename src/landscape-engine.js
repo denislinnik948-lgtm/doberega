@@ -297,10 +297,129 @@ export function createStructures(width, height, cellWidth, lineHeight) {
   }
 
   const out = { cells, lights, shapes, chimneys, beacons };
+  if (structures.chnpp) addChnpp(structures.chnpp, width, height, cellWidth, lineHeight, out);
   if (structures.crag) addCrag(structures.crag, width, height, cellWidth, lineHeight, out);
   if (structures.archBridge) addArchBridge(structures.archBridge, width, height, cellWidth, lineHeight, out);
 
   return out;
+}
+
+/**
+ * The Chornobyl nuclear power plant across the water, from left to right: an
+ * unfinished cooling tower in the haze, the long block of the reactor halls
+ * over the turbine hall, the red-and-white ventilation stack in its lattice
+ * frame (a warning light blinks on top), and the silver arch of the New Safe
+ * Confinement over unit 4. `from`..`to` is the stretch of shore it covers.
+ */
+function addChnpp({ from, to }, width, height, cellWidth, lineHeight, out) {
+  const { cells, lights, shapes, beacons } = out;
+  const put = (x, y, glyph, color) => {
+    const cell = { ...cellAt(x, y, cellWidth, lineHeight), glyph, color };
+    cells.push(cell);
+    return cell;
+  };
+  const x0 = width * from;
+  const x1 = width * to;
+  const span = x1 - x0;
+  const shore = shorelineY((x0 + x1) / 2, height);
+  const base = shore - lineHeight * 0.5;
+  const rowsFor = (fraction) => Math.max(2, Math.round((height * fraction) / lineHeight));
+
+  // An unfinished cooling tower, hazy in the distance: a waisted hyperboloid.
+  {
+    const cx = x0 - span * 0.06;
+    const rows = rowsFor(0.11);
+    const top = base - rows * lineHeight;
+    const halfAt = (r) => {
+      const t = r / rows;
+      return span * (0.085 - 0.11 * t + 0.09 * t * t);
+    };
+    const points = [];
+    for (let r = 0; r <= rows; r += 1) points.push([cx - halfAt(r), base - r * lineHeight]);
+    for (let r = rows; r >= 0; r -= 1) points.push([cx + halfAt(r), base - r * lineHeight]);
+    shapes.push({ points, color: "#5d666a" });
+    for (let r = 0; r < rows; r += 1) {
+      const y = base - r * lineHeight;
+      const half = halfAt(r);
+      for (let x = cx - half + cellWidth * 0.5; x < cx + half; x += cellWidth) {
+        const edge = x - (cx - half) < cellWidth || cx + half - x < cellWidth;
+        // Bare scaffolding rings near the unfinished top.
+        put(x, y, edge ? (x < cx ? "(" : ")") : r > rows - 3 ? "#" : r % 3 === 0 ? "-" : "|", r > rows - 3 ? "#596064" : "#7c8589");
+      }
+    }
+    put(cx, top - lineHeight * 0.4, "_", "#7c8589");
+  }
+
+  // The long block: a low turbine hall in front, taller reactor halls behind it.
+  const hallRows = rowsFor(0.035);
+  const reactorRows = rowsFor(0.062);
+  const archFrom = x0 + span * 0.66;
+  const blockEnd = archFrom + span * 0.04;
+  shapes.push({ points: [[x0, base + lineHeight * 0.5], [x0, base - hallRows * lineHeight], [blockEnd, base - hallRows * lineHeight], [blockEnd, base + lineHeight * 0.5]], color: "#5b605c" });
+  const reactorHalls = [[x0 + span * 0.04, x0 + span * 0.24], [x0 + span * 0.4, x0 + span * 0.6]];
+  for (const [a, b] of reactorHalls) {
+    shapes.push({ points: [[a, base], [a, base - reactorRows * lineHeight], [b, base - reactorRows * lineHeight], [b, base]], color: "#666b66" });
+  }
+  for (let x = x0, c = 0; x <= blockEnd; x += cellWidth, c += 1) {
+    const hall = reactorHalls.find(([a, b]) => x >= a && x <= b);
+    const rows = hall ? reactorRows : hallRows;
+    for (let r = 0; r < rows; r += 1) {
+      const y = base - r * lineHeight;
+      const roof = r === rows - 1;
+      const window = !roof && r % 2 === 1 && c % 3 !== 0;
+      const cell = put(x, y, roof ? (c % 2 ? "=" : "-") : window ? ":" : (c + r) % 5 === 0 ? "|" : "=", roof ? "#a9aea6" : window ? "#4a4f4c" : hall ? "#8d928b" : "#7d827c");
+      // A few windows stay lit at night: the plant is never quite dark.
+      if (window && hash2(c, r, 41) < 0.12) {
+        cell.color = "#e2b85e";
+        lights.push(cell);
+      }
+    }
+  }
+
+  // The ventilation stack, red and white bands at the top, in its lattice frame.
+  {
+    const sx = x0 + span * 0.32;
+    const rows = rowsFor(0.2);
+    for (let r = 0; r < rows; r += 1) {
+      const y = base - r * lineHeight;
+      const band = rows - r <= 8 ? Math.floor((rows - r - 1) / 2) % 2 : -1;
+      const color = band === 0 ? "#c0463a" : band === 1 ? "#ddd8cc" : "#a6a8a0";
+      put(sx, y, "|", color);
+      put(sx + cellWidth, y, "|", color);
+      // The lattice tower around the pipe, narrowing as it climbs, stops short of the top.
+      if (r < rows * 0.8) {
+        const spread = 1 + Math.round((1 - r / (rows * 0.8)) * 2);
+        put(sx - spread * cellWidth, y, "/", "#4c5250");
+        put(sx + (1 + spread) * cellWidth, y, "\\", "#4c5250");
+        if (r % 3 === 0) for (let c = -spread + 1; c <= spread; c += 1) if (c !== 0 && c !== 1) put(sx + c * cellWidth, y, "x", "#4c5250");
+      }
+    }
+    shapes.push({ points: [[sx - cellWidth * 0.6, base], [sx - cellWidth * 0.6, base - rows * lineHeight], [sx + cellWidth * 1.6, base - rows * lineHeight], [sx + cellWidth * 1.6, base]], color: "#8f918a" });
+    beacons.push({ x: sx + cellWidth * 0.5, y: base - (rows + 0.6) * lineHeight });
+  }
+
+  // The New Safe Confinement: a huge, ribbed, silver half-shell.
+  {
+    const a = archFrom;
+    const b = x1;
+    const cx = (a + b) / 2;
+    const half = (b - a) / 2;
+    const rows = rowsFor(0.1);
+    const topAt = (x) => base - rows * lineHeight * Math.sqrt(Math.max(0, 1 - ((x - cx) / half) ** 2));
+    const points = [[a, base + lineHeight * 0.5]];
+    for (let x = a; x <= b; x += cellWidth) points.push([x, topAt(x)]);
+    points.push([b, base + lineHeight * 0.5]);
+    shapes.push({ points, color: "#7f888c" });
+    for (let x = a + cellWidth * 0.5, c = 0; x < b; x += cellWidth, c += 1) {
+      const top = topAt(x);
+      for (let y = base; y > top - lineHeight * 0.3; y -= lineHeight) {
+        const rim = y - top < lineHeight;
+        // Lit on its curved upper face, ribbed down its length.
+        const lit = (y - top) / (base - top + 1) < 0.35;
+        put(x, y, rim ? (x < cx - half * 0.5 ? "/" : x > cx + half * 0.5 ? "\\" : "_") : c % 4 === 0 ? "|" : lit ? "=" : "-", rim ? "#d6dcdd" : lit ? "#b9c1c3" : "#949da0");
+      }
+    }
+  }
 }
 
 /** Old stone bridge over a stream mouth on the far bank, with round arches. */

@@ -82,17 +82,22 @@ export const SCENES = {
     water: { body: "#11423f" },
     foreground: { reeds: 0.5, rock: false, lilyPads: 0 },
   },
-  /** Reservoir bay: wide water, low far hills, a concrete dam and power lines. */
+  /**
+   * Pripyat: the cooling reservoir by the Chornobyl power plant. Low far
+   * hills, the plant across the water with power lines running off it,
+   * murky water and a rusting ship half sunk in the bay.
+   */
   reservoir: {
     horizon: 0.42,
     ridges: [
       { top: 0.37, amplitude: 0.04, seed: 0.3, fill: "#4a575e", glyph: "#66757a", texture: ".:'", density: 0.12 },
       { top: 0.405, amplitude: 0.02, seed: 2.6, fill: "#34433f", glyph: "#4b5a52", texture: ".:;", density: 0.2 },
     ],
-    forest: { heightScale: 0.55, spacingScale: 1.7, broadleaf: 0.3, gaps: [[0.58, 1.02]] },
-    structures: { dam: { from: 0.6, to: 0.97 }, pylons: [0.14, 0.33, 0.5] },
-    // A weak current sets slowly toward the dam.
-    water: { drift: { x: 0.0016, y: 0 } },
+    forest: { heightScale: 0.55, spacingScale: 1.7, broadleaf: 0.3, gaps: [[0.46, 1.02]] },
+    structures: { chnpp: { from: 0.56, to: 0.95 }, pylons: [0.07, 0.23, 0.39] },
+    // A weak current sets slowly toward the plant's outflow; the water is murky.
+    // The wreck: a rusting ship listing in the bay, bow up (centre, width as screen fractions).
+    water: { drift: { x: 0.0016, y: 0 }, body: "#1c2a24", wreck: { x: 0.27, y: 0.67, w: 0.2 } },
     foreground: { reeds: 0, rock: false, lilyPads: 0, blocks: true },
   },
   /**
@@ -159,6 +164,33 @@ export function nearBankY(x, height) {
   return height * (1 - lift);
 }
 
+/**
+ * The half-sunk ship at Pripyat, in screen pixels: the deck and keel lines
+ * along the hull (u = 0 stern, under water .. 1 bow, raised high), the
+ * wheelhouse toward the stern, and whether a point is part of it.
+ */
+export function wreckShape(width, height) {
+  const wreck = active.water.wreck;
+  if (!wreck) return null;
+  const cx = wreck.x * width;
+  const waterline = wreck.y * height;
+  const half = (wreck.w * width) / 2;
+  const deck = (u) => waterline - height * (0.012 + 0.075 * u ** 1.7);
+  // The raked stem lifts the hull clear of the water at the bow.
+  const keel = (u) => waterline - height * 0.004 - (u > 0.86 ? ((u - 0.86) / 0.14) * height * 0.055 : 0);
+  const house = { from: 0.14, to: 0.4, height: height * 0.045 };
+  const along = (x) => (x - (cx - half)) / (2 * half);
+  return {
+    cx, waterline, half, deck, keel, house, along,
+    covers(x, y) {
+      const u = along(x);
+      if (u < 0 || u > 1) return false;
+      const top = deck(u) - (u >= house.from && u <= house.to ? house.height : 0);
+      return y > top && y < keel(u) + height * 0.012;
+    },
+  };
+}
+
 /** Is this screen point open water (not bank, rock or shore)? */
 export function isOpenWater(x, y, width, height) {
   if (y < shorelineY(x, height)) return false;
@@ -170,6 +202,7 @@ export function isOpenWater(x, y, width, height) {
     const r = rock.r * Math.min(width, height * 1.6);
     if (((x - rock.x * width) / r) ** 2 + ((y - rock.y * height) / (r * 0.45)) ** 2 < 1.4) return false;
   }
+  if (wreckShape(width, height)?.covers(x, y)) return false;
   return true;
 }
 
