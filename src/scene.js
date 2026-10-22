@@ -4,8 +4,11 @@
  * man-made structures, water behaviour and foreground.
  */
 
-/** Current viewport width, for landscape features laid out across the view. */
-export const view = { width: 1600 };
+/**
+ * Current scene width, for landscape features laid out across it, and the
+ * slice actually on screen (`left`, `frameWidth`), which is narrower on a phone.
+ */
+export const view = { width: 1600, left: 0, frameWidth: 1600 };
 
 export const SUN = { x: 0.37, y: 0.252, radius: 0.03 };
 
@@ -48,6 +51,8 @@ export const SCENES = {
     },
     shore: "reeds",
     water: {},
+    // We stand on a low grassy bank that rises into mounds at the corners.
+    nearBank: 0.075,
     foreground: { reeds: 2.2, rock: false, lilyPads: 0 },
   },
   /** Quiet lake: layered mountains behind a forested shore. */
@@ -57,6 +62,7 @@ export const SCENES = {
     forest: {},
     structures: {},
     water: {},
+    nearBank: 0.055,
     foreground: { reeds: 1, rock: true, lilyPads: 5 },
   },
   /**
@@ -146,9 +152,23 @@ export function bankWidths(depth) {
   return { left: Math.max(0, banks.left(depth)), right: Math.max(0, banks.right(depth)) };
 }
 
+/**
+ * Top edge of the grassy bank we stand on (pond and lake), following the slice
+ * on screen: low in the middle, rising into mounds at the corners. Without a
+ * near bank it is below the view.
+ */
+export function nearBankY(x, height) {
+  if (!active.nearBank) return Infinity;
+  const u = (x - view.left) / view.frameWidth;
+  const corner = Math.max(0, Math.abs(u - 0.5) * 2 - 0.35) / 0.65;
+  const lift = active.nearBank * (1 + corner * corner * 1.9) + Math.sin(u * 17 + 1.3) * 0.006 + Math.sin(u * 41) * 0.003;
+  return height * (1 - lift);
+}
+
 /** Is this screen point open water (not bank, rock or shore)? */
 export function isOpenWater(x, y, width, height) {
   if (y < shorelineY(x, height)) return false;
+  if (y > nearBankY(x, height)) return false;
   if (active.foreground.bridge && y > active.foreground.bridge * height) return false;
   const { left, right } = bankWidths(y / height);
   if (x < left * width || x > width * (1 - right)) return false;

@@ -1,6 +1,6 @@
 import { hash01 } from "./noise.js";
 import { activeScene, shorelineY } from "./scene.js";
-import { isDarkFantasy } from "./theme.js";
+import { isAutumn, isDarkFantasy } from "./theme.js";
 
 const FOREST_LAYERS = [
   { offset: 0.034, variation: 0.01, height: [0.03, 0.055], spacing: [30, 52], sway: 0.075 },
@@ -13,6 +13,27 @@ const FOLIAGE = [
   { shadow: "#2e3f33", middle: "#405241", light: "#878159" },
   { shadow: "#203026", middle: "#304431", light: "#857a4a" },
 ];
+
+// Trees on the near banks are close and well lit, so their greens read brighter.
+const BANK_FOLIAGE = { shadow: "#26422b", middle: "#385a3c", light: "#7f8c54" };
+
+// Autumn crowns: blood red, rust, gold and brown, picked per tree.
+const AUTUMN = [
+  { share: 0.3, shadow: "#5c1a14", middle: "#962c1e", light: "#cc4a2a" },
+  { share: 0.3, shadow: "#6a2c10", middle: "#ad4a1a", light: "#de7a2c" },
+  { share: 0.22, shadow: "#6a4c12", middle: "#ab821c", light: "#e0b43e" },
+  { share: 0.1, shadow: "#46220f", middle: "#743a1e", light: "#a15a32" },
+];
+
+/** A broadleaf tree's autumn palette, or null for the odd one still green. */
+function autumnPalette(tree) {
+  let pick = hash01(tree.seed * 83);
+  for (const palette of AUTUMN) {
+    if (pick < palette.share) return palette;
+    pick -= palette.share;
+  }
+  return null;
+}
 
 function chooseSpecies(seed, layerIndex, broadleaf) {
   // Dark fantasy leaves about a third of the woods dead and bare.
@@ -120,7 +141,10 @@ function createTrees(width, height, sunX) {
 }
 
 function foliageColor(tree, lit, shadow = false) {
-  const palette = FOLIAGE[tree.layer];
+  const broad = tree.species === "oak" || tree.species === "round";
+  const palette = (broad && isAutumn() && autumnPalette(tree)) || (tree.bank ? BANK_FOLIAGE : FOLIAGE[tree.layer]);
+  // Distant autumn woods keep to their darker tones.
+  if (AUTUMN.includes(palette) && tree.layer === 0) return shadow ? palette.shadow : palette.middle;
   if (shadow) return palette.shadow;
   return lit ? palette.light : palette.middle;
 }
@@ -204,7 +228,8 @@ function broadleafGlyph(tree, localX, progress, x, y, cellWidth) {
   let glyph;
   if (isEdge && noise > 0.44) glyph = noise > 0.78 ? "*" : "+";
   else if (Math.abs(normalizedX) < 0.11 && normalizedY > 0.48 && noise > 0.54) glyph = "Y";
-  else glyph = ["o", "O", "*", "+"][Math.floor(noise * 4)];
+  // Autumn crowns are heavy masses of round leaves.
+  else glyph = (isAutumn() ? ["o", "O", "0", "@"] : ["o", "O", "*", "+"])[Math.floor(noise * 4)];
 
   return {
     glyph,
@@ -293,5 +318,8 @@ export function createForestGlyphs(width, height, cellWidth, lineHeight, sunX = 
     }
   }
 
-  return [...cells.values()];
+  // The trees themselves come along too, for the shadows they cast.
+  const result = [...cells.values()];
+  result.trees = trees;
+  return result;
 }

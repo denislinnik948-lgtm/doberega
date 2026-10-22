@@ -6,7 +6,7 @@ import {
   bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, hookSprite, packSprite, rodSprite,
 } from "./sprites.js";
 import { frame, frameAll, repaint, repaintAll, setContent } from "./frames.js";
-import { THEMES, setTheme, theme } from "../theme.js";
+import { SEASONS, THEMES, season, setSeason, setTheme, theme } from "../theme.js";
 import { validNickname } from "../cloud.js";
 import { baitCount, saveProgress } from "./store.js";
 import {
@@ -153,6 +153,18 @@ export class AnglerUI {
       },
     })));
     $("#style-hint").textContent = t(theme() === "dark" ? "style.darkHint" : "style.classicHint");
+    $("#season-options").replaceChildren(...SEASONS.map((id) => element("button", {
+      className: `pixel-btn${id === season() ? " pixel-btn-primary" : ""}`,
+      type: "button",
+      role: "radio",
+      ariaChecked: String(id === season()),
+      textContent: t(`season.${id}`),
+      onclick: () => {
+        setSeason(id);
+        this.openSettings();
+      },
+    })));
+    $("#season-hint").textContent = t(`season.${season()}Hint`);
     if (!this.settingsDialog.open) this.settingsDialog.showModal();
   }
 

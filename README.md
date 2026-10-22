@@ -30,6 +30,16 @@ Each style bakes a colour grade into the scene itself (`GRADES` in `src/theme.js
 
 **Налаштування → Стиль** switches between the classic lake and **dark fantasy** (`src/theme.js`, remembered per browser). Dark fantasy swaps the UI palette for old stone greys with tarnished gold and blood-red accents (frames and icons repaint live), and changes the locations themselves: its cold, lifeless grade is baked into the scene's colours (land layer, woods, grass, water and reflections), the sky turns leaden by day, blood-red at sunrise and sunset and deeper at night, about a third of the trees stand dead and bare, a heavy vignette closes in, and a pall of mist floods the water by night. At night it also brings events (`src/night-events.js`): will-o'-the-wisps drifting over the far water, a pale hooded figure that stands on the far shore and fades, two red eyes surfacing near the bank before slipping under in rings, and the odd omen while fishing (“Десь удалині вдарив дзвін…”). Each event is announced as a `doberega:night` window event (`detail.type`: figure, eyes, eyesSink, omen), ready for sounds later.
 
+## Season
+
+**Налаштування → Сезон** picks summer, autumn or auto (`isAutumn()` in `src/theme.js`; auto follows the calendar, autumn from September to November). Autumn turns broadleaf crowns into heavy masses of `0 O @` in blood red, rust, gold and brown (`AUTUMN` in `src/forest-engine.js`; conifers stay green) and the grass yellow.
+
+## Grass, shadows and sparkle
+
+Grass on the river banks and on the bank we stand on (pond and lake, `nearBank` in `src/scene.js`) is drawn by `src/grass-engine.js` as single strokes: every blade is a `|` glyph turned to its own angle (the glyph batch carries a rotation per glyph), near blades are two or three segments that bend further toward the tip, and gusts sweep across the field as travelling bands. Dark earth shows between the blades. Flowers dot the grass by day, dew sparkles at sunrise, and fireflies pulse over the grass and the shore at night.
+
+Fake shadows are done on the GPU (`SHADE` in `src/glyph-backend.js`): cloud shadows are value noise laid on the ground plane, squeezed toward the horizon and carried by the wind across land, hills and water while the sun is out; tree shadows come from a soft greyscale map (`paintTreeShadows` in `src/canvas-renderer.js`) where every tree throws an ellipse away from the sun or moon, long when the light is low.
+
 ## Time of day
 
 A full in-game day takes 21 min 20 s of real time, starting mid-afternoon, and each part runs at its own pace: day (07:41–18:43) 10 min, sunset (18:43–22:05) 1 min 30 s, night (22:05–04:48) 8 min 20 s, sunrise (04:48–07:41) 1 min 30 s — so the clock races through dawn and dusk. There is a clock in the menu and HUD: night → dawn → morning → noon → afternoon → evening → dusk → night. Keyframes in `src/daycycle.js` hold the sky gradient, sun/moon glow, cloud colours, star visibility, glint colours and light multipliers for land, water and the foreground; everything between them is blended smoothly. The sun rises on the right, peaks near the top and sets on the left; the moon and stars take over at night, with a pale moon path on the water.

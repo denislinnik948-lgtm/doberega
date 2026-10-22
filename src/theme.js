@@ -61,6 +61,42 @@ export function setTheme(id) {
   for (const listener of listeners) listener(current);
 }
 
+/*
+ * The season: summer greens or autumn crowns in red, rust and gold. "auto"
+ * follows the calendar (September to November is autumn).
+ */
+const SEASON_KEY = "stillwater.season";
+export const SEASONS = ["auto", "summer", "autumn"];
+
+let seasonChoice = (() => {
+  try {
+    const stored = localStorage.getItem(SEASON_KEY);
+    return SEASONS.includes(stored) ? stored : "auto";
+  } catch {
+    return "auto";
+  }
+})();
+
+export function season() {
+  return seasonChoice;
+}
+
+export function isAutumn() {
+  if (seasonChoice === "auto") return [8, 9, 10].includes(new Date().getMonth());
+  return seasonChoice === "autumn";
+}
+
+export function setSeason(id) {
+  seasonChoice = SEASONS.includes(id) ? id : "auto";
+  try {
+    localStorage.setItem(SEASON_KEY, seasonChoice);
+  } catch {
+    // Without storage the choice lasts for this visit.
+  }
+  for (const listener of listeners) listener(current);
+}
+
+/** Called when the style or the season changes. */
 export function onThemeChange(listener) {
   listeners.add(listener);
   return () => listeners.delete(listener);

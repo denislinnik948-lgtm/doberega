@@ -385,6 +385,8 @@ export function createBankGlyphs(width, height, cellWidth, lineHeight, sunX = wi
       const edge = Math.abs(x - leftEdge) < cellWidth * 1.2 || Math.abs(x - rightEdge) < cellWidth * 1.2;
       let glyph;
       let color;
+      // Plain grass is drawn as blades by the grass engine; only the glyphs that remain are kept.
+      let plain = false;
       if (banks.style === "cliff") {
         // Layered rock: horizontal strata with cracks, lighter toward the water's edge.
         const nearEdge = Math.min(Math.abs(x - leftEdge), Math.abs(x - rightEdge)) / width;
@@ -401,8 +403,9 @@ export function createBankGlyphs(width, height, cellWidth, lineHeight, sunX = wi
         glyph = edge ? "~" : ",'\"`.;,'"[Math.floor(noise * 8)];
         color = edge ? "#6a7a58" : noise < 0.5 ? "#3f5236" : "#56693f";
         if (!edge && noise > 0.8) continue;
+        plain = true;
       }
-      cells.push({ x, y, column, row, glyph, color });
+      cells.push({ x, y, column, row, glyph, color, plain });
     }
   }
   return cells;

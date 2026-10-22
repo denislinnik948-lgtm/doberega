@@ -94,8 +94,9 @@ export function fillAmbient(ambient, { ground, haze, glow }, time, dayTime, rain
   for (const cell of ambient.breeze) {
     const gust = 0.5 + 0.5 * Math.sin(cell.x * 0.004 - time * 0.35);
     const wave = Math.max(0, Math.sin(cell.x * 0.02 + cell.y * 0.03 - time * 1.4)) ** 3 * gust;
-    const lean = wave * cellWidth * 0.25;
-    ground.push(cell.x + lean, cell.y, cell.glyph, wave > 0.05 ? mix(cell.colorValue, 0xe8e6b8, wave * 0.45) : cell.colorValue);
+    // The gust bends each stalk over and shifts it a little downwind.
+    const lean = wave * cellWidth * 0.15;
+    ground.push(cell.x + lean, cell.y, cell.glyph, wave > 0.05 ? mix(cell.colorValue, 0xe8e6b8, wave * 0.45) : cell.colorValue, wave * 0.6);
   }
 
   // Leaves stir a pixel or so and catch the light as gusts pass.

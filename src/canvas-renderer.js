@@ -1,6 +1,6 @@
 import { sampleWater } from "./water-engine.js";
 import { createForestGlyphs } from "./forest-engine.js";
-import { activeScene, bankWidths, isOpenWater, setScene, shorelineY, sunPosition, view } from "./scene.js";
+import { activeScene, bankWidths, isOpenWater, nearBankY, setScene, shorelineY, sunPosition, view } from "./scene.js";
 import { skyAt, toHex, toInt } from "./daycycle.js";
 import { clamp, hash2, hexToInt, mixColor } from "./noise.js";
 import { createBankGlyphs, createRidgeGlyphs, createShoreGlyphs, createStructures, ridgeTop } from "./landscape-engine.js";
@@ -8,10 +8,12 @@ import { birdsAt, createSkyCells, discOffsets, lightSky, pushDisc, sampleSky, se
 import { createLilyPads, createReeds, createRocks, rockGlyphs } from "./foreground-engine.js";
 import { GlyphBatch, createBackend } from "./glyph-backend.js";
 import { createAmbient, fillAmbient } from "./ambient-engine.js";
-import { gradeHex, gradeInt, gradeRgb, gradeSky } from "./theme.js";
+import { gradeHex, gradeInt, gradeRgb, gradeSky, isAutumn } from "./theme.js";
+import { createGrass, fillGrass } from "./grass-engine.js";
 import { ROD_LOOKS } from "./fishing/sprites.js";
 
-const WATER_RAMP = "    ..,:;~-=+*#%@W";
+// A little sparser than solid: dark water shows between the strokes.
+const WATER_RAMP = "     ..,:;~-=+*#%@W";
 const MONO_FONT = '"SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace';
 const GAME_ISOMETRIC_SLOPE = 0.5;
 const WATER_BANDS = 10;
@@ -25,6 +27,8 @@ const SKY_INTERVAL = 1 / 15;
 // colours drift so slowly that the steps are invisible.
 const LIGHT_INTERVAL = 0.25;
 const SKY_SCALE = 0.25;
+// Tree shadows are painted at a quarter of the screen resolution; they are soft anyway.
+const SHADOW_SCALE = 0.25;
 
 export class CanvasWaterRenderer {
   constructor(canvas) {
@@ -52,6 +56,10 @@ export class CanvasWaterRenderer {
     // Moving bits of the far landscape (wind in grass, smoke, mist) and lights that blink.
     this.ambientBatches = { ground: new GlyphBatch(), haze: new GlyphBatch(), glow: new GlyphBatch() };
     this.rainBatch = new GlyphBatch();
+    // Grass blades behind the bank trees, on the bank we stand on, and fireflies.
+    this.grassBatches = { far: new GlyphBatch(16384), near: new GlyphBatch(16384), flies: new GlyphBatch() };
+    this.shadowCanvas = document.createElement("canvas");
+    this.shadowKey = null;
     this.ducks = [];
     this.glintBatch = new GlyphBatch();
     this.lightKey = null;
@@ -95,6 +103,8 @@ export class CanvasWaterRenderer {
     this.reeds = createReeds(width, height, frame);
     this.rocks = createRocks(width, height, this.sun.x, frame);
     view.width = width;
+    view.left = frame.left;
+    view.frameWidth = frame.width;
     this.ridgeOutlines = activeScene().ridges.map((ridge) => {
       const points = [];
       const step = Math.max(6, width / 240);
@@ -205,6 +215,7 @@ export class CanvasWaterRenderer {
     this.moonDisc = discOffsets(this.sun.radius * 0.8, cellWidth, lineHeight);
     this.ridgeCells = createRidgeGlyphs(width, height, cellWidth, lineHeight);
     this.forestCells = createForestGlyphs(width, height, cellWidth, lineHeight, this.sun.x);
+    this.trees = this.forestCells.trees;
     // Each style's colour grade is baked into the scene's own colours.
     for (const cell of this.forestCells) cell.colorValue = hexToInt(gradeHex(cell.color));
     this.shoreCells = createShoreGlyphs(width, height, cellWidth, lineHeight, this.sun.x);
@@ -214,8 +225,11 @@ export class CanvasWaterRenderer {
     this.lightBatch.clear();
     for (const cell of structures.lights) this.lightBatch.push(cell.x, cell.y, cell.glyph, hexToInt(cell.color));
     this.bankCells = createBankGlyphs(width, height, cellWidth, lineHeight, this.sun.x);
+    this.grass = createGrass({ width, height, cellWidth, lineHeight, frame: this.frame, autumn: isAutumn(), trees: this.trees });
+    this.shadowKey = null;
     this.ambient = createAmbient({
-      scene, structures, ridgeCells: this.ridgeCells, bankCells: this.bankCells,
+      // Plain grass on the banks is drawn as blades; the scrub along the water stays glyphs.
+      scene, structures, ridgeCells: this.ridgeCells, bankCells: this.bankCells.filter((cell) => !cell.plain),
       width, height, cellWidth, lineHeight, shorelineY: (x) => this.shorelineY(x),
     });
     for (const cell of [...this.ambient.breeze, ...this.ambient.leaves]) cell.colorValue = gradeInt(cell.colorValue);
@@ -296,8 +310,62 @@ export class CanvasWaterRenderer {
     const lx = sky.light.x * width;
     for (const cell of this.waterCells) cell.sunPath = Math.exp(-(((cell.screenX - lx) / cell.pathWidth) ** 2));
     this.backend.setLayer("sky", this.paintSkyLayer(sky));
+    this.paintTreeShadows(sky.light);
     this.updatePalette(waterColor, sky);
     this.skyTime = null;
+  }
+
+  /**
+   * Fake shadows: each tree throws a soft dark ellipse on the ground or water
+   * at its foot, away from the sun or moon. Light from beyond the scene throws
+   * them toward the viewer; a low light makes them long. Painted as a
+   * greyscale map (white = full light) the GPU multiplies into land and water.
+   */
+  paintTreeShadows(light) {
+    const strength = light.kind === "sun" ? light.strength * 0.55 : light.kind === "moon" ? light.strength * 0.25 : 0;
+    const key = [light.x, light.y, strength].map((value) => Math.round(value * 200)).join("|");
+    if (key === this.shadowKey) return;
+    this.shadowKey = key;
+    const { width, height } = this;
+    const canvas = this.shadowCanvas;
+    canvas.width = Math.max(1, Math.round(width * SHADOW_SCALE));
+    canvas.height = Math.max(1, Math.round(height * SHADOW_SCALE));
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(SHADOW_SCALE, 0, 0, SHADOW_SCALE, 0, 0);
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, width, height);
+    if (strength > 0.02) {
+      // Overlapping shadows don't stack: the darker one wins.
+      ctx.globalCompositeOperation = "darken";
+      const horizon = height * activeScene().horizon;
+      const lx = light.x * width;
+      const reach = 0.5 + clamp(light.y / 0.45, 0, 1) * 1.3;
+      for (const tree of this.trees ?? []) {
+        // Far trees cast foreshortened shadows; bank trees near us cast big ones.
+        const near = clamp((tree.baseY - horizon) / (height - horizon), 0, 1);
+        const length = tree.height * reach * (0.18 + near * 0.9);
+        const shift = clamp((tree.centerX - lx) / width * 1.6, -1, 1) * tree.height * reach * 0.5;
+        const cx = tree.centerX + shift * 0.5;
+        const cy = tree.baseY + length * 0.45;
+        const rx = tree.maxWidth * 0.85 + Math.abs(shift) * 0.35;
+        const ry = Math.max(this.lineHeight * 0.6, length * 0.55);
+        const value = Math.round(255 * (1 - strength * (tree.bank ? 1 : 0.65) * (tree.species === "dead" ? 0.5 : 1)));
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(rx, ry);
+        const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+        gradient.addColorStop(0, `rgb(${value}, ${value}, ${value})`);
+        gradient.addColorStop(0.55, `rgb(${value}, ${value}, ${value})`);
+        gradient.addColorStop(1, "#fff");
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(0, 0, 1, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.globalCompositeOperation = "source-over";
+    }
+    this.backend.setShadowMap(canvas);
   }
 
   /** Smooth sky gradient plus the glow around the sun or moon, at low resolution. */
@@ -410,7 +478,7 @@ export class CanvasWaterRenderer {
     });
 
     // A dark canopy silhouette keeps the forest legible against the hazy hills.
-    ctx.fillStyle = "#1b271f";
+    ctx.fillStyle = "#111a14";
     ctx.beginPath();
     if (scene.forest.silhouette === "crowns") {
       // Scattered trees: back each glyph with a soft blob so crowns keep their own shape.
@@ -461,8 +529,20 @@ export class CanvasWaterRenderer {
     for (let x = 0; x <= width + 8; x += 8) ctx.lineTo(x, this.shorelineY(x) + this.lineHeight * 0.3);
     ctx.lineTo(width, height);
     ctx.closePath();
-    ctx.fillStyle = scene.water.body ?? "#14232a";
+    // Near black, so the sparse water strokes stand out against it.
+    ctx.fillStyle = scene.water.body ?? "#0b161b";
     ctx.fill();
+
+    // The grassy bank we stand on: dark earth that the grass blades cover.
+    if (scene.nearBank) {
+      ctx.beginPath();
+      ctx.moveTo(0, height);
+      for (let x = 0; x <= width + 8; x += 8) ctx.lineTo(x, nearBankY(x, height));
+      ctx.lineTo(width, height);
+      ctx.closePath();
+      ctx.fillStyle = "#0a110c";
+      ctx.fill();
+    }
 
     // Near banks (grass or rock) cover the water at the sides.
     if (scene.banks) {
@@ -478,7 +558,8 @@ export class CanvasWaterRenderer {
         for (let y = horizon; y <= height + 8; y += 8) ctx.lineTo(edgeX(y / height), y);
         ctx.lineTo(outer, height);
         ctx.closePath();
-        ctx.fillStyle = cliff ? "#121614" : "#1d2a1c";
+        // Near black between the blades, like earth in deep grass.
+        ctx.fillStyle = cliff ? "#121614" : "#0b130e";
         ctx.fill();
       }
       if (!this.ambient.grassBanks) {
@@ -1121,6 +1202,7 @@ export class CanvasWaterRenderer {
     if (sky.sun.up && sky.sun.y < 0.52) pushDisc(this.discBatch, this.sunDisc, sky.sun.x * width, sky.sun.y * height, cellWidth, lineHeight, "sun");
     this.fillForest(time);
     fillAmbient(this.ambient, this.ambientBatches, time, dayTime, this.rain, Boolean(env.dark));
+    fillGrass(this.grass, this.grassBatches, time, dayTime, this.rain);
     if (env.night) this.drawNightEvents(env.night, time);
     this.fillWater(time, config, ripples);
     this.fillSurface(time, ripples);
@@ -1133,21 +1215,28 @@ export class CanvasWaterRenderer {
     const dim = 1 - 0.32 * this.rain;
     const land = sky.land.map((value) => value * dim);
     const water = sky.water.map((value) => value * dim);
+    // Cloud shadows drift over land and water while the sun is out; rain clouds over the whole sky instead.
+    const cloudShadow = (sky.light.kind === "sun" ? sky.light.strength * 0.4 : sky.light.kind === "moon" ? sky.light.strength * 0.12 : 0) * (1 - Math.min(1, this.rain * 1.5));
+    backend.setShadow(cloudShadow, time, height * activeScene().horizon);
     backend.begin();
     backend.drawLayer("sky", [dim, dim, dim * 1.02]);
     if (sky.stars > 0.03) backend.drawGlyphs(this.starBatch, [1, 1, 1, sky.stars]);
     backend.drawGlyphs(this.discBatch);
     backend.drawGlyphs(this.skyBatch);
-    backend.drawLayer("land", land);
-    backend.drawGlyphs(this.ambientBatches.ground, land);
-    backend.drawGlyphs(this.forestBatch, land);
+    backend.drawLayer("land", land, true);
+    backend.drawGlyphs(this.ambientBatches.ground, land, true);
+    backend.drawGlyphs(this.grassBatches.far, land, true);
+    // Trees stand above their neighbours' shadows; only clouds darken them.
+    backend.drawGlyphs(this.forestBatch, land, "clouds");
     backend.drawGlyphs(this.ambientBatches.haze, land);
     // Cottage windows and dam lamps glow as the light fades.
     backend.drawGlyphs(this.lightBatch, [1, 1, 1, Math.min(1, 0.12 + sky.stars)]);
     backend.drawGlyphs(this.ambientBatches.glow);
-    backend.drawGlyphs(this.waterBatch, water);
+    backend.drawGlyphs(this.waterBatch, water, true);
     backend.drawGlyphs(this.glintBatch);
-    backend.drawGlyphs(this.surfaceBatch, water);
+    backend.drawGlyphs(this.surfaceBatch, water, true);
+    backend.drawGlyphs(this.grassBatches.near, land, true);
+    backend.drawGlyphs(this.grassBatches.flies);
     if (this.rain > 0.02) backend.drawGlyphs(this.rainBatch, [1.15, 1.15, 1.15, 0.4 + 0.5 * this.rain]);
     this.renderOverlay(time, angler);
   }
