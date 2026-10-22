@@ -537,7 +537,8 @@ export class CanvasWaterRenderer {
     } else {
       ctx.moveTo(0, this.shorelineY(0) + 2);
       this.treeline.forEach((top, column) => ctx.lineTo((column + 0.5) * this.cellWidth, top));
-      ctx.lineTo(width, this.shorelineY(width) + 2);
+      // Back along the wavy shoreline itself, a little into the water, so no sky shows under the trees.
+      for (let x = width; x >= 0; x -= 8) ctx.lineTo(x, this.shorelineY(x) + this.lineHeight * 0.4);
       ctx.closePath();
     }
     ctx.fill();
