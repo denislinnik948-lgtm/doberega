@@ -361,6 +361,10 @@ function resize() {
   }
   game.landingX = (left + viewWidth / 2) / width;
   renderer.resize(width, height, config, { left, width: viewWidth });
+  // The fish comes in to the water's edge below the rod, never up onto the bank we stand on.
+  let edge = height * 0.98;
+  while (edge > height * 0.6 && !renderer.isOpenWater(game.landingX * width, edge)) edge -= 4;
+  game.landingY = edge / height;
   cancelAnimationFrame(animationFrame);
   renderNow(performance.now());
   animationFrame = requestAnimationFrame(draw);

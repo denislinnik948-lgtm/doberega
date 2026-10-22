@@ -203,9 +203,9 @@ export class FishingGame {
     if (flow.x || flow.y) this.moveFloat(flow.x * dt, flow.y * dt);
   }
 
-  /** Where the hooked fish is: it moves from the cast point toward the angler. */
+  /** Where the hooked fish is: it moves from the cast point toward the angler, up to the water's edge. */
   fishPosition() {
-    const landing = { x: this.landingX, y: 0.98 };
+    const landing = { x: this.landingX, y: this.landingY ?? 0.98 };
     const t = 1 - this.distance;
     return {
       x: this.target.x + (landing.x - this.target.x) * t,
