@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>Doberega · Статистика</title>
+    <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Handjet:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/stats/stats.css" />
+  </head>
+  <body>
+    <header class="top">
+      <h1>Doberega <span>· статистика</span></h1>
+      <div class="controls" id="controls" hidden>
+        <div class="segmented" role="radiogroup" aria-label="Період" id="period">
+          <button type="button" data-days="7">7 днів</button>
+          <button type="button" data-days="30" aria-pressed="true">30 днів</button>
+          <button type="button" data-days="90">90 днів</button>
+        </div>
+        <button type="button" class="ghost" id="refresh">Оновити</button>
+        <button type="button" class="ghost" id="sign-out">Вийти</button>
+      </div>
+    </header>
+
+    <!-- Only admins see the numbers: sign in with the game account. -->
+    <section class="gate" id="gate" hidden>
+      <form class="card login" id="login" novalidate>
+        <h2>Вхід для адміна</h2>
+        <label>Пошта <input type="email" name="email" autocomplete="email" required /></label>
+        <label>Пароль <input type="password" name="password" autocomplete="current-password" required /></label>
+        <button type="submit" class="primary">Увійти</button>
+        <p class="note" id="login-message" role="status"></p>
+      </form>
+    </section>
+
+    <section class="card notice" id="notice" hidden></section>
+
+    <main id="board" hidden>
+      <section aria-labelledby="period-title">
+        <h2 id="period-title">За період</h2>
+        <div class="tiles" id="period-tiles"></div>
+      </section>
+
+      <div class="grid two">
+        <section class="card" aria-labelledby="funnel-title">
+          <h2 id="funnel-title">Воронка</h2>
+          <p class="caption">Унікальні відвідувачі за період; відсоток від тих, хто відкрив сайт.</p>
+          <div class="bars" id="funnel"></div>
+        </section>
+        <section class="card" aria-labelledby="all-title">
+          <h2 id="all-title">За весь час</h2>
+          <div class="tiles small" id="all-tiles"></div>
+        </section>
+      </div>
+
+      <section class="card" aria-labelledby="visitors-title">
+        <h2 id="visitors-title">Відвідувачі за день</h2>
+        <div class="chart" id="visitors-chart"></div>
+      </section>
+
+      <div class="grid two">
+        <section class="card" aria-labelledby="signups-title">
+          <h2 id="signups-title">Реєстрації за день</h2>
+          <div class="chart short" id="signups-chart"></div>
+        </section>
+        <section class="card" aria-labelledby="catch-title">
+          <h2 id="catch-title">Упіймали рибу за день</h2>
+          <div class="chart short" id="catch-chart"></div>
+        </section>
+      </div>
+
+      <div class="grid three">
+        <section class="card" aria-labelledby="sources-title">
+          <h2 id="sources-title">Звідки прийшли</h2>
+          <div class="bars" id="sources"></div>
+        </section>
+        <section class="card" aria-labelledby="devices-title">
+          <h2 id="devices-title">Пристрої</h2>
+          <div class="bars" id="devices"></div>
+        </section>
+        <section class="card" aria-labelledby="recent-title">
+          <h2 id="recent-title">Нові акаунти</h2>
+          <table class="table" id="recent"></table>
+        </section>
+      </div>
+      <p class="note foot" id="updated"></p>
+    </main>
+
+    <div class="tooltip" id="tooltip" hidden></div>
+    <script type="module" src="/stats/stats.js"></script>
+  </body>
+</html>

@@ -10,6 +10,7 @@ import { baitCount, loadProgress, onProgressSaved, replaceProgress, saveProgress
 import { Cloud } from "./cloud.js";
 import { onSeasonChange } from "./theme.js";
 import { NightEvents } from "./night-events.js";
+import { track } from "./analytics.js";
 import { AnglerUI } from "./fishing/ui.js";
 
 // The water look is fixed: a still lake, gentle swell speed, soft glints.
@@ -105,6 +106,7 @@ const ui = new AnglerUI(progress, {
   onFish: () => {
     ui.chooseBestBait();
     setMode("fishing");
+    track("fish");
   },
   onExit: () => setMode("menu"),
   onSpotChange: applySpot,
@@ -134,6 +136,8 @@ onSeasonChange(() => {
 onProgressSaved(() => cloud.schedulePush());
 window.addEventListener("pagehide", () => cloud.flush());
 cloud.init();
+// One anonymous "visit" per page open, for the stats page (see analytics.js).
+track("visit");
 
 function toScreen(point) {
   return { x: point.x * width, y: point.y * height };
@@ -159,6 +163,7 @@ function handleGameEvent(type, data) {
       ui.toast(`${headline}${losses.length ? ` · ${losses.join(", ")}` : ""}`, "bad", 2400);
     } else {
       progress.caught += 1;
+      track("catch");
       game.release();
       ui.showCatch(data.fish, { bait: data.bait }).then((choice) => {
         if (choice.type === "sell") ui.toast(`+${choice.price} ₴`, "good", 1200);

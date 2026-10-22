@@ -8,6 +8,7 @@ import {
 import { frame, frameAll, repaint, setContent } from "./frames.js";
 import { SEASONS, season, setSeason } from "../theme.js";
 import { validNickname } from "../cloud.js";
+import { track } from "../analytics.js";
 import { baitCount, saveProgress } from "./store.js";
 import {
   LANGUAGES, handbookRules, language, locale, nameOf, periodName, setLanguage, t, traitLabel, traitValue,
@@ -331,6 +332,7 @@ export class AnglerUI {
           this.accountMessage = null;
           const result = await cloud[signUp ? "signUp" : "signIn"](email.input.value.trim(), password.input.value);
           if (result?.error) return;
+          if (signUp) track("signup");
           if (result?.confirm) {
             say(t("account.checkEmail"));
             return;

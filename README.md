@@ -98,6 +98,20 @@ To switch it on:
 
 With the two values left empty the game runs exactly as before and the account section says cloud saves aren't set up.
 
+## Stats page
+
+`doberega.site/stats` (`stats/`) shows how the game is doing, for admins only: visitors, pressed **Рибалити**, caught a fish, signed up (a funnel with percentages), opened from the home-screen icon, returning visitors; all-time accounts, players active in the last 7 days, fish caught and trophies; visitors, sign-ups and catches per day; where visitors came from and on what device; the newest accounts (nickname, or the email half hidden). Periods: 7, 30 or 90 days. `?demo` shows made-up numbers to check the layout.
+
+The game logs anonymous events for it (`src/analytics.js`): a page open, pressing Fish, the first catch of a session, creating an account. Each carries a random id kept in the browser, the referring site or `?utm_source=` / `?ref=` tag, phone/tablet/computer, whether it was opened as an app, and the language; no names, emails or IP addresses. Nothing is sent from localhost or a `?debug` session. Tag links you share, e.g. `doberega.site/?ref=instagram`, to see them as sources.
+
+To switch it on: run the updated [`supabase/schema.sql`](supabase/schema.sql) (it adds the `events` and `admins` tables and the `dashboard_stats` function), then make your account an admin in **SQL Editor**:
+
+```sql
+insert into public.admins (user_id) select id from auth.users where email = 'YOUR EMAIL';
+```
+
+Then open `/stats` and sign in with that account (already signed in if you are in the game on the same site).
+
 ## Icon
 
 A pixel perch leaping out of night water under a crescent moon (`icons/`): an SVG favicon, a 512 px PNG and a square 192 px home-screen icon, also listed in `manifest.webmanifest` so the game can be installed to a phone's home screen.
