@@ -267,7 +267,7 @@ function landscape(px, w, h, random, kind) {
     const at = (f) => Math.round(w * f);
     // The cooling tower, a broad waisted cone with a dark unfinished rim.
     const towerX = at(0.13);
-    const towerH = u(16);
+    const towerH = u(26);
     for (let y = 0; y < towerH; y += 1) {
       const half = Math.round(w * (0.042 + 0.024 * (1 - y / towerH) ** 1.5));
       px.rect(towerX - half, horizon - y, half * 2, 1, y >= towerH - u(1.5) ? P.mid : P.soft);

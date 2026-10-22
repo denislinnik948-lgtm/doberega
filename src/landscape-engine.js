@@ -327,83 +327,126 @@ function addChnpp({ from, to }, width, height, cellWidth, lineHeight, out) {
   const shore = shorelineY((x0 + x1) / 2, height);
   const base = shore - lineHeight * 0.5;
   const rowsFor = (fraction) => Math.max(2, Math.round((height * fraction) / lineHeight));
+  const yOf = (r) => base - r * lineHeight;
   const box = (a, b, rows, color) => shapes.push({ points: [[a, base + lineHeight * 0.5], [a, base - (rows - 0.5) * lineHeight], [b, base - (rows - 0.5) * lineHeight], [b, base + lineHeight * 0.5]], color });
+  // A building face: a solid block with glyph rows of wall and windows, some lit at night.
+  const building = (a, b, rows, { wall, dark, roof, windowEvery = 2, litOdds = 0.1, seed = 0, from = 0 }) => {
+    box(a, b, rows, wall);
+    for (let x = a + cellWidth * 0.5, c = 0; x < b; x += cellWidth, c += 1) {
+      for (let r = from; r < rows; r += 1) {
+        const top = r === rows - 1;
+        const window = !top && r % windowEvery === 1 && c % 3 !== 0;
+        const cell = put(x, yOf(r), top ? (c % 2 ? "=" : "-") : window ? ":" : (c + r) % 7 === 0 ? "|" : "=", top ? roof : window ? dark : wall);
+        // A few windows stay lit at night: the plant is never quite dark.
+        if (window && hash2(c, r, 41 + seed) < litOdds) {
+          cell.color = "#e2b85e";
+          lights.push(cell);
+        }
+      }
+    }
+  };
+  const crane = (cx, rows, reach) => {
+    const dir = Math.sign(reach);
+    for (let r = 0; r < rows; r += 1) put(cx, yOf(r), r % 2 ? "|" : "+", "#464844");
+    const top = rows;
+    // The lattice jib, the counter-jib with its weight, the cab and the hook.
+    for (let c = 1; c <= Math.abs(reach); c += 1) put(cx + dir * c * cellWidth, yOf(top - 1), c % 2 ? "=" : "x", "#464844");
+    for (let c = 1; c <= 3; c += 1) put(cx - dir * c * cellWidth, yOf(top - 1), c === 3 ? "#" : "=", "#464844");
+    put(cx, yOf(top), "^", "#464844");
+    put(cx + dir * cellWidth, yOf(top - 2), "#", "#6a6458");
+    const hookX = cx + dir * (Math.abs(reach) - 1) * cellWidth;
+    const drop = 2 + Math.floor(hash2(Math.round(cx), 3, 71) * 4);
+    for (let r = 1; r <= drop; r += 1) put(hookX, yOf(top - 1 - r), r === drop ? "J" : "|", "#55564f");
+  };
 
-  // The unfinished cooling tower on the left: a broad, slightly waisted cone of pale concrete.
+  // The unfinished cooling tower on the left: tall, broad and waisted, of pale
+  // stained concrete, with scaffolding rings and a crane still standing by it.
   {
-    const cx = at(0.07);
-    const rows = rowsFor(0.1);
-    const bottomHalf = span * 0.075;
-    const topHalf = bottomHalf * 0.64;
-    const halfAt = (r) => topHalf + (bottomHalf - topHalf) * (1 - r / rows) ** 1.5;
+    const cx = at(0.075);
+    const rows = rowsFor(0.2);
+    const bottomHalf = span * 0.078;
+    const topHalf = bottomHalf * 0.6;
+    const waist = bottomHalf * 0.56;
+    // A hyperboloid: wide at the foot, narrowest near the top, flaring a little at the rim.
+    const halfAt = (r) => {
+      const t = r / rows;
+      return t < 0.82 ? bottomHalf + (waist - bottomHalf) * (t / 0.82) ** 0.8 : waist + (topHalf - waist) * ((t - 0.82) / 0.18);
+    };
     const points = [];
     for (let r = 0; r <= rows; r += 1) points.push([cx - halfAt(r), base + lineHeight * 0.5 - r * lineHeight]);
     for (let r = rows; r >= 0; r -= 1) points.push([cx + halfAt(r), base + lineHeight * 0.5 - r * lineHeight]);
     shapes.push({ points, color: "#86826f" });
     for (let r = 0; r < rows; r += 1) {
-      const y = base - r * lineHeight;
+      const y = yOf(r);
       const half = halfAt(r + 0.5);
       for (let x = cx - half + cellWidth * 0.5, c = 0; x < cx + half; x += cellWidth, c += 1) {
         const u = (x - (cx - half)) / (2 * half);
-        // The unfinished rim, dark scaffolding round the top.
-        if (r === rows - 1) put(x, y, c % 2 ? "=" : "#", "#3f3c34");
-        // Lit on the left, in shade on the right, with rain streaks down the concrete.
-        else put(x, y, hash2(c, r, 51) < 0.12 ? "|" : u < 0.55 ? ":" : ".", u < 0.55 ? "#a7a28d" : "#77725f");
+        const lit = u < 0.5;
+        const stain = hash2(c, Math.floor(r / 3), 51) < 0.14;
+        let glyph = stain ? "|" : lit ? ":" : ".";
+        let color = stain ? (lit ? "#8f8a76" : "#6a6656") : lit ? "#a7a28d" : "#77725f";
+        // The unfinished rim: dark scaffolding and formwork round the top.
+        if (r >= rows - 2) {
+          glyph = r === rows - 1 ? (c % 2 ? "#" : "=") : c % 3 ? "=" : "|";
+          color = "#3f3c34";
+        } else if (r % 6 === 5) {
+          // Construction joints ring the shell.
+          glyph = "-";
+          color = lit ? "#b8b39d" : "#6f6a58";
+        }
+        put(x, y, glyph, color);
       }
     }
+    crane(cx + bottomHalf * 0.9, rowsFor(0.23), -7);
   }
 
   // A long low service hall at the foot of everything.
-  const hallRows = rowsFor(0.022);
+  const hallRows = rowsFor(0.03);
   box(at(0.15), at(1), hallRows, "#7a776b");
 
-  // Units 5 and 6, never finished: a block with rust-red panels under tower cranes.
+  // Units 5 and 6, never finished: stepped blocks with rust-red panels under tower cranes.
   {
-    const a = at(0.19);
-    const b = at(0.33);
-    const rows = rowsFor(0.05);
-    box(a, b, rows, "#958c7b");
-    for (let x = a + cellWidth * 0.5, c = 0; x < b; x += cellWidth, c += 1) {
-      for (let r = 0; r < rows; r += 1) {
-        const red = r >= rows - 3 && c % 7 < 4;
-        put(x, base - r * lineHeight, r === rows - 1 ? "_" : red ? "#" : r % 2 ? "=" : ":", red ? "#94432f" : r === rows - 1 ? "#b8b09f" : "#a0978a");
+    const a = at(0.18);
+    const b = at(0.36);
+    building(a, b, rowsFor(0.055), { wall: "#9a9182", dark: "#5c584f", roof: "#b8b09f", litOdds: 0, seed: 3 });
+    const upper = rowsFor(0.085);
+    const [ua, ub] = [at(0.21), at(0.31)];
+    box(ua, ub, upper, "#958c7b");
+    for (let x = ua + cellWidth * 0.5, c = 0; x < ub; x += cellWidth, c += 1) {
+      for (let r = rowsFor(0.055); r < upper; r += 1) {
+        const red = c % 6 < 3 && r < upper - 1;
+        // Bare frame showing where the walls were never finished.
+        const bare = c % 6 >= 4 && r > upper - 4;
+        put(x, yOf(r), r === upper - 1 ? "_" : bare ? "#" : red ? "#" : "=", bare ? "#4a4740" : red ? "#94432f" : r === upper - 1 ? "#c0b8a6" : "#a0978a");
       }
     }
-    for (const [f, reach] of [[0.2, 5], [0.26, -4], [0.3, 6], [0.36, -5]]) {
-      const cx = at(f);
-      const mast = rowsFor(f === 0.26 ? 0.13 : 0.1);
-      for (let r = 0; r < mast; r += 1) put(cx, base - r * lineHeight, r % 2 ? "|" : "+", "#4a4c48");
-      const top = base - mast * lineHeight;
-      // The jib, the short counter-jib and its weight.
-      const dir = Math.sign(reach);
-      for (let c = 1; c <= Math.abs(reach); c += 1) put(cx + dir * c * cellWidth, top + lineHeight, "-", "#4a4c48");
-      for (let c = 1; c <= 2; c += 1) put(cx - dir * c * cellWidth, top + lineHeight, c === 2 ? "#" : "-", "#4a4c48");
-      put(cx, top, "^", "#4a4c48");
-      // A hook hanging from the end of the jib.
-      put(cx + dir * (Math.abs(reach) - 1) * cellWidth, top + 2 * lineHeight, "|", "#5a5b56");
-    }
+    crane(at(0.2), rowsFor(0.16), 6);
+    crane(at(0.27), rowsFor(0.2), -6);
+    crane(at(0.33), rowsFor(0.17), 7);
+    crane(at(0.38), rowsFor(0.14), -5);
   }
 
-  // A dark steel gantry standing on its own: two legs and a lattice beam.
+  // The dark steel gantry of the spent-fuel trestle, standing on its own.
   {
     const a = at(0.44);
     const b = at(0.5);
-    const rows = rowsFor(0.065);
+    const rows = rowsFor(0.1);
     for (let r = 0; r < rows; r += 1) {
-      const y = base - r * lineHeight;
-      put(a, y, "#", "#3b3f3e");
-      put(b, y, "#", "#3b3f3e");
-      if (r >= rows - 2) for (let x = a - cellWidth; x <= b + cellWidth; x += cellWidth) put(x, y, r === rows - 1 ? "=" : "x", "#3b3f3e");
+      const y = yOf(r);
+      for (const leg of [a, a + cellWidth, b - cellWidth, b]) put(leg, y, r % 3 === 0 ? "x" : "#", "#3b3f3e");
+      if (r >= rows - 3) for (let x = a - cellWidth * 2; x <= b + cellWidth * 2; x += cellWidth) put(x, y, r === rows - 1 ? "=" : r === rows - 3 ? "-" : "x", "#3b3f3e");
     }
+    // A small trolley hoist on the beam.
+    put(at(0.47), yOf(rows), "n", "#5a4a3a");
   }
 
-  // The New Safe Confinement: a ribbed, silver half-shell over the old reactor.
+  // The New Safe Confinement: a ribbed, silver half-shell over the old reactor, with its end wall.
   {
-    const a = at(0.53);
-    const b = at(0.66);
+    const a = at(0.52);
+    const b = at(0.67);
     const cx = (a + b) / 2;
     const half = (b - a) / 2;
-    const rows = rowsFor(0.07);
+    const rows = rowsFor(0.11);
     const topAt = (x) => base - rows * lineHeight * Math.sqrt(Math.max(0, 1 - ((x - cx) / half) ** 2));
     const points = [[a, base + lineHeight * 0.5]];
     for (let x = a; x <= b; x += cellWidth) points.push([x, topAt(x)]);
@@ -414,41 +457,40 @@ function addChnpp({ from, to }, width, height, cellWidth, lineHeight, out) {
       for (let y = base; y > top - lineHeight * 0.3; y -= lineHeight) {
         const rim = y - top < lineHeight;
         const lit = (y - top) / (base - top + 1) < 0.35;
-        put(x, y, rim ? (x < cx - half * 0.5 ? "/" : x > cx + half * 0.5 ? "\\" : "_") : c % 4 === 0 ? "|" : lit ? "=" : "-", rim ? "#c8ccc8" : lit ? "#aab0ae" : "#8c9291");
+        // The dark band of the end wall low down, and the vertical ribs.
+        const wall = base - y < lineHeight * 2.5 && Math.abs(x - cx) < half * 0.7;
+        put(x, y, rim ? (x < cx - half * 0.5 ? "/" : x > cx + half * 0.5 ? "\\" : "_") : wall ? (c % 2 ? "#" : "=") : c % 3 === 0 ? "|" : lit ? "=" : "-", rim ? "#c8ccc8" : wall ? "#6c706c" : lit ? "#aab0ae" : "#8c9291");
       }
     }
   }
 
-  // The main building: long white blocks, a taller reactor hall in the middle, rows of windows.
+  // The main building: long white blocks stepping up to the reactor halls, rows of windows, roof plant.
   {
-    const a = at(0.66);
-    const b = at(1);
-    const low = rowsFor(0.04);
-    const tall = rowsFor(0.058);
-    const tallFrom = at(0.76);
-    const tallTo = at(0.88);
-    box(a, b, low, "#a6a193");
-    box(tallFrom, tallTo, tall, "#aea999");
-    for (let x = a + cellWidth * 0.5, c = 0; x < b; x += cellWidth, c += 1) {
-      const rows = x >= tallFrom && x <= tallTo ? tall : low;
-      for (let r = 0; r < rows; r += 1) {
-        const roof = r === rows - 1;
-        const window = !roof && r % 2 === 1 && c % 3 !== 0;
-        const cell = put(x, base - r * lineHeight, roof ? (c % 2 ? "=" : "-") : window ? ":" : "=", roof ? "#c4bfb0" : window ? "#5c5a52" : "#a6a193");
-        // A few windows stay lit at night: the plant is never quite dark.
-        if (window && hash2(c, r, 41) < 0.12) {
-          cell.color = "#e2b85e";
-          lights.push(cell);
-        }
-      }
+    building(at(0.66), at(1), rowsFor(0.05), { wall: "#a6a193", dark: "#5c5a52", roof: "#c4bfb0", seed: 5 });
+    building(at(0.7), at(0.78), rowsFor(0.075), { wall: "#aaa597", dark: "#5c5a52", roof: "#c8c3b4", seed: 6, from: rowsFor(0.05) });
+    building(at(0.8), at(0.92), rowsFor(0.09), { wall: "#aea999", dark: "#5c5a52", roof: "#ccc7b8", seed: 7, from: rowsFor(0.05) });
+    // Vent boxes and a water tank on the roofs.
+    for (const [f, rowsAt, glyphs] of [[0.72, 0.075, "[]"], [0.84, 0.09, "[=]"], [0.89, 0.09, "()"], [0.96, 0.05, "[]"]]) {
+      [...glyphs].forEach((glyph, k) => put(at(f) + k * cellWidth, yOf(rowsFor(rowsAt)), glyph, "#8d897d"));
     }
-    // Two ventilation stacks, banded red and white from foot to top, with a beacon each.
-    for (const [f, fraction] of [[0.72, 0.15], [0.95, 0.17]]) {
+    // Two ventilation stacks, banded red and white from foot to top, with
+    // service platforms, a lattice brace and a beacon each.
+    for (const [f, fraction] of [[0.745, 0.24], [0.95, 0.27]]) {
       const sx = at(f);
       const rows = rowsFor(fraction);
       for (let r = 0; r < rows; r += 1) {
         const red = Math.floor((rows - 1 - r) / 2) % 2 === 0;
-        for (const dx of [0, cellWidth]) put(sx + dx, base - r * lineHeight, r > 0 && r % 6 === 0 ? "=" : "|", red ? "#b5432f" : "#d2cdc2");
+        const platform = r > 0 && r % 7 === 0;
+        for (const dx of [0, cellWidth]) put(sx + dx, yOf(r), platform ? "=" : "|", red ? "#b5432f" : "#d2cdc2");
+        if (platform) {
+          put(sx - cellWidth, yOf(r), "-", "#4c4f4c");
+          put(sx + 2 * cellWidth, yOf(r), "-", "#4c4f4c");
+        }
+        // The lattice brace up the lower half.
+        if (r < rows * 0.45) {
+          put(sx - cellWidth, yOf(r), r % 2 ? "/" : "|", "#4c4f4c");
+          put(sx + 2 * cellWidth, yOf(r), r % 2 ? "\\" : "|", "#4c4f4c");
+        }
       }
       shapes.push({ points: [[sx - cellWidth * 0.5, base], [sx - cellWidth * 0.5, base - (rows - 0.5) * lineHeight], [sx + cellWidth * 1.5, base - (rows - 0.5) * lineHeight], [sx + cellWidth * 1.5, base]], color: "#9a9488" });
       beacons.push({ x: sx + cellWidth * 0.5, y: base - (rows + 0.2) * lineHeight });
