@@ -601,7 +601,14 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
 .reveal-btn { flex: none; min-width: 96px; padding: 0 10px; border: 2px solid var(--soft); color: var(--light); font-size: 18px; background: var(--deep); cursor: pointer; }
 .reveal-btn:hover { color: var(--bone); border-color: var(--bone); }
 .account-submit { min-height: 52px; margin-top: 4px; font-size: 22px; }
-.link-btn.account-signout { justify-self: center; margin-top: 6px; color: var(--mid); }
+.account-nick-save { min-width: 132px; }
+/* Saved: the button turns into a calm green confirmation. */
+.account-nick-save.is-saved:disabled { border-color: var(--mid); color: var(--light); }
+.account-actions { display: grid; gap: 10px; margin-top: 6px; }
+.account-actions .pixel-btn { min-height: 48px; }
+/* Signing out is clear to find but quieter than Done, with a warm warning tint. */
+.account-signout { color: #e8a58a; border-color: #6a3f30; }
+.account-signout:hover:not(:disabled) { border-color: var(--ember); background: #2a1a14; }
 .account-email[hidden] { display: none; }
 /* A quiet text button for secondary actions like password recovery. */
 .link-btn { justify-self: start; padding: 2px 0; border: 0; color: var(--light); font-size: 18px; text-decoration: underline; text-underline-offset: 3px; background: none; cursor: pointer; }

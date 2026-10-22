@@ -371,20 +371,39 @@ export class AnglerUI {
       ])];
     }
 
-    // Signed in: who you are and whether progress is safe, a nickname, and the way out.
-    const nickname = field(t("account.nickname"), { type: "text", name: "nickname", autocomplete: "nickname", maxLength: 16, enterKeyHint: "done", value: cloud.user.user_metadata?.nickname ?? "" }, t("account.nicknameAutoHint"));
-    // The nickname saves itself once you're done typing: leaving the field or pressing Enter.
+    // Signed in: who you are and whether progress is safe, a nickname with its
+    // own Save button that says when it's saved, then Done and Sign out.
+    const savedNickname = () => cloud.user?.user_metadata?.nickname ?? "";
+    const nickname = field(t("account.nickname"), { type: "text", name: "nickname", autocomplete: "nickname", maxLength: 16, enterKeyHint: "done", value: savedNickname() }, t("account.nicknameHint"));
+    const save = element("button", { className: "pixel-btn account-nick-save", type: "submit" });
+    nickname.node.querySelector(".field-row").append(save);
+    // Save is live only while the field differs from what's stored; otherwise it reads "Saved".
+    this.syncNicknameButton = () => {
+      const dirty = nickname.input.value.trim() !== savedNickname();
+      save.disabled = cloud.busy || !dirty;
+      // "Saved" only once there is a nickname to have saved.
+      const saved = !dirty && Boolean(savedNickname());
+      save.textContent = saved ? t("account.saved") : t("account.save");
+      save.classList.toggle("is-saved", saved);
+    };
+    nickname.input.addEventListener("input", () => {
+      if (this.accountMessage) {
+        this.accountMessage = null;
+        this.updateAccount("in");
+      }
+      this.syncNicknameButton();
+    });
     const saveNickname = async () => {
       const value = nickname.input.value.trim();
-      if (value === (cloud.user.user_metadata?.nickname ?? "") || cloud.busy) return;
+      if (value === savedNickname() || cloud.busy) return;
       if (!validNickname(value)) {
         say(t("account.nickRules"), true);
+        nickname.input.focus();
         return;
       }
       const result = await cloud.setNickname(value);
       if (!result?.error) say(t("account.nicknameSaved"));
     };
-    nickname.input.addEventListener("change", saveNickname);
     return [
       element("div", { className: "account-profile" }, [
         element("span", { className: "account-avatar" }),
@@ -393,11 +412,12 @@ export class AnglerUI {
       element("p", { className: "account-status" }),
       element("form", { className: "account-form", noValidate: true, onsubmit: (event) => {
         event.preventDefault();
-        nickname.input.blur();
         saveNickname();
-      } }, [nickname.node]),
-      message(),
-      element("button", { className: "link-btn account-signout", type: "button", textContent: t("account.signOut"), onclick: () => cloud.signOut() }),
+      } }, [nickname.node, message()]),
+      element("div", { className: "account-actions" }, [
+        element("button", { className: "pixel-btn pixel-btn-primary", type: "button", textContent: t("account.done"), onclick: () => $("#account-dialog").close() }),
+        element("button", { className: "pixel-btn account-signout", type: "button", textContent: t("account.signOut"), onclick: () => cloud.signOut() }),
+      ]),
     ];
   }
 
@@ -407,6 +427,7 @@ export class AnglerUI {
     const body = $("#account-body");
     if (mode === "off") return;
     for (const button of body.querySelectorAll("button")) button.disabled = cloud.busy;
+    if (mode === "in") this.syncNicknameButton?.();
     // The main button says it is working instead of a separate line.
     const submit = body.querySelector(".account-submit");
     if (submit) {
