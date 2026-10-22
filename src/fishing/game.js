@@ -19,6 +19,11 @@ import { BAITS, BOOT_CHANCE, GROUNDBAIT, LOCATIONS, NIBBLE, RODS, biteActivity, 
  * or as it flutters down in the pause after one, far less on a steady
  * retrieve. A strike is a bite like on the float: pull within the window. If
  * the spoon reaches the bank untouched, it's simply cast again.
+ *
+ * Reeling in an empty line (to recast, or after a fish got away with the
+ * bait) isn't instant: the float or spoon skims back across the water to the
+ * bank, then the rod lifts it out (the "reeling" phase), and only then can
+ * you cast again.
  */
 
 export const TUNING = {
@@ -26,6 +31,10 @@ export const TUNING = {
   castUnder: 1.4,
   castOver: 1.9,
   overheadReach: 0.45,
+  // Reeling an empty line back in: seconds from mid-water (longer from far out),
+  // the share of it spent skimming the water before the rod lifts it out.
+  reelIn: 1.5,
+  reelSkim: 0.72,
   // Average time to strike once the float goes under; each bite varies around it.
   biteWindow: 1.35,
   dipHookChance: 0.5,
@@ -154,7 +163,7 @@ export class FishingGame {
         else if (roll < snagChance + BOOT_CHANCE) {
           this.fish = { species: "boot", weight: Math.round((0.6 + this.random() * 0.8) * 1000) / 1000, junk: true };
           this.hook();
-        } else this.reset();
+        } else this.startReelIn();
         break;
       }
       case "nibble": {
@@ -210,10 +219,29 @@ export class FishingGame {
   }
 
   escape(reason, hookLost = false, headline = null) {
-    const at = this.phase === "fight" ? this.fishPosition() : this.target;
+    const fighting = this.phase === "fight";
+    const at = fighting ? this.fishPosition() : this.target;
     this.ripple(at, 0.5, 0.4);
     this.emit("outcome", { type: "escape", reason, bait: this.bait, hookLost, headline });
-    this.reset();
+    // A snapped line has nothing to bring back; otherwise the empty rig comes in.
+    if (fighting || !this.target) this.reset();
+    else this.startReelIn();
+  }
+
+  /** Bring the empty float or spoon back: skim it to the bank, then lift it out. */
+  startReelIn() {
+    this.reelFrom = { ...this.target };
+    this.reelDuration = TUNING.reelIn * (0.6 + 0.8 * this.reach());
+    this.wakeClock = 0;
+    this.float = { offset: 0, sink: 0 };
+    this.fish = null;
+    this.timeline = [];
+    this.enter("reeling");
+  }
+
+  /** How far through reeling in: 0 just started .. 1 out of the water. */
+  get reelProgress() {
+    return this.phase === "reeling" ? Math.min(1, this.clock / this.reelDuration) : 0;
   }
 
   /** A duck paddled over the float and ate the bait (the hook is left). */
@@ -298,9 +326,9 @@ export class FishingGame {
       this.pauseAge += dt;
     }
     if (this.retrieved >= 1) {
-      // Back at the bank without a touch: cast again.
+      // Back at the bank without a touch: lift it out and cast again.
       this.emit("retrieved");
-      this.reset();
+      this.startReelIn();
       return;
     }
     // Dragged along the bottom, the spoon can catch on a snag.
@@ -386,6 +414,23 @@ export class FishingGame {
       case "retrieving":
         this.updateRetrieve(dt);
         break;
+
+      case "reeling": {
+        // Skimming in: slow to start as the line comes tight, quicker, then easing at the bank.
+        const skim = Math.min(1, this.reelProgress / TUNING.reelSkim);
+        const eased = skim * skim * (3 - 2 * skim);
+        const end = this.landing();
+        this.target = { x: this.reelFrom.x + (end.x - this.reelFrom.x) * eased, y: this.reelFrom.y + (end.y - this.reelFrom.y) * eased };
+        if (skim < 1) {
+          this.wakeClock -= dt;
+          if (this.wakeClock <= 0) {
+            this.wakeClock = 0.24;
+            this.ripple(this.target, 0.16, 0.14);
+          }
+        }
+        if (this.clock >= this.reelDuration) this.reset();
+        break;
+      }
 
       case "waiting":
         this.driftFloat(dt);

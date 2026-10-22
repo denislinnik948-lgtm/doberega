@@ -294,6 +294,8 @@ function anglerView(elapsed) {
     target,
     castProgress: game.phase === "casting" ? Math.min(1, game.clock / game.castDuration) : 1,
     castStyle: game.castStyle,
+    reelProgress: game.reelProgress,
+    reelSkim: TUNING.reelSkim,
     // The spoon on the line from the moment it's picked, not only once it's cast.
     lure: Boolean(BAITS[game.busy ? game.bait : progress.bait]?.lure),
     float: game.float,

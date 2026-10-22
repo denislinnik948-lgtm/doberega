@@ -1241,6 +1241,14 @@ export class CanvasWaterRenderer {
       // Reeling the spoon in: the rod leans down and loads a little.
       tip.y += height * 0.03;
       bend += 0.06;
+    } else if (angler.phase === "reeling") {
+      // Reeling an empty line in: the rod loads a little as it skims, then lifts the rig out.
+      const p = angler.reelProgress;
+      const skim = Math.min(1, p / angler.reelSkim);
+      const lift = p > angler.reelSkim ? (p - angler.reelSkim) / (1 - angler.reelSkim) : 0;
+      const load = Math.sin(skim * Math.PI) * (1 - lift);
+      tip.y += height * (0.02 * load - 0.07 * Math.sin(lift * Math.PI * 0.5) * (1 - lift * 0.6));
+      bend += 0.05 * load;
     }
     // Control point pushed sideways from the shaft makes the curve.
     const dx = tip.x - base.x;
@@ -1289,6 +1297,15 @@ export class CanvasWaterRenderer {
         }
       } else if (angler.phase === "fight") {
         end = angler.fish;
+      } else if (angler.phase === "reeling" && angler.reelProgress > angler.reelSkim) {
+        // At the bank the rig leaves the water and swings up to hang from the tip.
+        const u = (angler.reelProgress - angler.reelSkim) / (1 - angler.reelSkim);
+        const s = u * u * (3 - 2 * u);
+        const hang = { x: rod.tip.x, y: rod.tip.y + height * 0.04 };
+        end = {
+          x: angler.target.x + (hang.x - angler.target.x) * s,
+          y: angler.target.y + (hang.y - angler.target.y) * s - Math.sin(s * Math.PI) * height * 0.03,
+        };
       } else {
         // The float rides the surface plus a slow bob of its own on still water.
         const drift = Math.sin(angler.time * 1.7) * 0.8;
@@ -1296,7 +1313,7 @@ export class CanvasWaterRenderer {
       }
 
       const taut = angler.phase === "fight" ? Math.min(1, angler.tension * 1.6 + (angler.pulling ? 0.4 : 0))
-        : angler.phase === "retrieving" && angler.pulling ? 0.8 : 0;
+        : (angler.phase === "retrieving" && angler.pulling) || angler.phase === "reeling" ? 0.8 : 0;
       const sag = angler.phase === "casting" ? 0 : (1 - taut) * height * 0.035;
       ctx.beginPath();
       ctx.moveTo(rod.tip.x, rod.tip.y);
