@@ -417,6 +417,12 @@ canvas.addEventListener("pointercancel", (event) => {
   if (pendingContact?.pointerId === event.pointerId) pendingContact = null;
 }, { passive: true });
 canvas.addEventListener("contextmenu", (event) => event.preventDefault());
+// iOS treats a long press on the scene (holding to reel in) as a gesture of its own and
+// shows a blue lift highlight, the magnifier or a callout. Cancelling the touch's default
+// action on the scene keeps all of that out; the pointer events above still arrive.
+for (const type of ["touchstart", "touchmove", "touchend"]) {
+  canvas.addEventListener(type, (event) => event.preventDefault(), { passive: false });
+}
 
 // The hidden cursor comes back as soon as the mouse actually moves.
 window.addEventListener("pointermove", (event) => {
