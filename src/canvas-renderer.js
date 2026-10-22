@@ -1334,6 +1334,12 @@ export class CanvasWaterRenderer {
           ctx.fillStyle = "rgba(200, 214, 210, 0.55)";
           ctx.fillText(".", end.x, end.y);
         }
+      } else if (angler.lure && angler.phase !== "fight") {
+        // A spoon, not a float: hanging from the tip and flying out, a small flashing blade.
+        ctx.fillStyle = Math.sin(angler.time * 7) > 0 ? "#e6ebe4" : "#b7c2bd";
+        ctx.fillText("0", end.x, end.y);
+        ctx.fillStyle = "#c4643e";
+        ctx.fillText("'", end.x, end.y + size * 0.55);
       } else if (angler.phase === "fight" && (angler.snag || angler.junk)) {
         // A snag or an old boot doesn't thrash: the line just goes tight.
       } else if (angler.phase === "fight") {
