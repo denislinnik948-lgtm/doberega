@@ -1,6 +1,6 @@
 import { hash01 } from "./noise.js";
 import { activeScene, shorelineY } from "./scene.js";
-import { isAutumn, isDarkFantasy } from "./theme.js";
+import { isAutumn } from "./theme.js";
 
 const FOREST_LAYERS = [
   { offset: 0.034, variation: 0.01, height: [0.03, 0.055], spacing: [30, 52], sway: 0.075 },
@@ -36,8 +36,6 @@ function autumnPalette(tree) {
 }
 
 function chooseSpecies(seed, layerIndex, broadleaf) {
-  // Dark fantasy leaves about a third of the woods dead and bare.
-  if (isDarkFantasy() && hash01(seed * 71) < 0.32) return "dead";
   const value = hash01(seed * 37);
   // A scene can force mostly conifers (0) or mostly broadleaf trees (1).
   if (broadleaf !== undefined) {
@@ -238,35 +236,6 @@ function broadleafGlyph(tree, localX, progress, x, y, cellWidth) {
   };
 }
 
-/** A dead tree: a bare, crooked trunk with twisted, forking branches and no leaves. */
-function deadGlyph(tree, localX, progress, x, y, cellWidth) {
-  const lean = Math.sin(progress * 3 + tree.seed) * cellWidth * 0.6 * (1 - progress);
-  const offset = localX - lean;
-  // Weathered, bone-grey wood, lighter on the side facing the light.
-  const lit = offset * tree.lightSide < 0;
-  const color = lit ? "#9a948a" : "#6e6962";
-  const sway = { swayAmount: tree.swayScale * cellWidth * 0.3 * (1 - progress), swayPhase: tree.swayPhase };
-  const trunk = cellWidth * (progress > 0.75 ? 1.05 : progress > 0.3 ? 0.8 : 0.55);
-  if (Math.abs(offset) < trunk) return { glyph: progress < 0.06 ? "'" : progress > 0.92 ? "A" : "|", color, ...sway };
-  // Branches fork off the upper trunk, reaching up and out, with a split twig at the tip.
-  if (progress < 0.72) {
-    const forks = [0.1, 0.2, 0.31, 0.42, 0.53, 0.64];
-    for (const [index, at] of forks.entries()) {
-      const side = (index + Math.floor(tree.seed)) % 2 ? 1 : -1;
-      const reach = (progress - at) / 0.14;
-      if (reach < 0 || reach > 1) continue;
-      const along = side * offset;
-      const span = tree.maxWidth * (1.05 - at * 0.7);
-      const target = (1 - reach) * span;
-      if (along > 0 && along < span && Math.abs(along - target) < cellWidth * 0.9) {
-        const tip = along > span * 0.75;
-        return { glyph: tip ? "v" : side > 0 ? "/" : "\\", color, ...sway };
-      }
-    }
-  }
-  return null;
-}
-
 /**
  * The lobes of foliage that make up a near tree's crown: overlapping clumps
  * spread over a rounded outline, a crowning one on top. `x` and `r` are in
@@ -337,7 +306,7 @@ function bankTreeGlyph(tree, localX, progress, x, y, cellWidth) {
 
 /** Is a screen point inside a bank tree's crown (any of its clumps)? Grass stays out of it. */
 export function inCrown(tree, x, y) {
-  if (!tree.bank || tree.species === "dead") return false;
+  if (!tree.bank) return false;
   const progress = (y - tree.topY) / tree.height;
   if (progress < 0 || progress > 0.8) return false;
   const clumps = tree.clumps ?? (tree.clumps = crownClumps(tree));
@@ -351,7 +320,6 @@ function treeGlyph(tree, x, y, cellWidth) {
   if (progress < 0 || progress > 1) return null;
 
   const localX = x - tree.centerX;
-  if (tree.species === "dead") return deadGlyph(tree, localX, progress, x, y, cellWidth);
   if (tree.bank) return bankTreeGlyph(tree, localX, progress, x, y, cellWidth);
   const broad = tree.species === "oak" || tree.species === "round";
   const trunkStart = broad ? 0.78 : 0.86;
@@ -394,7 +362,7 @@ export function createForestGlyphs(width, height, cellWidth, lineHeight, sunX = 
         const key = row * columns + column;
         const previous = cells.get(key);
         if (!previous || tree.baseY > previous.depth) {
-          cells.set(key, { x, y, column, row, depth: tree.baseY, bank: tree.bank, dead: tree.species === "dead", ...shape });
+          cells.set(key, { x, y, column, row, depth: tree.baseY, bank: tree.bank, ...shape });
         }
       }
     }

@@ -5,8 +5,8 @@ import {
 import {
   bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, hookSprite, packSprite, rodSprite,
 } from "./sprites.js";
-import { frame, frameAll, repaint, repaintAll, setContent } from "./frames.js";
-import { SEASONS, THEMES, season, setSeason, setTheme, theme } from "../theme.js";
+import { frame, frameAll, repaint, setContent } from "./frames.js";
+import { SEASONS, season, setSeason } from "../theme.js";
 import { validNickname } from "../cloud.js";
 import { baitCount, saveProgress } from "./store.js";
 import {
@@ -96,16 +96,6 @@ export class AnglerUI {
     this.clockNight = null;
   }
 
-  /** Switch the visual style: repaint frames, icons and pictures in its palette. */
-  switchTheme(id) {
-    setTheme(id);
-    repaintAll();
-    this.paintIcons();
-    this.renderSpot();
-    this.render();
-    this.raining = null;
-  }
-
   /** Put every fixed text and label in the current language, then redraw the rest. */
   applyLanguage() {
     document.documentElement.lang = language();
@@ -141,18 +131,6 @@ export class AnglerUI {
         this.openSettings();
       },
     })));
-    $("#style-options").replaceChildren(...THEMES.map((id) => element("button", {
-      className: `pixel-btn${id === theme() ? " pixel-btn-primary" : ""}`,
-      type: "button",
-      role: "radio",
-      ariaChecked: String(id === theme()),
-      textContent: t(`style.${id}`),
-      onclick: () => {
-        this.switchTheme(id);
-        this.openSettings();
-      },
-    })));
-    $("#style-hint").textContent = t(theme() === "dark" ? "style.darkHint" : "style.classicHint");
     $("#season-options").replaceChildren(...SEASONS.map((id) => element("button", {
       className: `pixel-btn${id === season() ? " pixel-btn-primary" : ""}`,
       type: "button",

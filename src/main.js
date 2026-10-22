@@ -8,7 +8,7 @@ import { FishingGame, TUNING } from "./fishing/game.js";
 import { BAITS, LOCATIONS, RODS } from "./fishing/data.js";
 import { baitCount, loadProgress, onProgressSaved, replaceProgress, saveProgress } from "./fishing/store.js";
 import { Cloud } from "./cloud.js";
-import { applyTheme, isDarkFantasy, onThemeChange } from "./theme.js";
+import { onSeasonChange } from "./theme.js";
 import { NightEvents } from "./night-events.js";
 import { AnglerUI } from "./fishing/ui.js";
 
@@ -33,10 +33,8 @@ const DAY_START = 0.68;
 // `?rain=1` forces rain (0..1); otherwise showers come and go on their own.
 const weather = new Weather({ forced: params.has("rain") ? Number(params.get("rain")) : null });
 const ducks = new Ducks();
-// The chosen style's palette must be in place before any frame is painted.
-applyTheme();
-
-// Dark fantasy nights. Each event is also announced on the window as
+// Mystic nights: lights over the water, a figure on the far shore, eyes, omens.
+// Each event is also announced on the window as
 // "doberega:night" ({ type }) so sounds can hook in later without touching this.
 const OMENS = 6;
 const nightEvents = new NightEvents({
@@ -129,8 +127,8 @@ const cloud = new Cloud({
   onChange: () => ui.renderAccount(),
 });
 ui.setCloud(cloud);
-// A new style repaints the whole scene in its colours.
-onThemeChange(() => {
+// A new season repaints the woods and the grass.
+onSeasonChange(() => {
   renderer.lightKey = null;
   renderer.paletteKey = "";
   resize();
@@ -269,7 +267,7 @@ function renderNow(now = performance.now()) {
   const dayTime = FIXED_TIME ?? dayTimeAt(elapsed, DAY_START, DAY_LENGTH);
   // Ducks only come out between 6:00 and 20:00.
   const hour = (dayTime * 24) % 24;
-  ducks.update(step, elapsed, width, height, renderer.shorelineY(width / 2), (x, y) => renderer.isOpenWater(x, y), hour >= 6 && hour < 20);
+  ducks.update(step, elapsed, width, height, renderer.shorelineY(width / 2), (x, y) => renderer.isDuckWater(x, y), hour >= 6 && hour < 20);
   // A duck paddling over the float eats the bait.
   if (mode === "fishing" && game.target && ["waiting", "nibble", "bite"].includes(game.phase)) {
     const float = toScreen(game.target);
@@ -280,11 +278,10 @@ function renderNow(now = performance.now()) {
   game.hour = dayTime * 24;
   ui.setClock(dayTime);
   ui.setWeather(weather.intensity);
-  nightEvents.update(step, elapsed, dayTime, isDarkFantasy());
+  nightEvents.update(step, elapsed, dayTime);
   renderer.render(elapsed, config, ripples, anglerView(elapsed), dayTime, {
     rain: weather.intensity,
     ducks: ducks.all,
-    dark: isDarkFantasy(),
     night: nightEvents.visible(elapsed),
   });
 }

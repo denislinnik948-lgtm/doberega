@@ -24,11 +24,11 @@ The far landscape keeps moving too (`src/ambient-engine.js`, redrawn every frame
 
 ## Colour grade
 
-Each style bakes a colour grade into the scene itself (`GRADES` in `src/theme.js`): the land layer is regraded once per rebuild, and woods, grass, water, reflections and the sky take graded colours, while the sun, its glints, lit windows and night lights keep their warmth. The classic style uses a soft, cool evening grade — muted colour shifted toward slate blue at full brightness, with a soft vignette at the edges, so the lake reads as a calm dusk scene; dark fantasy drains far more colour out.
+The scene bakes a colour grade into its own colours (`GRADE` in `src/theme.js`): the land layer is regraded once per rebuild, and woods, grass, water, reflections and the sky take graded colours, while the sun, its glints, lit windows and night lights keep their warmth. It is a soft, cool evening grade, muted colour shifted toward slate blue at full brightness, with a soft vignette at the edges.
 
-## Dark fantasy style
+## Mystic nights
 
-**Налаштування → Стиль** switches between the classic lake and **dark fantasy** (`src/theme.js`, remembered per browser). Dark fantasy swaps the UI palette for old stone greys with tarnished gold and blood-red accents (frames and icons repaint live), and changes the locations themselves: its cold, lifeless grade is baked into the scene's colours (land layer, woods, grass, water and reflections), the sky turns leaden by day, blood-red at sunrise and sunset and deeper at night, about a third of the trees stand dead and bare, a heavy vignette closes in, and a pall of mist floods the water by night. At night it also brings events (`src/night-events.js`): will-o'-the-wisps drifting over the far water, a pale hooded figure that stands on the far shore and fades, two red eyes surfacing near the bank before slipping under in rings, and the odd omen while fishing (“Десь удалині вдарив дзвін…”). Each event is announced as a `doberega:night` window event (`detail.type`: figure, eyes, eyesSink, omen), ready for sounds later.
+Deep in the night strange things happen (`src/night-events.js`): will-o'-the-wisps drift over the far water, a pale hooded figure stands on the far shore and fades, two red eyes surface near the bank before slipping under in rings, and now and then an omen appears while fishing (“Десь удалині вдарив дзвін…”). Each event is announced as a `doberega:night` window event (`detail.type`: figure, eyes, eyesSink, omen), ready for sounds later.
 
 ## Season
 
@@ -59,7 +59,7 @@ Time of day matters for fishing: every species has its own feeding hours (`activ
 ## Weather and wildlife
 
 - **Rain** (`src/weather.js`) comes and goes on its own — 1–2.5 minute showers between 6–14 minute dry spells, fading in and out over ~12 s. It brings slanted streaks, splashes on the water, a heavier cloud cover and a dimmer scene, with a rain cloud beside the clock. Fish bite noticeably faster in the rain (about 40% sooner in a heavy shower). `?rain=1` forces rain.
-- **Ducks** (`src/wildlife.js`): every minute or two, one to three ducks (by day only) paddle in from just off-screen — a side or the bottom edge, never where a bank or cliff meets the edge — wander toward a couple of random spots on the water and leave past another edge, steering around banks and rocks, with a wake behind them. A duck that swims over the float eats the bait (the hook stays): "Качка з'їла наживку". Reeling in early saves it.
+- **Ducks** (`src/wildlife.js`): every minute or two, one to three ducks (by day only) paddle in from just off-screen — a side or the bottom edge, never where a bank or cliff meets the edge — wander toward a couple of random spots on the water and leave past another edge, steering around banks, rocks and the crowns of trees leaning out over the river, with a wake behind them. A duck that swims over the float eats the bait (the hook stays): "Качка з'їла наживку". Reeling in early saves it.
 
 Both are explained in the handbook.
 
@@ -106,7 +106,7 @@ On a phone held upright the landscape isn't squeezed: the scene is laid out at l
 
 ## Rendering
 
-Every character is pushed into a glyph batch (position, glyph, color). WebGL2 draws each batch with a single instanced call from a white glyph atlas tinted on the GPU, so the ~25,000 characters on screen cost a few milliseconds per frame. Static scenery (sky gradient, sun, ridges, forest silhouette, water body) is rasterized once into layer textures; clouds and stars are resampled about 15 times per second. Reeds and the rock are drawn on a light 2D overlay. Browsers without WebGL2 fall back to Canvas 2D with the same batches. 
+Every character is pushed into a glyph batch (position, glyph, color). WebGL2 draws each batch with a single instanced call from a white glyph atlas tinted on the GPU, so the ~25,000 characters on screen cost a few milliseconds per frame. Static scenery (sky gradient, sun, ridges, forest silhouette, water body) is rasterized once into layer textures; clouds and stars are resampled about 15 times per second. Each batch keeps its own GPU buffers and is only re-uploaded when its contents change; water and grass, the heaviest to fill, refresh on alternate frames (about 30 times a second each), and shadows are worked out once per glyph in the vertex shader. Reeds and the rock are drawn on a light 2D overlay. Browsers without WebGL2 fall back to Canvas 2D with the same batches. 
 
 ## Run locally
 

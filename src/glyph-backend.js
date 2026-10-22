@@ -16,6 +16,7 @@ const ATLAS_ROWS = 6;
 export class GlyphBatch {
   constructor(capacity = 4096) {
     this.count = 0;
+    this.version = 0;
     this.allocate(capacity);
   }
 
@@ -33,6 +34,8 @@ export class GlyphBatch {
 
   clear() {
     this.count = 0;
+    // Tells the GPU side the contents changed and must be uploaded again.
+    this.version += 1;
   }
 
   /**
@@ -80,32 +83,11 @@ function createAtlasCanvas(font, fontSize, ratio) {
   return { canvas, box };
 }
 
-const GLYPH_VERTEX = `#version 300 es
-layout(location = 0) in vec2 corner;
-layout(location = 1) in vec4 instance;
-layout(location = 2) in vec4 color;
-uniform vec2 viewport;
-uniform vec2 box;
-uniform vec2 grid;
-out vec2 uv;
-out vec4 tint;
-void main() {
-  vec2 offset = (corner - 0.5) * box;
-  float c = cos(instance.w);
-  float s = sin(instance.w);
-  vec2 position = instance.xy + vec2(offset.x * c - offset.y * s, offset.x * s + offset.y * c);
-  vec2 clip = position / viewport * 2.0 - 1.0;
-  gl_Position = vec4(clip.x, -clip.y, 0.0, 1.0);
-  vec2 cell = vec2(mod(instance.z, grid.x), floor(instance.z / grid.x));
-  uv = (cell + corner) / grid;
-  tint = color;
-}`;
-
 /*
  * Shadows, shared by glyphs and layers: cloud shadows are value noise laid on
  * the ground plane (squeezed toward the horizon, carried by the wind), tree
  * shadows come from a greyscale map. `shadow` = (cloud strength, time,
- * horizon y, mode: 0 none, 1 clouds and trees, 2 clouds only, 3 both faint);
+ * horizon y, mode: 0 none, 1 clouds and trees, 2 clouds only);
  * `screen` = (width, height, pixel ratio) in CSS pixels.
  */
 const SHADE = `
@@ -121,34 +103,57 @@ float noise(vec2 p) {
   vec2 u = f * f * (3.0 - 2.0 * f);
   return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
 }
-float shade() {
+float shadeAt(vec2 pos) {
   if (shadow.w < 0.5) return 1.0;
-  vec2 pos = vec2(gl_FragCoord.x, screen.y * screen.z - gl_FragCoord.y) / screen.z;
   float depth = max(pos.y - shadow.z, 0.0) / max(screen.y - shadow.z, 1.0);
   float distance = 1.0 / (depth + 0.12);
   float above = max(shadow.z - pos.y, 0.0) / screen.y;
   vec2 ground = vec2((pos.x / screen.x - 0.5) * distance * 2.2, distance * 1.3 + above * 14.0);
   ground += vec2(shadow.y * 0.045, shadow.y * 0.012);
   float n = noise(ground * 0.55) * 0.65 + noise(ground * 1.3 + 7.0) * 0.35;
-  // On water (mode 3) shadows are faint: it mirrors the bright sky around them.
-  float faint = shadow.w > 2.5 ? 0.4 : 1.0;
-  float cloud = 1.0 - smoothstep(0.48, 0.7, n) * shadow.x * faint;
-  float trees = shadow.w > 1.5 && shadow.w < 2.5 ? 1.0 : mix(1.0, texture(treeShadow, pos / screen.xy).r, faint);
+  float cloud = 1.0 - smoothstep(0.48, 0.7, n) * shadow.x;
+  float trees = shadow.w > 1.5 ? 1.0 : texture(treeShadow, pos / screen.xy).r;
   return min(cloud, trees);
 }
 `;
 
-const GLYPH_FRAGMENT = `#version 300 es
+// Shadows change slowly across the scene, so a glyph takes one shade, worked out at its centre.
+const GLYPH_VERTEX = `#version 300 es
 precision highp float;
+layout(location = 0) in vec2 corner;
+layout(location = 1) in vec4 instance;
+layout(location = 2) in vec4 color;
+uniform vec2 viewport;
+uniform vec2 box;
+uniform vec2 grid;
+out vec2 uv;
+out vec4 tint;
+out float shading;
+${SHADE}
+void main() {
+  vec2 offset = (corner - 0.5) * box;
+  float c = cos(instance.w);
+  float s = sin(instance.w);
+  vec2 position = instance.xy + vec2(offset.x * c - offset.y * s, offset.x * s + offset.y * c);
+  vec2 clip = position / viewport * 2.0 - 1.0;
+  gl_Position = vec4(clip.x, -clip.y, 0.0, 1.0);
+  vec2 cell = vec2(mod(instance.z, grid.x), floor(instance.z / grid.x));
+  uv = (cell + corner) / grid;
+  tint = color;
+  shading = shadeAt(instance.xy);
+}`;
+
+const GLYPH_FRAGMENT = `#version 300 es
+precision mediump float;
 uniform sampler2D atlas;
 uniform vec4 light;
 in vec2 uv;
 in vec4 tint;
+in float shading;
 out vec4 outColor;
-${SHADE}
 void main() {
   float alpha = texture(atlas, uv).a * light.a * tint.a;
-  outColor = vec4(min(tint.rgb * light.rgb, vec3(1.0)) * shade() * alpha, alpha);
+  outColor = vec4(min(tint.rgb * light.rgb, vec3(1.0)) * shading * alpha, alpha);
 }`;
 
 const LAYER_VERTEX = `#version 300 es
@@ -168,8 +173,9 @@ out vec4 outColor;
 ${SHADE}
 void main() {
   vec4 color = texture(layer, uv);
+  vec2 pos = vec2(gl_FragCoord.x, screen.y * screen.z - gl_FragCoord.y) / screen.z;
   // Premultiplied: scale colour by the light, keep coverage.
-  outColor = vec4(min(color.rgb * light.rgb, vec3(color.a)) * shade(), color.a);
+  outColor = vec4(min(color.rgb * light.rgb, vec3(color.a)) * shadeAt(pos), color.a);
 }`;
 
 class WebGLBackend {
@@ -209,20 +215,9 @@ class WebGLBackend {
     gl.enableVertexAttribArray(0);
     gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
 
-    this.glyphVao = gl.createVertexArray();
-    gl.bindVertexArray(this.glyphVao);
-    gl.enableVertexAttribArray(0);
-    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-    this.positionBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
-    gl.enableVertexAttribArray(1);
-    gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 0, 0);
-    gl.vertexAttribDivisor(1, 1);
-    this.colorBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.colorBuffer);
-    gl.enableVertexAttribArray(2);
-    gl.vertexAttribPointer(2, 4, gl.UNSIGNED_BYTE, true, 0, 0);
-    gl.vertexAttribDivisor(2, 1);
+    this.corners = corners;
+    // Every glyph batch gets its own buffers and vertex array (see `gpuBatch`).
+    this.batches = new WeakMap();
     gl.bindVertexArray(null);
 
     gl.enable(gl.BLEND);
@@ -288,11 +283,55 @@ class WebGLBackend {
     this.shadow = [strength, time, horizon];
   }
 
-  /** `shaded`: false for no shadows, true for clouds and trees, "clouds" for cloud shadows only, "faint" for both, lighter. */
+  /**
+   * The batch's own GPU buffers, sized to its capacity. Sharing one buffer
+   * between batches made the driver wait for the GPU to finish with the last
+   * upload, now and then stalling a frame for tens of milliseconds.
+   */
+  gpuBatch(batch) {
+    const gl = this.gl;
+    let entry = this.batches.get(batch);
+    if (!entry) {
+      entry = { vao: gl.createVertexArray(), positions: gl.createBuffer(), colors: gl.createBuffer(), capacity: 0, version: -1, count: -1 };
+      gl.bindVertexArray(entry.vao);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.corners);
+      gl.enableVertexAttribArray(0);
+      gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, entry.positions);
+      gl.enableVertexAttribArray(1);
+      gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 0, 0);
+      gl.vertexAttribDivisor(1, 1);
+      gl.bindBuffer(gl.ARRAY_BUFFER, entry.colors);
+      gl.enableVertexAttribArray(2);
+      gl.vertexAttribPointer(2, 4, gl.UNSIGNED_BYTE, true, 0, 0);
+      gl.vertexAttribDivisor(2, 1);
+      this.batches.set(batch, entry);
+    }
+    gl.bindVertexArray(entry.vao);
+    if (entry.capacity < batch.capacity) {
+      entry.capacity = batch.capacity;
+      gl.bindBuffer(gl.ARRAY_BUFFER, entry.positions);
+      gl.bufferData(gl.ARRAY_BUFFER, batch.capacity * 16, gl.DYNAMIC_DRAW);
+      gl.bindBuffer(gl.ARRAY_BUFFER, entry.colors);
+      gl.bufferData(gl.ARRAY_BUFFER, batch.capacity * 4, gl.DYNAMIC_DRAW);
+      entry.version = -1;
+    }
+    // Batches refilled only every other frame (water, grass) skip the upload in between.
+    if (entry.version !== batch.version || entry.count !== batch.count) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, entry.positions);
+      gl.bufferSubData(gl.ARRAY_BUFFER, 0, batch.positions, 0, batch.count * 4);
+      gl.bindBuffer(gl.ARRAY_BUFFER, entry.colors);
+      gl.bufferSubData(gl.ARRAY_BUFFER, 0, batch.colors, 0, batch.count * 4);
+      entry.version = batch.version;
+      entry.count = batch.count;
+    }
+  }
+
+  /** `shaded`: false for no shadows, true for clouds and trees, "clouds" for cloud shadows only. */
   applyShade(program, shaded) {
     const gl = this.gl;
     const uniforms = this.shadeUniforms.get(program);
-    gl.uniform4f(uniforms.shadow, this.shadow[0], this.shadow[1], this.shadow[2], shaded === "faint" ? 3 : shaded === "clouds" ? 2 : shaded ? 1 : 0);
+    gl.uniform4f(uniforms.shadow, this.shadow[0], this.shadow[1], this.shadow[2], shaded === "clouds" ? 2 : shaded ? 1 : 0);
     gl.uniform3f(uniforms.screen, this.width, this.height, this.ratio);
   }
 
@@ -324,11 +363,7 @@ class WebGLBackend {
     gl.uniform2f(this.uniforms.viewport, this.width, this.height);
     gl.uniform2f(this.uniforms.box, this.box.width, this.box.height);
     gl.uniform2f(this.uniforms.grid, ATLAS_COLUMNS, ATLAS_ROWS);
-    gl.bindVertexArray(this.glyphVao);
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, batch.positions.subarray(0, batch.count * 4), gl.STREAM_DRAW);
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.colorBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, batch.colors.subarray(0, batch.count * 4), gl.STREAM_DRAW);
+    this.gpuBatch(batch);
     gl.bindTexture(gl.TEXTURE_2D, this.atlas);
     gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, batch.count);
     gl.bindVertexArray(null);

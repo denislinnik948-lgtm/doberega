@@ -20,29 +20,8 @@
   --ember: #c4643e;
 }
 
-/* Dark fantasy: old stone greys, tarnished gold, blood-red accents. */
-body.theme-dark {
-  --ink: #0a0a09;
-  --deep: #141412;
-  --dark: #262521;
-  --mid: #46433c;
-  --soft: #787369;
-  --light: #aba598;
-  --bone: #dbd5c6;
-  --gold: #b0955a;
-  --gold-dark: #5c4a2a;
-  --ember: #a3262a;
-}
-/* The close-up overlay (reeds, rod, ducks) follows each style's grade. */
+/* The close-up overlay (reeds, rod, ducks) follows the scene's grade. */
 .scene-overlay { filter: saturate(0.8); }
-body.theme-dark .scene-overlay { filter: saturate(0.45) brightness(0.8) contrast(1.08); }
-/* The scene is graded colder and darker, with a heavy vignette. */
-body.theme-dark .scene::after {
-  background:
-    radial-gradient(ellipse at 50% 45%, transparent 45%, rgba(4, 3, 8, 0.65) 100%),
-    linear-gradient(0deg, rgba(6, 4, 10, 0.35), transparent 30%);
-}
-
 * { box-sizing: border-box; }
 
 html, body { width: 100%; min-width: 320px; min-height: 100%; margin: 0; }

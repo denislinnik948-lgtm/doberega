@@ -162,6 +162,20 @@ export class CanvasWaterRenderer {
   }
 
   /**
+   * Open water a duck can sit on: not under the crowns of the trees that lean
+   * out from the river banks, anywhere along its body or its head.
+   */
+  isDuckWater(x, y) {
+    if (!this.isOpenWater(x, y)) return false;
+    const { canopy, columns, rows, cellWidth, lineHeight } = this;
+    return [[-36, 0], [0, 0], [36, 0], [0, -16]].every(([dx, dy]) => {
+      const column = Math.floor((x + dx) / cellWidth);
+      const row = Math.floor((y + dy) / lineHeight);
+      return column < 0 || row < 0 || column >= columns || row >= rows || !canopy[row * columns + column];
+    });
+  }
+
+  /**
    * How shallow the water is at a screen point, 0 (deep) to 1: shallow along
    * the far shore, toward the bank we stand on and beside river banks,
    * deepest out in the middle. A smooth gradient, no patches.
@@ -242,6 +256,18 @@ export class CanvasWaterRenderer {
     this.ridgeCells = createRidgeGlyphs(width, height, cellWidth, lineHeight);
     this.forestCells = createForestGlyphs(width, height, cellWidth, lineHeight, this.sun.x);
     this.trees = this.forestCells.trees;
+    // Where bank tree crowns hang, a cell or so wider: ducks keep out from under them.
+    this.canopy = new Uint8Array(columns * rows);
+    for (const cell of this.forestCells) {
+      if (!cell.bank) continue;
+      for (let dr = -1; dr <= 1; dr += 1) {
+        for (let dc = -1; dc <= 1; dc += 1) {
+          const row = cell.row + dr;
+          const column = cell.column + dc;
+          if (row >= 0 && row < rows && column >= 0 && column < columns) this.canopy[row * columns + column] = 1;
+        }
+      }
+    }
     // Each style's colour grade is baked into the scene's own colours.
     for (const cell of this.forestCells) cell.colorValue = hexToInt(gradeHex(cell.color));
     this.shoreCells = createShoreGlyphs(width, height, cellWidth, lineHeight, this.sun.x);
@@ -251,6 +277,8 @@ export class CanvasWaterRenderer {
     this.lightBatch.clear();
     for (const cell of structures.lights) this.lightBatch.push(cell.x, cell.y, cell.glyph, hexToInt(cell.color));
     this.bankCells = createBankGlyphs(width, height, cellWidth, lineHeight, this.sun.x);
+    this.grassStale = true;
+    this.waterStale = true;
     this.grass = createGrass({ width, height, cellWidth, lineHeight, frame: this.frame, autumn: isAutumn(), trees: this.trees });
     this.shadowKey = null;
     this.ambient = createAmbient({
@@ -269,8 +297,8 @@ export class CanvasWaterRenderer {
     this.treeline = new Float32Array(columns + 1);
     for (let column = 0; column <= columns; column += 1) this.treeline[column] = this.shorelineY(column * cellWidth);
     for (const cell of this.forestCells) {
-      // Bank trees and bare dead trees get no solid canopy behind them.
-      if (cell.bank || cell.dead || cell.glyph === "|" || cell.y - lineHeight * 0.2 > this.treeline[cell.column]) continue;
+      // Bank trees get no solid canopy behind them.
+      if (cell.bank || cell.glyph === "|" || cell.y - lineHeight * 0.2 > this.treeline[cell.column]) continue;
       this.treeline[cell.column] = cell.y - lineHeight * 0.2;
     }
     this.buildBackdrop();
@@ -380,7 +408,7 @@ export class CanvasWaterRenderer {
         const cy = tree.baseY + length * 0.45;
         const rx = tree.maxWidth * 0.85 + Math.abs(shift) * 0.35;
         const ry = Math.max(this.lineHeight * 0.6, length * 0.55);
-        const value = Math.round(255 * (1 - strength * (tree.bank ? 1 : 0.65) * (tree.species === "dead" ? 0.5 : 1)));
+        const value = Math.round(255 * (1 - strength * (tree.bank ? 1 : 0.65)));
         ctx.save();
         ctx.translate(cx, cy);
         ctx.scale(rx, ry);
@@ -558,7 +586,6 @@ export class CanvasWaterRenderer {
       // Scattered trees: back each glyph with a soft blob so crowns keep their own shape.
       const radius = Math.max(this.cellWidth, this.lineHeight) * 0.62;
       for (const cell of this.forestCells) {
-        if (cell.dead) continue;
         ctx.moveTo(cell.x + radius, cell.y);
         ctx.arc(cell.x, cell.y, radius, 0, Math.PI * 2);
       }
@@ -657,7 +684,7 @@ export class CanvasWaterRenderer {
   }
 
   /**
-   * Dark fantasy nights: wisps over the far water, a pale figure on the far
+   * Mystic nights: wisps over the far water, a pale figure on the far
    * shore and red eyes near the bank. Positions are fractions of the visible
    * slice of the scene; fading mixes each colour toward the night water.
    */
@@ -1276,10 +1303,15 @@ export class CanvasWaterRenderer {
     if (sky.moon.up && sky.moon.y < 0.52) pushDisc(this.discBatch, this.moonDisc, sky.moon.x * width, sky.moon.y * height, cellWidth, lineHeight, "moon");
     if (sky.sun.up && sky.sun.y < 0.52) pushDisc(this.discBatch, this.sunDisc, sky.sun.x * width, sky.sun.y * height, cellWidth, lineHeight, "sun");
     this.fillForest(time);
-    fillAmbient(this.ambient, this.ambientBatches, time, dayTime, this.rain, Boolean(env.dark));
-    fillGrass(this.grass, this.grassBatches, time, dayTime, this.rain);
+    fillAmbient(this.ambient, this.ambientBatches, time, dayTime, this.rain);
+    // Water and grass are the heaviest to fill: each refreshes every other frame, in turn.
+    this.frameIndex = (this.frameIndex ?? 0) + 1;
+    const odd = this.frameIndex % 2 === 1;
+    if (!odd || this.grassStale) fillGrass(this.grass, this.grassBatches, time, dayTime, this.rain);
     if (env.night) this.drawNightEvents(env.night, time);
-    this.fillWater(time, config, ripples);
+    if (odd || this.waterStale) this.fillWater(time, config, ripples);
+    this.grassStale = false;
+    this.waterStale = false;
     this.fillSurface(time, ripples);
     this.fillRain(time, this.rain);
     this.ducks = env.ducks ?? [];

@@ -21,6 +21,13 @@ const DEW = 0xe6f0ea;
 const FIREFLY = 0xd8f080;
 const FIREFLIES = 40;
 
+// A sine table: the grass is filled tens of thousands of times a second, and a lookup is far cheaper than Math.sin.
+const TABLE_SIZE = 4096;
+const SINE = Float32Array.from({ length: TABLE_SIZE }, (_, i) => Math.sin((i / TABLE_SIZE) * Math.PI * 2));
+const fastSin = (angle) => SINE[((Math.round(angle * (TABLE_SIZE / (Math.PI * 2))) % TABLE_SIZE) + TABLE_SIZE) % TABLE_SIZE];
+// How far each segment of a one-, two- or three-part blade leans, as a share of the whole bend.
+const SEGMENT_LEAN = [null, [1], [0.4, 1], [0.24, 0.59, 1]].map((shares) => shares && Float32Array.from(shares));
+
 function field() {
   return { blades: [], sparkles: [] };
 }
@@ -33,8 +40,8 @@ function sow(out, { top, bottom, left, right, inside, covered, nearness, cellWid
   let row = 0;
   for (let y = top; y < bottom; row += 1) {
     const t = nearness(y);
-    const dy = lineHeight * (0.22 + 0.34 * t);
-    const dx = cellWidth * (0.45 + 0.75 * t);
+    const dy = lineHeight * (0.26 + 0.38 * t);
+    const dx = cellWidth * (0.55 + 0.85 * t);
     let column = 0;
     for (let x = left + hash2(row, 1, seed) * dx; x < right; x += dx, column += 1) {
       const noise = hash2(column, row, seed);
@@ -54,7 +61,10 @@ function sow(out, { top, bottom, left, right, inside, covered, nearness, cellWid
       out.blades.push({
         x: jx,
         y: jy,
-        segments: t > 0.62 ? 3 : t > 0.25 ? 2 : 1,
+        segments: t > 0.75 ? 3 : t > 0.25 ? 2 : 1,
+        // The blade's place in the travelling gust bands, worked out once.
+        sweep: jx * 0.004,
+        band: jx * 0.018 + jy * 0.03,
         length: lineHeight * (0.5 + t * 0.35),
         lean: (hash2(column, row, seed + 6) - 0.45) * 0.7,
         phase: noise * Math.PI * 2,
@@ -138,22 +148,24 @@ function fillField(batch, grass, data, time, dayTime) {
   const { lineHeight } = grass;
   for (const blade of data.blades) {
     // Gusts run across the field as bands; every blade also flutters on its own.
-    const gust = (0.5 + 0.5 * Math.sin(blade.x * 0.004 - time * 0.35)) * Math.max(0, Math.sin(blade.x * 0.018 + blade.y * 0.03 - time * 1.3)) ** 3;
-    const flutter = Math.sin(time * 1.7 + blade.phase) * 0.05;
-    const bend = blade.lean + gust * 0.7 + flutter;
+    const wave = Math.max(0, fastSin(blade.band - time * 1.3));
+    const gust = (0.5 + 0.5 * fastSin(blade.sweep - time * 0.35)) * wave * wave * wave;
+    const bend = blade.lean + gust * 0.7 + fastSin(time * 1.7 + blade.phase) * 0.05;
     const step = blade.length / blade.segments;
+    const shares = SEGMENT_LEAN[blade.segments];
     let x = blade.x;
     let y = blade.y;
     for (let k = 0; k < blade.segments; k += 1) {
       // Each segment leans further than the one below it, curving the blade.
-      const angle = bend * ((k + 1) / blade.segments) ** 1.3;
-      const half = step * 0.5;
-      const cx = x + Math.sin(angle) * half;
-      const cy = y - Math.cos(angle) * half;
+      // Angles stay small, so a short series stands in for sin and cos.
+      const angle = bend * shares[k];
+      const a2 = angle * angle;
+      const sin = angle * (1 - a2 / 6);
+      const cos = 1 - a2 / 2 + (a2 * a2) / 24;
       const color = k === blade.segments - 1 || gust > 0.45 ? blade.tip : blade.color;
-      batch.push(cx, cy, blade.glyph, color, angle);
-      x += Math.sin(angle) * step;
-      y -= Math.cos(angle) * step;
+      batch.push(x + sin * step * 0.5, y - cos * step * 0.5, blade.glyph, color, angle);
+      x += sin * step;
+      y -= cos * step;
     }
   }
   const dew = dewAt(dayTime);

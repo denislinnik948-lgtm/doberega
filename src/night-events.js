@@ -1,8 +1,8 @@
 /**
- * Dark fantasy nights: will-o'-the-wisps drifting over the far water, a pale
- * figure that stands on the far shore and fades, two red eyes surfacing near
- * the bank, and the odd omen in words. Only in the dark fantasy style, only
- * at night. Every event goes through `onEvent(type)`, the hook for sounds later.
+ * Mystic nights: will-o'-the-wisps drifting over the far water, a pale figure
+ * that stands on the far shore and fades, two red eyes surfacing near the
+ * bank, and the odd omen in words. Only deep in the night. Every event goes
+ * through `onEvent(type)`, the hook for sounds later.
  */
 
 const WISPS = 4;
@@ -32,9 +32,9 @@ export class NightEvents {
     this.eyes = null;
   }
 
-  /** Advance the night by `dt` seconds; `enabled` is the dark fantasy style being on. */
-  update(dt, time, dayTime, enabled) {
-    const depth = enabled ? nightDepth(dayTime) : 0;
+  /** Advance the night by `dt` seconds. */
+  update(dt, time, dayTime) {
+    const depth = nightDepth(dayTime);
     this.depth = depth;
     if (depth < 0.5) {
       this.figure = null;
