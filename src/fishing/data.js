@@ -27,6 +27,8 @@ export const FISH = {
   som: { min: 5, max: 60, pricePerKg: 40, active: { base: 0.1, peaks: [[14, 4, 0.65], [1, 4, 0.6], [22, 3, 0.35]] } },
   // A joke: Valerka, a clownfish that has no business in a Ukrainian pond. Priceless, trophy only.
   valerka: { min: 0.12, max: 0.28, pricePerKg: 0, unique: true, active: { base: 1, peaks: [] } },
+  // Another joke: Artem, a crayfish in sunglasses who simply grabbed the hook. Priceless, trophy only.
+  artem: { min: 0.05, max: 0.14, pricePerKg: 0, unique: true, active: { base: 1, peaks: [] } },
   // Not a fish: sometimes reeled in instead of an empty hook.
   boot: { min: 0.6, max: 1.4, pricePerKg: 0, junk: true, active: { base: 0, peaks: [] } },
 };
@@ -51,6 +53,8 @@ export const NIBBLE = {
   sudak: { tempers: [1, 3, 5, 1], pace: 1.1, twitches: 0.8, strength: 0.7, window: 0.8 },
   som: { tempers: [2, 1, 3, 4], pace: 1.6, twitches: 0.6, strength: 1.5, window: 1.4 },
   valerka: { tempers: [3, 3, 1, 3], pace: 0.6, twitches: 1.5, strength: 1.3, window: 1.6 },
+  // A crayfish drags the bait off slowly along the bottom.
+  artem: { tempers: [1, 4, 4, 1], pace: 1.3, twitches: 1.2, strength: 0.6, window: 1.8 },
   boot: { tempers: [1, 0, 0, 0], pace: 1, twitches: 0, strength: 0.5, window: 1 },
 };
 
@@ -59,6 +63,8 @@ export const FLOAT_PREDATOR = 0.02;
 
 /** Chance that any bite, anywhere, on any bait, is Valerka: next to impossible. */
 export const VALERKA_CHANCE = 1 / 25000;
+/** The same for Artem the crayfish, on his own: just as unlikely. */
+export const ARTEM_CHANCE = 1 / 25000;
 
 /** Chance that reeling in an empty line hooks an old boot. */
 export const BOOT_CHANCE = 0.012;
@@ -285,9 +291,12 @@ export function rollFish(baitId, locationIndex, random = Math.random, reach = 0.
   const entries = candidates(baitId, locationIndex, hour).map(([id, weight, hunger]) => [id, weight * hunger]);
   // Nobody here takes this bait at all.
   if (!entries.length) return null;
-  if (random() < VALERKA_CHANCE) {
-    const valerka = FISH.valerka;
-    return { species: "valerka", weight: Math.round((valerka.min + random() * (valerka.max - valerka.min)) * 1000) / 1000, big: false, unique: true };
+  // The two jokes: one in 25,000 bites each, anywhere, on anything.
+  const joke = random();
+  const unique = joke < VALERKA_CHANCE ? "valerka" : joke < VALERKA_CHANCE + ARTEM_CHANCE ? "artem" : null;
+  if (unique) {
+    const { min, max } = FISH[unique];
+    return { species: unique, weight: Math.round((min + random() * (max - min)) * 1000) / 1000, big: false, unique: true };
   }
   const species = pickWeighted(entries, random);
   const fish = FISH[species];
@@ -322,7 +331,7 @@ function biteStyle(id) {
 }
 
 export function handbookEntries() {
-  // Valerka stays a secret: the handbook never mentions it.
+  // Valerka and Artem stay a secret: the handbook never mentions them.
   return Object.entries(FISH).filter(([, fish]) => !fish.junk && !fish.unique).map(([id, fish]) => {
     const spots = LOCATIONS
       .filter((spot) => (spot.fish[id] ?? 0) > 0)

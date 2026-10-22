@@ -329,13 +329,35 @@ function bootGrid() {
   ], { o: P.ink, B: "#6a7862", b: "#93a284", S: "#45463c", g: "#8fc06a" });
 }
 
+/** Artem: a bright red crayfish in black sunglasses, claws up, feelers out. */
+function artemGrid() {
+  return fromRows([
+    "........................ff..",
+    ".....................fff....",
+    "..................fff.PPPP..",
+    "................A...PPPppPP.",
+    "...............AAAAAPP...PP.",
+    "..T..........HHHHH.PPPPP....",
+    ".TTSSSSSSSSSHHHHHHHkkkk.....",
+    "TTTSsSsSsSsSHHLLHHHkwkk.....",
+    ".TTSSSSSSSSSHHHHHHHHHHH.....",
+    "..T..l.l.l..HHHHH.PPPPP.....",
+    "...............AAAAAPP...PP.",
+    "................A...PPPppPP.",
+    "..................fff.PPPP..",
+    ".....................fff....",
+    "........................ff..",
+  ], { T: "#a8301c", S: "#d24a2a", s: "#8a2a16", H: "#e05a34", L: "#f08050", A: "#c84a2a", P: "#e05a34", p: "#f6a070", f: "#a8442a", l: "#8a2a16", k: "#121212", w: "#f4f0e4" }).outline(P.ink);
+}
+
 /**
  * A fish for the UI: the detailed portrait (as on the social cards) in the
  * fish's own colours, shown at the size the plain sprite used to take up.
- * The old boot keeps its simple sprite.
+ * The old boot and Artem the crayfish keep their own pixel sprites.
  */
 export function fishSprite(species, scale = 4, label = "") {
   if (species === "boot") return bootGrid().toCanvas(scale, label);
+  if (species === "artem") return artemGrid().toCanvas(scale * 1.2, label);
   const look = FISH_LOOKS[species];
   const portrait = fishPortrait(look);
   const grid = new Grid(portrait.width, portrait.height);

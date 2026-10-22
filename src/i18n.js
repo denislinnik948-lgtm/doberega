@@ -192,7 +192,7 @@ const STRINGS = {
     names: {
       fish: {
         yorzh: "Ruffe", plitka: "Roach", krasnopirka: "Rudd", karas: "Crucian carp", okun: "Perch", lyn: "Tench",
-        lyasch: "Bream", korop: "Carp", shchuka: "Pike", sudak: "Zander", som: "Catfish", valerka: "Valerka", boot: "Old boot",
+        lyasch: "Bream", korop: "Carp", shchuka: "Pike", sudak: "Zander", som: "Catfish", valerka: "Valerka", artem: "Artem", boot: "Old boot",
       },
       bait: {
         bread: "Bread", dough: "Dough", worm: "Worm", maggot: "Maggot", bloodworm: "Bloodworm", barley: "Pearl barley",
@@ -347,7 +347,7 @@ const STRINGS = {
     "sync.remote": "З акаунта",
     "sync.local": "З цього пристрою",
     "sync.summary": "{money} ₴ · улов: {caught} · трофеї: {trophies}",
-    "catch.unique": "Єдина у своєму роді: її можна лише зберегти як трофей",
+    "catch.unique": "Такий один на світі: можна лише зберегти як трофей",
     "shop.title": "Магазин",
     "shop.bait": "Наживка",
     "shop.rods": "Вудки",
@@ -437,7 +437,7 @@ const STRINGS = {
     names: {
       fish: {
         yorzh: "Йорж", plitka: "Плітка", krasnopirka: "Краснопірка", karas: "Карась", okun: "Окунь", lyn: "Лин",
-        lyasch: "Лящ", korop: "Короп", shchuka: "Щука", sudak: "Судак", som: "Сом", valerka: "Валерка", boot: "Старий чобіт",
+        lyasch: "Лящ", korop: "Короп", shchuka: "Щука", sudak: "Судак", som: "Сом", valerka: "Валерка", artem: "Артем", boot: "Старий чобіт",
       },
       bait: {
         bread: "Хліб", dough: "Тісто", worm: "Черв'як", maggot: "Опариш", bloodworm: "Мотиль", barley: "Перловка",
