@@ -98,7 +98,7 @@ function applySpot() {
   config.waterColor = spot.water;
   setScene(spot.kind);
   // One rebuild: resize lays the new scene out (and centres a phone's view on its point of interest).
-  if (width) resize();
+  if (width) resize(true);
   else renderer.setScene(spot.kind, config);
   ducks.reset();
   // Casts can land from just past the far shore to near the bank.
@@ -396,6 +396,32 @@ const unscroll = () => {
 window.addEventListener("scroll", unscroll, { passive: true });
 document.addEventListener("focusout", () => setTimeout(unscroll, 50));
 
+/*
+ * The on-screen keyboard covers the bottom of the screen without resizing the
+ * page, so a centred window's fields end up under it. While it is up, windows
+ * move into the part of the screen left visible (see .keyboard-open in
+ * styles.css) and scroll, and the field being typed in is brought into view.
+ */
+function fitKeyboard() {
+  const viewport = window.visualViewport;
+  if (!viewport) return;
+  const covered = window.innerHeight - viewport.height - viewport.offsetTop;
+  const root = document.documentElement;
+  root.classList.toggle("keyboard-open", covered > 80);
+  root.style.setProperty("--visible-top", `${Math.round(viewport.offsetTop)}px`);
+  root.style.setProperty("--visible-height", `${Math.round(viewport.height)}px`);
+}
+window.visualViewport?.addEventListener("resize", fitKeyboard, { passive: true });
+window.visualViewport?.addEventListener("scroll", fitKeyboard, { passive: true });
+document.addEventListener("focusin", (event) => {
+  if (!event.target.matches?.("input, textarea") || !event.target.closest("dialog")) return;
+  // Once the keyboard has slid up, put the field in the middle of what's left.
+  setTimeout(() => {
+    fitKeyboard();
+    event.target.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, 320);
+});
+
 /** Triple tap on the menu title: what the phone reports about its screen, to chase layout bugs. */
 function layoutReport() {
   const probe = (css) => {
@@ -432,9 +458,15 @@ document.querySelector("#menu-title")?.addEventListener("click", () => {
   document.body.append(panel);
 });
 
-function resize() {
+let laidOut = "";
+function resize(force = false) {
   const bounds = canvas.parentElement.getBoundingClientRect();
   const viewWidth = Math.round(bounds.width);
+  // The keyboard opening (and other visual-viewport nudges) can fire this without
+  // the scene changing size: don't rebuild the whole scene for nothing.
+  const key = `${viewWidth}x${Math.round(bounds.height)}`;
+  if (!force && key === laidOut) return;
+  laidOut = key;
   height = Math.round(bounds.height);
   width = Math.max(viewWidth, Math.round(height * MIN_ASPECT));
   const focus = activeScene().focus ?? 0.5;
@@ -553,10 +585,10 @@ window.addEventListener("blur", () => {
   stopPull();
 });
 
-window.addEventListener("resize", resize, { passive: true });
+window.addEventListener("resize", () => resize(), { passive: true });
 // Phones: the scene follows the visible screen (browser bars, rotation), and pinch zoom
 // and long-press menus stay out of the game (double-tap zoom is off in styles.css).
-window.visualViewport?.addEventListener("resize", resize, { passive: true });
+window.visualViewport?.addEventListener("resize", () => resize(), { passive: true });
 for (const type of ["gesturestart", "gesturechange", "gestureend"]) document.addEventListener(type, (event) => event.preventDefault());
 document.addEventListener("contextmenu", (event) => {
   if (!event.target.closest?.("input, textarea")) event.preventDefault();
@@ -573,7 +605,7 @@ document.addEventListener("visibilitychange", () => {
 });
 
 if (window.ResizeObserver) {
-  const resizeObserver = new ResizeObserver(resize);
+  const resizeObserver = new ResizeObserver(() => resize());
   resizeObserver.observe(canvas);
 }
 

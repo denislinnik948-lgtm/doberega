@@ -392,6 +392,24 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
 .sheet[open] { display: flex; flex-direction: column; gap: 16px; animation: pop-in 200ms steps(4); }
 .sheet-wide { width: min(660px, calc(100% - 24px)); }
 .sheet::backdrop { background: rgba(6, 12, 11, 0.72); }
+/*
+ * With the on-screen keyboard up (main.js sets .keyboard-open and the visible
+ * band), a window sits in the part of the screen still showing and scrolls
+ * inside, so the field being typed in is never hidden under the keys.
+ */
+html.keyboard-open .sheet[open] {
+  margin: calc(var(--visible-top, 0px) + 8px) auto auto;
+  max-height: calc(var(--visible-height, 100%) - 16px);
+}
+/* The fields scroll inside the window's frame; the heading stays put. */
+html.keyboard-open .sheet[open] > .account-body {
+  min-height: 0;
+  margin-right: -8px;
+  padding-right: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: var(--mid) transparent;
+}
 .sheet h2 { margin: 0; font-size: 30px; font-weight: 500; line-height: 1.4; }
 .sheet-heading { display: flex; align-items: center; gap: 12px; }
 .sheet-heading .title-tab { margin-right: auto; }
