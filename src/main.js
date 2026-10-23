@@ -5,7 +5,7 @@ import { nameOf, t } from "./i18n.js";
 import { Weather } from "./weather.js";
 import { Ducks } from "./wildlife.js";
 import { FishingGame, TUNING } from "./fishing/game.js";
-import { BAITS, GROUNDBAIT, LOCATIONS, RODS } from "./fishing/data.js";
+import { BAITS, GROUNDBAIT, HOOKS, LOCATIONS, RODS } from "./fishing/data.js";
 import { baitCount, loadProgress, onProgressSaved, replaceProgress, saveProgress } from "./fishing/store.js";
 import { Cloud } from "./cloud.js";
 import { onSeasonChange } from "./theme.js";
@@ -196,7 +196,7 @@ function handleGameEvent(type, data) {
     } else {
       // The bait is gone whether the fish escaped or was landed; a plain recast keeps it.
       if (!BAITS[data.bait].free) progress.baits[data.bait] = Math.max(0, (progress.baits[data.bait] ?? 0) - 1);
-      if (data.hookLost) progress.hooks = Math.max(0, progress.hooks - 1);
+      if (data.hookLost) progress.hooks[data.hook] = Math.max(0, (progress.hooks[data.hook] ?? 0) - 1);
     }
     pullPointer = null;
     switchBaitIfEmpty();
@@ -252,12 +252,19 @@ function tryCast(x, y) {
     ui.toast(t("toast.needReel"), "bad", 1800);
     return;
   }
-  if (!lure && progress.hooks <= 0) {
-    ui.toast(t("toast.noHooks"), "bad", 1600);
-    return;
+  if (!lure && (progress.hooks[progress.hook] ?? 0) <= 0) {
+    // Out of this size: put on another size you still have, and say so.
+    const spare = Object.keys(HOOKS).find((id) => (progress.hooks[id] ?? 0) > 0);
+    if (!spare) {
+      ui.toast(t("toast.noHooks"), "bad", 1600);
+      return;
+    }
+    progress.hook = spare;
+    ui.commit();
+    ui.toast(t("toast.hookSwitched", { hook: nameOf("hook", spare).toLowerCase() }), "", 1800);
   }
   const groundbait = (progress.baited[LOCATIONS[progress.location].id] ?? 0) > 0;
-  if (game.cast({ x: x / width, y: y / height }, progress.rod, progress.bait, { location: progress.location, extras: progress.extras, groundbait })) {
+  if (game.cast({ x: x / width, y: y / height }, progress.rod, progress.bait, { location: progress.location, extras: progress.extras, groundbait, hook: progress.hook })) {
     // Get the pointer out of the way while watching the float.
     document.body.classList.add("cursor-hidden");
   }

@@ -588,6 +588,39 @@ BAIT_SPRITES.spoon = () => fromRows([
   ".....o...o......",
 ], { o: P.ink, S: "#b9c2c4", W: "#f2f4ee", R: P.ember, H: "#8a8f88" });
 
+// A spinner: a round silver blade turning ahead of a red-beaded body and a treble hook.
+BAIT_SPRITES.spinner = () => fromRows([
+  "......oo........",
+  ".....oSSo.......",
+  "....oSWWSo......",
+  "....oSWSSo......",
+  ".....oSSo.......",
+  "......oo........",
+  "......oBo.......",
+  ".....oRRRo......",
+  ".....oRRRo......",
+  "......oBo.......",
+  "......oHo.......",
+  ".....oHoHo......",
+  "....oHo.oHo.....",
+  ".....o...o......",
+], { o: P.ink, S: "#c9cfc8", W: "#f2f4ee", B: "#8a8f88", R: P.ember, H: "#8a8f88" });
+
+// A wobbler: a little plastic fish, green back and yellow belly, a clear diving lip and two trebles.
+BAIT_SPRITES.wobbler = () => fromRows([
+  "....................",
+  "..ooooooooooo.......",
+  ".oGGGGGGGGGGGoo.....",
+  "oGGgGgGgGGGGWkoo....",
+  "oYYYYYYYYYYYYYYLLo..",
+  ".oYYYYYYYYYYYYoLLLo.",
+  "..oooooooooooo.ooo..",
+  "....oHo....oHo......",
+  "...oHoHo..oHoHo.....",
+  "..oHo.oHooHo.oHo....",
+  "...o...o..o...o.....",
+], { o: P.ink, G: "#4f8a4a", g: "#2f5a30", Y: "#e2b85e", W: P.bone, k: P.ink, L: "#a9c7c4", H: "#8a8f88" });
+
 export function baitSprite(id, scale = 3) {
   return BAIT_SPRITES[id]().toCanvas(scale);
 }

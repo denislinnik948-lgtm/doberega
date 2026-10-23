@@ -1,5 +1,5 @@
 import {
-  BAITS, EXTRAS, FISH, GROUNDBAIT, HOOK_PRICE, LOCATIONS, RODS,
+  BAITS, EXTRAS, FISH, GROUNDBAIT, HOOKS, LOCATIONS, RODS,
   baitEntries, fishPrice, formatMoney, formatWeight, handbookEntries, spotEntries, trophyCost,
 } from "./data.js";
 import {
@@ -10,6 +10,9 @@ import { SEASONS, season, setSeason } from "../theme.js";
 import { validNickname } from "../cloud.js";
 import { track } from "../analytics.js";
 import { baitCount, saveProgress } from "./store.js";
+
+// Hook sprites grow with the hook's size.
+const HOOK_SCALE = { small: 2, medium: 3, large: 4 };
 import {
   LANGUAGES, handbookRules, language, locale, nameOf, periodName, setLanguage, t, traitLabel, traitValue,
 } from "../i18n.js";
@@ -510,8 +513,11 @@ export class AnglerUI {
     chip.setAttribute("aria-label", `${t("a11y.chooseBait")}: ${nameOf("bait", progress.bait)}, ${countLabel(this.baitCount)}`);
     this.packSlot.setAttribute("aria-label", `${t("menu.pack")}: ${nameOf("rod", progress.rod)}, ${t("shop.upTo", { weight: formatWeight(rod.maxKg) })}`);
 
-    $("#pack-hook-count").textContent = `×${progress.hooks}`;
-    $("#pack-hook-count").closest(".chip").classList.toggle("is-empty", progress.hooks <= 0);
+    // The hook size in use and how many are left.
+    const hooksLeft = progress.hooks[progress.hook] ?? 0;
+    $("#pack-hook-sprite").replaceChildren(hookSprite(2));
+    $("#pack-hook-count").textContent = `×${hooksLeft}`;
+    $("#pack-hook-count").closest(".chip").classList.toggle("is-empty", hooksLeft <= 0);
   }
 
   /** A rain cloud beside the clock while it's raining. */
@@ -752,30 +758,14 @@ export class AnglerUI {
       ]);
     }));
 
-    const hookQty = this.shopQuantities.hooks ?? 1;
-    const hookCard = element("li", { className: "card" }, [
-      element("div", { className: "card-art" }, [hookSprite(4)]),
-      element("strong", { textContent: t("shop.hooks") }),
-      element("span", { className: "card-price", textContent: t("shop.each", { price: HOOK_PRICE }) }),
-      element("span", { className: "card-stock", textContent: t("shop.inPack", { count: progress.hooks }) }),
-      this.stepper("hooks", HOOK_PRICE),
-      element("button", {
-        className: "pixel-btn pixel-btn-buy",
-        type: "button",
-        disabled: progress.money < hookQty * HOOK_PRICE,
-        onclick: pay(hookQty * HOOK_PRICE, () => {
-          progress.hooks += hookQty;
-          this.shopQuantities.hooks = 1;
-        }),
-      }, [t("shop.buy", { total: formatMoney(hookQty * HOOK_PRICE) })]),
-    ]);
-    // Consumables sold by the piece among the extras: groundbait and the spoon.
+    // Consumables sold by the piece: groundbait, hooks and lures.
     const pieceCard = (id, art, title, text, price, stock, add) => {
       const qty = this.shopQuantities[id] ?? 1;
       return element("li", { className: "card" }, [
         element("div", { className: "card-art" }, [art]),
         element("strong", { textContent: title }),
-        element("small", { textContent: text }),
+        // One line per fact, so "who bites" and "holds" read apart.
+        ...[text].flat().map((line) => element("small", { className: "card-fact", textContent: line })),
         element("span", { className: "card-price", textContent: t("shop.each", { price }) }),
         element("span", { className: "card-stock", textContent: t("shop.inPack", { count: stock }) }),
         this.stepper(id, price),
@@ -793,10 +783,7 @@ export class AnglerUI {
     const groundbaitCard = pieceCard("groundbait", groundbaitSprite(4), t("shop.groundbait"), t("shop.groundbaitText"), GROUNDBAIT.price, progress.groundbait, (qty) => {
       progress.groundbait += qty;
     });
-    const spoonCard = pieceCard("spoon", baitSprite("spoon", 4), nameOf("bait", "spoon"), t("shop.spoonText"), BAITS.spoon.price, progress.baits.spoon ?? 0, (qty) => {
-      progress.baits.spoon = (progress.baits.spoon ?? 0) + qty;
-    });
-    $("#extra-shop").replaceChildren(hookCard, groundbaitCard, spoonCard, ...Object.entries(EXTRAS).map(([id, extra]) => {
+    $("#extra-shop").replaceChildren(groundbaitCard, ...Object.entries(EXTRAS).map(([id, extra]) => {
       const owned = progress.extras.includes(id);
       return element("li", { className: `card${owned ? " is-owned" : ""}` }, [
         element("div", { className: "card-art" }, [extraSprite(id, 3)]),
@@ -815,7 +802,22 @@ export class AnglerUI {
       ]);
     }));
 
-    document.querySelectorAll("#bait-shop .card, #rod-shop .card, #extra-shop .card").forEach((card, index) => frame(card, "well", 300 + index));
+    // Tackle: what each hook or lure lets bite and what it holds, said plainly on the card.
+    const reach = (gear) => [
+      t("tackle.takes", { what: gear.minKg ? t("tackle.from", { weight: formatWeight(gear.minKg) }) : t("tackle.any") }),
+      t("tackle.holds", { what: Number.isFinite(gear.holdKg) ? t("tackle.upTo", { weight: formatWeight(gear.holdKg) }) : t("tackle.anyWeight") }),
+    ];
+    const hookCards = Object.entries(HOOKS).map(([id, hook]) => pieceCard(`hook-${id}`, hookSprite(HOOK_SCALE[id] + 1), nameOf("hook", id), reach(hook), hook.price, progress.hooks[id] ?? 0, (qty) => {
+      progress.hooks[id] = (progress.hooks[id] ?? 0) + qty;
+    }));
+    const reel = progress.extras.includes("spinreel");
+    const lureCards = Object.entries(BAITS).filter(([, bait]) => bait.lure).map(([id, lure]) => pieceCard(id, baitSprite(id, 4), nameOf("bait", id),
+      [...reach(lure), t(`tackle.style.${id}`), reel ? "" : t("tackle.needReel")].filter(Boolean), lure.price, progress.baits[id] ?? 0, (qty) => {
+        progress.baits[id] = (progress.baits[id] ?? 0) + qty;
+      }));
+    $("#tackle-shop").replaceChildren(...hookCards, ...lureCards);
+
+    document.querySelectorAll("#bait-shop .card, #rod-shop .card, #tackle-shop .card, #extra-shop .card").forEach((card, index) => frame(card, "well", 300 + index));
     if (!this.shopDialog.open) this.shopDialog.showModal();
   }
 
@@ -840,6 +842,13 @@ export class AnglerUI {
       id === progress.rod, rodArt(id, 3), nameOf("rod", id), formatWeight(RODS[id].maxKg),
       choose(() => { progress.rod = id; }),
     )));
+    // Hooks by size: pick the one to fish with; a size you have none of can't be picked.
+    $("#pack-hooks").replaceChildren(...Object.keys(HOOKS).map((id) => {
+      const left = progress.hooks[id] ?? 0;
+      const item = tile(id === progress.hook, hookSprite(HOOK_SCALE[id]), nameOf("hook", id), `×${left}`, choose(() => { progress.hook = id; }));
+      item.querySelector("button").disabled = left <= 0 && id !== progress.hook;
+      return item;
+    }));
     $("#pack-extras").replaceChildren(
       // Groundbait goes into the water you're at, straight from the backpack.
       ...(progress.groundbait > 0 ? [tile(false, groundbaitSprite(3), t("shop.groundbait"), `×${progress.groundbait}`, () => this.useGroundbait())] : []),

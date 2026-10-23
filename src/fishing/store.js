@@ -1,4 +1,4 @@
-import { BAITS, EXTRAS, LOCATIONS, RETIRED_BAITS, RODS, START_STATE } from "./data.js";
+import { BAITS, EXTRAS, HOOKS, LOCATIONS, RETIRED_BAITS, RODS, START_STATE } from "./data.js";
 
 // The storage key keeps the game's old working name so existing saves carry over.
 const KEY = "stillwater.fishing.v2";
@@ -19,7 +19,12 @@ export function normalizeProgress(saved) {
   const state = structuredClone(START_STATE);
   if (saved && typeof saved === "object") {
     if (Number.isFinite(saved.money)) state.money = saved.money;
-    if (Number.isFinite(saved.hooks)) state.hooks = saved.hooks;
+    // Hooks by size; an older save kept one count, which were all medium hooks.
+    if (Number.isFinite(saved.hooks)) state.hooks = { ...state.hooks, medium: saved.hooks };
+    else if (saved.hooks && typeof saved.hooks === "object") {
+      for (const id of Object.keys(HOOKS)) state.hooks[id] = Number.isFinite(saved.hooks[id]) ? Math.max(0, saved.hooks[id]) : 0;
+    }
+    if (HOOKS[saved.hook]) state.hook = saved.hook;
     if (saved.baits && typeof saved.baits === "object") {
       state.baits = Object.fromEntries(Object.entries(saved.baits).filter(([id, count]) => BAITS[id] && Number.isFinite(count)));
       // Baits taken out of the game are paid back in full.

@@ -127,10 +127,12 @@
       <div class="tabs" role="tablist">
         <button class="pixel-btn tab is-active" type="button" role="tab" aria-selected="true" data-tab="bait-shop" data-i18n="shop.bait">Bait</button>
         <button class="pixel-btn tab" type="button" role="tab" aria-selected="false" data-tab="rod-shop" data-i18n="shop.rods">Rods</button>
+        <button class="pixel-btn tab" type="button" role="tab" aria-selected="false" data-tab="tackle-shop" data-i18n="shop.tackle">Tackle</button>
         <button class="pixel-btn tab" type="button" role="tab" aria-selected="false" data-tab="extra-shop" data-i18n="shop.extras">Extras</button>
       </div>
       <ul class="card-grid" id="bait-shop" role="tabpanel"></ul>
       <ul class="card-grid" id="rod-shop" role="tabpanel" hidden></ul>
+      <ul class="card-grid" id="tackle-shop" role="tabpanel" hidden></ul>
       <ul class="card-grid" id="extra-shop" role="tabpanel" hidden></ul>
     </dialog>
 
@@ -143,6 +145,8 @@
       <div class="pack-body">
         <h3 data-i18n="pack.rods">Rods</h3>
         <ul class="item-row" id="pack-rods"></ul>
+        <h3 data-i18n="pack.hooks">Hooks</h3>
+        <ul class="item-row" id="pack-hooks"></ul>
         <h3 data-i18n="pack.extras">Extras</h3>
         <ul class="item-row" id="pack-extras"></ul>
         <p class="empty-note" id="pack-extras-empty" data-i18n="pack.empty">Nothing yet</p>

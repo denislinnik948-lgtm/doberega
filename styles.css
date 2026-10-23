@@ -448,6 +448,9 @@ html.keyboard-open .sheet[open] > .account-body {
 .card-art { display: grid; height: 64px; place-items: center; }
 .card strong { font-size: 30px; font-weight: 500; }
 .card small { min-height: 21px; color: var(--light); font-size: 18px; line-height: 1.4; }
+/* Tackle facts: a few short lines, tight together. */
+.card .card-fact { min-height: 0; font-size: 17px; line-height: 1.25; }
+.card .card-fact + .card-fact { margin-top: -4px; }
 /* Price and stock sit on separate lines so neither gets lost. */
 .card-price { color: var(--gold); font-size: 26px; line-height: 1.1; }
 /* An owned rod or extra: a plain label where the buy button was, same height. */

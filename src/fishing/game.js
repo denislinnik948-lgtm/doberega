@@ -1,4 +1,4 @@
-import { BAITS, BOOT_CHANCE, GROUNDBAIT, LOCATIONS, NIBBLE, RODS, biteActivity, rollFish } from "./data.js";
+import { BAITS, BOOT_CHANCE, GROUNDBAIT, HOOKS, LOCATIONS, NIBBLE, RODS, biteActivity, rollFish, straightenChance } from "./data.js";
 
 /**
  * Fishing state machine. Positions are normalized to the viewport (0..1) so the
@@ -19,6 +19,11 @@ import { BAITS, BOOT_CHANCE, GROUNDBAIT, LOCATIONS, NIBBLE, RODS, biteActivity, 
  * or as it flutters down in the pause after one, far less on a steady
  * retrieve. A strike is a bite like on the float: pull within the window. If
  * the spoon reaches the bank untouched, it's simply cast again.
+ *
+ * Tackle: the rod decides how hard a fish is to bring in (how fast the bar
+ * fills); the hook (or, spinning, the lure) decides who can take it at all
+ * and whether it holds: past its hold weight it may bend straight in the
+ * fight. See HOOKS and the lures in data.js.
  *
  * Reeling in an empty line (to recast, or after a fish got away with the
  * bait) isn't instant: the float or spoon skims back across the water to the
@@ -117,6 +122,8 @@ export class FishingGame {
     this.distance = 1;
     this.float = { offset: 0, sink: 0 };
     this.timeline = [];
+    // How far in the fish gets before a too-small hook bends straight (null: it holds).
+    this.giveAt = null;
   }
 
   get busy() {
@@ -127,10 +134,11 @@ export class FishingGame {
    * Cast toward a normalized water point with the chosen rod, bait, spot and
    * extras; `groundbait` is whether this water is baited.
    */
-  cast(target, rodId, baitId, { location = 0, extras = [], groundbait = false } = {}) {
+  cast(target, rodId, baitId, { location = 0, extras = [], groundbait = false, hook = "medium" } = {}) {
     if (this.phase !== "ready") return false;
     this.rod = rodId;
     this.bait = baitId;
+    this.hookSize = hook;
     this.location = location;
     this.extras = extras;
     this.groundbait = groundbait;
@@ -144,6 +152,11 @@ export class FishingGame {
   /** Whether the bait on the line is a lure that is reeled in (the spoon). */
   get spinning() {
     return Boolean(BAITS[this.bait]?.lure);
+  }
+
+  /** What the fish has to take: the lure when spinning, otherwise the hook. */
+  get gear() {
+    return this.spinning ? BAITS[this.bait] : HOOKS[this.hookSize] ?? HOOKS.medium;
   }
 
   press() {
@@ -207,6 +220,8 @@ export class FishingGame {
 
   hook() {
     this.rates = fightRates(this.fish.weight, this.rod, this.extras, Boolean(this.fish.junk));
+    // Too heavy for the hook: it may bend straight somewhere on the way in.
+    this.giveAt = !this.fish.junk && this.random() < straightenChance(this.gear, this.fish.weight) ? 0.2 + this.random() * 0.6 : null;
     this.tension = 0;
     this.distance = 1;
     this.behavior = 0;
@@ -222,7 +237,7 @@ export class FishingGame {
     const fighting = this.phase === "fight";
     const at = fighting ? this.fishPosition() : this.target;
     this.ripple(at, 0.5, 0.4);
-    this.emit("outcome", { type: "escape", reason, bait: this.bait, hookLost, headline });
+    this.emit("outcome", { type: "escape", reason, bait: this.bait, hook: this.hookSize, hookLost, headline });
     // A snapped line has nothing to bring back; otherwise the empty rig comes in.
     if (fighting || !this.target) this.reset();
     else this.startReelIn();
@@ -339,9 +354,11 @@ export class FishingGame {
     }
     const jerking = this.pulling && this.jerkAge < TUNING.jerkWindow;
     const fluttering = !this.pulling && this.retrieved > 0 && this.pauseAge < TUNING.flutterWindow;
-    const odds = jerking ? TUNING.strikeJerk : fluttering ? TUNING.strikeFlutter : this.pulling ? TUNING.strikeSteady : 0;
+    // Each lure has its own best way of being fished.
+    const style = BAITS[this.bait].retrieve ?? { jerk: 1, flutter: 1, steady: 1 };
+    const odds = jerking ? TUNING.strikeJerk * style.jerk : fluttering ? TUNING.strikeFlutter * style.flutter : this.pulling ? TUNING.strikeSteady * style.steady : 0;
     if (!odds || random() >= odds * this.keenness() * (this.extras.includes("sonar") ? 1.3 : 1) * dt) return;
-    const fish = rollFish(this.bait, this.location, random, this.reach(), this.hour);
+    const fish = rollFish(this.bait, this.location, random, this.reach(), this.hour, this.gear);
     if (!fish) return;
     // A strike: from here on it's a bite like on the float. The reel stops; pull to hook it.
     this.fish = fish;
@@ -435,7 +452,7 @@ export class FishingGame {
       case "waiting":
         this.driftFloat(dt);
         if (this.clock >= this.waitTime) {
-          this.fish = rollFish(this.bait, this.location, random, this.reach(), this.hour);
+          this.fish = rollFish(this.bait, this.location, random, this.reach(), this.hour, this.gear);
           if (!this.fish) {
             // Wrong bait for this water: the float just sits there.
             this.clock = 0;
@@ -530,6 +547,12 @@ export class FishingGame {
         this.behaviorClock = 0;
         if (random() < 0.35) this.behavior = pickBehavior(rates.strain, random);
       }
+    }
+
+    if (this.giveAt !== null && 1 - this.distance >= this.giveAt) {
+      // The hook (or the lure's hook) bends straight: the fish is gone, and so is the hook.
+      this.escape("straightened", true, "straightened");
+      return;
     }
 
     this.splashClock -= dt;

@@ -118,8 +118,18 @@ export const BAITS = {
   livebait: { price: 25, size: 1.4, species: { okun: 4, som: 2 } },
   crayfish: { price: 30, size: 1.6, species: { som: 3, okun: 2 } },
   frog: { price: 45, size: 1.8, species: { som: 6 } },
-  // A spinner for predators; sold among the extras.
-  spoon: { price: 300, lure: true, size: 1.2, others: 0, species: { okun: 4, shchuka: 5, sudak: 4, som: 0.4 } },
+  /*
+   * Lures for the spinning reel, sold with the tackle. Each works like a hook
+   * as well (`minKg`, `holdKg`, see HOOKS) and has its own way of being fished:
+   * `retrieve` scales how often a fish strikes on a jerk, as it flutters down
+   * in a pause, or on a steady retrieve.
+   */
+  // A small spinner: mostly perch, takes on a plain steady retrieve.
+  spinner: { price: 150, lure: true, size: 0.7, others: 0, minKg: 0, holdKg: 2, retrieve: { jerk: 1, flutter: 0.6, steady: 3 }, species: { okun: 6, shchuka: 1.2, sudak: 0.6, plitka: 0.8 } },
+  // The wobbling spoon: pike and zander, best fished in jerks.
+  spoon: { price: 300, lure: true, size: 1.2, others: 0, minKg: 0.3, holdKg: 8, retrieve: { jerk: 1, flutter: 1, steady: 1 }, species: { okun: 4, shchuka: 5, sudak: 4, som: 0.4 } },
+  // A wobbler: only bigger fish, which hit it as it stops in the pause.
+  wobbler: { price: 900, lure: true, size: 1.5, others: 0, minKg: 1, holdKg: Infinity, retrieve: { jerk: 0.6, flutter: 2.2, steady: 0.5 }, species: { shchuka: 6, sudak: 2.5, okun: 2, som: 0.8 } },
 };
 
 /** Baits taken out of the game, with their price: a save that still holds some is paid back. */
@@ -137,8 +147,35 @@ export const RODS = {
   catfish: { tier: 8, maxKg: 40, price: 220000, reel: 1.2 },
 };
 
-/** Hooks are consumables; a big fish that snaps the line takes one with it. */
-export const HOOK_PRICE = 6;
+/*
+ * Hooks, by size: consumables, lost when a big fish snaps the line or bends
+ * the hook straight. `minKg`: a fish lighter than this can hardly take the
+ * hook (the edge is soft, and now and then a small one still manages);
+ * `holdKg`: up to this weight the hook holds for sure, past it there is a
+ * rising chance it bends straight in the fight and the fish is gone.
+ */
+export const HOOKS = {
+  small: { price: 4, minKg: 0, holdKg: 1 },
+  medium: { price: 6, minKg: 0.2, holdKg: 6 },
+  large: { price: 12, minKg: 1, holdKg: Infinity },
+};
+
+/**
+ * Whether a fish of `weight` takes the hook (or lure) at all: always above
+ * `minKg`, fading out below it, and never quite impossible.
+ */
+export function takesHook(gear, weight, random = Math.random) {
+  if (!gear?.minKg || weight >= gear.minKg) return true;
+  const fit = Math.max(0, Math.min(1, (weight / gear.minKg - 0.7) / 0.3));
+  return random() < 0.03 + 0.97 * fit * fit;
+}
+
+/** The chance a hook bends straight on a fish this heavy (0 up to its hold, then rising, at most 90%). */
+export function straightenChance(gear, weight) {
+  const hold = gear?.holdKg ?? Infinity;
+  if (!Number.isFinite(hold) || weight <= hold) return 0;
+  return Math.min(0.9, 0.2 * (weight / hold - 1));
+}
 
 /** One-off upgrades that make fishing easier. */
 export const EXTRAS = {
@@ -201,7 +238,8 @@ export const LOCATIONS = [
 export const START_STATE = {
   money: 30,
   baits: { worm: 5 },
-  hooks: 5,
+  hooks: { small: 0, medium: 5, large: 0 },
+  hook: "medium",
   rods: ["willow"],
   rod: "willow",
   bait: "worm",
@@ -285,7 +323,7 @@ export function biteActivity(baitId, locationIndex, hour) {
   return hunger * appeal;
 }
 
-export function rollFish(baitId, locationIndex, random = Math.random, reach = 0.5, hour = 18) {
+export function rollFish(baitId, locationIndex, random = Math.random, reach = 0.5, hour = 18, gear = null) {
   const bait = BAITS[baitId];
   const location = LOCATIONS[locationIndex] ?? LOCATIONS[0];
   const entries = candidates(baitId, locationIndex, hour).map(([id, weight, hunger]) => [id, weight * hunger]);
@@ -308,6 +346,8 @@ export function rollFish(baitId, locationIndex, random = Math.random, reach = 0.
   const max = Math.min(fish.max, Math.max(fish.min, location.maxKg ?? fish.max));
   const span = (max - fish.min) * (bait.maxSize ?? 1);
   const weight = Math.round((fish.min + span * t) * 1000) / 1000;
+  // Too small for this hook or lure: it nibbles at it and moves on.
+  if (!takesHook(gear, weight, random)) return null;
   return { species, weight, big: big && !bait.maxSize };
 }
 
