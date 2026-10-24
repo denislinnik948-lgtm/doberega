@@ -339,6 +339,31 @@ export const sounds = {
     wash({ buffer: brown, type: "lowpass", from: vary(1100, 0.08), to: 250, attack: 0.006, length: 0.16, volume: 0.13 });
     for (let i = 0; i < 4; i += 1) blup({ delay: 0.15 + i * vary(0.12, 0.08), freq: vary(500 + i * 80, 0.08), rise: 2, length: 0.03, level: 0.05, muffle: 0.6 });
   },
+  /** The empty rig lifted out at the bank (lab: А3 "Чмок і краплі"): the water letting go, and a couple of drops. */
+  liftOut() {
+    if (!audio()) return;
+    blup({ freq: vary(340, 0.08), rise: 3, length: 0.06, level: 0.1 });
+    droplets(2, 0.12, 0.35, 0.04);
+  },
+  /** A handful of groundbait hitting the water (lab: И1 "Розсип"): many little plops in one spot. */
+  groundbait() {
+    if (!audio()) return;
+    for (let i = 0; i < 18; i += 1) blup({ delay: rand(0.1, 0.45), freq: rand(700, 1600), rise: 2, length: 0.025, level: 0.04, pan: rand(-0.2, 0.2) });
+  },
+  /** An old boot on the bank (lab: Ю3 "Сумний «буп»"): a wet squelch and two low notes sliding down. */
+  boot() {
+    if (!audio()) return;
+    wash({ buffer: brown, type: "lowpass", from: 700, to: 150, attack: 0.002, length: 0.15, volume: 0.2 });
+    blup({ delay: 0.2, freq: 330, rise: 0.94, length: 0.18, level: 0.07 });
+    blup({ delay: 0.42, freq: 262, rise: 0.9, length: 0.3, level: 0.07 });
+  },
+  /** Valerka or Artem (lab: Я1 "Блиск"): little bells running up, like something magic. */
+  unique() {
+    if (!audio()) return;
+    [784, 988, 1175, 1568].forEach((freq, i) => {
+      for (const [ratio, part] of [[1, 1], [2.76, 0.5], [5.4, 0.25]]) ping(freq * ratio, 0.04 * part, 0.6 / ratio, { delay: i * 0.08 });
+    });
+  },
   /** The rod bending under a heavy fish (lab: Е1 "Тихий скрип"): a low, slow creak of the blank. */
   creak() {
     if (!audio()) return;

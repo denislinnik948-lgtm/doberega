@@ -293,6 +293,104 @@ function zip({ at = 0, length, from, to, level, q = 4 }) {
   wash({ at, type: "bandpass", from, to, q, attack: Math.min(0.02, length * 0.2), length, level });
 }
 
+/** A soft wooden tap: a short knock with a little body under it. */
+function knock({ at = 0, freq, level }) {
+  wash({ at, type: "bandpass", from: freq, q: 4, attack: 0.001, length: 0.04, level });
+  bubble({ at, freq: freq * 0.5, rise: 0.92, length: 0.05, level: level * 0.5 });
+}
+
+/** A soft, rounded blip (a square tone, filtered so it isn't harsh), for the pixel set. */
+function blip({ at = 0, freq, to = freq, length = 0.06, level }) {
+  const start = ctx.currentTime + at;
+  const osc = ctx.createOscillator();
+  osc.type = "square";
+  osc.frequency.setValueAtTime(freq, start);
+  if (to !== freq) osc.frequency.exponentialRampToValueAtTime(to, start + length);
+  const filter = ctx.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.value = 1800;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, start);
+  gain.gain.linearRampToValueAtTime(level, start + 0.004);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + length);
+  osc.connect(filter).connect(gain).connect(master);
+  osc.start(start);
+  osc.stop(start + length + 0.02);
+}
+
+/*
+ * Interface sounds come as whole sets, so they sound like one family: each
+ * set has the same seven events. Pick one set.
+ */
+const UI_EVENTS = [
+  ["click", "Кнопка"],
+  ["tab", "Вкладка"],
+  ["open", "Відкрити вікно"],
+  ["close", "Закрити вікно"],
+  ["slide", "Гортання локацій"],
+  ["select", "Вибір (вудка, гачок)"],
+  ["denied", "Не можна"],
+];
+
+const UI_SETS = [
+  {
+    id: "ui.wood",
+    prefix: "У1.",
+    title: "Інтерфейс · Дерево",
+    note: "М'які дерев'яні постукування, як дерев'яний ящик зі снастями.",
+    play: {
+      click: () => knock({ freq: jitter(1100), level: 0.08 }),
+      tab: () => knock({ freq: jitter(1400), level: 0.06 }),
+      open: () => { knock({ freq: 800, level: 0.07 }); knock({ at: 0.07, freq: 1150, level: 0.06 }); },
+      close: () => { knock({ freq: 1150, level: 0.06 }); knock({ at: 0.07, freq: 800, level: 0.07 }); },
+      slide: () => wash({ type: "bandpass", from: 700, to: 1500, q: 0.9, attack: 0.04, length: 0.18, level: 0.05 }),
+      select: () => { knock({ freq: 1250, level: 0.07 }); bell({ at: 0.03, freq: 2200, level: 0.012, length: 0.2 }); },
+      denied: () => { knock({ freq: 420, level: 0.1 }); knock({ at: 0.1, freq: 380, level: 0.09 }); },
+    },
+  },
+  {
+    id: "ui.paper",
+    prefix: "У2.",
+    title: "Інтерфейс · Папір і трава",
+    note: "Тихі шелести й шурхоти, як блокнот рибалки.",
+    play: {
+      click: () => wash({ type: "highpass", from: jitter(3800), q: 0.7, attack: 0.001, length: 0.02, level: 0.06 }),
+      tab: () => wash({ type: "bandpass", from: 2200, to: 3600, q: 1, attack: 0.01, length: 0.08, level: 0.05 }),
+      open: () => wash({ type: "bandpass", from: 900, to: 2600, q: 0.8, attack: 0.06, length: 0.22, level: 0.06 }),
+      close: () => wash({ type: "bandpass", from: 2600, to: 900, q: 0.8, attack: 0.03, length: 0.18, level: 0.06 }),
+      slide: () => wash({ type: "bandpass", from: 1500, to: 3000, q: 0.7, attack: 0.05, length: 0.2, level: 0.05 }),
+      select: () => { wash({ type: "highpass", from: 3500, q: 0.7, attack: 0.001, length: 0.02, level: 0.05 }); bubble({ at: 0.01, freq: 900, rise: 1.6, length: 0.03, level: 0.04 }); },
+      denied: () => wash({ type: "lowpass", from: 500, to: 180, attack: 0.002, length: 0.12, level: 0.14, deep: true }),
+    },
+  },
+  {
+    id: "ui.pixel",
+    prefix: "У3.",
+    title: "Інтерфейс · Піксель",
+    note: "М'які ретро-«біпи», як у піксельних іграх, але приглушені.",
+    play: {
+      click: () => blip({ freq: 880, length: 0.04, level: 0.04 }),
+      tab: () => blip({ freq: 1175, length: 0.035, level: 0.03 }),
+      open: () => { blip({ freq: 660, length: 0.05, level: 0.035 }); blip({ at: 0.05, freq: 990, length: 0.07, level: 0.035 }); },
+      close: () => { blip({ freq: 990, length: 0.05, level: 0.035 }); blip({ at: 0.05, freq: 660, length: 0.07, level: 0.035 }); },
+      slide: () => blip({ freq: 520, to: 780, length: 0.09, level: 0.03 }),
+      select: () => { blip({ freq: 1047, length: 0.04, level: 0.035 }); blip({ at: 0.045, freq: 1568, length: 0.06, level: 0.03 }); },
+      denied: () => { blip({ freq: 220, length: 0.08, level: 0.05 }); blip({ at: 0.1, freq: 196, length: 0.1, level: 0.05 }); },
+    },
+  },
+];
+
+function uiPacks() {
+  return UI_SETS.map((set) => ({
+    id: set.id,
+    prefix: set.prefix,
+    chosen: [],
+    title: set.title,
+    note: `${set.note} Обери набір цілком.`,
+    sounds: UI_EVENTS.map(([event, name]) => ({ name, text: event, play: set.play[event] })),
+  }));
+}
+
 /** The same sound for a small fish, then (a second later) a big one. */
 function bothSizes(play) {
   play(0, 0);
@@ -1035,7 +1133,7 @@ const SECTIONS = [
   {
     id: "lift.out",
     prefix: "А",
-    chosen: [],
+    chosen: [2],
     title: "Наживку підняли з води",
     note: "Порожню снасть змотали до берега й піднімають із води перед новим закидом.",
     sounds: [
@@ -1065,7 +1163,7 @@ const SECTIONS = [
   {
     id: "groundbait",
     prefix: "И",
-    chosen: [],
+    chosen: [0],
     title: "Кидок прикормки",
     note: "Жменя прикормки летить у воду й розсипається по поверхні.",
     sounds: [
@@ -1097,7 +1195,7 @@ const SECTIONS = [
   {
     id: "boot",
     prefix: "Ю",
-    chosen: [],
+    chosen: [2],
     title: "Старий чобіт",
     note: "Замість риби витягнув старий чобіт: трохи кумедно.",
     sounds: [
@@ -1131,7 +1229,7 @@ const SECTIONS = [
   {
     id: "unique.catch",
     prefix: "Я",
-    chosen: [],
+    chosen: [0],
     title: "Валерка чи Артем",
     note: "Рідкісний жартівливий улов, один на десятки годин: коротка радісна несподіванка.",
     sounds: [
@@ -1155,6 +1253,7 @@ const SECTIONS = [
       },
     ],
   },
+  ...uiPacks(),
 ];
 
 /* Build the page: a section per sound, a button per candidate (numbered). */

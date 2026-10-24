@@ -977,6 +977,7 @@ export class AnglerUI {
     }
     if (progress.groundbait <= 0) return;
     progress.groundbait -= 1;
+    sounds.groundbait();
     // Wears off 24 game hours from now (a fresh bag starts the count again).
     progress.baited[LOCATIONS[progress.location].id] = Date.now() + gameHoursMs(GROUNDBAIT.hours);
     this.commit();

@@ -5,7 +5,7 @@ import { nameOf, t } from "./i18n.js";
 import { Weather } from "./weather.js";
 import { Ducks } from "./wildlife.js";
 import { FishingGame, TUNING } from "./fishing/game.js";
-import { BAITS, GROUNDBAIT, HOOKS, LOCATIONS, RODS } from "./fishing/data.js";
+import { BAITS, FISH, GROUNDBAIT, HOOKS, LOCATIONS, RODS } from "./fishing/data.js";
 import { baitCount, loadProgress, onProgressSaved, replaceProgress, saveProgress } from "./fishing/store.js";
 import { Cloud } from "./cloud.js";
 import { onSeasonChange } from "./theme.js";
@@ -204,6 +204,8 @@ function handleGameEvent(type, data) {
     sounds.hookset();
   } else if (type === "snag") {
     sounds.snag();
+  } else if (type === "liftout") {
+    sounds.liftOut();
   }
   if (type === "ripple") {
     const point = toScreen(data);
@@ -243,7 +245,9 @@ function handleGameEvent(type, data) {
     } else {
       progress.caught += 1;
       track("catch");
-      sounds.landed(data.fish.weight);
+      if (data.fish.unique) sounds.unique();
+      else if (FISH[data.fish.species]?.junk) sounds.boot();
+      else sounds.landed(data.fish.weight);
       game.release();
       // Into the keepnet (or the trophies); it's all sold on leaving the water.
       ui.showCatch(data.fish, { bait: data.bait }).then(() => {

@@ -253,6 +253,7 @@ export class FishingGame {
     this.float = { offset: 0, sink: 0 };
     this.fish = null;
     this.timeline = [];
+    this.lifted = false;
     this.enter("reeling");
   }
 
@@ -441,6 +442,11 @@ export class FishingGame {
         const eased = skim * skim * (3 - 2 * skim);
         const end = this.landing();
         this.target = { x: this.reelFrom.x + (end.x - this.reelFrom.x) * eased, y: this.reelFrom.y + (end.y - this.reelFrom.y) * eased };
+        // At the bank the rig leaves the water.
+        if (skim >= 1 && !this.lifted) {
+          this.lifted = true;
+          this.emit("liftout");
+        }
         if (skim < 1) {
           this.wakeClock -= dt;
           if (this.wakeClock <= 0) {
