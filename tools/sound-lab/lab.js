@@ -613,6 +613,177 @@ function bigBell({ at = 0, freq = 220, level = 0.05, length = 4 }) {
   }
 }
 
+/* ---------- Music: generated lo-fi, scheduled bar by bar into its own fader ---------- */
+
+const NOTE = (name) => {
+  const names = { C: 0, "C#": 1, Db: 1, D: 2, "D#": 3, Eb: 3, E: 4, F: 5, "F#": 6, Gb: 6, G: 7, "G#": 8, Ab: 8, A: 9, "A#": 10, Bb: 10, B: 11 };
+  const [, pitch, octave] = name.match(/^([A-G][#b]?)(-?\d)$/);
+  return 440 * 2 ** ((names[pitch] + (Number(octave) + 1) * 12 - 69) / 12);
+};
+
+/** A music track's own output: a fader (to stop it) with a soft lowpass and a little tape warble. */
+function musicBus() {
+  const fader = ctx.createGain();
+  fader.gain.value = 0.9;
+  const tone = ctx.createBiquadFilter();
+  tone.type = "lowpass";
+  tone.frequency.value = 3200;
+  fader.connect(tone).connect(master);
+  return fader;
+}
+
+/** Electric piano: a bell-ish sine with a soft second partial, fading, with a slight tremolo. */
+function epiano(bus, freq, at, length, level = 0.03) {
+  const start = ctx.currentTime + at;
+  for (const [ratio, part, decay] of [[1, 1, 1], [2, 0.25, 0.4], [3.01, 0.08, 0.15]]) {
+    const osc = ctx.createOscillator();
+    osc.frequency.value = freq * ratio;
+    osc.detune.value = (Math.random() - 0.5) * 8;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, start);
+    gain.gain.linearRampToValueAtTime(level * part, start + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + length * decay + 0.05);
+    osc.connect(gain).connect(bus);
+    osc.start(start);
+    osc.stop(start + length + 0.1);
+  }
+}
+
+/** A plucked nylon string: a bright attack that mellows and dies away. */
+function guitar(bus, freq, at, length = 1.6, level = 0.035) {
+  const start = ctx.currentTime + at;
+  const osc = ctx.createOscillator();
+  osc.type = "triangle";
+  osc.frequency.value = freq;
+  const body = ctx.createOscillator();
+  body.type = "sawtooth";
+  body.frequency.value = freq;
+  const filter = ctx.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.setValueAtTime(3000, start);
+  filter.frequency.exponentialRampToValueAtTime(500, start + 0.4);
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, start);
+  gain.gain.linearRampToValueAtTime(level, start + 0.004);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + length);
+  const bodyGain = ctx.createGain();
+  bodyGain.gain.value = 0.25;
+  osc.connect(filter);
+  body.connect(bodyGain).connect(filter);
+  filter.connect(gain).connect(bus);
+  for (const o of [osc, body]) {
+    o.start(start);
+    o.stop(start + length + 0.05);
+  }
+}
+
+/** A warm pad: detuned soft saws, slowly swelling in and out. */
+function pad(bus, freqs, at, length, level = 0.012) {
+  const start = ctx.currentTime + at;
+  const filter = ctx.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.value = 900;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, start);
+  gain.gain.linearRampToValueAtTime(level, start + length * 0.35);
+  gain.gain.linearRampToValueAtTime(0, start + length);
+  filter.connect(gain).connect(bus);
+  for (const freq of freqs) {
+    for (const detune of [-7, 7]) {
+      const osc = ctx.createOscillator();
+      osc.type = "sawtooth";
+      osc.frequency.value = freq;
+      osc.detune.value = detune;
+      osc.connect(filter);
+      osc.start(start);
+      osc.stop(start + length + 0.05);
+    }
+  }
+}
+
+/** A round, soft bass note. */
+function bass(bus, freq, at, length, level = 0.07) {
+  const start = ctx.currentTime + at;
+  const osc = ctx.createOscillator();
+  osc.frequency.value = freq;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, start);
+  gain.gain.linearRampToValueAtTime(level, start + 0.02);
+  gain.gain.setValueAtTime(level * 0.8, start + length * 0.6);
+  gain.gain.linearRampToValueAtTime(0, start + length);
+  osc.connect(gain).connect(bus);
+  osc.start(start);
+  osc.stop(start + length + 0.05);
+}
+
+/** Soft lo-fi drums: a muffled kick, a brushed snare and a quiet hat. */
+function drum(bus, kind, at) {
+  const start = ctx.currentTime + at;
+  if (kind === "kick") {
+    const osc = ctx.createOscillator();
+    osc.frequency.setValueAtTime(110, start);
+    osc.frequency.exponentialRampToValueAtTime(45, start + 0.18);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.12, start);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.3);
+    osc.connect(gain).connect(bus);
+    osc.start(start);
+    osc.stop(start + 0.32);
+    return;
+  }
+  const source = ctx.createBufferSource();
+  source.buffer = noise;
+  const filter = ctx.createBiquadFilter();
+  filter.type = kind === "hat" ? "highpass" : "bandpass";
+  filter.frequency.value = kind === "hat" ? 7000 : 1800;
+  filter.Q.value = kind === "hat" ? 0.7 : 0.8;
+  const gain = ctx.createGain();
+  const length = kind === "hat" ? 0.04 : 0.18;
+  gain.gain.setValueAtTime(kind === "hat" ? 0.025 : 0.06, start);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + length);
+  source.connect(filter).connect(gain).connect(bus);
+  source.start(start, Math.random() * 2, length + 0.02);
+}
+
+/** Vinyl: a faint hiss and the odd crackle, under everything. */
+function vinyl(bus, seconds) {
+  const start = ctx.currentTime;
+  const source = ctx.createBufferSource();
+  source.buffer = brown;
+  source.loop = true;
+  const filter = ctx.createBiquadFilter();
+  filter.type = "highpass";
+  filter.frequency.value = 1500;
+  const gain = ctx.createGain();
+  gain.gain.value = 0.02;
+  source.connect(filter).connect(gain).connect(bus);
+  source.start(start);
+  source.stop(start + seconds);
+  let t = 0;
+  while (t < seconds) {
+    const click = ctx.createBufferSource();
+    click.buffer = noise;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.02 + Math.random() * 0.03, start + t);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + t + 0.004);
+    click.connect(g).connect(bus);
+    click.start(start + t, Math.random() * 2, 0.006);
+    t += -Math.log(Math.random()) * 0.25;
+  }
+}
+
+/** Play a track: schedules everything, returns a function that fades it out and stops. */
+function track(build) {
+  const bus = musicBus();
+  build(bus);
+  return () => {
+    bus.gain.setTargetAtTime(0, ctx.currentTime, 0.3);
+    setTimeout(() => bus.disconnect(), 1500);
+  };
+}
+
+const pick = (list) => list[Math.floor(Math.random() * list.length)];
+
 /** A soft hoot: a low sine that swells and fades, slightly breathy. */
 function hoot({ at = 0, freq = 420, to = freq * 0.92, length = 0.35, level = 0.05, pan = 0 }) {
   chirp({ at, from: freq, to, length, level, pan });
@@ -1878,6 +2049,8 @@ const SECTIONS = [
     id: "village.dog",
     prefix: "Пс",
     chosen: [],
+    // Not wanted in the game.
+    settled: true,
     title: "Пес у селі (нові варіанти)",
     note: "Ставок за селом: зрідка гавкає пес. Перший варіант не підійшов, ось інші.",
     sounds: [
@@ -1900,6 +2073,105 @@ const SECTIONS = [
         name: "Пес і відлуння",
         text: "Гавкіт далеко в селі, з відлунням між хатами",
         play: () => { const side = pan() * 2; const bus = echoBus(0.25, 0.3, 0.5); for (const at of [0, 0.38, 0.75]) { const start = ctx.currentTime + at; const osc = ctx.createOscillator(); osc.type = "sawtooth"; osc.frequency.setValueCurveAtTime(Float32Array.from([480, 540, 380]), start, 0.13); const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 850; f.Q.value = 2; const far = ctx.createBiquadFilter(); far.type = "lowpass"; far.frequency.value = 900; const g = ctx.createGain(); g.gain.setValueAtTime(0, start); g.gain.linearRampToValueAtTime(0.07, start + 0.02); g.gain.linearRampToValueAtTime(0, start + 0.13); osc.connect(f).connect(far).connect(g).connect(bus); osc.start(start); osc.stop(start + 0.15); } },
+      },
+    ],
+  },
+  {
+    id: "music",
+    prefix: "Мз",
+    chosen: [],
+    title: "Фонова музика",
+    note: "Генерується наживо й щоразу трохи інша. Кожна грає ~25 секунд; натисни ще раз, щоб зупинити. У грі вмикатиметься час від часу.",
+    music: true,
+    sounds: [
+      {
+        name: "Ранок на ставку",
+        text: "Тепле електропіано, повільні м'які акорди, тихий біт і вініл",
+        play: () => track((bus) => {
+          const beat = 60 / 70;
+          const chords = [["F3", "A3", "C4", "E4"], ["E3", "G3", "B3", "D4"], ["D3", "F3", "A3", "C4"], ["C3", "E3", "G3", "B3"]];
+          const roots = ["F2", "E2", "D2", "C2"];
+          vinyl(bus, 28);
+          for (let bar = 0; bar < 8; bar += 1) {
+            const at = bar * beat * 4;
+            const chord = chords[bar % 4];
+            chord.forEach((n, i) => epiano(bus, NOTE(n), at + i * 0.02, beat * 3.6, 0.022));
+            epiano(bus, NOTE(pick(chord).replace(/\d$/, "5")), at + beat * 2.5, beat * 1.4, 0.016);
+            bass(bus, NOTE(roots[bar % 4]), at, beat * 1.8);
+            bass(bus, NOTE(roots[bar % 4]), at + beat * 2.5, beat * 1.2, 0.05);
+            for (let b = 0; b < 4; b += 1) {
+              if (b === 0 || b === 2.5) drum(bus, "kick", at + b * beat);
+              if (b === 1 || b === 3) drum(bus, "snare", at + b * beat);
+              drum(bus, "hat", at + b * beat + beat * 0.55);
+            }
+            drum(bus, "kick", at + beat * 2.5);
+          }
+        }),
+      },
+      {
+        name: "Вечірня гітара",
+        text: "Перебір нейлонової гітари, без барабанів, спокійно",
+        play: () => track((bus) => {
+          const beat = 60 / 80;
+          const chords = [["A2", "E3", "A3", "C4", "E4"], ["F2", "C3", "F3", "A3", "C4"], ["C3", "G3", "C4", "E4", "G4"], ["G2", "D3", "G3", "B3", "D4"]];
+          for (let bar = 0; bar < 8; bar += 1) {
+            const at = bar * beat * 4;
+            const chord = chords[bar % 4];
+            const pattern = [0, 2, 3, 4, 3, 2, 1, 2];
+            pattern.forEach((idx, i) => guitar(bus, NOTE(chord[idx]), at + i * beat * 0.5 + (Math.random() - 0.5) * 0.02, 1.8, i === 0 ? 0.045 : 0.03));
+          }
+        }),
+      },
+      {
+        name: "Ніч над водою",
+        text: "Пади й рідкі ноти піаніно з відлунням, без ритму",
+        play: () => track((bus) => {
+          const echo = ctx.createDelay(2);
+          echo.delayTime.value = 0.55;
+          const back = ctx.createGain();
+          back.gain.value = 0.45;
+          const damp = ctx.createBiquadFilter();
+          damp.type = "lowpass";
+          damp.frequency.value = 1800;
+          const wet = ctx.createGain();
+          wet.gain.value = 0.6;
+          const send = ctx.createGain();
+          send.connect(bus);
+          send.connect(echo).connect(damp).connect(back).connect(echo);
+          damp.connect(wet).connect(bus);
+          const chords = [["A2", "C3", "E3", "B3"], ["F2", "A2", "C3", "E3"], ["D2", "F2", "A2", "C3"], ["E2", "G#2", "B2", "D3"]];
+          const scale = ["A4", "B4", "C5", "E5", "G5", "A5"];
+          for (let i = 0; i < 4; i += 1) pad(bus, chords[i].map(NOTE), i * 6.5, 7.5, 0.01);
+          let t = 1;
+          while (t < 26) {
+            epiano(send, NOTE(pick(scale)), t, 2.2, 0.018);
+            t += 1.2 + Math.random() * 2.2;
+          }
+        }),
+      },
+      {
+        name: "Лоу-фай біт",
+        text: "Класичний лоу-фай: джазові акорди, ледачий свінг, вініл",
+        play: () => track((bus) => {
+          const beat = 60 / 78;
+          const swing = beat * 0.12;
+          const chords = [["D3", "F3", "A3", "C4", "E4"], ["G2", "F3", "B3", "E4"], ["C3", "E3", "G3", "B3", "D4"], ["A2", "G3", "C#4", "F4"]];
+          const roots = ["D2", "G2", "C2", "A2"];
+          vinyl(bus, 28);
+          for (let bar = 0; bar < 8; bar += 1) {
+            const at = bar * beat * 4;
+            const chord = chords[bar % 4];
+            chord.forEach((n, i) => epiano(bus, NOTE(n), at + i * 0.015, beat * 1.7, 0.02));
+            chord.forEach((n, i) => epiano(bus, NOTE(n), at + beat * 2.5 + swing + i * 0.015, beat * 1.2, 0.014));
+            bass(bus, NOTE(roots[bar % 4]), at, beat * 1.5);
+            bass(bus, NOTE(roots[bar % 4]) * 1.5, at + beat * 2.5 + swing, beat, 0.05);
+            drum(bus, "kick", at);
+            drum(bus, "kick", at + beat * 1.5 + swing);
+            drum(bus, "snare", at + beat);
+            drum(bus, "snare", at + beat * 3);
+            for (let h = 0; h < 8; h += 1) drum(bus, "hat", at + h * beat * 0.5 + (h % 2 ? swing : 0));
+          }
+        }),
       },
     ],
   },
@@ -2212,6 +2484,22 @@ function renderSection(section, into) {
     button.innerHTML = `<strong><b>${section.prefix}${index + 1}</b> · ${sound.name}${picked ? " ✓ у грі" : ""}</strong><span>${sound.text}</span>`;
     button.addEventListener("click", () => {
       audio();
+      // Music plays for a while: a second press stops it.
+      if (section.music) {
+        if (button.stop) {
+          button.stop();
+          button.stop = null;
+          button.classList.remove("is-playing");
+          return;
+        }
+        button.stop = sound.play();
+        button.classList.add("is-playing");
+        setTimeout(() => {
+          button.stop = null;
+          button.classList.remove("is-playing");
+        }, 27000);
+        return;
+      }
       sound.play();
       button.classList.add("is-playing");
       setTimeout(() => button.classList.remove("is-playing"), 900);
