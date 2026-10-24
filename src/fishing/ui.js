@@ -10,7 +10,7 @@ import { SEASONS, season, setSeason } from "../theme.js";
 import { validNickname } from "../cloud.js";
 import { track } from "../analytics.js";
 import { baitCount, saveProgress } from "./store.js";
-import { setSoundEnabled, soundAllowed, soundEnabled, sounds } from "../sound.js";
+import { setSoundEnabled, soundEnabled, sounds } from "../sound.js";
 
 // Hook sprites grow with the hook's size.
 const HOOK_SCALE = { small: 2, medium: 3, large: 4 };
@@ -171,21 +171,18 @@ export class AnglerUI {
       },
     })));
     $("#season-hint").textContent = t(`season.${season()}Hint`);
-    // Sound is still being tuned: off for everyone, switchable only on the owner's devices.
-    const allowed = soundAllowed();
+    // Sound: off until switched on here.
     $("#sound-options").replaceChildren(...[true, false].map((on) => element("button", {
       className: `pixel-btn tab${on === soundEnabled() ? " is-active" : ""}`,
       type: "button",
       role: "radio",
       ariaChecked: String(on === soundEnabled()),
-      disabled: !allowed,
       textContent: t(on ? "sound.on" : "sound.off"),
       onclick: () => {
         setSoundEnabled(on);
         this.openSettings();
       },
     })));
-    $("#sound-hint").hidden = allowed;
     if (!this.settingsDialog.open) this.settingsDialog.showModal();
   }
 
