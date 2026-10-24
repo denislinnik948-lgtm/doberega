@@ -545,7 +545,7 @@ export const sounds = {
  * water lapping now and then while at the water, birds by day, crickets at
  * night, and rain as drops plus a deep murmur that swells with the rain.
  */
-const ambient = { lap: 3, bird: 6, cricket: 2, drop: 0, jump: 25, duck: 8, owl: 60, thunder: 40 };
+const ambient = { lap: 3, bird: 6, cricket: 2, drop: 0, jump: 25, duck: 8, owl: 60, thunder: 40, frog: 10 };
 
 function lap() {
   // A small wave against the bank (lab: Хв1 "Тихий плескіт"): a soft swell of deep noise and a couple of bubbles.
@@ -671,6 +671,19 @@ function hoot(freq, length, level, pan, delay = 0) {
   wash({ type: "bandpass", from: freq * 2, q: 4, attack: length * 0.3, length, volume: level * 0.15, pan, delay });
 }
 
+function treeFrog() {
+  // A tree frog in the reeds (lab: Жб2 "Квакша"): a quick high "kek-kek-kek"; now and then a second one answers.
+  const call = (delay, pan) => {
+    const freq = vary(1900, 0.04);
+    const count = 4 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < count; i += 1) {
+      for (let p = 0; p < 5; p += 1) chirp({ delay: delay + i * 0.14 + p * 0.007, from: freq, to: freq * 0.97, length: 0.006, level: 0.03, pan });
+    }
+  };
+  call(0, rand(-0.8, 0.8));
+  if (Math.random() < 0.4) call(rand(1.1, 1.8), rand(-0.8, 0.8));
+}
+
 function owl() {
   // A little owl deep in the night (lab: Св1 "Сич"): two quiet hoots.
   const pan = rand(-0.8, 0.8);
@@ -727,7 +740,7 @@ function setRainBed(level) {
  * Advance the background by `step` seconds: `atWater` while fishing, `rain`
  * 0..1, `night` while it's dark.
  */
-export function ambienceTick(step, { atWater, rain, night, ducks = 0 }) {
+export function ambienceTick(step, { atWater, rain, night, ducks = 0, frogs = false }) {
   if (!audio() || step <= 0) return;
   if (Math.abs(rain - rainLevel) > 0.02 || (rain <= 0.02 && rainBed)) {
     rainLevel = rain;
@@ -756,6 +769,11 @@ export function ambienceTick(step, { atWater, rain, night, ducks = 0 }) {
   if (atWater && night && rain < 0.3 && ambient.cricket <= 0) {
     ambient.cricket = rand(0.8, 3);
     cricket();
+  }
+  // Tree frogs in the reeds on warm evenings and nights.
+  if (atWater && frogs && rain < 0.5 && ambient.frog <= 0) {
+    ambient.frog = rand(6, 15);
+    treeFrog();
   }
   // An owl now and then deep in the night.
   if (atWater && night && rain < 0.3 && ambient.owl <= 0) {

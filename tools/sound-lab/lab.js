@@ -515,6 +515,50 @@ function kek({ at = 0, freq, pan = 0 }) {
   for (let p = 0; p < 5; p += 1) chirp({ at: at + p * 0.007, from: freq, to: freq * 0.97, length: 0.006, level: 0.03, pan });
 }
 
+/** A ghostly echo: whatever is connected fades back again and again, off to the sides. */
+function echoBus(delay = 0.32, feedback = 0.45, wet = 0.6) {
+  const input = ctx.createGain();
+  const echo = ctx.createDelay(2);
+  echo.delayTime.value = delay;
+  const back = ctx.createGain();
+  back.gain.value = feedback;
+  const damp = ctx.createBiquadFilter();
+  damp.type = "lowpass";
+  damp.frequency.value = 2200;
+  const out = ctx.createGain();
+  out.gain.value = wet;
+  input.connect(master);
+  input.connect(echo).connect(damp).connect(back).connect(echo);
+  damp.connect(out).connect(master);
+  return input;
+}
+
+/** A sung, wordless note: a sine with a slow vibrato through a soft vowel resonance. */
+function hum({ at = 0, freq, length, level, destination = master }) {
+  const start = ctx.currentTime + at;
+  const osc = ctx.createOscillator();
+  osc.type = "triangle";
+  osc.frequency.value = freq;
+  const lfo = ctx.createOscillator();
+  lfo.frequency.value = 5;
+  const depth = ctx.createGain();
+  depth.gain.value = freq * 0.012;
+  lfo.connect(depth).connect(osc.frequency);
+  const vowel = ctx.createBiquadFilter();
+  vowel.type = "bandpass";
+  vowel.frequency.value = 800;
+  vowel.Q.value = 1.2;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, start);
+  gain.gain.linearRampToValueAtTime(level, start + length * 0.3);
+  gain.gain.linearRampToValueAtTime(0, start + length);
+  osc.connect(vowel).connect(gain).connect(destination);
+  osc.start(start);
+  osc.stop(start + length + 0.05);
+  lfo.start(start);
+  lfo.stop(start + length + 0.05);
+}
+
 /** A soft hoot: a low sine that swells and fades, slightly breathy. */
 function hoot({ at = 0, freq = 420, to = freq * 0.92, length = 0.35, level = 0.05, pan = 0 }) {
   chirp({ at, from: freq, to, length, level, pan });
@@ -1409,7 +1453,7 @@ const SECTIONS = [
   {
     id: "frog",
     prefix: "Жб",
-    chosen: [],
+    chosen: [1],
     title: "Жаби (нова спроба)",
     note: "Біля ставка ввечері й теплої ночі. Тепер за справжніми видами: це не гудіння, а торохтіння з окремих імпульсів, писк чи тихе «уук».",
     sounds: [
@@ -1544,6 +1588,139 @@ const SECTIONS = [
         name: "Вітер з очеретом",
         text: "Порив і шелест разом",
         play: () => { swell({ type: "bandpass", freq: 450, q: 0.6, length: 2.5, level: 0.05, deep: true }); swell({ at: 0.4, type: "bandpass", freq: 3000, q: 0.9, length: 1.8, level: 0.025, flutter: 0.5 }); },
+      },
+    ],
+  },
+  {
+    id: "night.wisp",
+    prefix: "Вг",
+    chosen: [],
+    title: "Блукаючі вогники",
+    note: "Ніч і містика: бліді вогники над тим берегом. Тихо, моторошно, але не страшно.",
+    sounds: [
+      {
+        name: "Скляний дзвін",
+        text: "Високі скляні тони, що тремтять і відлунюють",
+        play: () => { const bus = echoBus(0.38, 0.5, 0.7); for (const [f, at] of [[1760, 0], [1767, 0], [2349, 0.4]]) { const start = ctx.currentTime + at; const osc = ctx.createOscillator(); osc.frequency.value = f; const g = ctx.createGain(); g.gain.setValueAtTime(0, start); g.gain.linearRampToValueAtTime(0.012, start + 0.4); g.gain.linearRampToValueAtTime(0, start + 1.6); osc.connect(g).connect(bus); osc.start(start); osc.stop(start + 1.7); } },
+      },
+      {
+        name: "Подих вогника",
+        text: "Тихий високий шелест і ледь чутний дзвоник",
+        play: () => { wash({ type: "bandpass", from: 3000, to: 5000, q: 2, attack: 0.5, length: 1.4, level: 0.02 }); bell({ at: 0.6, freq: 2637, level: 0.012, length: 1.2 }); },
+      },
+    ],
+  },
+  {
+    id: "night.boat",
+    prefix: "Чв",
+    chosen: [],
+    title: "Човняр",
+    note: "Човен без весел пропливає вдалині: чути лише дерево й воду.",
+    sounds: [
+      {
+        name: "Скрип дерева",
+        text: "Повільний рипучий скрип старого човна",
+        play: () => { creak({ length: 0.6, level: 0.04, low: 220, high: 420, step: 0.035 }); creak({ at: 1.4, length: 0.5, level: 0.03, low: 260, high: 380, step: 0.035 }); },
+      },
+      {
+        name: "Плескіт об борт",
+        text: "Вода тихо плескає об дерев'яний борт, і скрип",
+        play: () => { for (let i = 0; i < 3; i += 1) wash({ at: i * 0.7, type: "lowpass", from: 600, to: 200, attack: 0.1, length: 0.5, level: 0.06, deep: true }); creak({ at: 0.4, length: 0.5, level: 0.03, low: 240, high: 400, step: 0.035 }); },
+      },
+    ],
+  },
+  {
+    id: "night.mavka",
+    prefix: "Мв",
+    chosen: [],
+    title: "Мавка",
+    note: "Бліда дівчина біля води заходить у воду й зникає.",
+    sounds: [
+      {
+        name: "Наспів без слів",
+        text: "Далекий жіночий наспів, три сумні ноти з відлунням",
+        play: () => { const bus = echoBus(0.42, 0.45, 0.6); [[659, 0, 0.9], [587, 0.8, 0.9], [494, 1.6, 1.4]].forEach(([freq, at, length]) => hum({ at, freq, length, level: 0.03, destination: bus })); },
+      },
+      {
+        name: "Плескіт і зітхання",
+        text: "Тихе зітхання, і хтось заходить у воду",
+        play: () => { wash({ type: "bandpass", from: 1200, to: 700, q: 0.8, attack: 0.3, length: 0.9, level: 0.025 }); for (let i = 0; i < 3; i += 1) wash({ at: 0.9 + i * 0.35, type: "lowpass", from: 900, to: 250, attack: 0.05, length: 0.3, level: 0.06, deep: true }); },
+      },
+    ],
+  },
+  {
+    id: "night.lantern",
+    prefix: "Лх",
+    chosen: [],
+    title: "Ліхтар на березі",
+    note: "Вогник ліхтаря йде берегом, зупиняється й гасне.",
+    sounds: [
+      {
+        name: "Тріск і гасне",
+        text: "Потріскування вогню, а потім тихе «пф» і тиша",
+        play: () => { for (let i = 0; i < 10; i += 1) wash({ at: Math.random() * 1, type: "bandpass", from: 2500 + Math.random() * 2000, q: 3, attack: 0.001, length: 0.008, level: 0.03 }); wash({ at: 1.1, type: "lowpass", from: 800, to: 200, attack: 0.02, length: 0.3, level: 0.05 }); },
+      },
+      {
+        name: "Скрип дужки",
+        text: "Металева дужка ліхтаря поскрипує, поки він гойдається",
+        play: () => { for (let i = 0; i < 3; i += 1) creak({ at: i * 0.55, length: 0.2, level: 0.025, low: 1400, high: 1900, step: 0.02 }); },
+      },
+    ],
+  },
+  {
+    id: "night.eyes",
+    prefix: "Оч",
+    chosen: [],
+    title: "Очі біля берега",
+    note: "Червоні очі спливають біля берега й зникають у кільцях.",
+    sounds: [
+      {
+        name: "Гул і бульк",
+        text: "Глибокий низький гул наростає, і важкий бульк",
+        play: () => { swell({ type: "lowpass", freq: 90, length: 2, level: 0.18, deep: true }); bubble({ at: 1.7, freq: 140, rise: 2.6, length: 0.18, level: 0.2, muffle: 0.5 }); },
+      },
+      {
+        name: "Вдих води",
+        text: "З глибини піднімаються повільні бульбашки",
+        play: () => { for (let i = 0; i < 6; i += 1) bubble({ at: i * 0.28 + Math.random() * 0.1, freq: 180 + i * 30, rise: 2.4, length: 0.12, level: 0.08, muffle: 0.6 }); },
+      },
+    ],
+  },
+  {
+    id: "night.drone",
+    prefix: "Гл",
+    chosen: [],
+    title: "Нічний гул",
+    note: "Глибокої ночі ледь чутне тло під усім, від якого трохи не по собі. Тут 4 секунди.",
+    sounds: [
+      {
+        name: "Глибокий тон",
+        text: "Дуже низький тон, що повільно «пливе»",
+        play: () => { const start = ctx.currentTime; for (const f of [55, 55.6]) { const osc = ctx.createOscillator(); osc.frequency.value = f; const g = ctx.createGain(); g.gain.setValueAtTime(0, start); g.gain.linearRampToValueAtTime(0.06, start + 1.5); g.gain.linearRampToValueAtTime(0, start + 4); osc.connect(g).connect(master); osc.start(start); osc.stop(start + 4.1); } },
+      },
+      {
+        name: "Повітряний бас",
+        text: "Глухий шум, як далекий вітер у порожнечі",
+        play: () => swell({ type: "lowpass", freq: 110, length: 4, level: 0.12, deep: true }),
+      },
+    ],
+  },
+  {
+    id: "night.whisper",
+    prefix: "Шп",
+    chosen: [],
+    title: "Шепіт з очерету",
+    note: "Дуже рідко: ніби хтось шепоче в очереті. Не розбереш слів.",
+    sounds: [
+      {
+        name: "Шепіт",
+        text: "Кілька нерозбірливих шиплячих складів",
+        play: () => { const side = pan() * 2; let at = 0; for (let i = 0; i < 6; i += 1) { const length = 0.08 + Math.random() * 0.14; const f = 1800 + Math.random() * 2500; const start = ctx.currentTime + at; const source = ctx.createBufferSource(); source.buffer = noise; const filter = ctx.createBiquadFilter(); filter.type = "bandpass"; filter.frequency.value = f; filter.Q.value = 2.5; const g = ctx.createGain(); g.gain.setValueAtTime(0, start); g.gain.linearRampToValueAtTime(0.03, start + length * 0.3); g.gain.linearRampToValueAtTime(0, start + length); const p = ctx.createStereoPanner(); p.pan.value = side; source.connect(filter).connect(g).connect(p).connect(master); source.start(start, Math.random(), length + 0.05); at += length + 0.03 + Math.random() * 0.1; } },
+      },
+      {
+        name: "Шепіт з відлунням",
+        text: "Те саме, але далеко й з відлунням",
+        play: () => { const bus = echoBus(0.3, 0.5, 0.7); let at = 0; for (let i = 0; i < 5; i += 1) { const length = 0.1 + Math.random() * 0.12; const start = ctx.currentTime + at; const source = ctx.createBufferSource(); source.buffer = noise; const filter = ctx.createBiquadFilter(); filter.type = "bandpass"; filter.frequency.value = 2000 + Math.random() * 2000; filter.Q.value = 2.5; const g = ctx.createGain(); g.gain.setValueAtTime(0, start); g.gain.linearRampToValueAtTime(0.02, start + length * 0.3); g.gain.linearRampToValueAtTime(0, start + length); source.connect(filter).connect(g).connect(bus); source.start(start, Math.random(), length + 0.05); at += length + 0.05 + Math.random() * 0.1; } },
       },
     ],
   },
