@@ -309,11 +309,11 @@ export const sounds = {
     bubble(vary(380), 0.16 * size);
     splash(0.35 * size);
   },
-  /** The float ducking under: one small bubble. */
+  /** The float ducking under (lab: К1 "Тихий бульк"): one small bubble and a smaller one after it. */
   bite() {
     if (!audio()) return;
-    bubble(vary(700), 0.07);
-    bubble(vary(1000), 0.03, 0.05);
+    blup({ freq: vary(620, 0.08), rise: 2.2, length: 0.045, level: 0.16 });
+    blup({ delay: 0.05, freq: vary(900, 0.08), rise: 2, length: 0.03, level: 0.06 });
   },
   /** A fish hitting a lure: a swirl at the surface. */
   strike() {

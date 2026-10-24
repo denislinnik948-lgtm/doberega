@@ -157,6 +157,49 @@ function droplets({ count, from = 0.04, to = 0.3, level = 0.05 }) {
   }
 }
 
+/**
+ * A stretch of reeling, for listening: `click(at)` is one click of the
+ * ratchet, played every `interval` seconds (a little uneven, as a real reel
+ * is) for `seconds`, with an optional soft hum of the gears under it.
+ */
+function reeling({ seconds = 1.6, interval, unevenness = 0.15, click, hum = 0, humFreq = 90 }) {
+  let at = 0;
+  while (at < seconds) {
+    click(at);
+    at += interval * (1 + (Math.random() * 2 - 1) * unevenness);
+  }
+  if (hum) {
+    const start = ctx.currentTime;
+    const source = ctx.createBufferSource();
+    source.buffer = noise;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = humFreq * 4;
+    filter.Q.value = 3;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, start);
+    gain.gain.linearRampToValueAtTime(hum, start + 0.15);
+    gain.gain.setValueAtTime(hum, start + seconds - 0.2);
+    gain.gain.linearRampToValueAtTime(0, start + seconds);
+    // The gears' rhythm: the hum swells and dips with each turn of the handle.
+    const wobble = ctx.createOscillator();
+    wobble.frequency.value = 3.2;
+    const depth = ctx.createGain();
+    depth.gain.value = hum * 0.5;
+    wobble.connect(depth).connect(gain.gain);
+    source.connect(filter).connect(gain).connect(master);
+    source.start(start, Math.random(), seconds + 0.1);
+    wobble.start(start);
+    wobble.stop(start + seconds + 0.1);
+  }
+}
+
+/** One short click: a burst of noise through a narrow band (bright for metal, low for wood). */
+function tick(at, { freq, q = 3, length = 0.012, level = 0.1, ring = 0 }) {
+  wash({ at, type: "bandpass", from: freq * (1 + (Math.random() - 0.5) * 0.15), q, attack: 0.0008, length, level });
+  if (ring) bubble({ at, freq: freq * 1.6, rise: 1.02, length: 0.04, level: ring });
+}
+
 /*
  * The candidates. `play` builds the sound fresh each time; with variation on,
  * pitch and length shift a little, as they will in the game.
@@ -294,7 +337,7 @@ const SECTIONS = [
   {
     id: "float.sink",
     prefix: "К",
-    chosen: [],
+    chosen: [0],
     title: "Кльов: поплавок іде під воду",
     note: "Риба взяла, поплавок пірнає. Сигнал підсікати: має бути чутним, але тихим і природним.",
     sounds: [
@@ -338,6 +381,40 @@ const SECTIONS = [
           wash({ type: "lowpass", from: jitter(1600), to: 300, attack: 0.003, length: 0.1, level: 0.12 });
           bubble({ at: 0.07, freq: jitter(300), rise: 2.5, length: 0.08, level: 0.2, muffle: 0.6 });
         },
+      },
+    ],
+  },
+  {
+    id: "reel.float",
+    prefix: "Р",
+    chosen: [],
+    title: "Звичайна котушка (поплавочна вудка)",
+    note: "Грає, поки змотуєш волосінь або тягнеш рибу. Тут 1,6 секунди змотування; у грі звук іде, доки тримаєш.",
+    sounds: [
+      {
+        name: "Тріскачка",
+        text: "Сухі пластикові клацання, часті й трохи нерівні",
+        play: () => reeling({ interval: 0.07, click: (at) => tick(at, { freq: 3200, q: 2, level: 0.09 }) }),
+      },
+      {
+        name: "Металеві клацання",
+        text: "Дзвінкіші, рідші, з ледь чутним дзеньком",
+        play: () => reeling({ interval: 0.1, click: (at) => tick(at, { freq: 4200, q: 4, level: 0.08, ring: 0.012 }) }),
+      },
+      {
+        name: "Гул шестерень",
+        text: "М'яке гудіння механізму й тихі клацання під ним",
+        play: () => reeling({ interval: 0.09, unevenness: 0.1, click: (at) => tick(at, { freq: 2600, q: 2, level: 0.035 }), hum: 0.05, humFreq: 110 }),
+      },
+      {
+        name: "Інерційна котушка",
+        text: "Повільні глухі «тук» старої дерев'яної котушки",
+        play: () => reeling({ interval: 0.16, unevenness: 0.2, click: (at) => tick(at, { freq: 900, q: 3, length: 0.02, level: 0.12 }) }),
+      },
+      {
+        name: "Майже тиха",
+        text: "Ледь чутний шелест механізму, рідкі клацання",
+        play: () => reeling({ interval: 0.22, click: (at) => tick(at, { freq: 3000, q: 2, level: 0.03 }), hum: 0.025, humFreq: 140 }),
       },
     ],
   },
