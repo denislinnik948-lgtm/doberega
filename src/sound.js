@@ -545,7 +545,7 @@ export const sounds = {
  * water lapping now and then while at the water, birds by day, crickets at
  * night, and rain as drops plus a deep murmur that swells with the rain.
  */
-const ambient = { lap: 3, bird: 6, cricket: 2, drop: 0, jump: 25, duck: 8 };
+const ambient = { lap: 3, bird: 6, cricket: 2, drop: 0, jump: 25, duck: 8, owl: 60, thunder: 40 };
 
 function lap() {
   // A small wave against the bank (lab: Хв1 "Тихий плескіт"): a soft swell of deep noise and a couple of bubbles.
@@ -659,11 +659,41 @@ function duck() {
 }
 
 function cricket() {
-  // A chirp: a quick train of pulses at one high pitch.
+  // A cricket (lab: Цв1 "Поодинокі"): a short trill of four pulses at one high pitch, somewhere off to the side.
   const pan = rand(-0.9, 0.9);
   const freq = rand(4200, 4800);
-  const pulses = 3 + Math.floor(Math.random() * 3);
-  for (let i = 0; i < pulses; i += 1) ping(freq, 0.007, 0.025, { delay: i * 0.045, pan });
+  for (let i = 0; i < 4; i += 1) chirp({ delay: i * 0.045, from: freq, to: freq, length: 0.025, level: 0.008, pan });
+}
+
+/** A soft hoot: a low sine that swells and fades, slightly breathy. */
+function hoot(freq, length, level, pan, delay = 0) {
+  chirp({ delay, from: freq, to: freq * 0.92, length, level, pan });
+  wash({ type: "bandpass", from: freq * 2, q: 4, attack: length * 0.3, length, volume: level * 0.15, pan, delay });
+}
+
+function owl() {
+  // A little owl deep in the night (lab: Св1 "Сич"): two quiet hoots.
+  const pan = rand(-0.8, 0.8);
+  hoot(440, 0.3, 0.05, pan);
+  hoot(420, 0.35, 0.05, pan, 0.5);
+}
+
+function thunder() {
+  // Far thunder in a heavy downpour (lab: Гр1 "Гуркіт"): a low rumble rolling on for a few seconds.
+  const at = ctx.currentTime;
+  const source = ctx.createBufferSource();
+  source.buffer = brown;
+  const filter = ctx.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.value = 140;
+  const steps = 120;
+  const curve = new Float32Array(steps);
+  for (let i = 0; i < steps; i += 1) curve[i] = 0.3 * Math.sin(Math.PI * (i / (steps - 1))) ** 1.5 * rand(0.6, 1);
+  const gain = ctx.createGain();
+  gain.gain.value = 0;
+  gain.gain.setValueCurveAtTime(curve, at, 3);
+  source.connect(filter).connect(gain).connect(master);
+  source.start(at, rand(0, 1), 3.05);
 }
 
 let rainLevel = 0;
@@ -726,6 +756,16 @@ export function ambienceTick(step, { atWater, rain, night, ducks = 0 }) {
   if (atWater && night && rain < 0.3 && ambient.cricket <= 0) {
     ambient.cricket = rand(0.8, 3);
     cricket();
+  }
+  // An owl now and then deep in the night.
+  if (atWater && night && rain < 0.3 && ambient.owl <= 0) {
+    ambient.owl = rand(60, 150);
+    owl();
+  }
+  // Far thunder, only in a heavy downpour.
+  if (rain > 0.7 && ambient.thunder <= 0) {
+    ambient.thunder = rand(40, 90);
+    thunder();
   }
   // Rain: drops landing on the water all around, more as it gets heavier.
   if (rain > 0.05 && ambient.drop <= 0) {

@@ -492,6 +492,29 @@ function croak({ at = 0, freq = 140, pulses = 22, length = 0.35, level = 0.05, b
   lfo.stop(start + length + 0.05);
 }
 
+/**
+ * One croak of a marsh frog: a dry rattle of quick pulses, each a click with a
+ * throaty resonance. Notes come faster and faster, like a laugh.
+ */
+function rattle({ at = 0, notes = 6, from = 0.12, to = 0.07, level = 1, pan = 0 }) {
+  let time = at;
+  for (let n = 0; n < notes; n += 1) {
+    const pulses = 5 + Math.floor(Math.random() * 3);
+    const base = 520 + Math.random() * 120;
+    for (let p = 0; p < pulses; p += 1) {
+      const t = time + p * 0.011;
+      wash({ at: t, type: "bandpass", from: 1300, q: 5, attack: 0.0008, length: 0.008, level: 0.05 * level, pan });
+      bubble({ at: t, freq: base, rise: 0.95, length: 0.014, level: 0.05 * level, pan });
+    }
+    time += from + (to - from) * (n / Math.max(1, notes - 1));
+  }
+}
+
+/** One "kek" of a tree frog: a short high note buzzing at a low rate inside. */
+function kek({ at = 0, freq, pan = 0 }) {
+  for (let p = 0; p < 5; p += 1) chirp({ at: at + p * 0.007, from: freq, to: freq * 0.97, length: 0.006, level: 0.03, pan });
+}
+
 /** A soft hoot: a low sine that swells and fades, slightly breathy. */
 function hoot({ at = 0, freq = 420, to = freq * 0.92, length = 0.35, level = 0.05, pan = 0 }) {
   chirp({ at, from: freq, to, length, level, pan });
@@ -1387,30 +1410,35 @@ const SECTIONS = [
     id: "frog",
     prefix: "Жб",
     chosen: [],
-    title: "Жаби",
-    note: "Біля ставка ввечері й теплої ночі. Тут кілька голосів.",
+    title: "Жаби (нова спроба)",
+    note: "Біля ставка ввечері й теплої ночі. Тепер за справжніми видами: це не гудіння, а торохтіння з окремих імпульсів, писк чи тихе «уук».",
     sounds: [
       {
+        name: "Озерна жаба",
+        text: "Торохтливе «ке-ке-ке-ке», що прискорюється, як сміх",
+        play: () => series(2, 1.1, (at) => rattle({ at, notes: 7, from: 0.12, to: 0.07, pan: pan() })),
+      },
+      {
         name: "Квакша",
-        text: "Коротке «кре-ке-ке»",
-        play: () => series(3, 0.5, (at) => croak({ at, freq: jitter(160), pulses: 26, length: 0.28, level: 0.04, pan: pan() })),
+        text: "Високе швидке «кек-кек-кек»",
+        play: () => series(2, 1, (at) => { const side = pan(); for (let i = 0; i < 6; i += 1) kek({ at: at + i * 0.14, freq: jitter(1900, 0.03), pan: side }); }),
       },
       {
-        name: "Ставкова жаба",
-        text: "Протяжне «ква-а-а», трохи вниз",
-        play: () => series(2, 0.8, (at) => croak({ at, freq: jitter(120), pulses: 14, length: 0.5, level: 0.05, bend: 0.85, formant: 600, pan: pan() })),
+        name: "Жерлянка",
+        text: "Тихе сумне «уук… уук…», як нічний ставок",
+        play: () => { const side = pan(); for (let i = 0; i < 4; i += 1) hoot({ at: i * jitter(0.9, 0.1), freq: jitter(470, 0.03), to: 455, length: 0.22, level: 0.045, pan: side }); },
       },
       {
-        name: "Хор",
-        text: "Кілька жаб перегукуються",
-        play: () => { for (let i = 0; i < 7; i += 1) croak({ at: Math.random() * 1.6, freq: 110 + Math.random() * 80, pulses: 14 + Math.random() * 14, length: 0.25 + Math.random() * 0.3, level: 0.03, pan: Math.random() * 1.4 - 0.7 }); },
+        name: "Хор озерних жаб",
+        text: "Кілька озерних жаб перегукуються вдалині",
+        play: () => { for (let k = 0; k < 4; k += 1) rattle({ at: Math.random() * 1.4, notes: 4 + Math.floor(Math.random() * 4), from: 0.13, to: 0.08, level: 0.5, pan: Math.random() * 1.4 - 0.7 }); },
       },
     ],
   },
   {
     id: "crickets",
     prefix: "Цв",
-    chosen: [],
+    chosen: [0],
     title: "Цвіркуни вночі",
     note: "Сухої ночі. Тут дві секунди.",
     sounds: [
@@ -1434,7 +1462,7 @@ const SECTIONS = [
   {
     id: "owl",
     prefix: "Св",
-    chosen: [],
+    chosen: [0],
     title: "Сова",
     note: "Глибокої ночі, рідко.",
     sounds: [
@@ -1453,7 +1481,7 @@ const SECTIONS = [
   {
     id: "rain",
     prefix: "Дщ",
-    chosen: [],
+    chosen: [0],
     title: "Дощ",
     note: "Фон, поки йде дощ. Тут дві секунди помірного дощу.",
     sounds: [
@@ -1477,7 +1505,7 @@ const SECTIONS = [
   {
     id: "thunder.far",
     prefix: "Гр",
-    chosen: [],
+    chosen: [0],
     title: "Далекий грім",
     note: "Рідко, лише в сильну зливу.",
     sounds: [
@@ -1497,6 +1525,8 @@ const SECTIONS = [
     id: "wind",
     prefix: "Вт",
     chosen: [],
+    // Not wanted in the game.
+    settled: true,
     title: "Вітер і очерет",
     note: "Фон: рідкі пориви, коли вітер колише траву й очерет.",
     sounds: [
