@@ -243,6 +243,38 @@ function linePeel({ delay = 0, duration, level = 0.06, flutter = 45 }) {
   source.start(start, rand(0, 1.4), duration + 0.05);
 }
 
+/** A bubble with a set shape (the sound lab's), optionally muffled under water. */
+function blup({ freq, rise = 2.3, length = 0.05, level = 0.2, delay = 0, pan = 0, muffle = 0 }) {
+  const at = ctx.currentTime + delay;
+  const osc = ctx.createOscillator();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(freq, at);
+  osc.frequency.exponentialRampToValueAtTime(freq * rise, at + length);
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, at);
+  gain.gain.linearRampToValueAtTime(level, at + 0.004);
+  gain.gain.exponentialRampToValueAtTime(0.0001, at + length);
+  let tail = gain;
+  if (muffle) {
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 900 - 600 * muffle;
+    gain.connect(filter);
+    tail = filter;
+  }
+  osc.connect(gain);
+  tail.connect(out(1, pan));
+  osc.start(at);
+  osc.stop(at + length + 0.02);
+}
+
+/** A scatter of small drops falling back after a splash. */
+function droplets(count, from, to, level) {
+  for (let i = 0; i < count; i += 1) {
+    blup({ delay: rand(from, to), freq: rand(600, 1500), rise: rand(1.8, 2.8), length: rand(0.025, 0.055), level: level * rand(0.4, 1), pan: rand(-0.2, 0.2) });
+  }
+}
+
 /** A splash: a soft body of deep noise and a scatter of bubbles of falling drops. */
 function splash(size, pan = 0) {
   wash({ buffer: brown, type: "lowpass", from: 900 + 900 * size, to: 220, attack: 0.008, length: 0.18 + 0.35 * size, volume: 0.35 * size, pan });
@@ -263,6 +295,13 @@ export const sounds = {
       // Close in, underhand (lab: Б1 "М'який"): a soft, airy swing with no sharp edge.
       swish({ duration: vary(0.3, 0.08), peakAt: 0.65, low: vary(380, 0.08), high: vary(1300, 0.08), q: 0.9, level: 0.55 });
     }
+  },
+  /** The float landing (lab: П2 "Чіткий «блуп»"): a deeper bubble, a soft splash and a couple of drops. */
+  landFloat() {
+    if (!audio()) return;
+    blup({ freq: vary(280, 0.08), rise: 2.6, length: 0.07, level: 0.3 });
+    wash({ type: "lowpass", from: vary(1100, 0.08), to: 250, attack: 0.006, length: 0.16, volume: 0.14 });
+    droplets(2, 0.06, 0.18, 0.05);
   },
   /** The float or lure landing: a plop and a ring of small drops. */
   splash(size = 1) {

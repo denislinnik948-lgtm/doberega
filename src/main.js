@@ -192,7 +192,8 @@ function handleGameEvent(type, data) {
     // Timed so the swish peaks as the bait is let go.
     setTimeout(() => sounds.cast(data.style), game.castDuration * (data.style === "over" ? 0.39 : 0.34) * 1000);
   } else if (type === "splashdown") {
-    sounds.splash(data.lure ? 0.6 : 0.9);
+    if (data.lure) sounds.splash(0.6);
+    else sounds.landFloat();
   } else if (type === "bite") {
     sounds.bite();
   } else if (type === "hooked") {

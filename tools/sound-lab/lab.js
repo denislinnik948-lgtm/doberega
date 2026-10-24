@@ -241,7 +241,7 @@ const SECTIONS = [
   {
     id: "land.float",
     prefix: "П",
-    chosen: [],
+    chosen: [1],
     title: "Поплавок падає на воду",
     note: "Легкий поплавок із наживкою торкається води після закиду.",
     sounds: [
@@ -287,6 +287,56 @@ const SECTIONS = [
         play: () => {
           wash({ type: "lowpass", from: jitter(2200), to: 260, attack: 0.003, length: 0.17, level: 0.22 });
           bubble({ at: 0.03, freq: jitter(520), rise: 1.9, length: 0.035, level: 0.08 });
+        },
+      },
+    ],
+  },
+  {
+    id: "float.sink",
+    prefix: "К",
+    chosen: [],
+    title: "Кльов: поплавок іде під воду",
+    note: "Риба взяла, поплавок пірнає. Сигнал підсікати: має бути чутним, але тихим і природним.",
+    sounds: [
+      {
+        name: "Тихий бульк",
+        text: "Маленька бульбашка, коротко",
+        play: () => {
+          bubble({ freq: jitter(620), rise: 2.2, length: 0.045, level: 0.16 });
+          bubble({ at: 0.05, freq: jitter(900), rise: 2, length: 0.03, level: 0.06 });
+        },
+      },
+      {
+        name: "Затягнуло",
+        text: "Поплавок втягує під воду: глибше, з повітрям, що виходить",
+        play: () => {
+          bubble({ freq: jitter(340), rise: 2.6, length: 0.08, level: 0.22, muffle: 0.3 });
+          wash({ type: "lowpass", from: jitter(700), to: 180, length: 0.18, level: 0.08 });
+          bubble({ at: 0.09, freq: jitter(700), rise: 2, length: 0.03, level: 0.06 });
+        },
+      },
+      {
+        name: "Два бульки",
+        text: "Смикнуло й пішов: дві бульбашки одна за одною",
+        play: () => {
+          bubble({ freq: jitter(560), rise: 2.3, length: 0.04, level: 0.14 });
+          bubble({ at: jitter(0.11), freq: jitter(430), rise: 2.6, length: 0.06, level: 0.2 });
+        },
+      },
+      {
+        name: "Тук і бульк",
+        text: "Ледь чутний стук поплавка і бульбашка: чіткіший сигнал",
+        play: () => {
+          wash({ type: "bandpass", from: 1800, to: 1200, q: 2.5, attack: 0.001, length: 0.03, level: 0.12 });
+          bubble({ at: 0.03, freq: jitter(500), rise: 2.4, length: 0.05, level: 0.18 });
+        },
+      },
+      {
+        name: "Шльоп і глухий бульк",
+        text: "Легкий шльоп по воді, потім бульбашка вже з-під води",
+        play: () => {
+          wash({ type: "lowpass", from: jitter(1600), to: 300, attack: 0.003, length: 0.1, level: 0.12 });
+          bubble({ at: 0.07, freq: jitter(300), rise: 2.5, length: 0.08, level: 0.2, muffle: 0.6 });
         },
       },
     ],
