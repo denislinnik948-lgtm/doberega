@@ -379,7 +379,7 @@ function playLoops(step, dayTime) {
     reelClock -= step;
     if (reelClock <= 0) {
       // A real ratchet never clicks quite evenly.
-      reelClock = (game.phase === "fight" ? 0.085 : 0.065) * (0.85 + Math.random() * 0.3);
+      reelClock = 0.07 * (0.85 + Math.random() * 0.3);
       sounds.reelTick();
     }
   }

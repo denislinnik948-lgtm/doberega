@@ -194,6 +194,36 @@ function reeling({ seconds = 1.6, interval, unevenness = 0.15, click, hum = 0, h
   }
 }
 
+/**
+ * A whir: a spinning reel's rotor and gears, as filtered noise whose loudness
+ * pulses with the turning (`rate` times a second), for `seconds`.
+ */
+function whir({ seconds = 1.6, freq, q = 1.5, level, rate, depth = 0.5, type = "bandpass" }) {
+  const start = ctx.currentTime;
+  const source = ctx.createBufferSource();
+  source.buffer = noise;
+  const filter = ctx.createBiquadFilter();
+  filter.type = type;
+  filter.frequency.value = freq;
+  filter.Q.value = q;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, start);
+  gain.gain.linearRampToValueAtTime(level, start + 0.12);
+  gain.gain.setValueAtTime(level, start + seconds - 0.18);
+  gain.gain.linearRampToValueAtTime(0, start + seconds);
+  const pulse = ctx.createGain();
+  pulse.gain.value = 1;
+  const lfo = ctx.createOscillator();
+  lfo.frequency.value = rate;
+  const amount = ctx.createGain();
+  amount.gain.value = depth;
+  lfo.connect(amount).connect(pulse.gain);
+  source.connect(filter).connect(pulse).connect(gain).connect(master);
+  source.start(start, Math.random(), seconds + 0.1);
+  lfo.start(start);
+  lfo.stop(start + seconds + 0.1);
+}
+
 /** One short click: a burst of noise through a narrow band (bright for metal, low for wood). */
 function tick(at, { freq, q = 3, length = 0.012, level = 0.1, ring = 0 }) {
   wash({ at, type: "bandpass", from: freq * (1 + (Math.random() - 0.5) * 0.15), q, attack: 0.0008, length, level });
@@ -387,7 +417,7 @@ const SECTIONS = [
   {
     id: "reel.float",
     prefix: "Р",
-    chosen: [],
+    chosen: [0],
     title: "Звичайна котушка (поплавочна вудка)",
     note: "Грає, поки змотуєш волосінь або тягнеш рибу. Тут 1,6 секунди змотування; у грі звук іде, доки тримаєш.",
     sounds: [
@@ -415,6 +445,46 @@ const SECTIONS = [
         name: "Майже тиха",
         text: "Ледь чутний шелест механізму, рідкі клацання",
         play: () => reeling({ interval: 0.22, click: (at) => tick(at, { freq: 3000, q: 2, level: 0.03 }), hum: 0.025, humFreq: 140 }),
+      },
+    ],
+  },
+  {
+    id: "reel.spin",
+    prefix: "С",
+    chosen: [],
+    title: "Спінінгова котушка",
+    note: "Грає, поки ведеш приманку або тягнеш рибу на спінінгу. Гладша за звичайну: більше дзижчання ротора, менше клацань.",
+    sounds: [
+      {
+        name: "Гладке дзижчання",
+        text: "Рівний ротор, що пульсує з обертами, і дрібні тихі клацання",
+        play: () => {
+          whir({ freq: 1500, q: 1.6, level: 0.07, rate: 3.2, depth: 0.45 });
+          reeling({ interval: 0.04, unevenness: 0.1, click: (at) => tick(at, { freq: 5200, q: 3, length: 0.006, level: 0.02 }) });
+        },
+      },
+      {
+        name: "Тихий шовк",
+        text: "Високе м'яке шелестіння, без клацань",
+        play: () => whir({ freq: 3200, q: 1.2, level: 0.05, rate: 3.5, depth: 0.35 }),
+      },
+      {
+        name: "Шестерні",
+        text: "Дзижчання з глибшим гулом передачі",
+        play: () => {
+          whir({ freq: 1200, q: 1.4, level: 0.06, rate: 3, depth: 0.5 });
+          whir({ freq: 180, q: 4, level: 0.07, rate: 6, depth: 0.6 });
+        },
+      },
+      {
+        name: "Дрібна тріскачка",
+        text: "Дуже часті крихітні клацання стопора, дзвінко",
+        play: () => reeling({ interval: 0.033, unevenness: 0.08, click: (at) => tick(at, { freq: 4600, q: 3, length: 0.006, level: 0.045 }) }),
+      },
+      {
+        name: "Ротор у повітрі",
+        text: "Швидкі «вжик-вжик» ротора, що обертається",
+        play: () => whir({ freq: 2000, q: 0.9, level: 0.08, rate: 9, depth: 0.85 }),
       },
     ],
   },

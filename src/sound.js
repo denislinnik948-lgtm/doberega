@@ -320,10 +320,10 @@ export const sounds = {
     if (!audio()) return;
     splash(0.8, rand(-0.2, 0.2));
   },
-  /** One click of the reel: a tiny tick of plastic and metal. */
+  /** One click of the float reel's ratchet (lab: Р1 "Тріскачка"): a dry plastic tick. */
   reelTick() {
     if (!audio()) return;
-    wash({ type: "highpass", from: vary(3200, 0.2), q: 0.8, attack: 0.001, length: 0.012, volume: 0.06 });
+    wash({ type: "bandpass", from: vary(3200, 0.075), q: 2, attack: 0.0008, length: 0.012, volume: 0.09 });
   },
   /** A fish thrashing at the surface. */
   thrash() {
