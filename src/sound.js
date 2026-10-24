@@ -1,11 +1,18 @@
 /**
- * Sound: a few soft effects, made on the fly with Web Audio (no sound files to
- * download), and a quiet bed of water and rain. On by default; Settings turns
- * it off, and the choice is remembered in this browser. Browsers only let a
- * page make sound after a tap or a key, so nothing plays before the first one.
+ * Sound: soft effects made on the fly with Web Audio (no sound files to
+ * download), built after the real thing. Water is mostly bubbles: a drop or a
+ * float hitting the surface rings as a tiny bubble whose pitch shoots up as it
+ * closes, so plops, bites and splashes are made of those. The background is
+ * not a constant hiss but sparse, natural sounds: a ripple lapping now and
+ * then, birds by day, crickets at night, and rain as falling drops.
+ *
+ * On by default; Settings turns it off, and the choice is remembered in this
+ * browser. Browsers only let a page make sound after a tap or a key, so
+ * nothing plays before the first one.
  */
 
 const KEY = "doberega.sound";
+const VOLUME = 0.7;
 
 let enabled = (() => {
   try {
@@ -18,7 +25,8 @@ let enabled = (() => {
 let ctx = null;
 let master = null;
 let noise = null;
-let bed = null;
+let brown = null;
+let rainBed = null;
 
 export function soundEnabled() {
   return enabled;
@@ -37,12 +45,12 @@ export function setSoundEnabled(on) {
     return;
   }
   // Fade rather than click off; while off, the audio sleeps and costs nothing.
-  master.gain.setTargetAtTime(on ? 0.6 : 0, ctx.currentTime, 0.05);
+  master.gain.setTargetAtTime(on ? VOLUME : 0, ctx.currentTime, 0.05);
   if (on) ctx.resume();
   else setTimeout(() => !enabled && ctx.suspend(), 200);
 }
 
-/** The audio graph, made on the first tap; null while sound is off or not yet allowed. */
+/** The audio graph, once started; null while sound is off or not yet allowed. */
 function audio() {
   if (!enabled || !ctx) return null;
   if (ctx.state === "suspended") ctx.resume();
@@ -55,143 +63,258 @@ function start() {
   if (!AudioContext) return;
   ctx = new AudioContext();
   master = ctx.createGain();
-  master.gain.value = enabled ? 0.6 : 0;
-  master.connect(ctx.destination);
-  // Two seconds of white noise, looped or sliced for splashes, swishes and rain.
-  noise = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
-  const data = noise.getChannelData(0);
-  for (let i = 0; i < data.length; i += 1) data[i] = Math.random() * 2 - 1;
-  bed = makeBed();
+  master.gain.value = VOLUME;
+  // A gentle limiter keeps a busy moment (a fight in the rain) from clipping.
+  const limiter = ctx.createDynamicsCompressor();
+  limiter.threshold.value = -14;
+  limiter.ratio.value = 6;
+  master.connect(limiter).connect(ctx.destination);
+  const length = ctx.sampleRate * 2;
+  // White noise for clicks and swishes; brown noise (deep, soft) for water and the rain's murmur.
+  noise = ctx.createBuffer(1, length, ctx.sampleRate);
+  brown = ctx.createBuffer(1, length, ctx.sampleRate);
+  const white = noise.getChannelData(0);
+  const deep = brown.getChannelData(0);
+  let last = 0;
+  for (let i = 0; i < length; i += 1) {
+    white[i] = Math.random() * 2 - 1;
+    last = (last + 0.02 * white[i]) / 1.02;
+    deep[i] = last * 3.5;
+  }
 }
 
 // Sound may only start from a user gesture: the first tap or key unlocks it.
-for (const type of ["pointerdown", "keydown"]) {
-  window.addEventListener(type, start, { passive: true });
-}
+for (const type of ["pointerdown", "keydown"]) window.addEventListener(type, start, { passive: true });
 // A hidden tab goes quiet (and saves the battery).
 document.addEventListener("visibilitychange", () => {
   if (!ctx) return;
   if (document.hidden || !enabled) ctx.suspend();
-  else if (enabled) ctx.resume();
+  else ctx.resume();
 });
 
-/** A slice of noise through a filter, with its own gain, ready to shape. */
-function noiseVoice(type, frequency, q = 1) {
-  const source = ctx.createBufferSource();
-  source.buffer = noise;
-  source.loop = true;
-  source.loopStart = Math.random() * 1.5;
-  const filter = ctx.createBiquadFilter();
-  filter.type = type;
-  filter.frequency.value = frequency;
-  filter.Q.value = q;
+const rand = (min, max) => min + Math.random() * (max - min);
+const vary = (value, amount = 0.1) => value * (1 + rand(-amount, amount));
+
+/** A gain node into the master, at `level`, panned a little left or right. */
+function out(level = 1, pan = 0) {
   const gain = ctx.createGain();
-  gain.gain.value = 0;
-  source.connect(filter).connect(gain).connect(master);
-  return { source, filter, gain };
+  gain.gain.value = level;
+  if (ctx.createStereoPanner) {
+    const panner = ctx.createStereoPanner();
+    panner.pan.value = pan;
+    gain.connect(panner).connect(master);
+  } else {
+    gain.connect(master);
+  }
+  return gain;
 }
 
-/** A short tone that slides from one pitch to another and fades out. */
-function tone(type, from, to, duration, volume, delay = 0) {
+/**
+ * One bubble: a sine whose pitch shoots up as it closes, dying away in a few
+ * hundredths of a second. The basic sound of water.
+ */
+function bubble(freq, volume, delay = 0, pan = 0) {
+  const at = ctx.currentTime + delay;
+  const length = rand(0.03, 0.07);
+  const osc = ctx.createOscillator();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(freq, at);
+  osc.frequency.exponentialRampToValueAtTime(freq * rand(1.8, 2.8), at + length);
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, at);
+  gain.gain.linearRampToValueAtTime(volume, at + 0.004);
+  gain.gain.exponentialRampToValueAtTime(0.0001, at + length);
+  osc.connect(gain).connect(out(1, pan));
+  osc.start(at);
+  osc.stop(at + length + 0.02);
+}
+
+/** Filtered noise shaped by an envelope: attack, then a fall to silence. */
+function wash({ buffer = noise, type = "lowpass", from, to = from, q = 0.7, attack = 0.01, length, volume, delay = 0, pan = 0 }) {
+  const at = ctx.currentTime + delay;
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  const offset = rand(0, 1.4);
+  const filter = ctx.createBiquadFilter();
+  filter.type = type;
+  filter.Q.value = q;
+  filter.frequency.setValueAtTime(from, at);
+  filter.frequency.exponentialRampToValueAtTime(Math.max(30, to), at + length);
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, at);
+  gain.gain.linearRampToValueAtTime(volume, at + attack);
+  gain.gain.exponentialRampToValueAtTime(0.0001, at + length);
+  source.connect(filter).connect(gain).connect(out(1, pan));
+  source.start(at, offset, length + 0.05);
+}
+
+/** A short tone with a quick decay (a ping, a clink, a chirp). */
+function ping(freq, volume, length, { delay = 0, type = "sine", to = freq, pan = 0 } = {}) {
   const at = ctx.currentTime + delay;
   const osc = ctx.createOscillator();
   osc.type = type;
-  osc.frequency.setValueAtTime(from, at);
-  osc.frequency.exponentialRampToValueAtTime(Math.max(20, to), at + duration);
+  osc.frequency.setValueAtTime(freq, at);
+  if (to !== freq) osc.frequency.exponentialRampToValueAtTime(to, at + length);
   const gain = ctx.createGain();
   gain.gain.setValueAtTime(0, at);
-  gain.gain.linearRampToValueAtTime(volume, at + 0.008);
-  gain.gain.exponentialRampToValueAtTime(0.0001, at + duration);
-  osc.connect(gain).connect(master);
+  gain.gain.linearRampToValueAtTime(volume, at + 0.003);
+  gain.gain.exponentialRampToValueAtTime(0.0001, at + length);
+  osc.connect(gain).connect(out(1, pan));
   osc.start(at);
-  osc.stop(at + duration + 0.02);
+  osc.stop(at + length + 0.02);
 }
 
-/** A burst of filtered noise with a quick rise and a fade. */
-function burst(type, frequency, sweepTo, duration, volume, q = 1) {
-  const voice = noiseVoice(type, frequency, q);
-  const at = ctx.currentTime;
-  voice.filter.frequency.setValueAtTime(frequency, at);
-  voice.filter.frequency.exponentialRampToValueAtTime(sweepTo, at + duration);
-  voice.gain.gain.setValueAtTime(0, at);
-  voice.gain.gain.linearRampToValueAtTime(volume, at + duration * 0.25);
-  voice.gain.gain.exponentialRampToValueAtTime(0.0001, at + duration);
-  voice.source.start(at);
-  voice.source.stop(at + duration + 0.05);
+/** A splash: a soft body of deep noise and a scatter of bubbles of falling drops. */
+function splash(size, pan = 0) {
+  wash({ buffer: brown, type: "lowpass", from: 900 + 900 * size, to: 220, attack: 0.008, length: 0.18 + 0.35 * size, volume: 0.35 * size, pan });
+  wash({ type: "bandpass", from: 1800, to: 900, q: 0.6, attack: 0.005, length: 0.08 + 0.12 * size, volume: 0.05 * size, pan });
+  const drops = Math.round(2 + 6 * size);
+  for (let i = 0; i < drops; i += 1) bubble(rand(500, 1300), rand(0.015, 0.05) * size, rand(0.02, 0.18 + 0.3 * size), pan + rand(-0.15, 0.15));
 }
-
-/** The bed: a low hush of water while fishing, and rain on top of it. */
-function makeBed() {
-  const water = noiseVoice("lowpass", 420, 0.5);
-  const rain = noiseVoice("highpass", 1400, 0.4);
-  water.source.start();
-  rain.source.start();
-  return { water, rain };
-}
-
-/** Keep the bed in step with the scene: water while at the water, rain as it falls. */
-export function setAmbience({ water = 0, rain = 0 }) {
-  if (!audio() || !bed) return;
-  const at = ctx.currentTime;
-  bed.water.gain.gain.setTargetAtTime(0.05 * water, at, 0.6);
-  bed.rain.gain.gain.setTargetAtTime(0.09 * rain, at, 0.6);
-}
-
-/*
- * The effects. Each is a small, soft sound; a little randomness in pitch and
- * length keeps repeats from sounding mechanical.
- */
-const vary = (value, amount = 0.08) => value * (1 + (Math.random() * 2 - 1) * amount);
 
 export const sounds = {
-  /** The rod swishing through the air. */
+  /** The rod cutting the air, then line peeling off the spool as the bait flies. */
   cast() {
     if (!audio()) return;
-    burst("bandpass", vary(500), vary(2600), 0.42, 0.22, 1.4);
+    wash({ type: "bandpass", from: vary(700), to: vary(2400), q: 1.2, attack: 0.09, length: 0.32, volume: 0.13 });
+    wash({ type: "highpass", from: 5200, to: 3600, attack: 0.05, length: 0.6, volume: 0.025, delay: 0.12 });
   },
-  /** The float or lure dropping onto the water. */
+  /** The float or lure landing: a plop and a ring of small drops. */
   splash(size = 1) {
     if (!audio()) return;
-    burst("lowpass", vary(1400), 300, 0.22 + 0.1 * size, 0.18 * size);
-    tone("sine", vary(340), 110, 0.14, 0.12 * size);
+    bubble(vary(380), 0.16 * size);
+    splash(0.35 * size);
   },
-  /** The float ducking under: a small plip. */
+  /** The float ducking under: one small bubble. */
   bite() {
     if (!audio()) return;
-    tone("sine", vary(620), 260, 0.09, 0.12);
+    bubble(vary(700), 0.07);
+    bubble(vary(1000), 0.03, 0.05);
   },
-  /** A fish hitting a lure: a heavier swirl. */
+  /** A fish hitting a lure: a swirl at the surface. */
   strike() {
     if (!audio()) return;
-    burst("lowpass", vary(1800), 250, 0.35, 0.24);
-    tone("sine", vary(260), 90, 0.2, 0.14);
+    splash(0.8, rand(-0.2, 0.2));
   },
-  /** One click of the reel's ratchet. */
+  /** One click of the reel: a tiny tick of plastic and metal. */
   reelTick() {
     if (!audio()) return;
-    tone("triangle", vary(2100, 0.15), 1400, 0.018, 0.035);
+    wash({ type: "highpass", from: vary(3200, 0.2), q: 0.8, attack: 0.001, length: 0.012, volume: 0.06 });
   },
   /** A fish thrashing at the surface. */
   thrash() {
     if (!audio()) return;
-    burst("bandpass", vary(900, 0.2), 400, 0.18, 0.08, 0.8);
+    splash(rand(0.3, 0.7), rand(-0.3, 0.3));
   },
-  /** The line snapping or the hook bending: a sharp twang. */
+  /** The line snapping (or the hook giving): a dry crack and the slack line whipping. */
   snap() {
     if (!audio()) return;
-    tone("triangle", vary(980), 140, 0.28, 0.16);
-    burst("highpass", 3000, 1500, 0.06, 0.12);
+    wash({ type: "highpass", from: 2600, q: 0.5, attack: 0.001, length: 0.04, volume: 0.22 });
+    wash({ type: "bandpass", from: 2400, to: 500, q: 1.5, attack: 0.02, length: 0.25, volume: 0.06, delay: 0.03 });
   },
-  /** A fish on the bank: two soft rising notes. */
+  /** A fish on the bank: a last flap in the water and a soft, warm note. */
   landed() {
     if (!audio()) return;
-    tone("sine", 523, 523, 0.22, 0.1);
-    tone("sine", 784, 784, 0.32, 0.1, 0.12);
+    splash(0.4);
+    ping(392, 0.05, 0.6, { delay: 0.18 });
+    ping(587, 0.035, 0.7, { delay: 0.3 });
   },
-  /** Money in the pocket. */
+  /** Coins: two small metal clinks (inharmonic partials, like real coins). */
   coin() {
     if (!audio()) return;
-    tone("square", 1319, 1319, 0.07, 0.03);
-    tone("square", 1760, 1760, 0.16, 0.03, 0.07);
+    for (const [delay, base] of [[0, 2350], [0.085, 2650]]) {
+      ping(vary(base, 0.03), 0.04, 0.16, { delay });
+      ping(vary(base * 2.76, 0.03), 0.02, 0.1, { delay });
+    }
   },
 };
+
+/*
+ * The background, played as sparse events rather than a steady noise:
+ * water lapping now and then while at the water, birds by day, crickets at
+ * night, and rain as drops plus a deep murmur that swells with the rain.
+ */
+const ambient = { lap: 3, bird: 6, cricket: 2, drop: 0 };
+
+function lap() {
+  // A small wave against the bank: a slow swell of deep noise and a few bubbles.
+  wash({ buffer: brown, type: "lowpass", from: vary(380, 0.2), to: 160, attack: rand(0.15, 0.3), length: rand(0.7, 1.2), volume: rand(0.05, 0.09), pan: rand(-0.6, 0.6) });
+  for (let i = 0; i < 3; i += 1) if (Math.random() < 0.6) bubble(rand(350, 800), rand(0.008, 0.02), rand(0.15, 0.6), rand(-0.5, 0.5));
+}
+
+function bird() {
+  // A few quick whistled notes, each sliding, from somewhere off to one side.
+  const pan = rand(-0.8, 0.8);
+  const base = rand(2600, 4200);
+  const notes = 2 + Math.floor(Math.random() * 4);
+  for (let i = 0; i < notes; i += 1) {
+    const from = base * rand(0.85, 1.2);
+    ping(from, rand(0.008, 0.016), rand(0.06, 0.12), { delay: i * rand(0.09, 0.15), to: from * rand(0.7, 1.35), pan });
+  }
+}
+
+function cricket() {
+  // A chirp: a quick train of pulses at one high pitch.
+  const pan = rand(-0.9, 0.9);
+  const freq = rand(4200, 4800);
+  const pulses = 3 + Math.floor(Math.random() * 3);
+  for (let i = 0; i < pulses; i += 1) ping(freq, 0.007, 0.025, { delay: i * 0.045, pan });
+}
+
+let rainLevel = 0;
+
+/** The rain's deep murmur: a looped brown noise, low and soft, faded to the rain's strength. */
+function setRainBed(level) {
+  if (!rainBed && level > 0.02) {
+    const source = ctx.createBufferSource();
+    source.buffer = brown;
+    source.loop = true;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 700;
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    source.connect(filter).connect(gain).connect(master);
+    source.start();
+    rainBed = { source, gain };
+  }
+  if (!rainBed) return;
+  rainBed.gain.gain.setTargetAtTime(0.12 * level, ctx.currentTime, 0.8);
+  // Once the rain has gone, stop the loop altogether.
+  if (level <= 0.02 && rainLevel <= 0.02) {
+    const { source } = rainBed;
+    setTimeout(() => source.stop(), 3000);
+    rainBed = null;
+  }
+}
+
+/**
+ * Advance the background by `step` seconds: `atWater` while fishing, `rain`
+ * 0..1, `night` while it's dark.
+ */
+export function ambienceTick(step, { atWater, rain, night }) {
+  if (!audio() || step <= 0) return;
+  if (Math.abs(rain - rainLevel) > 0.02 || (rain <= 0.02 && rainBed)) {
+    rainLevel = rain;
+    setRainBed(rain);
+  }
+  for (const key of Object.keys(ambient)) ambient[key] -= step;
+  if (atWater && ambient.lap <= 0) {
+    ambient.lap = rand(2.5, 6);
+    lap();
+  }
+  // Birds sing by day, and not in the rain; crickets chirp on dry nights.
+  if (atWater && !night && rain < 0.3 && ambient.bird <= 0) {
+    ambient.bird = rand(6, 16);
+    bird();
+  }
+  if (atWater && night && rain < 0.3 && ambient.cricket <= 0) {
+    ambient.cricket = rand(0.8, 3);
+    cricket();
+  }
+  // Rain: drops landing on the water all around, more as it gets heavier.
+  if (rain > 0.05 && ambient.drop <= 0) {
+    ambient.drop = rand(0.01, 0.06) / rain;
+    bubble(rand(600, 1600), rand(0.006, 0.02) * (0.4 + rain), 0, rand(-0.9, 0.9));
+  }
+}

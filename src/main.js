@@ -11,7 +11,7 @@ import { Cloud } from "./cloud.js";
 import { onSeasonChange } from "./theme.js";
 import { NightEvents } from "./night-events.js";
 import { track } from "./analytics.js";
-import { setAmbience, sounds } from "./sound.js";
+import { ambienceTick, sounds } from "./sound.js";
 import { AnglerUI } from "./fishing/ui.js";
 
 // The water look is fixed: a still lake, gentle swell speed, soft glints.
@@ -362,18 +362,18 @@ function tickGroundbait() {
 
 /*
  * The sounds that run on while something happens: the reel's ratchet while
- * line comes in, the odd splash of a fighting fish, and the bed of water
- * (fainter behind the menu) and rain.
+ * line comes in, the odd splash of a fighting fish, and the background (water
+ * lapping, birds or crickets while at the water, rain whenever it falls).
  */
 let reelClock = 0;
 let thrashClock = 1;
-let bedClock = 0;
-function playLoops(step) {
+function playLoops(step, dayTime) {
   const reeling = mode === "fishing" && (game.phase === "reeling" || (game.pulling && ["fight", "retrieving"].includes(game.phase)));
   if (reeling && !game.snag) {
     reelClock -= step;
     if (reelClock <= 0) {
-      reelClock = game.phase === "fight" ? 0.085 : 0.065;
+      // A real ratchet never clicks quite evenly.
+      reelClock = (game.phase === "fight" ? 0.085 : 0.065) * (0.85 + Math.random() * 0.3);
       sounds.reelTick();
     }
   }
@@ -384,11 +384,8 @@ function playLoops(step) {
       sounds.thrash();
     }
   }
-  bedClock -= step;
-  if (bedClock <= 0) {
-    bedClock = 0.5;
-    setAmbience({ water: mode === "fishing" ? 1 : 0.35, rain: weather.intensity });
-  }
+  const hour = (dayTime * 24) % 24;
+  ambienceTick(step, { atWater: mode === "fishing", rain: weather.intensity, night: hour < 5 || hour >= 21.5 });
 }
 
 /** Game hours of groundbait left at a water (0 if none). */
@@ -419,7 +416,7 @@ function renderNow(now = performance.now()) {
   ui.setGroundbait(mode === "fishing" ? groundbaitLeft(LOCATIONS[progress.location].id) : 0);
   ui.setWeather(weather.intensity);
   nightEvents.update(step, elapsed, dayTime);
-  playLoops(step);
+  playLoops(step, dayTime);
   renderer.render(elapsed, config, ripples, anglerView(elapsed), dayTime, {
     rain: weather.intensity,
     ducks: ducks.all,
