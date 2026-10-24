@@ -559,6 +559,60 @@ function hum({ at = 0, freq, length, level, destination = master }) {
   lfo.stop(start + length + 0.05);
 }
 
+/** A voiced animal call: a buzzy tone with a pitch contour, through one or two vowel-like resonances. */
+function voice({ at = 0, contour, length, level, formants = [[700, 4]], type = "sawtooth", pan = 0, muffle = 0 }) {
+  const start = ctx.currentTime + at;
+  const osc = ctx.createOscillator();
+  osc.type = type;
+  osc.frequency.setValueCurveAtTime(Float32Array.from(contour), start, length);
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, start);
+  gain.gain.linearRampToValueAtTime(level, start + Math.min(0.03, length * 0.2));
+  gain.gain.setValueAtTime(level, start + length * 0.7);
+  gain.gain.linearRampToValueAtTime(0, start + length);
+  const mix = ctx.createGain();
+  for (const [freq, q] of formants) {
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = freq;
+    filter.Q.value = q;
+    osc.connect(filter).connect(mix);
+  }
+  let tail = mix;
+  if (muffle) {
+    // Far away: the highs are lost to the distance.
+    const far = ctx.createBiquadFilter();
+    far.type = "lowpass";
+    far.frequency.value = 1800 - 1200 * muffle;
+    mix.connect(far);
+    tail = far;
+  }
+  const panner = ctx.createStereoPanner();
+  panner.pan.value = pan;
+  tail.connect(gain).connect(panner).connect(master);
+  osc.start(start);
+  osc.stop(start + length + 0.05);
+}
+
+/** A big bell far away: low inharmonic partials with a long, uneven fade. */
+function bigBell({ at = 0, freq = 220, level = 0.05, length = 4 }) {
+  for (const [ratio, part, decay] of [[0.5, 0.6, 1], [1, 1, 0.8], [1.19, 0.5, 0.6], [1.5, 0.35, 0.45], [2, 0.3, 0.35], [2.74, 0.2, 0.25]]) {
+    const start = ctx.currentTime + at;
+    const osc = ctx.createOscillator();
+    osc.frequency.value = freq * ratio;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, start);
+    gain.gain.linearRampToValueAtTime(level * part, start + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + length * decay);
+    const far = ctx.createBiquadFilter();
+    far.type = "lowpass";
+    far.frequency.value = 1400;
+    osc.connect(far).connect(gain).connect(master);
+    osc.start(start);
+    osc.stop(start + length + 0.05);
+  }
+}
+
 /** A soft hoot: a low sine that swells and fades, slightly breathy. */
 function hoot({ at = 0, freq = 420, to = freq * 0.92, length = 0.35, level = 0.05, pan = 0 }) {
   chirp({ at, from: freq, to, length, level, pan });
@@ -1721,6 +1775,102 @@ const SECTIONS = [
         name: "Шепіт з відлунням",
         text: "Те саме, але далеко й з відлунням",
         play: () => { const bus = echoBus(0.3, 0.5, 0.7); let at = 0; for (let i = 0; i < 5; i += 1) { const length = 0.1 + Math.random() * 0.12; const start = ctx.currentTime + at; const source = ctx.createBufferSource(); source.buffer = noise; const filter = ctx.createBiquadFilter(); filter.type = "bandpass"; filter.frequency.value = 2000 + Math.random() * 2000; filter.Q.value = 2.5; const g = ctx.createGain(); g.gain.setValueAtTime(0, start); g.gain.linearRampToValueAtTime(0.02, start + length * 0.3); g.gain.linearRampToValueAtTime(0, start + length); source.connect(filter).connect(g).connect(bus); source.start(start, Math.random(), length + 0.05); at += length + 0.05 + Math.random() * 0.1; } },
+      },
+    ],
+  },
+  {
+    id: "river.flow",
+    prefix: "Рч",
+    chosen: [],
+    title: "Течія біля мосту",
+    note: "Старий міст: швидка річка, звучить весь час, тихо. Тут 4 секунди.",
+    sounds: [
+      {
+        name: "Течія",
+        text: "Рівний шум води з легкими перепадами",
+        play: () => { swell({ type: "lowpass", freq: 800, length: 4, level: 0.09, deep: true, flutter: 0.25 }); swell({ type: "bandpass", freq: 1800, q: 0.6, length: 4, level: 0.015, flutter: 0.5 }); },
+      },
+      {
+        name: "Дзюрчання",
+        text: "Вода дзюрчить між корчами й каменями",
+        play: () => { swell({ type: "lowpass", freq: 600, length: 4, level: 0.06, deep: true }); for (let t = 0; t < 4; t += 0.05 + Math.random() * 0.1) bubble({ at: t, freq: 300 + Math.random() * 600, rise: 1.6 + Math.random(), length: 0.04 + Math.random() * 0.04, level: 0.02, pan: Math.random() * 1.2 - 0.6 }); },
+      },
+      {
+        name: "Широка ріка",
+        text: "Низький широкий шум великої води",
+        play: () => swell({ type: "lowpass", freq: 400, length: 4, level: 0.13, deep: true, flutter: 0.15 }),
+      },
+    ],
+  },
+  {
+    id: "village.far",
+    prefix: "Сл",
+    chosen: [],
+    title: "Село біля ставка",
+    note: "Ставок за селом: зрідка з села долітають звуки. Можна обрати кілька.",
+    sounds: [
+      {
+        name: "Пес далеко",
+        text: "Два-три приглушені «гав» з села",
+        play: () => { const side = pan() * 2; for (let i = 0; i < 3; i += 1) voice({ at: i * jitter(0.35), contour: [520, 600, 440], length: 0.14, level: 0.08, formants: [[900, 3], [1900, 5]], pan: side, muffle: 0.7 }); },
+      },
+      {
+        name: "Півень на світанку",
+        text: "Далеке «ку-ку-рі-ку»",
+        play: () => { const side = pan() * 2; [[0, 0.12, [600, 620]], [0.16, 0.12, [640, 660]], [0.32, 0.14, [700, 720]], [0.5, 0.6, [760, 820, 780, 600]]].forEach(([at, length, contour]) => voice({ at, contour, length, level: 0.06, formants: [[1100, 4], [2400, 6]], pan: side, muffle: 0.5 })); },
+      },
+      {
+        name: "Корова",
+        text: "Протяжне низьке «му-у» з пасовища",
+        play: () => voice({ contour: [150, 180, 170, 130], length: 1.3, level: 0.08, formants: [[400, 3], [900, 5]], pan: pan() * 2, muffle: 0.6 }),
+      },
+    ],
+  },
+  {
+    id: "castle.bell",
+    prefix: "Дз",
+    chosen: [],
+    title: "Дзвін над замковим озером",
+    note: "Замкове озеро: дуже рідко з-за гір лунає далекий дзвін.",
+    sounds: [
+      {
+        name: "Один удар",
+        text: "Глибокий далекий удар дзвона, що довго гасне",
+        play: () => bigBell({ freq: 196, level: 0.05, length: 5 }),
+      },
+      {
+        name: "Два удари",
+        text: "Два повільні удари, як з далекої каплиці",
+        play: () => { bigBell({ freq: 220, level: 0.045, length: 4 }); bigBell({ at: 2.2, freq: 220, level: 0.04, length: 4 }); },
+      },
+    ],
+  },
+  {
+    id: "pripyat",
+    prefix: "Пр",
+    chosen: [],
+    title: "Прип'ять",
+    note: "Порожня зона довкола: рідкі моторошні звуки. Можна обрати кілька.",
+    sounds: [
+      {
+        name: "Скрип металу",
+        text: "Корабель стогне іржавим металом",
+        play: () => { creak({ length: 1.2, level: 0.05, low: 160, high: 260, step: 0.05 }); creak({ at: 1.5, length: 0.6, level: 0.035, low: 300, high: 380, step: 0.04 }); },
+      },
+      {
+        name: "Порожній вітер",
+        text: "Вітер свистить у порожніх будівлях",
+        play: () => { swell({ type: "bandpass", freq: 700, q: 12, length: 3.5, level: 0.08, flutter: 0.3 }); swell({ at: 0.6, type: "bandpass", freq: 1050, q: 14, length: 2.5, level: 0.05, flutter: 0.3 }); },
+      },
+      {
+        name: "Лічильник Гейгера",
+        text: "Тихе випадкове потріскування, ніби поруч дозиметр",
+        play: () => { let t = 0; while (t < 3) { wash({ at: t, type: "highpass", from: 3000, q: 0.7, attack: 0.0005, length: 0.004, level: 0.07 }); t += -Math.log(Math.random()) * 0.12; } },
+      },
+      {
+        name: "Далекий брязкіт",
+        text: "Десь далеко брязкає метал, і луна",
+        play: () => { const bus = echoBus(0.45, 0.4, 0.7); for (const [at, f] of [[0, 900], [0.12, 1250]]) { const start = ctx.currentTime + at; for (const [ratio, part] of [[1, 1], [2.76, 0.5], [5.4, 0.25]]) { const osc = ctx.createOscillator(); osc.frequency.value = f * ratio; const g = ctx.createGain(); g.gain.setValueAtTime(0, start); g.gain.linearRampToValueAtTime(0.03 * part, start + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, start + 0.6 / ratio); osc.connect(g).connect(bus); osc.start(start); osc.stop(start + 0.7); } } },
       },
     ],
   },
