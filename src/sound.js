@@ -330,10 +330,25 @@ export const sounds = {
     if (!audio()) return;
     wash({ type: "bandpass", from: vary(3200, 0.075), q: 2, attack: 0.0008, length: 0.012, volume: 0.09 });
   },
-  /** A fish thrashing at the surface. */
-  thrash() {
+  /**
+   * A fish thrashing at the surface. Small (up to 1.5 kg): light splashes
+   * with drops or a quick flutter of the tail, at random (lab: Ф1 and Ф3).
+   * Big: a sharp slap of the tail and a deep gulp (lab: В2).
+   */
+  thrash(weight = 1) {
     if (!audio()) return;
-    splash(rand(0.3, 0.7), rand(-0.3, 0.3));
+    const pan = rand(-0.3, 0.3);
+    if (weight >= 1.5) {
+      wash({ type: "lowpass", from: vary(3000, 0.08), to: 400, attack: 0.002, length: 0.12, volume: 0.28, pan });
+      blup({ delay: 0.06, freq: vary(180, 0.08), rise: 2.6, length: 0.12, level: 0.25, muffle: 0.4, pan });
+      droplets(4, 0.1, 0.4, 0.05);
+    } else if (Math.random() < 0.5) {
+      wash({ type: "lowpass", from: vary(2200, 0.08), to: 500, attack: 0.006, length: 0.12, volume: 0.13, pan });
+      droplets(3, 0.03, 0.18, 0.05);
+    } else {
+      for (let i = 0; i < 6; i += 1) wash({ type: "bandpass", from: vary(1700, 0.08), to: 900, q: 0.8, attack: 0.004, length: 0.045, volume: 0.07, delay: i * vary(0.055, 0.08), pan });
+      droplets(3, 0.05, 0.35, 0.04);
+    }
   },
   /** The line snapping (or the hook giving): a dry crack and the slack line whipping. */
   snap() {

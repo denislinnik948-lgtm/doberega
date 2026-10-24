@@ -244,6 +244,12 @@ function series(count, gap, play) {
   for (let i = 0; i < count; i += 1) play(i * gap * (0.8 + Math.random() * 0.4));
 }
 
+/** The same sound for a small fish, then (a second later) a big one. */
+function bothSizes(play) {
+  play(0, 0);
+  play(1.1, 1);
+}
+
 /** A little to the left or right, as a fish moves about. */
 const pan = () => Math.random() * 0.6 - 0.3;
 
@@ -508,7 +514,7 @@ const SECTIONS = [
   {
     id: "fish.splash.small",
     prefix: "Ф",
-    chosen: [],
+    chosen: [0, 2],
     title: "Дрібна риба б'ється",
     note: "Сплески під час виведення дрібної риби (до кілограма). Тут коротка серія, як у бою.",
     sounds: [
@@ -542,7 +548,7 @@ const SECTIONS = [
   {
     id: "fish.splash.big",
     prefix: "В",
-    chosen: [],
+    chosen: [1],
     title: "Велика риба б'ється",
     note: "Сплески великої риби: важчі, глибші, рідші. Тут коротка серія, як у бою.",
     sounds: [
@@ -580,6 +586,46 @@ const SECTIONS = [
           bubble({ at, freq: jitter(150), rise: 2.8, length: 0.16, level: 0.3, muffle: 0.5 });
           wash({ at, type: "lowpass", from: jitter(800), to: 150, length: 0.35, level: 0.18, deep: true });
           bubble({ at: at + 0.12, freq: jitter(400), rise: 2.2, length: 0.06, level: 0.08 });
+        }),
+      },
+    ],
+  },
+  {
+    id: "fish.landed",
+    prefix: "Л",
+    chosen: [],
+    title: "Риба на березі",
+    note: "Рибу витягли на берег. Кожен варіант грає двічі: спершу дрібна риба, потім велика.",
+    sounds: [
+      {
+        name: "Шльоп на траву",
+        text: "Мокрий шльоп і шелест трави",
+        play: () => bothSizes((at, size) => {
+          wash({ at, type: "lowpass", from: jitter(1800), to: 300, attack: 0.002, length: 0.1 + 0.08 * size, level: 0.18 + 0.12 * size, deep: size > 0.5 });
+          wash({ at: at + 0.02, type: "highpass", from: 3500, to: 2500, attack: 0.02, length: 0.25, level: 0.03 });
+        }),
+      },
+      {
+        name: "Тріпається",
+        text: "Кілька шльопків, що слабшають: риба б'ється на траві",
+        play: () => bothSizes((at, size) => {
+          const flops = 3 + Math.round(size * 2);
+          for (let i = 0; i < flops; i += 1) wash({ at: at + i * jitter(0.13 + 0.05 * size), type: "lowpass", from: jitter(1600 - 500 * size), to: 250, attack: 0.002, length: 0.08 + 0.06 * size, level: (0.16 + 0.1 * size) * (1 - i / (flops + 1)), deep: size > 0.5 });
+        }),
+      },
+      {
+        name: "З води",
+        text: "Вода стікає з риби, коли її піднімають, і м'який удар",
+        play: () => bothSizes((at, size) => {
+          droplets({ count: 6 + Math.round(size * 6), from: at, to: at + 0.45, level: 0.05 });
+          wash({ at: at + 0.45, type: "lowpass", from: jitter(1200), to: 200, attack: 0.003, length: 0.12 + 0.1 * size, level: 0.16 + 0.12 * size, deep: true });
+        }),
+      },
+      {
+        name: "Глухий удар",
+        text: "Лише м'який глухий удар об берег",
+        play: () => bothSizes((at, size) => {
+          wash({ at, type: "lowpass", from: jitter(700), to: 120, attack: 0.002, length: 0.12 + 0.12 * size, level: 0.25 + 0.15 * size, deep: true });
         }),
       },
     ],

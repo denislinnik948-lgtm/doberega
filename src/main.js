@@ -392,7 +392,7 @@ function playLoops(step, dayTime) {
     thrashClock -= step;
     if (thrashClock <= 0) {
       thrashClock = 0.5 + Math.random() * 0.9;
-      sounds.thrash();
+      sounds.thrash(game.fish?.weight);
     }
   }
   const hour = (dayTime * 24) % 24;
