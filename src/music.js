@@ -33,47 +33,48 @@ function seeded(seed) {
 }
 
 /*
- * The pieces. `chords` are voicings, low to high, one per bar (cycled);
+ * The pieces. `level` evens out their loudness (measured offline);
+ * `chords` are voicings, low to high, one per bar (cycled);
  * `accompany` and `lead` name the arrangement; `scale` is what the tune is
  * drawn from; `density` how busy the tune is (notes per bar, roughly).
  */
 export const PIECES = [
   // Day, dusk and dawn: around the guitar.
-  { id: "quiet-bank", title: "Тихий берег", family: "guitar", tempo: 80, beats: 4, bars: 16, seed: 11,
+  { id: "quiet-bank", level: 0.68, title: "Тихий берег", family: "guitar", tempo: 80, beats: 4, bars: 16, seed: 11,
     accompany: "fingerpick", lead: "guitar", density: 2,
     chords: [["A2", "E3", "A3", "C4", "E4"], ["F2", "C3", "F3", "A3", "C4"], ["C3", "G3", "C4", "E4", "G4"], ["G2", "D3", "G3", "B3", "D4"]],
     scale: ["A4", "B4", "C5", "D5", "E5", "G5", "A5"] },
-  { id: "summer-evening", title: "Літній вечір", family: "guitar", tempo: 92, beats: 4, bars: 16, seed: 23, swing: 0.1,
+  { id: "summer-evening", level: 0.49, title: "Літній вечір", family: "guitar", tempo: 92, beats: 4, bars: 16, seed: 23, swing: 0.1,
     accompany: "strum", lead: "flute", bass: true, density: 3,
     chords: [["C3", "G3", "C4", "E4", "G4"], ["A2", "E3", "A3", "C4", "E4"], ["D3", "A3", "D4", "F4", "A4"], ["G2", "D3", "G3", "B3", "F4"]],
     scale: ["C5", "D5", "E5", "G5", "A5", "C6", "D6"] },
-  { id: "old-willow", title: "Стара верба", family: "guitar", tempo: 96, beats: 3, bars: 16, seed: 37,
+  { id: "old-willow", level: 0.83, title: "Стара верба", family: "guitar", tempo: 96, beats: 3, bars: 16, seed: 37,
     accompany: "waltz", lead: "musicbox", density: 2,
     chords: [["E2", "B2", "E3", "G3", "B3"], ["C3", "G3", "C4", "E4", "G4"], ["A2", "E3", "A3", "C4", "E4"], ["B2", "F#3", "B3", "D#4", "F#4"]],
     scale: ["E5", "F#5", "G5", "A5", "B5", "D6", "E6"] },
-  { id: "morning-mist", title: "Ранковий туман", family: "guitar", tempo: 64, beats: 4, bars: 12, seed: 51,
+  { id: "morning-mist", level: 0.78, title: "Ранковий туман", family: "guitar", tempo: 64, beats: 4, bars: 12, seed: 51,
     accompany: "harp", lead: "harmonics", density: 1,
     chords: [["D3", "A3", "D4", "F#4", "A4", "D5"], ["G2", "D3", "G3", "B3", "D4", "G4"], ["B2", "F#3", "B3", "D4", "F#4", "B4"], ["A2", "E3", "A3", "C#4", "E4", "A4"]],
     scale: ["D6", "E6", "F#6", "A6", "B6", "D7"] },
-  { id: "playful-bite", title: "Весела поклювка", family: "guitar", tempo: 104, beats: 4, bars: 16, seed: 97,
+  { id: "playful-bite", level: 0.6, title: "Весела поклювка", family: "guitar", tempo: 104, beats: 4, bars: 16, seed: 97,
     accompany: "travis", lead: "guitar", shaker: true, density: 4,
     chords: [["G2", "D3", "G3", "B3", "D4"], ["C3", "G3", "C4", "E4", "G4"], ["G2", "D3", "G3", "B3", "D4"], ["D3", "A3", "D4", "F#4", "A4"]],
     scale: ["G4", "A4", "B4", "D5", "E5", "G5"] },
   // Night: piano, pads and soft voices, with an echo.
-  { id: "night-water", title: "Ніч над водою", family: "night", tempo: 56, beats: 4, bars: 12, seed: 61,
+  { id: "night-water", level: 0.92, title: "Ніч над водою", family: "night", tempo: 56, beats: 4, bars: 12, seed: 61,
     accompany: "pad", lead: "piano", density: 1.5,
     chords: [["A2", "C3", "E3", "B3"], ["F2", "A2", "C3", "E3"], ["D2", "F2", "A2", "C3"], ["E2", "G#2", "B2", "D3"]],
     scale: ["A4", "B4", "C5", "E5", "G5", "A5"] },
-  { id: "moon-path", title: "Місячна доріжка", family: "night", tempo: 60, beats: 4, bars: 12, seed: 73,
+  { id: "moon-path", level: 0.85, title: "Місячна доріжка", family: "night", tempo: 60, beats: 4, bars: 12, seed: 73,
     accompany: "pianoChords", lead: "piano", density: 2.5,
     chords: [["F2", "C3", "E3", "A3"], ["E2", "B2", "D3", "G3"], ["D2", "A2", "C3", "F3"], ["G1", "D2", "F2", "B2"]],
     scale: ["C5", "D5", "E5", "F5", "G5", "A5", "C6"] },
-  { id: "stars", title: "Зорі", family: "night", tempo: 72, beats: 4, bars: 12, seed: 89,
+  { id: "stars", level: 0.93, title: "Зорі", family: "night", tempo: 72, beats: 4, bars: 12, seed: 89,
     accompany: "musicbox", lead: "none", density: 0,
     chords: [["C2", "G2", "B2", "E3"], ["A1", "E2", "G2", "C3"], ["F1", "C2", "A2", "E3"], ["G1", "D2", "B2", "F#3"]],
     ostinato: ["E5", "G5", "B5", "G5", "C6", "B5", "G5", "E5"],
     scale: ["E5", "G5", "B5", "C6"] },
-  { id: "pond-fog", title: "Туман над ставком", family: "night", tempo: 48, beats: 4, bars: 10, seed: 103,
+  { id: "pond-fog", level: 0.54, title: "Туман над ставком", family: "night", tempo: 48, beats: 4, bars: 10, seed: 103,
     accompany: "pad", lead: "cello", density: 1,
     chords: [["D2", "A2", "F3"], ["A#1", "F2", "D3"], ["G1", "D2", "A#2"], ["A1", "E2", "C#3"]],
     scale: ["D3", "E3", "F3", "G3", "A3", "C4", "D4"] },
@@ -316,7 +317,8 @@ function tune(piece) {
 export function playPiece(ctx, destination, piece, noise = null) {
   const out = ctx.createGain();
   out.gain.value = 0;
-  out.gain.linearRampToValueAtTime(1, ctx.currentTime + 1.5);
+  // Each piece at its own level (measured), so none is louder than the rest.
+  out.gain.linearRampToValueAtTime(piece.level ?? 1, ctx.currentTime + 1.5);
   const color = ctx.createBiquadFilter();
   color.type = "lowpass";
   color.frequency.value = 3400;

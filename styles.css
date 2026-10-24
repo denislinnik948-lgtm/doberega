@@ -636,6 +636,12 @@ html.keyboard-open .sheet[open] > .account-body {
 .account-status.is-synced { color: var(--light); }
 .account-status.is-synced::before { background: var(--light); }
 .account-error, .account-message.is-bad { color: var(--ember); }
+/* Volume sliders in Settings: a label, the slider, the value. */
+.volume-row { display: grid; grid-template-columns: 90px 1fr 52px; gap: 10px; align-items: center; color: var(--light); font-size: 19px; }
+.volume-row output { color: var(--bone); text-align: right; font-variant-numeric: tabular-nums; }
+.volume-row input[type="range"] { width: 100%; accent-color: var(--gold); }
+.volume-row input:disabled { opacity: 0.4; }
+.volume-row:has(input:disabled) { color: var(--mid); }
 .account-hint { margin: 0; color: var(--mid); font-size: 17px; line-height: 1.3; }
 .account-name { margin: 0; color: var(--bone); font-size: 24px; line-height: 1.1; overflow-wrap: anywhere; }
 .account-email { margin: 0; color: var(--light); font-size: 18px; overflow-wrap: anywhere; }

@@ -16,6 +16,38 @@ import { PIECES, pieceLength, playPiece } from "./music.js";
 const KEY = "doberega.sound";
 const VOLUME = 0.7;
 
+/*
+ * The two volume sliders in Settings, 0..1, remembered in this browser:
+ * effects (with the nature around) and music.
+ */
+const VOLUME_KEYS = { fx: "doberega.volume.fx", music: "doberega.volume.music" };
+const volumes = { fx: 0.8, music: 0.6 };
+for (const [kind, key] of Object.entries(VOLUME_KEYS)) {
+  try {
+    const saved = Number(localStorage.getItem(key));
+    if (localStorage.getItem(key) !== null && Number.isFinite(saved)) volumes[kind] = Math.max(0, Math.min(1, saved));
+  } catch {
+    // Without storage the defaults stand.
+  }
+}
+
+export function volume(kind) {
+  return volumes[kind];
+}
+
+/** Set the effects or music volume (0..1); it applies at once and is remembered. */
+export function setVolume(kind, value) {
+  volumes[kind] = Math.max(0, Math.min(1, value));
+  try {
+    localStorage.setItem(VOLUME_KEYS[kind], String(volumes[kind]));
+  } catch {
+    // Without storage the change lasts for this visit.
+  }
+  if (!ctx) return;
+  if (kind === "fx") fx.gain.setTargetAtTime(volumes.fx, ctx.currentTime, 0.05);
+  else if (musicGain) musicGain.gain.setTargetAtTime(musicLevel(), ctx.currentTime, 0.05);
+}
+
 // Off until switched on in Settings.
 let enabled = (() => {
   try {
@@ -27,6 +59,11 @@ let enabled = (() => {
 
 let ctx = null;
 let master = null;
+// The two faders: every effect and background sound goes through `fx`, the music through `musicGain`.
+let fx = null;
+// While a sound is being built, its own level (from LEVELS) sits here, between it and `fx`.
+let bus = null;
+const dest = () => bus ?? fx;
 let noise = null;
 let brown = null;
 let rainBed = null;
@@ -72,6 +109,9 @@ function start() {
   limiter.threshold.value = -14;
   limiter.ratio.value = 6;
   master.connect(limiter).connect(ctx.destination);
+  fx = ctx.createGain();
+  fx.gain.value = volumes.fx;
+  fx.connect(dest());
   const length = ctx.sampleRate * 2;
   // White noise for clicks and swishes; brown noise (deep, soft) for water and the rain's murmur.
   noise = ctx.createBuffer(1, length, ctx.sampleRate);
@@ -105,9 +145,9 @@ function out(level = 1, pan = 0) {
   if (ctx.createStereoPanner) {
     const panner = ctx.createStereoPanner();
     panner.pan.value = pan;
-    gain.connect(panner).connect(master);
+    gain.connect(panner).connect(dest());
   } else {
-    gain.connect(master);
+    gain.connect(dest());
   }
   return gain;
 }
@@ -229,7 +269,7 @@ function linePeel({ delay = 0, duration, level = 0.06, flutter = 45 }) {
   const gain = ctx.createGain();
   gain.gain.value = 0;
   gain.gain.setValueCurveAtTime(curve, start, duration);
-  source.connect(filter).connect(gain).connect(master);
+  source.connect(filter).connect(gain).connect(dest());
   source.start(start, rand(0, 1.4), duration + 0.05);
 }
 
@@ -285,7 +325,43 @@ function knock(freq, level, delay = 0) {
   blup({ delay, freq: freq * 0.5, rise: 0.92, length: 0.05, level: level * 0.5 });
 }
 
-export const sounds = {
+/*
+ * Each sound's own level, set by measuring them all (rendered offline, the
+ * loudest moment of each) against a target for its kind: the fishing events
+ * clearest, the interface a step below, nature and the night quieter still.
+ * 1 leaves a sound as built.
+ */
+const LEVELS = {
+  // Fishing (target about −36…−42 dB at the loudest moment; the subtle cues lower).
+  cast: 0.21, landFloat: 0.39, landLure: 0.47, twitch: 0.91, dip: 0.6, bite: 0.73, strike: 0.7, hookset: 0.29,
+  reelTick: 1.1, spinTick: 2.8, thrash: 1, landed: 0.85, snap: 0.8, hookBend: 1.86, snag: 0.31, snagFree: 0.62,
+  creak: 6.6, drag: 1.4, liftOut: 0.54, groundbait: 0.72, boot: 0.59, unique: 0.56, duckEats: 0.47,
+  // Interface and money (about −42…−46 dB).
+  ui: 0.86, coin: 0.76, buyBig: 0.84, sell: 1, trophy: 1.17,
+  // Nature, places and the night (about −46…−55 dB), rain as a soft bed.
+  lap: 0.48, fishJump: 0.88, bird: 1.05, duck: 0.4, cricket: 1.3, owl: 0.27, thunder: 0.2, treeFrog: 1.08,
+  wisp: 0.28, boat: 10.4, mavka: 0.32, lantern: 6, eyes: 0.27, drone: 0.09, whisper: 0.88,
+  river: 0.35, cow: 0.47, bell: 0.22, wreck: 9.7, geiger: 1, rainBed: 0.2,
+};
+
+/** Build a sound at its own level (LEVELS[name]) into the effects bus. */
+function play(name, build) {
+  if (!audio()) return;
+  const level = ctx.createGain();
+  level.gain.value = LEVELS[name] ?? 1;
+  level.connect(fx);
+  const outer = bus;
+  bus = level;
+  try {
+    build();
+  } finally {
+    bus = outer;
+  }
+  // Long after the sound has died away, let the node go.
+  setTimeout(() => level.disconnect(), 12000);
+}
+
+const rawSounds = {
   /**
    * The interface, as soft wooden taps (lab: У1 "Дерево"): a button, a tab, a
    * window opening (two taps up) or closing (two down), leafing through the
@@ -413,7 +489,7 @@ export const sounds = {
       gain.gain.setValueAtTime(0, at);
       gain.gain.linearRampToValueAtTime(0.1 * part, at + 0.003);
       gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.5 / ratio);
-      osc.connect(gain).connect(master);
+      osc.connect(gain).connect(dest());
       osc.start(at);
       osc.stop(at + 0.52);
     }
@@ -468,9 +544,10 @@ export const sounds = {
     if (!audio()) return;
     const pan = rand(-0.3, 0.3);
     if (weight >= 1.5) {
-      wash({ type: "lowpass", from: vary(3000, 0.08), to: 400, attack: 0.002, length: 0.12, volume: 0.28, pan });
-      blup({ delay: 0.06, freq: vary(180, 0.08), rise: 2.6, length: 0.12, level: 0.25, muffle: 0.4, pan });
-      droplets(4, 0.1, 0.4, 0.05);
+      // Built far louder than the small fish's splashes: brought down to sit just above them.
+      wash({ type: "lowpass", from: vary(3000, 0.08), to: 400, attack: 0.002, length: 0.12, volume: 0.28 * 0.28, pan });
+      blup({ delay: 0.06, freq: vary(180, 0.08), rise: 2.6, length: 0.12, level: 0.25 * 0.28, muffle: 0.4, pan });
+      droplets(4, 0.1, 0.4, 0.05 * 0.28);
     } else if (Math.random() < 0.5) {
       wash({ type: "lowpass", from: vary(2200, 0.08), to: 500, attack: 0.006, length: 0.12, volume: 0.13, pan });
       droplets(3, 0.03, 0.18, 0.05);
@@ -529,6 +606,9 @@ export const sounds = {
     }
   },
 };
+
+/** The effects, each built at its own level: `sounds.cast("over")`, `sounds.bite()`… */
+export const sounds = Object.fromEntries(Object.entries(rawSounds).map(([name, build]) => [name, (...args) => play(name, () => build(...args))]));
 
 /*
  * The background, played as sparse events rather than a steady noise:
@@ -675,14 +755,14 @@ function echoBus(delay, feedback, wet) {
   damp.frequency.value = 2200;
   const tail = ctx.createGain();
   tail.gain.value = wet;
-  input.connect(master);
+  input.connect(dest());
   input.connect(echo).connect(damp).connect(back).connect(echo);
-  damp.connect(tail).connect(master);
+  damp.connect(tail).connect(dest());
   return input;
 }
 
 /** A held tone that swells in and fades out over `length`, into `destination`. */
-function held(freq, level, delay, length, destination = master, type = "sine") {
+function held(freq, level, delay, length, destination = dest(), type = "sine") {
   const at = ctx.currentTime + delay;
   const osc = ctx.createOscillator();
   osc.type = type;
@@ -747,7 +827,7 @@ const mystic = {
     gain.gain.setValueAtTime(0, at);
     gain.gain.linearRampToValueAtTime(0.18, at + 1.2);
     gain.gain.linearRampToValueAtTime(0, at + 2);
-    source.connect(filter).connect(gain).connect(master);
+    source.connect(filter).connect(gain).connect(dest());
     source.start(at, rand(0, 1), 2.05);
     blup({ delay: 1.7, freq: 140, rise: 2.6, length: 0.18, level: 0.2, muffle: 0.5 });
   },
@@ -781,8 +861,8 @@ const mystic = {
 
 /** A sound for one of the night's events: "boat", "mavka", "lantern", "eyes" (the ghost angler stays silent). */
 export function nightSound(kind) {
-  if (!audio() || !mystic[kind]) return;
-  mystic[kind]();
+  if (!mystic[kind]) return;
+  play(kind, mystic[kind]);
 }
 
 /* ---------- Each water's own sounds (lab: Рч3, Сл3, Дз2, Пр1, Пр3) ---------- */
@@ -829,7 +909,7 @@ const local = {
     gain.gain.setValueAtTime(0, at);
     gain.gain.linearRampToValueAtTime(0.05, at + length * 0.45);
     gain.gain.linearRampToValueAtTime(0, at + length);
-    source.connect(filter).connect(gain).connect(master);
+    source.connect(filter).connect(gain).connect(dest());
     source.start(at, rand(0, 1));
     source.stop(at + length + 0.05);
   },
@@ -851,7 +931,7 @@ const local = {
         const far = ctx.createBiquadFilter();
         far.type = "lowpass";
         far.frequency.value = 1400;
-        osc.connect(far).connect(gain).connect(master);
+        osc.connect(far).connect(gain).connect(dest());
         osc.start(at);
         osc.stop(at + 4.05);
       }
@@ -906,7 +986,7 @@ function thunder() {
   const gain = ctx.createGain();
   gain.gain.value = 0;
   gain.gain.setValueCurveAtTime(curve, at, 3);
-  source.connect(filter).connect(gain).connect(master);
+  source.connect(filter).connect(gain).connect(dest());
   source.start(at, rand(0, 1), 3.05);
 }
 
@@ -923,12 +1003,12 @@ function setRainBed(level) {
     filter.frequency.value = 700;
     const gain = ctx.createGain();
     gain.gain.value = 0;
-    source.connect(filter).connect(gain).connect(master);
+    source.connect(filter).connect(gain).connect(dest());
     source.start();
     rainBed = { source, gain };
   }
   if (!rainBed) return;
-  rainBed.gain.gain.setTargetAtTime(0.12 * level, ctx.currentTime, 0.8);
+  rainBed.gain.gain.setTargetAtTime(0.12 * level * (LEVELS.rainBed ?? 1), ctx.currentTime, 0.8);
   // Once the rain has gone, stop the loop altogether.
   if (level <= 0.02 && rainLevel <= 0.02) {
     const { source } = rainBed;
@@ -950,84 +1030,84 @@ export function ambienceTick(step, { atWater, rain, night, ducks = 0, frogs = fa
   for (const key of Object.keys(ambient)) ambient[key] -= step;
   if (atWater && ambient.lap <= 0) {
     ambient.lap = rand(2.5, 6);
-    lap();
+    play("lap", lap);
   }
   // Birds sing by day, and not in the rain; crickets chirp on dry nights.
   if (atWater && !night && rain < 0.3 && ambient.bird <= 0) {
     ambient.bird = rand(6, 16);
-    bird();
+    play("bird", bird);
   }
   // A fish jumping out on the water now and then, day or night.
   if (atWater && ambient.jump <= 0) {
     ambient.jump = rand(20, 60);
-    fishJump();
+    play("fishJump", fishJump);
   }
   // Ducks on the water mutter or quack once in a while.
   if (atWater && ducks > 0 && ambient.duck <= 0) {
     ambient.duck = rand(12, 30);
-    duck();
+    play("duck", duck);
   }
   if (atWater && night && rain < 0.3 && ambient.cricket <= 0) {
     ambient.cricket = rand(0.8, 3);
-    cricket();
+    play("cricket", cricket);
   }
   // Tree frogs in the reeds on warm evenings and nights.
   if (atWater && frogs && rain < 0.5 && ambient.frog <= 0) {
     ambient.frog = rand(6, 15);
-    treeFrog();
+    play("treeFrog", treeFrog);
   }
   // An owl now and then deep in the night.
   if (atWater && night && rain < 0.3 && ambient.owl <= 0) {
     ambient.owl = rand(60, 150);
-    owl();
+    play("owl", owl);
   }
   // Each water's own sounds, quiet and now and then.
   if (atWater && spot === "bridge" && ambient.river <= 0) {
     ambient.river = rand(8, 16);
-    local.river();
+    play("river", local.river);
   }
   if (atWater && spot === "pond" && !night && ambient.cow <= 0) {
     ambient.cow = rand(60, 150);
-    local.cow();
+    play("cow", local.cow);
   }
   if (atWater && spot === "castle" && ambient.bell <= 0) {
     ambient.bell = rand(180, 360);
-    local.bell();
+    play("bell", local.bell);
   }
   if (atWater && spot === "reservoir") {
     if (ambient.wreck <= 0) {
       ambient.wreck = rand(30, 60);
-      local.wreck();
+      play("wreck", local.wreck);
     }
     if (ambient.geiger <= 0) {
       ambient.geiger = rand(20, 40);
-      local.geiger();
+      play("geiger", local.geiger);
     }
   }
   // Deep in the night (the mystic hours): the wisps' glass tones, a low drift, and very rarely a whisper.
   if (atWater && deepNight > 0.5) {
     if (ambient.wisp <= 0) {
       ambient.wisp = rand(25, 60);
-      mystic.wisp();
+      play("wisp", mystic.wisp);
     }
     if (ambient.drone <= 0) {
       ambient.drone = rand(30, 70);
-      mystic.drone();
+      play("drone", mystic.drone);
     }
     if (ambient.whisper <= 0) {
       ambient.whisper = rand(180, 360);
-      mystic.whisper();
+      play("whisper", mystic.whisper);
     }
   }
   // Far thunder, only in a heavy downpour.
   if (rain > 0.7 && ambient.thunder <= 0) {
     ambient.thunder = rand(40, 90);
-    thunder();
+    play("thunder", thunder);
   }
   // Rain: drops landing on the water all around, more as it gets heavier.
   if (rain > 0.05 && ambient.drop <= 0) {
     ambient.drop = rand(0.01, 0.06) / rain;
-    bubble(rand(600, 1600), rand(0.006, 0.02) * (0.4 + rain), 0, rand(-0.9, 0.9));
+    bubble(rand(600, 1600), rand(0.006, 0.02) * (0.4 + rain) * (LEVELS.rainDrop ?? 1), 0, rand(-0.9, 0.9));
   }
 }
 
@@ -1069,18 +1149,22 @@ else startWatching();
  */
 let musicGain = null;
 let musicStop = null;
+let musicFighting = false;
+/** The music's level: the slider, halved during a fight. */
+const musicLevel = () => volumes.music * (musicFighting ? 0.5 : 1) * (LEVELS.music ?? 1);
 let musicUntil = 0;
 let musicWait = rand(60, 180);
 let lastPiece = null;
 
 export function musicTick(step, { atWater, night, fighting }) {
   if (!audio()) return;
+  musicFighting = fighting;
   if (!musicGain) {
     musicGain = ctx.createGain();
-    musicGain.gain.value = 0.8;
+    musicGain.gain.value = musicLevel();
     musicGain.connect(master);
   }
-  musicGain.gain.setTargetAtTime(fighting ? 0.4 : 0.8, ctx.currentTime, 0.5);
+  musicGain.gain.setTargetAtTime(musicLevel(), ctx.currentTime, 0.5);
   if (!atWater) {
     if (musicStop) musicStop();
     musicStop = null;

@@ -10,7 +10,7 @@ import { SEASONS, season, setSeason } from "../theme.js";
 import { validNickname } from "../cloud.js";
 import { track } from "../analytics.js";
 import { baitCount, saveProgress } from "./store.js";
-import { setSoundEnabled, soundEnabled, sounds } from "../sound.js";
+import { setSoundEnabled, setVolume, soundEnabled, sounds, volume } from "../sound.js";
 
 // Hook sprites grow with the hook's size.
 const HOOK_SCALE = { small: 2, medium: 3, large: 4 };
@@ -183,6 +183,20 @@ export class AnglerUI {
         this.openSettings();
       },
     })));
+    // Two volume sliders, effects and music: live as you drag, remembered; faded while sound is off.
+    for (const kind of ["fx", "music"]) {
+      const slider = $(`#volume-${kind}`);
+      const shown = $(`#volume-${kind}-value`);
+      slider.value = String(Math.round(volume(kind) * 100));
+      shown.textContent = `${slider.value}%`;
+      slider.disabled = !soundEnabled();
+      slider.oninput = () => {
+        setVolume(kind, Number(slider.value) / 100);
+        shown.textContent = `${slider.value}%`;
+      };
+      // A tap to hear the new level of the effects.
+      if (kind === "fx") slider.onchange = () => sounds.ui("select");
+    }
     if (!this.settingsDialog.open) this.settingsDialog.showModal();
   }
 
