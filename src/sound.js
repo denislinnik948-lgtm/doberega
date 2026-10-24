@@ -283,7 +283,37 @@ function splash(size, pan = 0) {
   for (let i = 0; i < drops; i += 1) bubble(rand(500, 1300), rand(0.015, 0.05) * size, rand(0.02, 0.18 + 0.3 * size), pan + rand(-0.15, 0.15));
 }
 
+/** A soft wooden tap: a short knock with a little body under it (the interface's "Дерево" set). */
+function knock(freq, level, delay = 0) {
+  wash({ type: "bandpass", from: freq, q: 4, attack: 0.001, length: 0.04, volume: level, delay });
+  blup({ delay, freq: freq * 0.5, rise: 0.92, length: 0.05, level: level * 0.5 });
+}
+
 export const sounds = {
+  /**
+   * The interface, as soft wooden taps (lab: У1 "Дерево"): a button, a tab, a
+   * window opening (two taps up) or closing (two down), leafing through the
+   * spots, picking gear, and a low double knock for "can't".
+   */
+  ui(event) {
+    if (!audio()) return;
+    if (event === "click") knock(vary(1100, 0.08), 0.08);
+    else if (event === "tab") knock(vary(1400, 0.08), 0.06);
+    else if (event === "open") {
+      knock(800, 0.07);
+      knock(1150, 0.06, 0.07);
+    } else if (event === "close") {
+      knock(1150, 0.06);
+      knock(800, 0.07, 0.07);
+    } else if (event === "slide") wash({ type: "bandpass", from: 700, to: 1500, q: 0.9, attack: 0.04, length: 0.18, volume: 0.05 });
+    else if (event === "select") {
+      knock(1250, 0.07);
+      for (const [ratio, part] of [[1, 1], [2.76, 0.5], [5.4, 0.25]]) ping(2200 * ratio, 0.012 * part, 0.2 / ratio, { delay: 0.03 });
+    } else if (event === "denied") {
+      knock(420, 0.1);
+      knock(380, 0.09, 0.1);
+    }
+  },
   /** The rod cutting the air, then line peeling off the spool as the bait flies. */
   cast(style = "under") {
     if (!audio()) return;
@@ -570,3 +600,32 @@ export function ambienceTick(step, { atWater, rain, night }) {
     bubble(rand(600, 1600), rand(0.006, 0.02) * (0.4 + rain), 0, rand(-0.9, 0.9));
   }
 }
+
+/*
+ * The interface plays its taps by itself: a click on any button, a tab, a
+ * pick, the spot arrows; a window opening or closing plays its own sound
+ * instead of the click that opened it.
+ */
+let pendingClick = 0;
+document.addEventListener("click", (event) => {
+  const button = event.target.closest?.("button");
+  if (!button || button.disabled) return;
+  const kind = button.classList.contains("tab") ? "tab"
+    : button.classList.contains("pick") ? "select"
+    : button.classList.contains("spot-arrow") ? "slide"
+    : "click";
+  // Played a moment later, so a window that opens or closes from this click can take its place.
+  clearTimeout(pendingClick);
+  pendingClick = setTimeout(() => sounds.ui(kind), 0);
+}, true);
+const watchDialogs = new MutationObserver((changes) => {
+  for (const change of changes) {
+    if (change.attributeName !== "open") continue;
+    clearTimeout(pendingClick);
+    sounds.ui(change.target.open ? "open" : "close");
+    return;
+  }
+});
+const startWatching = () => document.querySelectorAll("dialog").forEach((dialog) => watchDialogs.observe(dialog, { attributes: true, attributeFilter: ["open"] }));
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", startWatching);
+else startWatching();

@@ -384,11 +384,16 @@ function uiPacks() {
   return UI_SETS.map((set) => ({
     id: set.id,
     prefix: set.prefix,
-    chosen: [],
+    chosen: set.id === "ui.wood" ? UI_EVENTS.map((_, i) => i) : [],
     title: set.title,
     note: `${set.note} Обери набір цілком.`,
     sounds: UI_EVENTS.map(([event, name]) => ({ name, text: event, play: set.play[event] })),
   }));
+}
+
+/** One coin clinking: inharmonic partials, like real metal. */
+function coin({ at = 0, freq, level = 0.04 }) {
+  bell({ at, freq: jitter(freq, 0.03), level, length: 0.16 });
 }
 
 /** The same sound for a small fish, then (a second later) a big one. */
@@ -1254,6 +1259,102 @@ const SECTIONS = [
     ],
   },
   ...uiPacks(),
+  {
+    id: "shop.buy",
+    prefix: "Щ",
+    chosen: [],
+    title: "Покупка",
+    note: "Купив наживку, гачки, приманку: дрібна покупка, часто.",
+    sounds: [
+      {
+        name: "Монетки",
+        text: "Дві дрібні монети дзенькнули",
+        play: () => { coin({ freq: 2350 }); coin({ at: 0.085, freq: 2650 }); },
+      },
+      {
+        name: "Монети в долоню",
+        text: "Кілька монет і м'який стук у долоню",
+        play: () => { coin({ freq: 2500 }); coin({ at: 0.06, freq: 2200 }); coin({ at: 0.11, freq: 2800 }); knock({ at: 0.14, freq: 600, level: 0.05 }); },
+      },
+      {
+        name: "Прилавок",
+        text: "Монета об дерев'яний прилавок",
+        play: () => { knock({ freq: 900, level: 0.07 }); coin({ at: 0.02, freq: 2400 }); },
+      },
+    ],
+  },
+  {
+    id: "shop.buy.big",
+    prefix: "Ї",
+    chosen: [],
+    title: "Велика покупка",
+    note: "Вудка чи спорядження: рідко й приємно.",
+    sounds: [
+      {
+        name: "Купа монет",
+        text: "Цілий каскад монет",
+        play: () => { for (let i = 0; i < 9; i += 1) coin({ at: i * 0.045 + Math.random() * 0.02, freq: 2000 + Math.random() * 1200, level: 0.03 }); },
+      },
+      {
+        name: "Дзвіночок крамниці",
+        text: "Дзвіночок над дверима і монети",
+        play: () => { bell({ freq: 1568, level: 0.05, length: 0.9 }); bell({ at: 0.12, freq: 2093, level: 0.04, length: 0.8 }); coin({ at: 0.25, freq: 2400 }); coin({ at: 0.32, freq: 2700 }); },
+      },
+      {
+        name: "Монети й стук",
+        text: "Монети, а потім покупку кладуть на прилавок",
+        play: () => { for (let i = 0; i < 5; i += 1) coin({ at: i * 0.05, freq: 2100 + i * 150, level: 0.03 }); knock({ at: 0.35, freq: 500, level: 0.09 }); knock({ at: 0.42, freq: 700, level: 0.05 }); },
+      },
+    ],
+  },
+  {
+    id: "keepnet.sell",
+    prefix: "Й",
+    chosen: [],
+    title: "Продаж садка",
+    note: "Продав увесь улов разом: момент нагороди за риболовлю.",
+    sounds: [
+      {
+        name: "Гаманець",
+        text: "Монети сиплються в гаманець",
+        play: () => { for (let i = 0; i < 12; i += 1) coin({ at: i * 0.04 + Math.random() * 0.03, freq: 1900 + Math.random() * 1300, level: 0.028 }); wash({ at: 0.5, type: "lowpass", from: 500, to: 200, length: 0.1, level: 0.06 }); },
+      },
+      {
+        name: "Садок і монети",
+        text: "Садок піднімають з води, і монети",
+        play: () => { droplets({ count: 8, from: 0, to: 0.4, level: 0.05 }); for (let i = 0; i < 6; i += 1) coin({ at: 0.45 + i * 0.05, freq: 2100 + i * 140, level: 0.03 }); },
+      },
+      {
+        name: "Монети й дзвіночок",
+        text: "Монети, а наприкінці радісний дзвіночок",
+        play: () => { for (let i = 0; i < 8; i += 1) coin({ at: i * 0.05, freq: 2000 + Math.random() * 1000, level: 0.03 }); bell({ at: 0.45, freq: 1319, level: 0.04, length: 0.7 }); bell({ at: 0.55, freq: 1976, level: 0.03, length: 0.7 }); },
+      },
+    ],
+  },
+  {
+    id: "trophy.mount",
+    prefix: "Ц",
+    chosen: [],
+    title: "Трофей",
+    note: "Рибу зберегли як трофей: її вішають на стіну.",
+    sounds: [
+      {
+        name: "Цвях",
+        text: "Три удари молотком по цвяху",
+        play: () => { for (let i = 0; i < 3; i += 1) { knock({ at: i * 0.18, freq: 700 - i * 40, level: 0.09 }); bell({ at: i * 0.18, freq: 3200, level: 0.008, length: 0.08 }); } },
+      },
+      {
+        name: "Урочисто",
+        text: "Тихі дзвіночки, як нагорода",
+        play: () => [659, 880, 1319].forEach((f, i) => bell({ at: i * 0.12, freq: f, level: 0.045, length: 0.9 })),
+      },
+      {
+        name: "Стук і дзвін",
+        text: "Повісили на стіну, і короткий дзенькіт",
+        play: () => { knock({ freq: 600, level: 0.09 }); knock({ at: 0.15, freq: 640, level: 0.08 }); bell({ at: 0.3, freq: 1760, level: 0.04, length: 0.7 }); },
+      },
+    ],
+  },
 ];
 
 /* Build the page: a section per sound, a button per candidate (numbered). */

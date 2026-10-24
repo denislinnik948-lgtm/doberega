@@ -279,12 +279,14 @@ function tryCast(x, y) {
   if (mode !== "fishing" || !isOnWater(x, y)) return;
   if (ui.baitCount <= 0) {
     ui.toast(t("toast.noBait"), "bad", 1600);
+    sounds.ui("denied");
     return;
   }
   const lure = BAITS[progress.bait].lure;
   // The spoon is fished on a spinning reel and carries its own hook.
   if (lure && !progress.extras.includes("spinreel")) {
     ui.toast(t("toast.needReel"), "bad", 1800);
+    sounds.ui("denied");
     return;
   }
   if (!lure && (progress.hooks[progress.hook] ?? 0) <= 0) {
@@ -292,6 +294,7 @@ function tryCast(x, y) {
     const spare = Object.keys(HOOKS).find((id) => (progress.hooks[id] ?? 0) > 0);
     if (!spare) {
       ui.toast(t("toast.noHooks"), "bad", 1600);
+      sounds.ui("denied");
       return;
     }
     progress.hook = spare;

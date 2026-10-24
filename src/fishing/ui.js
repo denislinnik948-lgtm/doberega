@@ -973,6 +973,7 @@ export class AnglerUI {
     const { progress } = this;
     if (!this.isFishing()) {
       this.toast(t("toast.groundbaitWhere"), "bad", 1800);
+      sounds.ui("denied");
       return;
     }
     if (progress.groundbait <= 0) return;
