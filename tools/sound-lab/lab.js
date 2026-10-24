@@ -677,7 +677,7 @@ const SECTIONS = [
   {
     id: "line.snap",
     prefix: "О",
-    chosen: [],
+    chosen: [0],
     title: "Обрив волосіні",
     note: "Риба або корч порвали волосінь. Неприємний момент, але без гучного удару по вухах.",
     sounds: [
@@ -719,7 +719,7 @@ const SECTIONS = [
   {
     id: "hook.bend",
     prefix: "Г",
-    chosen: [],
+    chosen: [2],
     title: "Гачок розігнуло",
     note: "Риба заважка для гачка, і він розгинається: метал, а не волосінь.",
     sounds: [
@@ -747,6 +747,57 @@ const SECTIONS = [
           bell({ at: 0.005, freq: jitter(3600), level: 0.025, length: 0.12 });
           wash({ at: 0.05, type: "bandpass", from: 1500, to: 600, q: 1, attack: 0.04, length: 0.3, level: 0.04 });
         },
+      },
+    ],
+  },
+  {
+    id: "float.twitch",
+    prefix: "Т",
+    chosen: [],
+    title: "Поплавок смикається",
+    note: "Риба торкається наживки: поплавок ледь здригається. Має бути зовсім тихо, на межі чутності. Тут три смикання поспіль.",
+    sounds: [
+      {
+        name: "Ледь чутний «тік»",
+        text: "Крихітна висока бульбашка",
+        play: () => series(3, 0.45, (at) => bubble({ at, freq: jitter(950), rise: 1.8, length: 0.025, level: 0.05 })),
+      },
+      {
+        name: "Брижі",
+        text: "Тихий плескіт води біля поплавка",
+        play: () => series(3, 0.45, (at) => wash({ at, type: "lowpass", from: jitter(1300), to: 500, attack: 0.01, length: 0.09, level: 0.05 })),
+      },
+      {
+        name: "Тук поплавка",
+        text: "Легкий стук пластикового поплавка",
+        play: () => series(3, 0.45, (at) => wash({ at, type: "bandpass", from: jitter(1400), q: 3, attack: 0.001, length: 0.025, level: 0.06 })),
+      },
+    ],
+  },
+  {
+    id: "float.dip",
+    prefix: "Н",
+    chosen: [],
+    title: "Поплавок пірнає на мить",
+    note: "Поплавок занурився й виринув: тут уже можна пробувати підсікати. Трохи чутніше за смикання, тихіше за кльов. Тут два пірнання.",
+    sounds: [
+      {
+        name: "Короткий бульк",
+        text: "Одна бульбашка, коротко",
+        play: () => series(2, 0.7, (at) => bubble({ at, freq: jitter(520), rise: 2.2, length: 0.04, level: 0.1 })),
+      },
+      {
+        name: "Пірнув і виринув",
+        text: "Глухий бульк під водою і легкий «пум», коли спливає",
+        play: () => series(2, 0.7, (at) => {
+          bubble({ at, freq: jitter(380), rise: 2.3, length: 0.05, level: 0.1, muffle: 0.5 });
+          bubble({ at: at + 0.3, freq: jitter(700), rise: 1.8, length: 0.03, level: 0.05 });
+        }),
+      },
+      {
+        name: "Шльоп",
+        text: "Маленький шльоп по воді",
+        play: () => series(2, 0.7, (at) => wash({ at, type: "lowpass", from: jitter(1700), to: 400, attack: 0.003, length: 0.08, level: 0.09 })),
       },
     ],
   },

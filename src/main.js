@@ -223,7 +223,8 @@ function handleGameEvent(type, data) {
     ui.commit();
     if (data.type === "escape") {
       // A snapped line or a bent hook twangs; a fish that just slipped off makes a splash.
-      if (data.hookLost || data.reason === "snap") sounds.snap();
+      if (data.reason === "straightened") sounds.hookBend();
+      else if (data.hookLost || data.reason === "snap") sounds.snap();
       else sounds.splash(0.5);
       const lure = BAITS[data.bait].lure;
       const losses = [

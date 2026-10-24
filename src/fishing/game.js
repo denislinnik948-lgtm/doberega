@@ -490,6 +490,7 @@ export class FishingGame {
             const tug = (step.kind === "dip" ? 0.0045 : 0.0025) * (step.strength ?? 1) * (0.5 + this.random());
             this.moveFloat(Math.cos(this.heading) * tug, Math.sin(this.heading) * tug * 0.6);
             this.ripple(this.target, step.kind === "dip" ? 0.4 : 0.22, 0.2);
+            this.emit(step.kind, { strength: step.strength ?? 1 });
           }
           const strength = step.strength ?? 1;
           if (step.kind === "twitch") this.float.offset = age < 0.25 ? Math.sin((age / 0.25) * Math.PI) * 3 * strength : 0;

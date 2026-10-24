@@ -350,7 +350,15 @@ export const sounds = {
       droplets(3, 0.05, 0.35, 0.04);
     }
   },
-  /** The line snapping (or the hook giving): a dry crack and the slack line whipping. */
+  /** The hook bending straight (lab: Г3 "Клац і ослабло"): a small metal click, a faint ring, the line going slack. */
+  hookBend() {
+    if (!audio()) return;
+    wash({ type: "bandpass", from: vary(5200, 0.05), q: 6, attack: 0.001, length: 0.02, volume: 0.1 });
+    ping(vary(3600, 0.05), 0.025, 0.12, { delay: 0.005 });
+    ping(vary(3600 * 2.76, 0.05), 0.012, 0.05, { delay: 0.005 });
+    wash({ type: "bandpass", from: 1500, to: 600, q: 1, attack: 0.04, length: 0.3, volume: 0.04, delay: 0.05 });
+  },
+  /** The line snapping (lab: О1 "Сухий тріск"): a dry crack and the slack line whipping. */
   snap() {
     if (!audio()) return;
     wash({ type: "highpass", from: 2600, q: 0.5, attack: 0.001, length: 0.04, volume: 0.22 });
