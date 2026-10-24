@@ -84,6 +84,11 @@
           <span class="bait-chip-sprite" id="bait-chip-sprite"></span>
           <span class="bait-chip-count" id="bait-chip-count">×5</span>
         </button>
+        <!-- The keepnet: how many fish are in it; tap to look. -->
+        <button class="bait-chip keepnet-chip" id="keepnet-chip" data-frame="box" type="button" aria-haspopup="dialog" hidden>
+          <span class="bait-chip-sprite" id="keepnet-chip-sprite"></span>
+          <span class="bait-chip-count" id="keepnet-chip-count">×0</span>
+        </button>
       </div>
       <div class="hud pack-hud game-only">
         <button class="slot" id="pack-slot" data-frame="well" type="button" aria-haspopup="dialog" data-i18n-aria="menu.pack">
@@ -112,9 +117,22 @@
         <p class="catch-note" id="catch-note" hidden></p>
       </div>
       <div class="catch-actions">
-        <button class="pixel-btn pixel-btn-primary" id="sell-button" type="button"><span data-i18n="catch.sell">Sell</span> <b id="catch-price">+0</b></button>
-        <button class="pixel-btn" id="mount-button" type="button"><span data-i18n="catch.mount">Trophy</span> <b id="catch-trophy">−0</b></button>
-        <button class="pixel-btn pixel-btn-quiet" id="release-button" type="button" data-i18n="catch.release">Release</button>
+        <button class="pixel-btn pixel-btn-primary" id="catch-ok" type="button" data-i18n="catch.ok">OK</button>
+      </div>
+    </dialog>
+
+    <!-- The keepnet: everything caught this trip, shown on leaving the water; sell it all, or keep some as trophies. -->
+    <dialog class="sheet sheet-wide keepnet-sheet" id="keepnet-dialog" data-frame="ornate" aria-labelledby="keepnet-title">
+      <header class="sheet-heading">
+        <h2 class="title-tab" id="keepnet-title" data-frame="tab" data-i18n="keepnet.title">Keepnet</h2>
+        <form method="dialog"><button class="pixel-btn pixel-btn-square" type="submit" data-i18n-aria="a11y.close">✕</button></form>
+      </header>
+      <ul class="keepnet-list" id="keepnet-list"></ul>
+      <p class="empty-note" id="keepnet-empty" data-i18n="keepnet.empty" hidden>The keepnet is empty</p>
+      <div class="keepnet-footer">
+        <p class="keepnet-summary" id="keepnet-summary"></p>
+        <button class="pixel-btn pixel-btn-primary" id="keepnet-sell" type="button"></button>
+        <button class="pixel-btn" id="keepnet-keep" type="button" data-i18n="keepnet.keep">Keep for later</button>
       </div>
     </dialog>
 
@@ -208,6 +226,7 @@
       <div class="setting-row">
         <span class="setting-label" data-i18n="settings.sound">Sound</span>
         <div class="segmented" id="sound-options" role="radiogroup" data-i18n-aria="settings.sound"></div>
+        <p class="account-hint" id="sound-hint" data-i18n="sound.soon">Sound is coming soon</p>
       </div>
     </dialog>
 

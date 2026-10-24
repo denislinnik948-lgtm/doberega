@@ -253,6 +253,8 @@ export const START_STATE = {
   // Game hours of groundbait left at each water, by spot id.
   baited: {},
   trophies: [],
+  // Fish kept alive in the keepnet until you leave the water: sold together, or some kept as trophies.
+  keepnet: [],
   caught: 0,
   location: 0,
 };

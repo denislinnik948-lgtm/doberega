@@ -326,6 +326,37 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
 .catch-actions [hidden] { display: none; }
 .catch-note { margin: 6px 0 0; color: var(--gold); font-size: 18px; text-align: center; }
 .catch-note[hidden] { display: none; }
+
+/* ---------- Keepnet ---------- */
+
+.keepnet-list {
+  display: grid;
+  gap: 8px;
+  max-height: min(50vh, 440px);
+  overflow-y: auto;
+  margin: 0;
+  padding: 0 6px 0 0;
+  list-style: none;
+  scrollbar-color: var(--mid) transparent;
+}
+.keepnet-row { display: grid; grid-template-columns: 96px 1fr auto; gap: 12px; align-items: center; padding: 6px 10px; border: 2px solid var(--dark); background: rgba(10, 20, 18, 0.5); }
+.keepnet-art { display: grid; place-items: center; }
+.keepnet-art .sprite { max-width: 96px; height: auto; }
+.keepnet-info { display: grid; gap: 2px; min-width: 0; }
+.keepnet-info strong { font-size: 22px; font-weight: 500; }
+.keepnet-info span { color: var(--gold); font-size: 18px; }
+.keepnet-actions { display: flex; gap: 8px; }
+.keepnet-actions .pixel-btn { min-height: 40px; padding-inline: 10px; font-size: 18px; }
+.keepnet-footer { display: grid; gap: 10px; }
+.keepnet-summary { margin: 0; color: var(--light); font-size: 19px; text-align: center; }
+.keepnet-footer .pixel-btn { min-height: 48px; }
+.keepnet-chip[hidden] { display: none; }
+@media (max-width: 520px) {
+  .keepnet-row { grid-template-columns: 64px 1fr; }
+  .keepnet-art .sprite { max-width: 64px; }
+  .keepnet-actions { grid-column: 1 / -1; }
+  .keepnet-actions .pixel-btn { flex: 1; }
+}
 .focus-sink { position: absolute; width: 1px; height: 1px; overflow: hidden; outline: none; }
 
 /* ---------- Fight ---------- */
@@ -420,6 +451,7 @@ html.keyboard-open .sheet[open] > .account-body {
 .catch-actions { display: grid; gap: 10px; }
 .catch-actions .pixel-btn { justify-content: space-between; min-height: 46px; padding-inline: 16px; white-space: nowrap; }
 .catch-actions .pixel-btn-quiet { justify-content: center; min-height: 40px; }
+#catch-ok { justify-content: center; }
 
 .tabs { display: flex; gap: 8px; }
 .tab { flex: 1; }

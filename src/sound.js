@@ -6,19 +6,31 @@
  * not a constant hiss but sparse, natural sounds: a ripple lapping now and
  * then, birds by day, crickets at night, and rain as falling drops.
  *
- * On by default; Settings turns it off, and the choice is remembered in this
- * browser. Browsers only let a page make sound after a tap or a key, so
- * nothing plays before the first one.
+ * Sound is still being tuned, so for now it is off for everyone and the
+ * Settings switch can't be turned on, except on the owner's devices (where an
+ * admin has signed in: see markOwnDevice in analytics.js). There it starts off
+ * too and the choice is remembered. Browsers only let a page make sound after
+ * a tap or a key, so nothing plays before the first one.
  */
 
 const KEY = "doberega.sound";
+const OWN_KEY = "doberega.ownDevice";
 const VOLUME = 0.7;
+
+/** Whether this device may switch sound on at all (for now, only the owner's). */
+export function soundAllowed() {
+  try {
+    return localStorage.getItem(OWN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 let enabled = (() => {
   try {
-    return localStorage.getItem(KEY) !== "off";
+    return soundAllowed() && localStorage.getItem(KEY) === "on";
   } catch {
-    return true;
+    return false;
   }
 })();
 
@@ -33,6 +45,7 @@ export function soundEnabled() {
 }
 
 export function setSoundEnabled(on) {
+  if (on && !soundAllowed()) return;
   enabled = on;
   try {
     localStorage.setItem(KEY, on ? "on" : "off");

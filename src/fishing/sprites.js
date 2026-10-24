@@ -841,6 +841,22 @@ export function extraSprite(id, scale = 3) {
   return EXTRA_SPRITES[id]().toCanvas(scale);
 }
 
+/** The keepnet: a ring and a long mesh bag tapering down. */
+export function keepnetSprite(scale = 3) {
+  return fromRows([
+    "..oooooooo..",
+    ".oRRRRRRRRo.",
+    "..oNoNoNoo..",
+    "..oNNoNNo...",
+    "..oNoNoNo...",
+    "...oNNNo....",
+    "...oNoNo....",
+    "...oNNNo....",
+    "....oNo.....",
+    ".....o......",
+  ], { o: P.ink, R: P.goldDark, N: P.soft }).toCanvas(scale);
+}
+
 /** A single fishing hook. */
 export function hookSprite(scale = 3) {
   return fromRows([

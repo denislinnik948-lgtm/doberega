@@ -109,6 +109,8 @@ function applySpot() {
 /** Build the chosen spot's scene if the menu moved on since the last one. */
 function ensureSpot() {
   if (builtSpot !== progress.location) applySpot();
+// Fish left in the keepnet from last time (the game was closed at the water): offer to sell them.
+if (progress.keepnet.length) setTimeout(() => ui.openKeepnet(), 800);
 }
 
 function setMode(next) {
@@ -140,7 +142,11 @@ const ui = new AnglerUI(progress, {
       go();
     }, 0));
   },
-  onExit: () => setMode("menu"),
+  // Leaving the water: the keepnet comes up to sell the catch.
+  onExit: () => {
+    setMode("menu");
+    if (progress.keepnet.length) ui.openKeepnet();
+  },
   // In the menu only the picture changes; the scene is built on Fish.
   onSpotChange: () => {
     if (mode !== "menu") applySpot();
@@ -229,12 +235,8 @@ function handleGameEvent(type, data) {
       track("catch");
       sounds.landed();
       game.release();
-      ui.showCatch(data.fish, { bait: data.bait }).then((choice) => {
-        if (choice.type === "sell") {
-          ui.toast(`+${choice.price} ₴`, "good", 1200);
-          sounds.coin();
-        }
-        else if (choice.type === "mount") ui.toast(t("toast.trophy"), "good", 1200);
+      // Into the keepnet (or the trophies); it's all sold on leaving the water.
+      ui.showCatch(data.fish, { bait: data.bait }).then(() => {
         game.reset();
         // The first fish ever is the moment to suggest keeping progress safe.
         if (progress.caught === 1) ui.offerSignIn();

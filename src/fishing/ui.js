@@ -3,14 +3,14 @@ import {
   baitEntries, fishPrice, formatMoney, formatWeight, handbookEntries, spotEntries, trophyCost,
 } from "./data.js";
 import {
-  bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, groundbaitSprite, hookSprite, packSprite, rodSprite,
+  bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, groundbaitSprite, hookSprite, keepnetSprite, packSprite, rodSprite,
 } from "./sprites.js";
 import { frame, frameAll, repaint, setContent } from "./frames.js";
 import { SEASONS, season, setSeason } from "../theme.js";
 import { validNickname } from "../cloud.js";
 import { track } from "../analytics.js";
 import { baitCount, saveProgress } from "./store.js";
-import { setSoundEnabled, soundEnabled, sounds } from "../sound.js";
+import { setSoundEnabled, soundAllowed, soundEnabled, sounds } from "../sound.js";
 
 // Hook sprites grow with the hook's size.
 const HOOK_SCALE = { small: 2, medium: 3, large: 4 };
@@ -60,6 +60,7 @@ export class AnglerUI {
     this.catchDialog = $("#catch-dialog");
     this.shopDialog = $("#shop-dialog");
     this.trophyDialog = $("#trophy-dialog");
+    this.keepnetDialog = $("#keepnet-dialog");
     this.packDialog = $("#pack-dialog");
     this.handbookDialog = $("#handbook-dialog");
     this.settingsDialog = $("#settings-dialog");
@@ -87,6 +88,7 @@ export class AnglerUI {
     $("#shop-button").addEventListener("click", () => this.openShop());
     $("#pack-button").addEventListener("click", () => this.openPack());
     $("#trophy-button").addEventListener("click", () => this.openTrophies());
+    $("#keepnet-chip").addEventListener("click", () => this.openKeepnet());
     $("#settings-button").addEventListener("click", () => this.openSettings());
     $("#account-button").addEventListener("click", () => this.openAccount());
     for (const tab of document.querySelectorAll("#shop-dialog .tab")) {
@@ -115,6 +117,7 @@ export class AnglerUI {
     $("#pack-icon").replaceChildren(packSprite(3));
     $("#trophy-icon").replaceChildren(cupSprite(3));
     icon("#exit-button", exitSprite(3));
+    $("#keepnet-chip-sprite").replaceChildren(keepnetSprite(3));
     $("#settings-icon").replaceChildren(gearSprite(3));
     $("#pack-slot-sprite").replaceChildren(packSprite(3));
     $("#pack-hook-sprite").replaceChildren(hookSprite(2));
@@ -168,17 +171,21 @@ export class AnglerUI {
       },
     })));
     $("#season-hint").textContent = t(`season.${season()}Hint`);
+    // Sound is still being tuned: off for everyone, switchable only on the owner's devices.
+    const allowed = soundAllowed();
     $("#sound-options").replaceChildren(...[true, false].map((on) => element("button", {
       className: `pixel-btn tab${on === soundEnabled() ? " is-active" : ""}`,
       type: "button",
       role: "radio",
       ariaChecked: String(on === soundEnabled()),
+      disabled: !allowed,
       textContent: t(on ? "sound.on" : "sound.off"),
       onclick: () => {
         setSoundEnabled(on);
         this.openSettings();
       },
     })));
+    $("#sound-hint").hidden = allowed;
     if (!this.settingsDialog.open) this.settingsDialog.showModal();
   }
 
@@ -525,6 +532,12 @@ export class AnglerUI {
     chip.setAttribute("aria-label", `${t("a11y.chooseBait")}: ${nameOf("bait", progress.bait)}, ${countLabel(this.baitCount)}`);
     this.packSlot.setAttribute("aria-label", `${t("menu.pack")}: ${nameOf("rod", progress.rod)}, ${t("shop.upTo", { weight: formatWeight(rod.maxKg) })}`);
 
+    // The keepnet chip, bottom left: how many fish are in it (hidden while empty).
+    const netCount = progress.keepnet.length;
+    $("#keepnet-chip").hidden = netCount === 0;
+    $("#keepnet-chip-count").textContent = `×${netCount}`;
+    $("#keepnet-chip").setAttribute("aria-label", `${t("a11y.keepnet")}: ${netCount}`);
+
     // The hook size in use and how many are left.
     const hooksLeft = progress.hooks[progress.hook] ?? 0;
     $("#pack-hook-sprite").replaceChildren(hookSprite(2));
@@ -645,51 +658,109 @@ export class AnglerUI {
   }
 
   /** Show the catch card; resolves after the angler sells, mounts or releases it. */
+  /**
+   * A fish on the bank: just its picture, name and weight, and OK. An ordinary
+   * fish goes into the keepnet (sold or kept as a trophy when you leave the
+   * water); a one-of-a-kind one goes straight to the trophies; junk is left on
+   * the bank.
+   */
   showCatch(fish, { bait } = {}) {
-    const price = fishPrice(fish);
-    const cost = trophyCost(fish);
     const dialog = this.catchDialog;
+    const { progress } = this;
     $("#catch-title").textContent = nameOf("fish", fish.species);
     setContent($("#catch-art"), fishSprite(fish.species, 4, nameOf("fish", fish.species)));
     $("#catch-weight").textContent = formatWeight(fish.weight);
-    $("#catch-price").textContent = `+${price} ₴`;
-    // Valerka can't be sold or let go: the only choice is a free trophy.
     const unique = Boolean(fish.unique);
-    $("#catch-trophy").textContent = unique ? t("catch.free") : `−${cost} ₴`;
-    $("#sell-button").hidden = unique;
-    $("#release-button").hidden = unique;
-    $("#catch-note").hidden = !unique;
-    $("#catch-note").textContent = unique ? t("catch.unique") : "";
-    const mount = $("#mount-button");
-    mount.disabled = this.progress.money < cost;
-    mount.title = mount.disabled ? t("catch.noMoney") : "";
+    const junk = Boolean(FISH[fish.species]?.junk);
+    $("#catch-note").hidden = false;
+    $("#catch-note").textContent = unique ? t("catch.toTrophies") : junk ? t("catch.junk") : t("catch.toKeepnet", { price: formatMoney(fishPrice(fish)) });
+    const date = new Date().toISOString();
+    const record = { ...fish, id: `${date}-${fish.species}-${fish.weight}`, date, spot: progress.location, bait };
+    if (unique) progress.trophies.unshift(record);
+    else if (!junk) progress.keepnet.push(record);
+    this.commit();
 
     return new Promise((resolve) => {
-      const finish = (choice) => {
+      const finish = () => {
         dialog.close();
-        resolve(choice);
+        resolve();
       };
-      $("#sell-button").onclick = this.guarded(dialog, () => {
-        this.progress.money += price;
-        this.commit();
-        finish({ type: "sell", price });
-      });
-      mount.onclick = this.guarded(dialog, () => {
-        this.progress.money -= cost;
-        const date = new Date().toISOString();
-        this.progress.trophies.unshift({ ...fish, id: `${date}-${fish.species}-${fish.weight}`, date, spot: this.progress.location, bait });
-        this.commit();
-        finish({ type: "mount", cost });
-      });
-      $("#release-button").onclick = this.guarded(dialog, () => finish({ type: "release" }));
-      // Escape releases the fish rather than leaving the game stuck.
+      $("#catch-ok").onclick = this.guarded(dialog, finish);
       dialog.oncancel = (event) => {
         event.preventDefault();
-        if (unique) return;
-        if (performance.now() - Number(dialog.dataset.openedAt ?? 0) >= DIALOG_GUARD_MS) finish({ type: "release" });
+        if (performance.now() - Number(dialog.dataset.openedAt ?? 0) >= DIALOG_GUARD_MS) finish();
       };
       this.openGuarded(dialog);
     });
+  }
+
+  /* ---------- Keepnet ---------- */
+
+  /**
+   * The keepnet: every fish in it with its weight and price; any can be kept
+   * as a trophy or let go, and the rest sold together in one go.
+   */
+  openKeepnet() {
+    const { progress } = this;
+    const dialog = this.keepnetDialog;
+    const fishList = progress.keepnet;
+    const total = fishList.reduce((sum, fish) => sum + fishPrice(fish), 0);
+    const weight = fishList.reduce((sum, fish) => sum + fish.weight, 0);
+    const refresh = () => {
+      this.commit();
+      if (progress.keepnet.length) this.openKeepnet();
+      else dialog.close();
+    };
+    $("#keepnet-list").replaceChildren(...fishList.map((fish, index) => {
+      const cost = trophyCost(fish);
+      const trophy = element("button", {
+        className: "pixel-btn",
+        type: "button",
+        textContent: t("keepnet.trophy", { cost: formatMoney(cost) }),
+        disabled: progress.money < cost,
+        title: progress.money < cost ? t("catch.noMoney") : "",
+        onclick: () => {
+          progress.money -= cost;
+          progress.trophies.unshift(fish);
+          progress.keepnet.splice(index, 1);
+          sounds.coin();
+          this.toast(t("toast.trophy"), "good", 1200);
+          refresh();
+        },
+      });
+      const release = element("button", {
+        className: "pixel-btn pixel-btn-quiet",
+        type: "button",
+        textContent: t("keepnet.release"),
+        onclick: () => {
+          progress.keepnet.splice(index, 1);
+          refresh();
+        },
+      });
+      return element("li", { className: "keepnet-row" }, [
+        element("div", { className: "keepnet-art" }, [fishSprite(fish.species, 2)]),
+        element("div", { className: "keepnet-info" }, [
+          element("strong", { textContent: nameOf("fish", fish.species) }),
+          element("span", { textContent: `${formatWeight(fish.weight)} · ${formatMoney(fishPrice(fish))}` }),
+        ]),
+        element("div", { className: "keepnet-actions" }, [trophy, release]),
+      ]);
+    }));
+    $("#keepnet-empty").hidden = fishList.length > 0;
+    $("#keepnet-summary").textContent = t("keepnet.summary", { count: fishList.length, weight: formatWeight(weight), total: formatMoney(total) });
+    const sell = $("#keepnet-sell");
+    sell.textContent = t("keepnet.sellAll", { total: formatMoney(total) });
+    sell.disabled = !fishList.length;
+    sell.onclick = () => {
+      progress.money += total;
+      progress.keepnet = [];
+      sounds.coin();
+      this.commit();
+      dialog.close();
+      this.toast(t("keepnet.sold", { total: formatMoney(total) }), "good", 1800);
+    };
+    $("#keepnet-keep").onclick = () => dialog.close();
+    if (!dialog.open) dialog.showModal();
   }
 
   /* ---------- Shop ---------- */

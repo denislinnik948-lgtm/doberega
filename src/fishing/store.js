@@ -1,4 +1,4 @@
-import { BAITS, EXTRAS, HOOKS, LOCATIONS, RETIRED_BAITS, RODS, START_STATE, gameHoursMs } from "./data.js";
+import { BAITS, EXTRAS, FISH, HOOKS, LOCATIONS, RETIRED_BAITS, RODS, START_STATE, gameHoursMs } from "./data.js";
 
 // The storage key keeps the game's old working name so existing saves carry over.
 const KEY = "stillwater.fishing.v2";
@@ -49,6 +49,10 @@ export function normalizeProgress(saved) {
     // Every trophy needs a stable id so it is published to the cloud only once.
     if (Array.isArray(saved.trophies)) state.trophies = saved.trophies.map((trophy) => ({ ...trophy, id: trophy.id ?? `${trophy.date}-${trophy.species}-${trophy.weight}` }));
     if (Number.isFinite(saved.caught)) state.caught = saved.caught;
+    // The keepnet: ordinary fish only (one-of-a-kind ones go straight to the trophies).
+    if (Array.isArray(saved.keepnet)) {
+      state.keepnet = saved.keepnet.filter((fish) => fish && FISH[fish.species] && !FISH[fish.species].unique && !FISH[fish.species].junk && Number.isFinite(fish.weight) && fish.weight > 0);
+    }
     if (LOCATIONS[saved.location]) state.location = saved.location;
     if (Number.isFinite(saved.savedAt)) state.savedAt = saved.savedAt;
   }
@@ -82,7 +86,7 @@ export function replaceProgress(target, source) {
 
 /** Whether a save holds anything beyond the starting kit. */
 export function hasProgress(state) {
-  return (state.caught ?? 0) > 0 || (state.trophies?.length ?? 0) > 0 || (state.rods?.length ?? 1) > 1
+  return (state.caught ?? 0) > 0 || (state.trophies?.length ?? 0) > 0 || (state.keepnet?.length ?? 0) > 0 || (state.rods?.length ?? 1) > 1
     || (state.extras?.length ?? 0) > 0 || state.money !== START_STATE.money;
 }
 
