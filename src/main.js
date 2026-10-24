@@ -202,6 +202,8 @@ function handleGameEvent(type, data) {
     sounds.bite();
   } else if (type === "hooked") {
     sounds.hookset();
+  } else if (type === "snag") {
+    sounds.snag();
   }
   if (type === "ripple") {
     const point = toScreen(data);
@@ -227,7 +229,8 @@ function handleGameEvent(type, data) {
     ui.commit();
     if (data.type === "escape") {
       // A snapped line or a bent hook twangs; a fish that just slipped off makes a splash.
-      if (data.reason === "straightened") sounds.hookBend();
+      if (data.reason === "unsnagged") sounds.snagFree();
+      else if (data.reason === "straightened") sounds.hookBend();
       else if (data.hookLost || data.reason === "snap") sounds.snap();
       else sounds.splash(0.5);
       const lure = BAITS[data.bait].lure;
@@ -379,6 +382,7 @@ function tickGroundbait() {
 let reelClock = 0;
 let thrashClock = 1;
 let dragClock = 0;
+let creakClock = 1;
 function playLoops(step, dayTime) {
   const reeling = mode === "fishing" && (game.phase === "reeling" || (game.pulling && ["fight", "retrieving"].includes(game.phase)));
   if (reeling && !game.snag) {
@@ -403,6 +407,14 @@ function playLoops(step, dayTime) {
     }
   } else {
     dragClock = 0;
+  }
+  // A heavy fish with the line near breaking: the rod creaks now and then.
+  if (mode === "fishing" && game.phase === "fight" && game.tension > 0.75 && (game.rates?.strain ?? 0) > 0.8) {
+    creakClock -= step;
+    if (creakClock <= 0) {
+      creakClock = 1.5 + Math.random() * 1.5;
+      sounds.creak();
+    }
   }
   if (mode === "fishing" && game.phase === "fight" && !game.snag && !game.fish?.junk) {
     thrashClock -= step;

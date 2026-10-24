@@ -957,7 +957,7 @@ const SECTIONS = [
   {
     id: "rod.creak",
     prefix: "Е",
-    chosen: [],
+    chosen: [0],
     title: "Вудка рипить під навантаженням",
     note: "Важка риба гне вудку до межі: рідкий тихий звук, коли натяг високий.",
     sounds: [
@@ -983,7 +983,7 @@ const SECTIONS = [
   {
     id: "snag.stuck",
     prefix: "Ж",
-    chosen: [],
+    chosen: [2],
     title: "Зачепився за корч",
     note: "Гачок зачепився під водою: замість риби глухий опір.",
     sounds: [
@@ -1010,7 +1010,7 @@ const SECTIONS = [
   {
     id: "snag.free",
     prefix: "Ч",
-    chosen: [],
+    chosen: [1],
     title: "Корч відпустив",
     note: "Дав слабину, і гачок відчепився: полегшення.",
     sounds: [
@@ -1029,6 +1029,129 @@ const SECTIONS = [
           wash({ type: "bandpass", from: 1800, to: 900, q: 0.8, attack: 0.02, length: 0.2, level: 0.05 });
           bubble({ at: 0.15, freq: jitter(420), rise: 2.3, length: 0.05, level: 0.12 });
         },
+      },
+    ],
+  },
+  {
+    id: "lift.out",
+    prefix: "А",
+    chosen: [],
+    title: "Наживку підняли з води",
+    note: "Порожню снасть змотали до берега й піднімають із води перед новим закидом.",
+    sounds: [
+      {
+        name: "Капає",
+        text: "Наживка виходить із води, з неї капає",
+        play: () => {
+          bubble({ freq: jitter(700), rise: 1.6, length: 0.03, level: 0.06 });
+          droplets({ count: 4, from: 0.08, to: 0.5, level: 0.04 });
+        },
+      },
+      {
+        name: "Чмок",
+        text: "Тихе «чмок», коли вода відпускає наживку",
+        play: () => bubble({ freq: jitter(320), rise: 3, length: 0.06, level: 0.12 }),
+      },
+      {
+        name: "Чмок і краплі",
+        text: "«Чмок» і пара крапель слідом",
+        play: () => {
+          bubble({ freq: jitter(340), rise: 3, length: 0.06, level: 0.1 });
+          droplets({ count: 2, from: 0.12, to: 0.35, level: 0.04 });
+        },
+      },
+    ],
+  },
+  {
+    id: "groundbait",
+    prefix: "И",
+    chosen: [],
+    title: "Кидок прикормки",
+    note: "Жменя прикормки летить у воду й розсипається по поверхні.",
+    sounds: [
+      {
+        name: "Розсип",
+        text: "Багато дрібних плюскотів, як дощ у одному місці",
+        play: () => {
+          for (let i = 0; i < 18; i += 1) bubble({ at: 0.1 + Math.random() * 0.35, freq: 700 + Math.random() * 900, rise: 2, length: 0.025, level: 0.04, pan: Math.random() * 0.4 - 0.2 });
+        },
+      },
+      {
+        name: "Кулька",
+        text: "Важка кулька прикормки: глухий плюх",
+        play: () => {
+          wash({ at: 0.1, type: "lowpass", from: 900, to: 180, attack: 0.003, length: 0.25, level: 0.22, deep: true });
+          bubble({ at: 0.12, freq: jitter(200), rise: 2.6, length: 0.09, level: 0.16, muffle: 0.4 });
+        },
+      },
+      {
+        name: "Кулька й хмарка",
+        text: "Плюх, а потім тихий шелест: прикормка розходиться у воді",
+        play: () => {
+          wash({ at: 0.1, type: "lowpass", from: 1000, to: 200, attack: 0.003, length: 0.22, level: 0.18, deep: true });
+          for (let i = 0; i < 8; i += 1) bubble({ at: 0.3 + i * 0.07, freq: 600 + Math.random() * 500, rise: 1.9, length: 0.025, level: 0.025, muffle: 0.4 });
+        },
+      },
+    ],
+  },
+  {
+    id: "boot",
+    prefix: "Ю",
+    chosen: [],
+    title: "Старий чобіт",
+    note: "Замість риби витягнув старий чобіт: трохи кумедно.",
+    sounds: [
+      {
+        name: "Чвак",
+        text: "Мокрий важкий «чвак» на березі",
+        play: () => {
+          wash({ type: "lowpass", from: 700, to: 150, attack: 0.002, length: 0.18, level: 0.25, deep: true });
+          bubble({ at: 0.03, freq: 160, rise: 0.6, length: 0.12, level: 0.12 });
+        },
+      },
+      {
+        name: "Вода з чобота",
+        text: "З чобота довго виливається вода",
+        play: () => {
+          for (let i = 0; i < 14; i += 1) bubble({ at: i * 0.05 + Math.random() * 0.03, freq: 300 + Math.random() * 400, rise: 1.7, length: 0.04, level: 0.06 });
+          wash({ type: "lowpass", from: 800, to: 300, attack: 0.05, length: 0.7, level: 0.05 });
+        },
+      },
+      {
+        name: "Сумний «буп»",
+        text: "Чвак і два низькі ноти, що сповзають донизу",
+        play: () => {
+          wash({ type: "lowpass", from: 700, to: 150, attack: 0.002, length: 0.15, level: 0.2, deep: true });
+          bubble({ at: 0.2, freq: 330, rise: 0.94, length: 0.18, level: 0.07 });
+          bubble({ at: 0.42, freq: 262, rise: 0.9, length: 0.3, level: 0.07 });
+        },
+      },
+    ],
+  },
+  {
+    id: "unique.catch",
+    prefix: "Я",
+    chosen: [],
+    title: "Валерка чи Артем",
+    note: "Рідкісний жартівливий улов, один на десятки годин: коротка радісна несподіванка.",
+    sounds: [
+      {
+        name: "Блиск",
+        text: "Дзвіночки вгору, ніби щось чарівне",
+        play: () => [784, 988, 1175, 1568].forEach((f, i) => bell({ at: i * 0.08, freq: f, level: 0.04, length: 0.6 })),
+      },
+      {
+        name: "Ого!",
+        text: "Тон, що здивовано злітає вгору, і дзвіночок",
+        play: () => {
+          bubble({ freq: 300, rise: 2.4, length: 0.35, level: 0.08 });
+          bell({ at: 0.32, freq: 1568, level: 0.05, length: 0.7 });
+        },
+      },
+      {
+        name: "Маленька мелодія",
+        text: "Три веселі ноти, як знахідка в грі",
+        play: () => [[523, 0], [659, 0.12], [1047, 0.24]].forEach(([f, at]) => bell({ at, freq: f, level: 0.05, length: 0.5 })),
       },
     ],
   },

@@ -339,6 +339,40 @@ export const sounds = {
     wash({ buffer: brown, type: "lowpass", from: vary(1100, 0.08), to: 250, attack: 0.006, length: 0.16, volume: 0.13 });
     for (let i = 0; i < 4; i += 1) blup({ delay: 0.15 + i * vary(0.12, 0.08), freq: vary(500 + i * 80, 0.08), rise: 2, length: 0.03, level: 0.05, muffle: 0.6 });
   },
+  /** The rod bending under a heavy fish (lab: Е1 "Тихий скрип"): a low, slow creak of the blank. */
+  creak() {
+    if (!audio()) return;
+    const grinds = 15;
+    for (let i = 0; i < grinds; i += 1) {
+      const t = i / grinds;
+      wash({ type: "bandpass", from: 300 + 350 * t, q: 8, attack: 0.001, length: 0.027, volume: 0.05 * rand(0.5, 1), delay: i * 0.03 });
+    }
+  },
+  /** Hooked on a snag (lab: Ж3 "Дзинь волосіні"): the taut line twangs, dull and low. */
+  snag() {
+    if (!audio()) return;
+    const freq = vary(180, 0.08);
+    for (const [ratio, part] of [[1, 1], [2, 0.5], [3, 0.3], [4.2, 0.15]]) {
+      const at = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(freq * ratio, at);
+      osc.frequency.exponentialRampToValueAtTime(freq * ratio * 0.85, at + 0.5);
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0, at);
+      gain.gain.linearRampToValueAtTime(0.1 * part, at + 0.003);
+      gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.5 / ratio);
+      osc.connect(gain).connect(master);
+      osc.start(at);
+      osc.stop(at + 0.52);
+    }
+  },
+  /** The snag letting go (lab: Ч2 "Шурхіт і бульк"): a rustle of the branch and a bubble. */
+  snagFree() {
+    if (!audio()) return;
+    wash({ type: "bandpass", from: 1800, to: 900, q: 0.8, attack: 0.02, length: 0.2, volume: 0.05 });
+    blup({ delay: 0.15, freq: vary(420, 0.08), rise: 2.3, length: 0.05, level: 0.12 });
+  },
   /** The strike to set the hook (lab: З1 "Різкий змах"): a short, quick swish of the rod going up. */
   hookset() {
     if (!audio()) return;

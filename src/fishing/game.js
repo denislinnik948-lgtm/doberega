@@ -217,6 +217,7 @@ export class FishingGame {
     this.slack = 0;
     this.float.sink = 1;
     this.enter("fight");
+    this.emit("snag");
   }
 
   hook() {
