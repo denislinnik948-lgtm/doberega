@@ -100,6 +100,63 @@ function linePeel({ at = 0, duration, level = 0.06, flutter = 45 }) {
   source.start(start, Math.random() * 2, duration + 0.05);
 }
 
+/**
+ * One bubble: a sine whose pitch shoots up as it closes, gone in a few
+ * hundredths of a second. The basic sound of water. `muffle` puts it under water.
+ */
+function bubble({ at = 0, freq, rise = 2.3, length = 0.05, level = 0.2, pan = 0, muffle = 0 }) {
+  const start = ctx.currentTime + at;
+  const osc = ctx.createOscillator();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(freq, start);
+  osc.frequency.exponentialRampToValueAtTime(freq * rise, start + length);
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, start);
+  gain.gain.linearRampToValueAtTime(level, start + 0.004);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + length);
+  const panner = ctx.createStereoPanner();
+  panner.pan.value = pan;
+  let tail = gain;
+  if (muffle) {
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 900 - 600 * muffle;
+    gain.connect(filter);
+    tail = filter;
+  }
+  osc.connect(gain);
+  tail.connect(panner).connect(master);
+  osc.start(start);
+  osc.stop(start + length + 0.02);
+}
+
+/** Filtered noise with a quick rise and a fall to silence: the body of a splash or a slap. */
+function wash({ at = 0, type = "lowpass", from, to = from, q = 0.7, attack = 0.006, length, level, pan = 0 }) {
+  const start = ctx.currentTime + at;
+  const source = ctx.createBufferSource();
+  source.buffer = noise;
+  const filter = ctx.createBiquadFilter();
+  filter.type = type;
+  filter.Q.value = q;
+  filter.frequency.setValueAtTime(from, start);
+  filter.frequency.exponentialRampToValueAtTime(Math.max(40, to), start + length);
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, start);
+  gain.gain.linearRampToValueAtTime(level, start + attack);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + length);
+  const panner = ctx.createStereoPanner();
+  panner.pan.value = pan;
+  source.connect(filter).connect(gain).connect(panner).connect(master);
+  source.start(start, Math.random() * 2, length + 0.05);
+}
+
+/** A scatter of small drops falling back after a splash. */
+function droplets({ count, from = 0.04, to = 0.3, level = 0.05 }) {
+  for (let i = 0; i < count; i += 1) {
+    bubble({ at: from + Math.random() * (to - from), freq: 600 + Math.random() * 900, rise: 1.8 + Math.random(), length: 0.025 + Math.random() * 0.03, level: level * (0.4 + Math.random() * 0.6), pan: Math.random() * 0.4 - 0.2 });
+  }
+}
+
 /*
  * The candidates. `play` builds the sound fresh each time; with variation on,
  * pitch and length shift a little, as they will in the game.
@@ -107,6 +164,8 @@ function linePeel({ at = 0, duration, level = 0.06, flutter = 45 }) {
 const SECTIONS = [
   {
     id: "cast.whoosh.short",
+    prefix: "Б",
+    chosen: [0],
     title: "Закид близько (знизу)",
     note: "Короткий змах знизу, наживка летить низько.",
     sounds: [
@@ -137,6 +196,8 @@ const SECTIONS = [
   },
   {
     id: "cast.whoosh.long",
+    prefix: "Д",
+    chosen: [3],
     title: "Закид далеко (з-за голови)",
     note: "Замах назад, потім сильний змах уперед, і волосінь довго сходить, поки летить наживка.",
     sounds: [
@@ -177,6 +238,59 @@ const SECTIONS = [
       },
     ],
   },
+  {
+    id: "land.float",
+    prefix: "П",
+    chosen: [],
+    title: "Поплавок падає на воду",
+    note: "Легкий поплавок із наживкою торкається води після закиду.",
+    sounds: [
+      {
+        name: "Тихий плюп",
+        text: "Одна маленька бульбашка й ледь чутний сплеск",
+        play: () => {
+          bubble({ freq: jitter(420), rise: 2.2, length: 0.05, level: 0.22 });
+          wash({ type: "lowpass", from: jitter(1400), to: 300, length: 0.14, level: 0.12 });
+        },
+      },
+      {
+        name: "Чіткий «блуп»",
+        text: "Глибша бульбашка, виразніше, пара крапель",
+        play: () => {
+          bubble({ freq: jitter(280), rise: 2.6, length: 0.07, level: 0.3 });
+          wash({ type: "lowpass", from: jitter(1100), to: 250, length: 0.16, level: 0.14 });
+          droplets({ count: 2, from: 0.06, to: 0.18, level: 0.05 });
+        },
+      },
+      {
+        name: "З бризками",
+        text: "М'який плюп і кілька крапель, що падають назад",
+        play: () => {
+          bubble({ freq: jitter(380), rise: 2.3, length: 0.05, level: 0.2 });
+          wash({ type: "lowpass", from: jitter(1700), to: 350, length: 0.2, level: 0.15 });
+          wash({ type: "bandpass", from: 2400, to: 1200, q: 0.7, length: 0.09, level: 0.04 });
+          droplets({ count: 5, from: 0.05, to: 0.32, level: 0.06 });
+        },
+      },
+      {
+        name: "Поплавок і грузило",
+        text: "Плюп поплавка, а за мить глухий бульк грузила під водою",
+        play: () => {
+          bubble({ freq: jitter(480), rise: 2.2, length: 0.045, level: 0.2 });
+          wash({ type: "lowpass", from: jitter(1300), to: 300, length: 0.12, level: 0.1 });
+          bubble({ at: jitter(0.13), freq: jitter(230), rise: 2.4, length: 0.08, level: 0.22, muffle: 0.6 });
+        },
+      },
+      {
+        name: "М'який шльоп",
+        text: "Більше «шльоп», ніж «блуп»: плоский удар об воду",
+        play: () => {
+          wash({ type: "lowpass", from: jitter(2200), to: 260, attack: 0.003, length: 0.17, level: 0.22 });
+          bubble({ at: 0.03, freq: jitter(520), rise: 1.9, length: 0.035, level: 0.08 });
+        },
+      },
+    ],
+  },
 ];
 
 /* Build the page: a section per sound, a button per candidate (numbered). */
@@ -192,8 +306,9 @@ for (const section of SECTIONS) {
     const button = document.createElement("button");
     button.className = "sound";
     button.type = "button";
-    const label = section.id.endsWith("short") ? "Б" : "Д";
-    button.innerHTML = `<strong><b>${label}${index + 1}</b> · ${sound.name}</strong><span>${sound.text}</span>`;
+    const picked = section.chosen.includes(index);
+    button.classList.toggle("is-chosen", picked);
+    button.innerHTML = `<strong><b>${section.prefix}${index + 1}</b> · ${sound.name}${picked ? " ✓ у грі" : ""}</strong><span>${sound.text}</span>`;
     button.addEventListener("click", () => {
       audio();
       sound.play();

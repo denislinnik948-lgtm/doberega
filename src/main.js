@@ -189,7 +189,8 @@ function toScreen(point) {
 function handleGameEvent(type, data) {
   if (type === "cast") {
     // The swish comes with the forward swing, partway through the cast.
-    setTimeout(() => sounds.cast(), game.castDuration * (data.style === "over" ? 0.42 : 0.36) * 1000);
+    // Timed so the swish peaks as the bait is let go.
+    setTimeout(() => sounds.cast(data.style), game.castDuration * (data.style === "over" ? 0.39 : 0.34) * 1000);
   } else if (type === "splashdown") {
     sounds.splash(data.lure ? 0.6 : 0.9);
   } else if (type === "bite") {

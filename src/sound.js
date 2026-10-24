@@ -177,6 +177,72 @@ function ping(freq, volume, length, { delay = 0, type = "sine", to = freq, pan =
   osc.stop(at + length + 0.02);
 }
 
+/**
+ * How fast the rod tip moves through a swing, 0..1: an accelerating rise to
+ * the peak at `peakAt`, then a quick stop.
+ */
+function speedCurve(peakAt, steps = 96) {
+  const curve = new Float32Array(steps);
+  for (let i = 0; i < steps; i += 1) {
+    const t = i / (steps - 1);
+    curve[i] = t < peakAt ? (t / peakAt) ** 2.2 : Math.exp(-((t - peakAt) / (1 - peakAt)) * 4.5);
+  }
+  return curve;
+}
+
+/**
+ * A swish: air rushing past the rod. Noise through a band that rises with the
+ * tip's speed (faster: higher and louder), plus an optional narrow whistle of
+ * the thin tip. Picked in the sound lab (tools/sound-lab).
+ */
+function swish({ duration, peakAt = 0.7, low, high, q = 1, whistle = 0, level = 0.5, pan = 0 }) {
+  const start = ctx.currentTime;
+  const speed = speedCurve(peakAt);
+  const freqs = speed.map((s) => low + (high - low) * s);
+  const gains = speed.map((s) => level * s);
+  const destination = out(1, pan);
+  const layer = (filterQ, freqScale, gainScale) => {
+    const source = ctx.createBufferSource();
+    source.buffer = noise;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.Q.value = filterQ;
+    filter.frequency.setValueCurveAtTime(freqs.map((f) => f * freqScale), start, duration);
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    gain.gain.setValueCurveAtTime(gains.map((g) => g * gainScale), start, duration);
+    source.connect(filter).connect(gain).connect(destination);
+    source.start(start, rand(0, 1.4), duration + 0.05);
+  };
+  layer(q, 1, 1);
+  if (whistle) layer(9, 1.9, whistle);
+}
+
+/** Line peeling off the spool as the bait flies: a faint, fluttering high hiss that dies away. */
+function linePeel({ delay = 0, duration, level = 0.06, flutter = 45 }) {
+  const start = ctx.currentTime + delay;
+  const source = ctx.createBufferSource();
+  source.buffer = noise;
+  const filter = ctx.createBiquadFilter();
+  filter.type = "bandpass";
+  filter.frequency.setValueAtTime(5200, start);
+  filter.frequency.exponentialRampToValueAtTime(3200, start + duration);
+  filter.Q.value = 1.4;
+  const steps = 160;
+  const curve = new Float32Array(steps);
+  for (let i = 0; i < steps; i += 1) {
+    const t = i / (steps - 1);
+    // The spool's flutter: the hiss pulses as each coil leaves, slowing as the bait slows.
+    const pulse = 0.65 + 0.35 * Math.sin(t * duration * flutter * (1 - 0.6 * t) * Math.PI * 2);
+    curve[i] = level * Math.min(1, t * 12) * (1 - t) ** 1.6 * pulse;
+  }
+  const gain = ctx.createGain();
+  gain.gain.value = 0;
+  gain.gain.setValueCurveAtTime(curve, start, duration);
+  source.connect(filter).connect(gain).connect(master);
+  source.start(start, rand(0, 1.4), duration + 0.05);
+}
+
 /** A splash: a soft body of deep noise and a scatter of bubbles of falling drops. */
 function splash(size, pan = 0) {
   wash({ buffer: brown, type: "lowpass", from: 900 + 900 * size, to: 220, attack: 0.008, length: 0.18 + 0.35 * size, volume: 0.35 * size, pan });
@@ -187,10 +253,16 @@ function splash(size, pan = 0) {
 
 export const sounds = {
   /** The rod cutting the air, then line peeling off the spool as the bait flies. */
-  cast() {
+  cast(style = "under") {
     if (!audio()) return;
-    wash({ type: "bandpass", from: vary(700), to: vary(2400), q: 1.2, attack: 0.09, length: 0.32, volume: 0.13 });
-    wash({ type: "highpass", from: 5200, to: 3600, attack: 0.05, length: 0.6, volume: 0.025, delay: 0.12 });
+    if (style === "over") {
+      // Far, overhead (lab: Д4 "Без замаху"): one strong swing and a long run of line off the spool.
+      swish({ duration: vary(0.34, 0.08), peakAt: 0.74, low: vary(600, 0.08), high: vary(2200, 0.08), q: 1.1, whistle: 0.2, level: 0.62 });
+      linePeel({ delay: 0.24, duration: vary(1.1, 0.08), level: 0.07, flutter: 48 });
+    } else {
+      // Close in, underhand (lab: Б1 "М'який"): a soft, airy swing with no sharp edge.
+      swish({ duration: vary(0.3, 0.08), peakAt: 0.65, low: vary(380, 0.08), high: vary(1300, 0.08), q: 0.9, level: 0.55 });
+    }
   },
   /** The float or lure landing: a plop and a ring of small drops. */
   splash(size = 1) {
