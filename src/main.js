@@ -11,7 +11,7 @@ import { Cloud } from "./cloud.js";
 import { onSeasonChange } from "./theme.js";
 import { NightEvents } from "./night-events.js";
 import { track } from "./analytics.js";
-import { ambienceTick, nightSound, sounds } from "./sound.js";
+import { ambienceTick, musicTick, nightSound, sounds } from "./sound.js";
 import { AnglerUI } from "./fishing/ui.js";
 
 // The water look is fixed: a still lake, gentle swell speed, soft glints.
@@ -439,6 +439,7 @@ function playLoops(step, dayTime) {
   const hour = (dayTime * 24) % 24;
   // Tree frogs call from the reeds in the evening and at night, at the reedy waters only.
   const reedy = ["pond", "lake", "reservoir"].includes(LOCATIONS[progress.location].kind);
+  musicTick(step, { atWater: mode === "fishing", night: hour < 5 || hour >= 21.5, fighting: game.phase === "fight" });
   ambienceTick(step, { atWater: mode === "fishing", rain: weather.intensity, night: hour < 5 || hour >= 21.5, ducks: ducks.all.length, frogs: reedy && (hour >= 19 || hour < 4), deepNight: nightEvents.depth ?? 0, spot: LOCATIONS[progress.location].kind });
 }
 

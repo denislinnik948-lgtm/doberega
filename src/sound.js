@@ -13,6 +13,8 @@
  * a tap or a key, so nothing plays before the first one.
  */
 
+import { PIECES, pieceLength, playPiece } from "./music.js";
+
 const KEY = "doberega.sound";
 const OWN_KEY = "doberega.ownDevice";
 const VOLUME = 0.7;
@@ -1069,3 +1071,45 @@ const watchDialogs = new MutationObserver((changes) => {
 const startWatching = () => document.querySelectorAll("dialog").forEach((dialog) => watchDialogs.observe(dialog, { attributes: true, attributeFilter: ["open"] }));
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", startWatching);
 else startWatching();
+
+/*
+ * Music, as in Minecraft: not all the time. At the water the first piece
+ * comes after a minute or three, then a long quiet of five to twelve minutes
+ * between pieces. Guitar pieces by day, dusk and dawn; night pieces in the
+ * dark; never the same one twice in a row. It drops to half while you fight
+ * a fish, and fades away when you leave the water.
+ */
+let musicGain = null;
+let musicStop = null;
+let musicUntil = 0;
+let musicWait = rand(60, 180);
+let lastPiece = null;
+
+export function musicTick(step, { atWater, night, fighting }) {
+  if (!audio()) return;
+  if (!musicGain) {
+    musicGain = ctx.createGain();
+    musicGain.gain.value = 0.8;
+    musicGain.connect(master);
+  }
+  musicGain.gain.setTargetAtTime(fighting ? 0.4 : 0.8, ctx.currentTime, 0.5);
+  if (!atWater) {
+    if (musicStop) musicStop();
+    musicStop = null;
+    musicWait = rand(60, 180);
+    return;
+  }
+  if (musicStop) {
+    if (ctx.currentTime < musicUntil) return;
+    musicStop = null;
+    musicWait = rand(300, 720);
+  }
+  musicWait -= step;
+  if (musicWait > 0) return;
+  const family = night ? "night" : "guitar";
+  const choices = PIECES.filter((piece) => piece.family === family && piece.id !== lastPiece);
+  const piece = choices[Math.floor(Math.random() * choices.length)];
+  lastPiece = piece.id;
+  musicStop = playPiece(ctx, musicGain, piece);
+  musicUntil = ctx.currentTime + pieceLength(piece) + 4;
+}

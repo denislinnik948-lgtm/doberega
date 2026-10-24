@@ -1,3 +1,5 @@
+import { PIECES, pieceLength, playPiece } from "../../src/music.js";
+
 /*
  * Sound lab: candidates for each game sound, synthesized live with Web Audio,
  * to listen to side by side and pick. Each section is one sound from the list
@@ -2079,7 +2081,7 @@ const SECTIONS = [
   {
     id: "music",
     prefix: "Мз",
-    chosen: [],
+    chosen: [1, 2],
     title: "Фонова музика",
     note: "Генерується наживо й щоразу трохи інша. Кожна грає ~25 секунд; натисни ще раз, щоб зупинити. У грі вмикатиметься час від часу.",
     music: true,
@@ -2174,6 +2176,22 @@ const SECTIONS = [
         }),
       },
     ],
+  },
+  {
+    id: "music.pieces",
+    prefix: "П",
+    chosen: PIECES.map((_, i) => i),
+    // Already in the game, but here to listen to (and to drop any that don't fit).
+    review: true,
+    title: "Музика: п'єси в грі",
+    note: "Короткі п'єси в стилях Мз2 і Мз3, близько хвилини кожна. Гітарні грають удень, увечері й на світанку, нічні в темряві. Натисни ще раз, щоб зупинити. Якщо якась не подобається, назви номер, приберу.",
+    music: true,
+    sounds: PIECES.map((piece) => ({
+      name: piece.title,
+      text: `${piece.family === "guitar" ? "Гітара" : "Ніч"} · ${Math.round(pieceLength(piece))} с`,
+      length: pieceLength(piece) + 4,
+      play: () => playPiece(ctx, master, piece),
+    })),
   },
   ...uiPacks(),
   {
@@ -2497,7 +2515,7 @@ function renderSection(section, into) {
         setTimeout(() => {
           button.stop = null;
           button.classList.remove("is-playing");
-        }, 27000);
+        }, (sound.length ?? 27) * 1000);
         return;
       }
       sound.play();
@@ -2510,13 +2528,13 @@ function renderSection(section, into) {
 }
 
 const root = document.querySelector("#sections");
-const decided = (section) => section.chosen.length > 0 || section.settled;
+const decided = (section) => (section.chosen.length > 0 || section.settled) && !section.review;
 const waiting = SECTIONS.filter((section) => !decided(section));
 const done = SECTIONS.filter(decided);
 
 const waitingTitle = document.createElement("h2");
 waitingTitle.className = "group-title";
-waitingTitle.textContent = waiting.length ? `Чекають на вибір · ${waiting.length}` : "Усе вибрано";
+waitingTitle.textContent = waiting.length ? `Послухай і обери · ${waiting.length}` : "Усе вибрано";
 root.append(waitingTitle);
 for (const section of waiting) renderSection(section, root);
 
