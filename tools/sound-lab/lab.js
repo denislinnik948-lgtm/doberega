@@ -753,7 +753,7 @@ const SECTIONS = [
   {
     id: "float.twitch",
     prefix: "Т",
-    chosen: [],
+    chosen: [0],
     title: "Поплавок смикається",
     note: "Риба торкається наживки: поплавок ледь здригається. Має бути зовсім тихо, на межі чутності. Тут три смикання поспіль.",
     sounds: [
@@ -777,7 +777,7 @@ const SECTIONS = [
   {
     id: "float.dip",
     prefix: "Н",
-    chosen: [],
+    chosen: [1],
     title: "Поплавок пірнає на мить",
     note: "Поплавок занурився й виринув: тут уже можна пробувати підсікати. Трохи чутніше за смикання, тихіше за кльов. Тут два пірнання.",
     sounds: [
@@ -798,6 +798,83 @@ const SECTIONS = [
         name: "Шльоп",
         text: "Маленький шльоп по воді",
         play: () => series(2, 0.7, (at) => wash({ at, type: "lowpass", from: jitter(1700), to: 400, attack: 0.003, length: 0.08, level: 0.09 })),
+      },
+    ],
+  },
+  {
+    id: "land.lure",
+    prefix: "Ш",
+    chosen: [],
+    title: "Приманка падає на воду",
+    note: "Блешня чи воблер після закиду: важча й щільніша за поплавок, входить у воду і йде вглиб.",
+    sounds: [
+      {
+        name: "Важкий плюх",
+        text: "Глибша бульбашка, сплеск і кілька крапель",
+        play: () => {
+          bubble({ freq: jitter(220), rise: 2.6, length: 0.08, level: 0.28 });
+          wash({ type: "lowpass", from: jitter(1300), to: 220, length: 0.2, level: 0.18, deep: true });
+          droplets({ count: 3, from: 0.06, to: 0.22, level: 0.05 });
+        },
+      },
+      {
+        name: "Шльоп",
+        text: "Різкий шльоп металу об воду й бульбашка",
+        play: () => {
+          wash({ type: "lowpass", from: jitter(3200), to: 500, attack: 0.002, length: 0.09, level: 0.2 });
+          bubble({ at: 0.03, freq: jitter(330), rise: 2.4, length: 0.06, level: 0.16 });
+        },
+      },
+      {
+        name: "Цюк",
+        text: "Вузька приманка пірнає майже без сплеску: коротке «цюк»",
+        play: () => {
+          wash({ type: "bandpass", from: jitter(2400), to: 1200, q: 1.2, attack: 0.001, length: 0.04, level: 0.12 });
+          bubble({ at: 0.01, freq: jitter(440), rise: 2.5, length: 0.05, level: 0.18 });
+        },
+      },
+      {
+        name: "Плюх і булькіт",
+        text: "Входить у воду, і тихі бульбашки, поки тоне",
+        play: () => {
+          bubble({ freq: jitter(260), rise: 2.5, length: 0.07, level: 0.24 });
+          wash({ type: "lowpass", from: jitter(1100), to: 250, length: 0.16, level: 0.13, deep: true });
+          for (let i = 0; i < 4; i += 1) bubble({ at: 0.15 + i * jitter(0.12), freq: jitter(500 + i * 80), rise: 2, length: 0.03, level: 0.05, muffle: 0.6 });
+        },
+      },
+    ],
+  },
+  {
+    id: "lure.strike",
+    prefix: "Х",
+    chosen: [],
+    title: "Риба б'є приманку",
+    note: "Хижак атакує блешню чи воблер під час проводки: різко, але не гучно, сигнал підсікати.",
+    sounds: [
+      {
+        name: "Вир",
+        text: "Вода закручується там, де вдарила риба",
+        play: () => {
+          wash({ type: "lowpass", from: jitter(900), to: 200, attack: 0.05, length: 0.4, level: 0.22, deep: true, pan: 0.15 });
+          droplets({ count: 4, from: 0.05, to: 0.35, level: 0.05 });
+        },
+      },
+      {
+        name: "Удар",
+        text: "Різкий сплеск і ковток",
+        play: () => {
+          wash({ type: "lowpass", from: jitter(2600), to: 350, attack: 0.002, length: 0.14, level: 0.24, pan: 0.15 });
+          bubble({ at: 0.05, freq: jitter(200), rise: 2.7, length: 0.11, level: 0.22, muffle: 0.3 });
+        },
+      },
+      {
+        name: "Вибух на поверхні",
+        text: "Щука вистрибує на приманку: багато бризок",
+        play: () => {
+          wash({ type: "lowpass", from: jitter(2200), to: 260, attack: 0.002, length: 0.3, level: 0.28, deep: true, pan: 0.15 });
+          wash({ type: "bandpass", from: 2000, to: 900, q: 0.6, attack: 0.002, length: 0.15, level: 0.07 });
+          droplets({ count: 9, from: 0.04, to: 0.55, level: 0.06 });
+        },
       },
     ],
   },

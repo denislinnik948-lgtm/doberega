@@ -309,6 +309,17 @@ export const sounds = {
     bubble(vary(380), 0.16 * size);
     splash(0.35 * size);
   },
+  /** A fish touching the bait, the float trembling (lab: Т1): a tiny high bubble, at the edge of hearing. */
+  twitch() {
+    if (!audio()) return;
+    blup({ freq: vary(950, 0.08), rise: 1.8, length: 0.025, level: 0.05 });
+  },
+  /** The float dipping for a moment (lab: Н2 "Пірнув і виринув"): a muffled bubble under water, a light pop as it comes back up. */
+  dip() {
+    if (!audio()) return;
+    blup({ freq: vary(380, 0.08), rise: 2.3, length: 0.05, level: 0.1, muffle: 0.5 });
+    blup({ delay: 0.3, freq: vary(700, 0.08), rise: 1.8, length: 0.03, level: 0.05 });
+  },
   /** The float ducking under (lab: К1 "Тихий бульк"): one small bubble and a smaller one after it. */
   bite() {
     if (!audio()) return;

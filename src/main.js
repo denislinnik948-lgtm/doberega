@@ -194,6 +194,10 @@ function handleGameEvent(type, data) {
   } else if (type === "splashdown") {
     if (data.lure) sounds.splash(0.6);
     else sounds.landFloat();
+  } else if (type === "twitch") {
+    sounds.twitch();
+  } else if (type === "dip") {
+    sounds.dip();
   } else if (type === "bite") {
     sounds.bite();
   } else if (type === "hooked") {
