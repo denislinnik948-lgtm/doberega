@@ -545,7 +545,7 @@ export const sounds = {
  * water lapping now and then while at the water, birds by day, crickets at
  * night, and rain as drops plus a deep murmur that swells with the rain.
  */
-const ambient = { lap: 3, bird: 6, cricket: 2, drop: 0, jump: 25, duck: 8, owl: 60, thunder: 40, frog: 10 };
+const ambient = { lap: 3, bird: 6, cricket: 2, drop: 0, jump: 25, duck: 8, owl: 60, thunder: 40, frog: 10, wisp: 15, drone: 20, whisper: 200 };
 
 function lap() {
   // A small wave against the bank (lab: Хв1 "Тихий плескіт"): a soft swell of deep noise and a couple of bubbles.
@@ -671,6 +671,130 @@ function hoot(freq, length, level, pan, delay = 0) {
   wash({ type: "bandpass", from: freq * 2, q: 4, attack: length * 0.3, length, volume: level * 0.15, pan, delay });
 }
 
+/* ---------- Night and mystery (lab: Вг1, Чв1, Мв1, Лх2, Оч1, Гл1, Шп2) ---------- */
+
+/** A ghostly echo: whatever goes into it fades back again and again, darker each time. */
+function echoBus(delay, feedback, wet) {
+  const input = ctx.createGain();
+  const echo = ctx.createDelay(2);
+  echo.delayTime.value = delay;
+  const back = ctx.createGain();
+  back.gain.value = feedback;
+  const damp = ctx.createBiquadFilter();
+  damp.type = "lowpass";
+  damp.frequency.value = 2200;
+  const tail = ctx.createGain();
+  tail.gain.value = wet;
+  input.connect(master);
+  input.connect(echo).connect(damp).connect(back).connect(echo);
+  damp.connect(tail).connect(master);
+  return input;
+}
+
+/** A held tone that swells in and fades out over `length`, into `destination`. */
+function held(freq, level, delay, length, destination = master, type = "sine") {
+  const at = ctx.currentTime + delay;
+  const osc = ctx.createOscillator();
+  osc.type = type;
+  osc.frequency.value = freq;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, at);
+  gain.gain.linearRampToValueAtTime(level, at + length * 0.3);
+  gain.gain.linearRampToValueAtTime(0, at + length);
+  osc.connect(gain).connect(destination);
+  osc.start(at);
+  osc.stop(at + length + 0.05);
+  return osc;
+}
+
+/** Wood or metal giving a little under strain: a run of quick resonant grinds rising in pitch. */
+function creakRun({ delay = 0, length, level, low, high, step }) {
+  const grinds = Math.round(length / step);
+  for (let i = 0; i < grinds; i += 1) {
+    wash({ type: "bandpass", from: low + (high - low) * (i / grinds), q: 8, attack: 0.001, length: step * 0.9, volume: level * rand(0.5, 1), delay: delay + i * step });
+  }
+}
+
+const mystic = {
+  /** Will-o'-the-wisps: high glassy tones, trembling against each other and echoing. */
+  wisp() {
+    const bus = echoBus(0.38, 0.5, 0.7);
+    for (const [freq, delay] of [[1760, 0], [1767, 0], [2349, 0.4]]) held(freq, 0.012, delay, 1.6, bus);
+  },
+  /** The boatman's boat: the slow creak of old wood, twice. */
+  boat() {
+    creakRun({ length: 0.6, level: 0.04, low: 220, high: 420, step: 0.035 });
+    creakRun({ delay: 1.4, length: 0.5, level: 0.03, low: 260, high: 380, step: 0.035 });
+  },
+  /** The mavka: a far-off wordless song, three sad notes with an echo. */
+  mavka() {
+    const bus = echoBus(0.42, 0.45, 0.6);
+    for (const [freq, delay, length] of [[659, 0, 0.9], [587, 0.8, 0.9], [494, 1.6, 1.4]]) {
+      const osc = held(freq, 0.03, delay, length, bus, "triangle");
+      // A slow vibrato, as a voice.
+      const lfo = ctx.createOscillator();
+      lfo.frequency.value = 5;
+      const depth = ctx.createGain();
+      depth.gain.value = freq * 0.012;
+      lfo.connect(depth).connect(osc.frequency);
+      lfo.start(ctx.currentTime + delay);
+      lfo.stop(ctx.currentTime + delay + length + 0.05);
+    }
+  },
+  /** The lantern: its metal handle creaking as it swings. */
+  lantern() {
+    for (let i = 0; i < 3; i += 1) creakRun({ delay: i * 0.55, length: 0.2, level: 0.025, low: 1400, high: 1900, step: 0.02 });
+  },
+  /** The eyes: a deep hum swelling up from below, and a heavy gulp. */
+  eyes() {
+    const at = ctx.currentTime;
+    const source = ctx.createBufferSource();
+    source.buffer = brown;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 90;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, at);
+    gain.gain.linearRampToValueAtTime(0.18, at + 1.2);
+    gain.gain.linearRampToValueAtTime(0, at + 2);
+    source.connect(filter).connect(gain).connect(master);
+    source.start(at, rand(0, 1), 2.05);
+    blup({ delay: 1.7, freq: 140, rise: 2.6, length: 0.18, level: 0.2, muffle: 0.5 });
+  },
+  /** Deep in the night: a very low tone that slowly drifts against itself. */
+  drone() {
+    for (const freq of [55, 55.6]) held(freq, 0.06, 0, 4);
+  },
+  /** Very rarely: whispering in the reeds, too far to make out, with an echo. */
+  whisper() {
+    const bus = echoBus(0.3, 0.5, 0.7);
+    let delay = 0;
+    for (let i = 0; i < 5; i += 1) {
+      const length = rand(0.1, 0.22);
+      const at = ctx.currentTime + delay;
+      const source = ctx.createBufferSource();
+      source.buffer = noise;
+      const filter = ctx.createBiquadFilter();
+      filter.type = "bandpass";
+      filter.frequency.value = rand(2000, 4000);
+      filter.Q.value = 2.5;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0, at);
+      gain.gain.linearRampToValueAtTime(0.02, at + length * 0.3);
+      gain.gain.linearRampToValueAtTime(0, at + length);
+      source.connect(filter).connect(gain).connect(bus);
+      source.start(at, rand(0, 1.4), length + 0.05);
+      delay += length + rand(0.05, 0.15);
+    }
+  },
+};
+
+/** A sound for one of the night's events: "boat", "mavka", "lantern", "eyes" (the ghost angler stays silent). */
+export function nightSound(kind) {
+  if (!audio() || !mystic[kind]) return;
+  mystic[kind]();
+}
+
 function treeFrog() {
   // A tree frog in the reeds (lab: Жб2 "Квакша"): a quick high "kek-kek-kek"; now and then a second one answers.
   const call = (delay, pan) => {
@@ -740,7 +864,7 @@ function setRainBed(level) {
  * Advance the background by `step` seconds: `atWater` while fishing, `rain`
  * 0..1, `night` while it's dark.
  */
-export function ambienceTick(step, { atWater, rain, night, ducks = 0, frogs = false }) {
+export function ambienceTick(step, { atWater, rain, night, ducks = 0, frogs = false, deepNight = 0 }) {
   if (!audio() || step <= 0) return;
   if (Math.abs(rain - rainLevel) > 0.02 || (rain <= 0.02 && rainBed)) {
     rainLevel = rain;
@@ -779,6 +903,21 @@ export function ambienceTick(step, { atWater, rain, night, ducks = 0, frogs = fa
   if (atWater && night && rain < 0.3 && ambient.owl <= 0) {
     ambient.owl = rand(60, 150);
     owl();
+  }
+  // Deep in the night (the mystic hours): the wisps' glass tones, a low drift, and very rarely a whisper.
+  if (atWater && deepNight > 0.5) {
+    if (ambient.wisp <= 0) {
+      ambient.wisp = rand(25, 60);
+      mystic.wisp();
+    }
+    if (ambient.drone <= 0) {
+      ambient.drone = rand(30, 70);
+      mystic.drone();
+    }
+    if (ambient.whisper <= 0) {
+      ambient.whisper = rand(180, 360);
+      mystic.whisper();
+    }
   }
   // Far thunder, only in a heavy downpour.
   if (rain > 0.7 && ambient.thunder <= 0) {

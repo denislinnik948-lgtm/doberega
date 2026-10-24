@@ -1594,7 +1594,7 @@ const SECTIONS = [
   {
     id: "night.wisp",
     prefix: "Вг",
-    chosen: [],
+    chosen: [0],
     title: "Блукаючі вогники",
     note: "Ніч і містика: бліді вогники над тим берегом. Тихо, моторошно, але не страшно.",
     sounds: [
@@ -1613,7 +1613,7 @@ const SECTIONS = [
   {
     id: "night.boat",
     prefix: "Чв",
-    chosen: [],
+    chosen: [0],
     title: "Човняр",
     note: "Човен без весел пропливає вдалині: чути лише дерево й воду.",
     sounds: [
@@ -1632,7 +1632,7 @@ const SECTIONS = [
   {
     id: "night.mavka",
     prefix: "Мв",
-    chosen: [],
+    chosen: [0],
     title: "Мавка",
     note: "Бліда дівчина біля води заходить у воду й зникає.",
     sounds: [
@@ -1651,7 +1651,7 @@ const SECTIONS = [
   {
     id: "night.lantern",
     prefix: "Лх",
-    chosen: [],
+    chosen: [1],
     title: "Ліхтар на березі",
     note: "Вогник ліхтаря йде берегом, зупиняється й гасне.",
     sounds: [
@@ -1670,7 +1670,7 @@ const SECTIONS = [
   {
     id: "night.eyes",
     prefix: "Оч",
-    chosen: [],
+    chosen: [0],
     title: "Очі біля берега",
     note: "Червоні очі спливають біля берега й зникають у кільцях.",
     sounds: [
@@ -1689,7 +1689,7 @@ const SECTIONS = [
   {
     id: "night.drone",
     prefix: "Гл",
-    chosen: [],
+    chosen: [0],
     title: "Нічний гул",
     note: "Глибокої ночі ледь чутне тло під усім, від якого трохи не по собі. Тут 4 секунди.",
     sounds: [
@@ -1708,7 +1708,7 @@ const SECTIONS = [
   {
     id: "night.whisper",
     prefix: "Шп",
-    chosen: [],
+    chosen: [1],
     title: "Шепіт з очерету",
     note: "Дуже рідко: ніби хтось шепоче в очереті. Не розбереш слів.",
     sounds: [
