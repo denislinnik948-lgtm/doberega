@@ -356,12 +356,15 @@ export const sounds = {
     wash({ type: "highpass", from: 2600, q: 0.5, attack: 0.001, length: 0.04, volume: 0.22 });
     wash({ type: "bandpass", from: 2400, to: 500, q: 1.5, attack: 0.02, length: 0.25, volume: 0.06, delay: 0.03 });
   },
-  /** A fish on the bank: a last flap in the water and a soft, warm note. */
-  landed() {
+  /**
+   * A fish lifted out onto the bank (lab: Л3 "З води"): water running off it,
+   * then a soft thump. A heavier fish sheds more water and lands deeper.
+   */
+  landed(weight = 0.5) {
     if (!audio()) return;
-    splash(0.4);
-    ping(392, 0.05, 0.6, { delay: 0.18 });
-    ping(587, 0.035, 0.7, { delay: 0.3 });
+    const size = Math.max(0, Math.min(1, (weight - 0.3) / 4));
+    droplets(6 + Math.round(size * 6), 0, 0.45, 0.05);
+    wash({ buffer: brown, type: "lowpass", from: vary(1200, 0.08), to: 200, attack: 0.003, length: 0.12 + 0.1 * size, volume: 0.16 + 0.12 * size, delay: 0.45 });
   },
   /** Coins: two small metal clinks (inharmonic partials, like real coins). */
   coin() {

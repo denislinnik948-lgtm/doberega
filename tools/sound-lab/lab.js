@@ -244,6 +244,50 @@ function series(count, gap, play) {
   for (let i = 0; i < count; i += 1) play(i * gap * (0.8 + Math.random() * 0.4));
 }
 
+/** A plucked string: a tone with bright overtones that die fast, as taut line twangs. */
+function pluck({ at = 0, freq, length, level }) {
+  const start = ctx.currentTime + at;
+  for (const [ratio, part] of [[1, 1], [2, 0.5], [3, 0.3], [4.2, 0.15]]) {
+    const osc = ctx.createOscillator();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(freq * ratio, start);
+    osc.frequency.exponentialRampToValueAtTime(freq * ratio * 0.85, start + length);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, start);
+    gain.gain.linearRampToValueAtTime(level * part, start + 0.003);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + length / ratio);
+    osc.connect(gain).connect(master);
+    osc.start(start);
+    osc.stop(start + length + 0.02);
+  }
+}
+
+/** A small piece of metal ringing: inharmonic partials that fade at different speeds. */
+function bell({ at = 0, freq, level, length }) {
+  const start = ctx.currentTime + at;
+  for (const [ratio, part] of [[1, 1], [2.76, 0.5], [5.4, 0.25]]) {
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = freq * ratio;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, start);
+    gain.gain.linearRampToValueAtTime(level * part, start + 0.002);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + length / ratio);
+    osc.connect(gain).connect(master);
+    osc.start(start);
+    osc.stop(start + length + 0.02);
+  }
+}
+
+/** Metal bending under strain: a rough, rising creak of quick little grinds. */
+function creak({ at = 0, length, level }) {
+  const grinds = Math.round(length / 0.018);
+  for (let i = 0; i < grinds; i += 1) {
+    const t = i / grinds;
+    wash({ at: at + i * 0.018, type: "bandpass", from: 900 + 1400 * t, q: 8, attack: 0.001, length: 0.016, level: level * (0.5 + 0.5 * Math.random()) });
+  }
+}
+
 /** The same sound for a small fish, then (a second later) a big one. */
 function bothSizes(play) {
   play(0, 0);
@@ -593,7 +637,7 @@ const SECTIONS = [
   {
     id: "fish.landed",
     prefix: "Л",
-    chosen: [],
+    chosen: [2],
     title: "Риба на березі",
     note: "Рибу витягли на берег. Кожен варіант грає двічі: спершу дрібна риба, потім велика.",
     sounds: [
@@ -627,6 +671,82 @@ const SECTIONS = [
         play: () => bothSizes((at, size) => {
           wash({ at, type: "lowpass", from: jitter(700), to: 120, attack: 0.002, length: 0.12 + 0.12 * size, level: 0.25 + 0.15 * size, deep: true });
         }),
+      },
+    ],
+  },
+  {
+    id: "line.snap",
+    prefix: "О",
+    chosen: [],
+    title: "Обрив волосіні",
+    note: "Риба або корч порвали волосінь. Неприємний момент, але без гучного удару по вухах.",
+    sounds: [
+      {
+        name: "Сухий тріск",
+        text: "Різкий тріск і хльост ослаблої волосіні",
+        play: () => {
+          wash({ type: "highpass", from: 2600, q: 0.5, attack: 0.001, length: 0.04, level: 0.22 });
+          wash({ at: 0.03, type: "bandpass", from: 2400, to: 500, q: 1.5, attack: 0.02, length: 0.25, level: 0.06 });
+        },
+      },
+      {
+        name: "Дзень волосіні",
+        text: "Натягнута волосінь дзенькає, як струна, і обривається",
+        play: () => {
+          pluck({ freq: jitter(330), length: 0.45, level: 0.14 });
+          wash({ type: "highpass", from: 3000, q: 0.5, attack: 0.001, length: 0.03, level: 0.12 });
+        },
+      },
+      {
+        name: "Ляск і сплеск",
+        text: "Тріск, а вдалині риба б'є хвостом і йде",
+        play: () => {
+          wash({ type: "highpass", from: 2800, q: 0.5, attack: 0.001, length: 0.035, level: 0.18 });
+          wash({ at: 0.25, type: "lowpass", from: 1600, to: 300, attack: 0.004, length: 0.2, level: 0.1, pan: 0.3 });
+          droplets({ count: 3, from: 0.3, to: 0.5, level: 0.03 });
+        },
+      },
+      {
+        name: "Тихий обрив",
+        text: "Ледь чутне «клац» і тиша",
+        play: () => {
+          wash({ type: "bandpass", from: 3200, q: 2, attack: 0.001, length: 0.025, level: 0.12 });
+          wash({ at: 0.02, type: "highpass", from: 4000, to: 2500, attack: 0.03, length: 0.3, level: 0.025 });
+        },
+      },
+    ],
+  },
+  {
+    id: "hook.bend",
+    prefix: "Г",
+    chosen: [],
+    title: "Гачок розігнуло",
+    note: "Риба заважка для гачка, і він розгинається: метал, а не волосінь.",
+    sounds: [
+      {
+        name: "Металевий дзень",
+        text: "Короткий високий дзенькіт металу",
+        play: () => {
+          bell({ freq: jitter(2400), level: 0.06, length: 0.35 });
+          wash({ at: 0.02, type: "highpass", from: 3500, to: 2500, attack: 0.02, length: 0.25, level: 0.02 });
+        },
+      },
+      {
+        name: "Скрип і дзень",
+        text: "Метал скрипить, гнучись, і відпускає з дзеньком",
+        play: () => {
+          creak({ length: 0.3, level: 0.06 });
+          bell({ at: 0.3, freq: jitter(2100), level: 0.05, length: 0.3 });
+        },
+      },
+      {
+        name: "Клац і ослабло",
+        text: "Тихе металеве «клац», і волосінь провисає",
+        play: () => {
+          wash({ type: "bandpass", from: 5200, q: 6, attack: 0.001, length: 0.02, level: 0.1 });
+          bell({ at: 0.005, freq: jitter(3600), level: 0.025, length: 0.12 });
+          wash({ at: 0.05, type: "bandpass", from: 1500, to: 600, q: 1, attack: 0.04, length: 0.3, level: 0.04 });
+        },
       },
     ],
   },

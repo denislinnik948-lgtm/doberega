@@ -235,7 +235,7 @@ function handleGameEvent(type, data) {
     } else {
       progress.caught += 1;
       track("catch");
-      sounds.landed();
+      sounds.landed(data.fish.weight);
       game.release();
       // Into the keepnet (or the trophies); it's all sold on leaving the water.
       ui.showCatch(data.fish, { bait: data.bait }).then(() => {
