@@ -1110,6 +1110,6 @@ export function musicTick(step, { atWater, night, fighting }) {
   const choices = PIECES.filter((piece) => piece.family === family && piece.id !== lastPiece);
   const piece = choices[Math.floor(Math.random() * choices.length)];
   lastPiece = piece.id;
-  musicStop = playPiece(ctx, musicGain, piece);
+  musicStop = playPiece(ctx, musicGain, piece, noise);
   musicUntil = ctx.currentTime + pieceLength(piece) + 4;
 }

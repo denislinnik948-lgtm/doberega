@@ -1,5 +1,9 @@
 import { PIECES, pieceLength, playPiece } from "../../src/music.js";
 
+// How each piece is arranged, in words, for its button.
+const ARRANGEMENT = { fingerpick: "перебір гітари", strum: "гітарний бій і контрабас", waltz: "гітарний вальс", harp: "переливи, як арфа", travis: "гітара з басом і шейкер", pad: "м'які пади", pianoChords: "низькі акорди піаніно", musicbox: "музична скринька" };
+const LEAD = { guitar: "гітара", flute: "флейта", musicbox: "музична скринька", harmonics: "флажолети", piano: "піаніно", cello: "віолончель", none: "без мелодії" };
+
 /*
  * Sound lab: candidates for each game sound, synthesized live with Web Audio,
  * to listen to side by side and pick. Each section is one sound from the list
@@ -2184,13 +2188,13 @@ const SECTIONS = [
     // Already in the game, but here to listen to (and to drop any that don't fit).
     review: true,
     title: "Музика: п'єси в грі",
-    note: "Короткі п'єси в стилях Мз2 і Мз3, близько хвилини кожна. Гітарні грають удень, увечері й на світанку, нічні в темряві. Натисни ще раз, щоб зупинити. Якщо якась не подобається, назви номер, приберу.",
+    note: "Короткі п'єси в стилях Мз2 і Мз3, 40–60 секунд кожна, тепер кожна зі своїм характером: свій акомпанемент, інструмент мелодії, тональність і темп. Денні грають удень, увечері й на світанку, нічні в темряві. Натисни ще раз, щоб зупинити. Якщо якась не подобається, назви номер, приберу.",
     music: true,
     sounds: PIECES.map((piece) => ({
       name: piece.title,
-      text: `${piece.family === "guitar" ? "Гітара" : "Ніч"} · ${Math.round(pieceLength(piece))} с`,
+      text: `${piece.family === "guitar" ? "День" : "Ніч"} · ${ARRANGEMENT[piece.accompany]}, мелодія: ${LEAD[piece.lead]} · ${Math.round(pieceLength(piece))} с`,
       length: pieceLength(piece) + 4,
-      play: () => playPiece(ctx, master, piece),
+      play: () => playPiece(ctx, master, piece, noise),
     })),
   },
   ...uiPacks(),
