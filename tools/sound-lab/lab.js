@@ -288,6 +288,11 @@ function creak({ at = 0, length, level }) {
   }
 }
 
+/** Line or a drag zipping: a narrow band of noise sliding from one pitch to another. */
+function zip({ at = 0, length, from, to, level, q = 4 }) {
+  wash({ at, type: "bandpass", from, to, q, attack: Math.min(0.02, length * 0.2), length, level });
+}
+
 /** The same sound for a small fish, then (a second later) a big one. */
 function bothSizes(play) {
   play(0, 0);
@@ -804,7 +809,7 @@ const SECTIONS = [
   {
     id: "land.lure",
     prefix: "Ш",
-    chosen: [],
+    chosen: [3],
     title: "Приманка падає на воду",
     note: "Блешня чи воблер після закиду: важча й щільніша за поплавок, входить у воду і йде вглиб.",
     sounds: [
@@ -847,7 +852,7 @@ const SECTIONS = [
   {
     id: "lure.strike",
     prefix: "Х",
-    chosen: [],
+    chosen: [0],
     title: "Риба б'є приманку",
     note: "Хижак атакує блешню чи воблер під час проводки: різко, але не гучно, сигнал підсікати.",
     sounds: [
@@ -875,6 +880,77 @@ const SECTIONS = [
           wash({ type: "bandpass", from: 2000, to: 900, q: 0.6, attack: 0.002, length: 0.15, level: 0.07 });
           droplets({ count: 9, from: 0.04, to: 0.55, level: 0.06 });
         },
+      },
+    ],
+  },
+  {
+    id: "hookset",
+    prefix: "З",
+    chosen: [],
+    title: "Підсічка",
+    note: "Мить, коли смикаєш вудку й засікаєш рибу: короткий рух і натяг.",
+    sounds: [
+      {
+        name: "Різкий змах",
+        text: "Короткий швидкий свист вудки вгору",
+        play: () => swish({ duration: jitter(0.16), peakAt: 0.55, low: jitter(600), high: jitter(2400), q: 1.2, level: 0.45 }),
+      },
+      {
+        name: "Натяг волосіні",
+        text: "Волосінь різко натягується: коротке «ззіп»",
+        play: () => zip({ length: 0.14, from: 900, to: 2600, level: 0.08 }),
+      },
+      {
+        name: "Змах і розріз води",
+        text: "Змах, і волосінь розрізає поверхню",
+        play: () => {
+          swish({ duration: jitter(0.18), peakAt: 0.55, low: jitter(500), high: jitter(1900), q: 1, level: 0.35 });
+          wash({ at: 0.08, type: "bandpass", from: 2600, to: 1400, q: 1.3, attack: 0.01, length: 0.18, level: 0.06 });
+        },
+      },
+      {
+        name: "Змах і натяг",
+        text: "Свист вудки й одразу «ззіп» волосіні",
+        play: () => {
+          swish({ duration: jitter(0.16), peakAt: 0.55, low: jitter(600), high: jitter(2200), q: 1.2, level: 0.35 });
+          zip({ at: 0.09, length: 0.12, from: 1000, to: 2800, level: 0.06 });
+        },
+      },
+    ],
+  },
+  {
+    id: "reel.drag",
+    prefix: "М",
+    chosen: [],
+    title: "Фрикціон котушки",
+    note: "Сильна риба тягне, і котушка стравлює волосінь з характерним тріском. Грає ривками, поки риба йде. Тут два ривки.",
+    sounds: [
+      {
+        name: "Тріск фрикціону",
+        text: "Дуже часті клацання, рівним «тррр»",
+        play: () => series(2, 0.9, (at) => {
+          for (let t = 0; t < 0.5; t += jitter(0.022, 0.1)) tick(at + t, { freq: 2900, q: 3, length: 0.008, level: 0.06 });
+        }),
+      },
+      {
+        name: "Вищання",
+        text: "Гладке високе вищання з легким тріском під ним",
+        play: () => series(2, 0.9, (at) => {
+          zip({ at, length: 0.5, from: 2300, to: 2100, level: 0.05, q: 6 });
+          for (let t = 0; t < 0.5; t += 0.03) tick(at + t, { freq: 3400, q: 3, length: 0.006, level: 0.02 });
+        }),
+      },
+      {
+        name: "Рвучкі ривки",
+        text: "Риба тягне поштовхами: тріск то частішає, то стихає",
+        play: () => series(2, 0.9, (at) => {
+          let t = 0;
+          while (t < 0.6) {
+            const speed = 0.5 + 0.5 * Math.sin(t * 18);
+            tick(at + t, { freq: 2700, q: 3, length: 0.008, level: 0.03 + 0.04 * speed });
+            t += 0.018 + 0.03 * (1 - speed);
+          }
+        }),
       },
     ],
   },

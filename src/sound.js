@@ -326,10 +326,18 @@ export const sounds = {
     blup({ freq: vary(620, 0.08), rise: 2.2, length: 0.045, level: 0.16 });
     blup({ delay: 0.05, freq: vary(900, 0.08), rise: 2, length: 0.03, level: 0.06 });
   },
-  /** A fish hitting a lure: a swirl at the surface. */
+  /** A fish hitting a lure (lab: Х1 "Вир"): the water swirling where it struck. */
   strike() {
     if (!audio()) return;
-    splash(0.8, rand(-0.2, 0.2));
+    wash({ buffer: brown, type: "lowpass", from: vary(900, 0.08), to: 200, attack: 0.05, length: 0.4, volume: 0.22, pan: 0.15 });
+    droplets(4, 0.05, 0.35, 0.05);
+  },
+  /** A lure landing (lab: Ш4 "Плюх і булькіт"): in it goes, and small bubbles follow as it sinks. */
+  landLure() {
+    if (!audio()) return;
+    blup({ freq: vary(260, 0.08), rise: 2.5, length: 0.07, level: 0.24 });
+    wash({ buffer: brown, type: "lowpass", from: vary(1100, 0.08), to: 250, attack: 0.006, length: 0.16, volume: 0.13 });
+    for (let i = 0; i < 4; i += 1) blup({ delay: 0.15 + i * vary(0.12, 0.08), freq: vary(500 + i * 80, 0.08), rise: 2, length: 0.03, level: 0.05, muffle: 0.6 });
   },
   /** One click of the spinning reel's anti-reverse (lab: С4 "Дрібна тріскачка"): tiny and bright. */
   spinTick() {
