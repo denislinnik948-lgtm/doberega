@@ -457,6 +457,68 @@ function quack({ at = 0, freq = 380, length = 0.16, level = 0.06, pan = 0 }) {
   osc.stop(start + length + 0.02);
 }
 
+/** A croak: a low buzzy tone pulsed many times a second, through a throat-like resonance. */
+function croak({ at = 0, freq = 140, pulses = 22, length = 0.35, level = 0.05, bend = 1, pan = 0, formant = 700 }) {
+  const start = ctx.currentTime + at;
+  const osc = ctx.createOscillator();
+  osc.type = "sawtooth";
+  osc.frequency.setValueAtTime(freq, start);
+  osc.frequency.linearRampToValueAtTime(freq * bend, start + length);
+  const filter = ctx.createBiquadFilter();
+  filter.type = "bandpass";
+  filter.frequency.value = formant;
+  filter.Q.value = 3;
+  const pulse = ctx.createGain();
+  pulse.gain.value = 0.5;
+  const lfo = ctx.createOscillator();
+  lfo.type = "square";
+  lfo.frequency.value = pulses;
+  const depth = ctx.createGain();
+  depth.gain.value = 0.5;
+  lfo.connect(depth).connect(pulse.gain);
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, start);
+  gain.gain.linearRampToValueAtTime(level, start + 0.03);
+  gain.gain.setValueAtTime(level, start + length * 0.75);
+  gain.gain.linearRampToValueAtTime(0, start + length);
+  const panner = ctx.createStereoPanner();
+  panner.pan.value = pan;
+  osc.connect(filter).connect(pulse).connect(gain).connect(panner).connect(master);
+  osc.start(start);
+  osc.stop(start + length + 0.05);
+  lfo.start(start);
+  lfo.stop(start + length + 0.05);
+}
+
+/** A soft hoot: a low sine that swells and fades, slightly breathy. */
+function hoot({ at = 0, freq = 420, to = freq * 0.92, length = 0.35, level = 0.05, pan = 0 }) {
+  chirp({ at, from: freq, to, length, level, pan });
+  wash({ at, type: "bandpass", from: freq * 2, q: 4, attack: length * 0.3, length, level: level * 0.15, pan });
+}
+
+/** A long swell of filtered noise: wind, a rustle, a rumble. */
+function swell({ at = 0, type = "bandpass", freq, q = 0.8, length, level, deep = false, flutter = 0 }) {
+  const start = ctx.currentTime + at;
+  const source = ctx.createBufferSource();
+  source.buffer = deep ? brown : noise;
+  const filter = ctx.createBiquadFilter();
+  filter.type = type;
+  filter.frequency.value = freq;
+  filter.Q.value = q;
+  const gain = ctx.createGain();
+  const steps = 120;
+  const curve = new Float32Array(steps);
+  for (let i = 0; i < steps; i += 1) {
+    const t = i / (steps - 1);
+    const shape = Math.sin(Math.PI * t) ** 1.5;
+    curve[i] = level * shape * (flutter ? 1 - flutter + flutter * Math.random() : 1);
+  }
+  gain.gain.value = 0;
+  gain.gain.setValueCurveAtTime(curve, start, length);
+  source.connect(filter).connect(gain).connect(master);
+  source.start(start, Math.random(), length + 0.05);
+}
+
 /** The same sound for a small fish, then (a second later) a big one. */
 function bothSizes(play) {
   play(0, 0);
@@ -1319,6 +1381,140 @@ const SECTIONS = [
       },
     ],
   },
+  {
+    id: "frog",
+    prefix: "Жб",
+    chosen: [],
+    title: "Жаби",
+    note: "Біля ставка ввечері й теплої ночі. Тут кілька голосів.",
+    sounds: [
+      {
+        name: "Квакша",
+        text: "Коротке «кре-ке-ке»",
+        play: () => series(3, 0.5, (at) => croak({ at, freq: jitter(160), pulses: 26, length: 0.28, level: 0.04, pan: pan() })),
+      },
+      {
+        name: "Ставкова жаба",
+        text: "Протяжне «ква-а-а», трохи вниз",
+        play: () => series(2, 0.8, (at) => croak({ at, freq: jitter(120), pulses: 14, length: 0.5, level: 0.05, bend: 0.85, formant: 600, pan: pan() })),
+      },
+      {
+        name: "Хор",
+        text: "Кілька жаб перегукуються",
+        play: () => { for (let i = 0; i < 7; i += 1) croak({ at: Math.random() * 1.6, freq: 110 + Math.random() * 80, pulses: 14 + Math.random() * 14, length: 0.25 + Math.random() * 0.3, level: 0.03, pan: Math.random() * 1.4 - 0.7 }); },
+      },
+    ],
+  },
+  {
+    id: "crickets",
+    prefix: "Цв",
+    chosen: [],
+    title: "Цвіркуни вночі",
+    note: "Сухої ночі. Тут дві секунди.",
+    sounds: [
+      {
+        name: "Поодинокі",
+        text: "Окремі цвіркуни: короткі трелі тут і там",
+        play: () => { for (let k = 0; k < 4; k += 1) { const at = Math.random() * 1.5; const f = 4200 + Math.random() * 600; const side = pan() * 2; for (let i = 0; i < 4; i += 1) chirp({ at: at + i * 0.045, from: f, to: f, length: 0.025, level: 0.008, pan: side }); } },
+      },
+      {
+        name: "Хор цвіркунів",
+        text: "Мерехтливий суцільний спів, далеко",
+        play: () => { for (let k = 0; k < 6; k += 1) { const f = 4000 + Math.random() * 1200; const side = Math.random() * 1.6 - 0.8; for (let t = Math.random() * 0.1; t < 2; t += 0.05) chirp({ at: t, from: f, to: f, length: 0.022, level: 0.004, pan: side }); } },
+      },
+      {
+        name: "Коник",
+        text: "Високе тихе сюрчання",
+        play: () => swell({ type: "bandpass", freq: 7000, q: 6, length: 2, level: 0.02, flutter: 0.6 }),
+      },
+    ],
+  },
+  {
+    id: "owl",
+    prefix: "Св",
+    chosen: [],
+    title: "Сова",
+    note: "Глибокої ночі, рідко.",
+    sounds: [
+      {
+        name: "Сич",
+        text: "Два тихі «ху-ху»",
+        play: () => { const side = pan() * 2; hoot({ freq: 440, length: 0.3, pan: side }); hoot({ at: 0.5, freq: 420, length: 0.35, pan: side }); },
+      },
+      {
+        name: "Сіра сова",
+        text: "Протяжне «у-ху-у-у-у» з тремтінням",
+        play: () => { const side = pan() * 2; hoot({ freq: 380, length: 0.5, pan: side }); for (let i = 0; i < 4; i += 1) hoot({ at: 0.9 + i * 0.13, freq: 360, length: 0.12, level: 0.035, pan: side }); hoot({ at: 1.5, freq: 380, to: 330, length: 0.6, pan: side }); },
+      },
+    ],
+  },
+  {
+    id: "rain",
+    prefix: "Дщ",
+    chosen: [],
+    title: "Дощ",
+    note: "Фон, поки йде дощ. Тут дві секунди помірного дощу.",
+    sounds: [
+      {
+        name: "Краплі й гул",
+        text: "Окремі краплі на воду й глибокий тихий гул (як зараз у грі)",
+        play: () => { swell({ type: "lowpass", freq: 700, length: 2, level: 0.08, deep: true }); for (let t = 0; t < 2; t += 0.03 + Math.random() * 0.05) bubble({ at: t, freq: 600 + Math.random() * 1000, rise: 2, length: 0.025, level: 0.012, pan: Math.random() * 1.6 - 0.8 }); },
+      },
+      {
+        name: "Шелест дощу",
+        text: "М'який шелест по листю й траві, з краплями",
+        play: () => { swell({ type: "bandpass", freq: 3000, q: 0.5, length: 2, level: 0.035, flutter: 0.3 }); for (let t = 0; t < 2; t += 0.05 + Math.random() * 0.08) bubble({ at: t, freq: 700 + Math.random() * 900, rise: 2, length: 0.025, level: 0.01, pan: Math.random() * 1.6 - 0.8 }); },
+      },
+      {
+        name: "Злива",
+        text: "Густий дощ: багато крапель і сильніший шум",
+        play: () => { swell({ type: "lowpass", freq: 1200, length: 2, level: 0.12, deep: true }); swell({ type: "bandpass", freq: 2500, q: 0.5, length: 2, level: 0.03 }); for (let t = 0; t < 2; t += 0.012 + Math.random() * 0.02) bubble({ at: t, freq: 600 + Math.random() * 1200, rise: 2, length: 0.02, level: 0.01, pan: Math.random() * 1.8 - 0.9 }); },
+      },
+    ],
+  },
+  {
+    id: "thunder.far",
+    prefix: "Гр",
+    chosen: [],
+    title: "Далекий грім",
+    note: "Рідко, лише в сильну зливу.",
+    sounds: [
+      {
+        name: "Гуркіт",
+        text: "Низький далекий гуркіт, що котиться",
+        play: () => { swell({ type: "lowpass", freq: 140, length: 3, level: 0.3, deep: true, flutter: 0.4 }); },
+      },
+      {
+        name: "Розкат",
+        text: "Приглушений тріск і довгий розкат",
+        play: () => { wash({ type: "lowpass", from: 900, to: 150, attack: 0.01, length: 0.5, level: 0.15, deep: true }); swell({ at: 0.2, type: "lowpass", freq: 120, length: 3, level: 0.28, deep: true, flutter: 0.5 }); },
+      },
+    ],
+  },
+  {
+    id: "wind",
+    prefix: "Вт",
+    chosen: [],
+    title: "Вітер і очерет",
+    note: "Фон: рідкі пориви, коли вітер колише траву й очерет.",
+    sounds: [
+      {
+        name: "Подих вітру",
+        text: "М'який порив, що наростає й стихає",
+        play: () => swell({ type: "bandpass", freq: 500, q: 0.6, length: 2.5, level: 0.06, deep: true }),
+      },
+      {
+        name: "Шелест очерету",
+        text: "Сухий шелест стебел",
+        play: () => swell({ type: "bandpass", freq: 3200, q: 0.9, length: 1.8, level: 0.03, flutter: 0.5 }),
+      },
+      {
+        name: "Вітер з очеретом",
+        text: "Порив і шелест разом",
+        play: () => { swell({ type: "bandpass", freq: 450, q: 0.6, length: 2.5, level: 0.05, deep: true }); swell({ at: 0.4, type: "bandpass", freq: 3000, q: 0.9, length: 1.8, level: 0.025, flutter: 0.5 }); },
+      },
+    ],
+  },
   ...uiPacks(),
   {
     id: "shop.buy",
@@ -1419,7 +1615,7 @@ const SECTIONS = [
   {
     id: "water.lap",
     prefix: "Хв",
-    chosen: [],
+    chosen: [0],
     title: "Хвилька об берег",
     note: "Фон на воді: раз на кілька секунд маленька хвилька плескає біля берега. Має бути ледь помітно.",
     sounds: [
@@ -1465,7 +1661,7 @@ const SECTIONS = [
   {
     id: "fish.jump",
     prefix: "Рб",
-    chosen: [],
+    chosen: [0],
     title: "Риба сплеснула вдалині",
     note: "Фон: час від часу десь на воді грає риба.",
     sounds: [
@@ -1501,7 +1697,7 @@ const SECTIONS = [
   {
     id: "bird.day",
     prefix: "Пт",
-    chosen: [],
+    chosen: [0, 1, 2, 3],
     title: "Пташки вдень",
     note: "Фон удень, раз на 10–20 секунд, звідкись збоку. Можна обрати кілька: гратимуть по черзі.",
     sounds: [
@@ -1553,7 +1749,7 @@ const SECTIONS = [
   {
     id: "duck.quack",
     prefix: "Кч",
-    chosen: [],
+    chosen: [1, 2],
     title: "Качка крякає",
     note: "Коли качки пливуть по воді: іноді крякають.",
     sounds: [
@@ -1577,7 +1773,7 @@ const SECTIONS = [
   {
     id: "duck.eats",
     prefix: "Кз",
-    chosen: [],
+    chosen: [0],
     title: "Качка з'їла наживку",
     note: "Качка пропливла повз поплавок і з'їла наживку.",
     sounds: [

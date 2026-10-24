@@ -463,6 +463,12 @@ export const sounds = {
     if (!audio()) return;
     wash({ type: "bandpass", from: vary(3200, 0.075), q: 2, attack: 0.0008, length: 0.012, volume: 0.09 });
   },
+  /** A duck eating the bait (lab: Кз1 "Хап і кря"): a quick dabbling with the bill and a pleased quack. */
+  duckEats() {
+    if (!audio()) return;
+    for (let i = 0; i < 4; i += 1) wash({ type: "lowpass", from: 2000, to: 600, attack: 0.002, length: 0.05, volume: 0.06, delay: i * 0.05 });
+    quack({ delay: 0.3, freq: vary(420, 0.08), length: 0.15, level: 0.05 });
+  },
   /**
    * A fish thrashing at the surface. Small (up to 1.5 kg): light splashes
    * with drops or a quick flutter of the tail, at random (lab: Ф1 and Ф3).
@@ -539,23 +545,117 @@ export const sounds = {
  * water lapping now and then while at the water, birds by day, crickets at
  * night, and rain as drops plus a deep murmur that swells with the rain.
  */
-const ambient = { lap: 3, bird: 6, cricket: 2, drop: 0 };
+const ambient = { lap: 3, bird: 6, cricket: 2, drop: 0, jump: 25, duck: 8 };
 
 function lap() {
-  // A small wave against the bank: a slow swell of deep noise and a few bubbles.
-  wash({ buffer: brown, type: "lowpass", from: vary(380, 0.2), to: 160, attack: rand(0.15, 0.3), length: rand(0.7, 1.2), volume: rand(0.05, 0.09), pan: rand(-0.6, 0.6) });
-  for (let i = 0; i < 3; i += 1) if (Math.random() < 0.6) bubble(rand(350, 800), rand(0.008, 0.02), rand(0.15, 0.6), rand(-0.5, 0.5));
+  // A small wave against the bank (lab: Хв1 "Тихий плескіт"): a soft swell of deep noise and a couple of bubbles.
+  const pan = rand(-0.3, 0.3);
+  wash({ buffer: brown, type: "lowpass", from: vary(380, 0.08), to: 160, attack: 0.22, length: 1, volume: 0.08, pan });
+  blup({ delay: 0.3, freq: vary(500, 0.08), rise: 2, length: 0.04, level: 0.02, pan });
+  blup({ delay: 0.5, freq: vary(700, 0.08), rise: 2, length: 0.03, level: 0.015, pan });
 }
 
-function bird() {
-  // A few quick whistled notes, each sliding, from somewhere off to one side.
-  const pan = rand(-0.8, 0.8);
-  const base = rand(2600, 4200);
-  const notes = 2 + Math.floor(Math.random() * 4);
-  for (let i = 0; i < notes; i += 1) {
-    const from = base * rand(0.85, 1.2);
-    ping(from, rand(0.008, 0.016), rand(0.06, 0.12), { delay: i * rand(0.09, 0.15), to: from * rand(0.7, 1.35), pan });
+function fishJump() {
+  // A fish jumping somewhere out on the water (lab: Рб1 "Далекий сплеск"): quiet, muffled by the distance.
+  const pan = rand(-0.6, 0.6);
+  wash({ buffer: brown, type: "lowpass", from: vary(900, 0.08), to: 200, attack: 0.004, length: 0.25, volume: 0.07, pan });
+  droplets(2, 0.08, 0.25, 0.012);
+}
+
+/** A bird's note: a sine sweeping from one pitch to another, optionally with a quick vibrato. */
+function chirp({ delay = 0, from, to, length, level = 0.03, pan = 0, vibrato = 0 }) {
+  const at = ctx.currentTime + delay;
+  const osc = ctx.createOscillator();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(from, at);
+  osc.frequency.exponentialRampToValueAtTime(to, at + length);
+  if (vibrato) {
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 38;
+    const depth = ctx.createGain();
+    depth.gain.value = vibrato;
+    lfo.connect(depth).connect(osc.frequency);
+    lfo.start(at);
+    lfo.stop(at + length + 0.02);
   }
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, at);
+  gain.gain.linearRampToValueAtTime(level, at + length * 0.2);
+  gain.gain.exponentialRampToValueAtTime(0.0001, at + length);
+  osc.connect(gain).connect(out(1, pan));
+  osc.start(at);
+  osc.stop(at + length + 0.02);
+}
+
+/*
+ * Songbirds by day (lab: Пт1–Пт4), one of four at random, from somewhere off
+ * to one side: a chaffinch-like trill, a tit's "tsi-fee", a reed warbler's
+ * chatter, an oriole's fluted call.
+ */
+const BIRDS = [
+  (pan) => {
+    for (let i = 0; i < 9; i += 1) chirp({ delay: i * 0.07, from: 4200 - i * 120, to: 3600 - i * 120, length: 0.06, level: 0.022, pan });
+    chirp({ delay: 0.7, from: 3000, to: 4800, length: 0.18, level: 0.025, pan });
+  },
+  (pan) => {
+    for (let i = 0; i < 3; i += 1) {
+      chirp({ delay: i * 0.38, from: 5200, to: 5000, length: 0.1, level: 0.022, pan });
+      chirp({ delay: i * 0.38 + 0.14, from: 3900, to: 3700, length: 0.14, level: 0.022, pan });
+    }
+  },
+  (pan) => {
+    let delay = 0;
+    for (let i = 0; i < 12; i += 1) {
+      const from = rand(2500, 5000);
+      chirp({ delay, from, to: from * rand(0.7, 1.3), length: rand(0.04, 0.09), level: 0.015, pan, vibrato: Math.random() < 0.4 ? 300 : 0 });
+      delay += rand(0.06, 0.13);
+    }
+  },
+  (pan) => {
+    chirp({ from: 1500, to: 2100, length: 0.18, level: 0.03, pan });
+    chirp({ delay: 0.2, from: 2300, to: 1700, length: 0.16, level: 0.03, pan });
+    chirp({ delay: 0.38, from: 1600, to: 1900, length: 0.28, level: 0.03, pan });
+  },
+];
+let lastBird = -1;
+function bird() {
+  let pick = Math.floor(Math.random() * BIRDS.length);
+  if (pick === lastBird) pick = (pick + 1) % BIRDS.length;
+  lastBird = pick;
+  BIRDS[pick](rand(-0.8, 0.8));
+}
+
+/** A duck's quack: a buzzy, nasal sawtooth through two vowel-like resonances, dropping a little in pitch. */
+function quack({ delay = 0, freq = 380, length = 0.16, level = 0.06, pan = 0 }) {
+  const at = ctx.currentTime + delay;
+  const osc = ctx.createOscillator();
+  osc.type = "sawtooth";
+  osc.frequency.setValueAtTime(freq, at);
+  osc.frequency.exponentialRampToValueAtTime(freq * 0.78, at + length);
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, at);
+  gain.gain.linearRampToValueAtTime(level, at + 0.015);
+  gain.gain.setValueAtTime(level, at + length * 0.6);
+  gain.gain.exponentialRampToValueAtTime(0.0001, at + length);
+  for (const [formant, q, part] of [[1100, 6, 1], [2500, 8, 0.5]]) {
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = formant;
+    filter.Q.value = q;
+    const amount = ctx.createGain();
+    amount.gain.value = part * 4;
+    osc.connect(filter).connect(amount).connect(gain);
+  }
+  gain.connect(out(1, pan));
+  osc.start(at);
+  osc.stop(at + length + 0.02);
+}
+
+function duck() {
+  // Ducks out on the water (lab: Кч2 or Кч3): a quiet contented mutter, or a single quack.
+  const pan = rand(-0.5, 0.5);
+  if (Math.random() < 0.6) for (let i = 0; i < 4; i += 1) quack({ delay: i * vary(0.14, 0.1), freq: vary(260, 0.1), length: 0.08, level: 0.03, pan });
+  else quack({ freq: vary(400, 0.08), length: 0.17, level: 0.05, pan });
 }
 
 function cricket() {
@@ -597,7 +697,7 @@ function setRainBed(level) {
  * Advance the background by `step` seconds: `atWater` while fishing, `rain`
  * 0..1, `night` while it's dark.
  */
-export function ambienceTick(step, { atWater, rain, night }) {
+export function ambienceTick(step, { atWater, rain, night, ducks = 0 }) {
   if (!audio() || step <= 0) return;
   if (Math.abs(rain - rainLevel) > 0.02 || (rain <= 0.02 && rainBed)) {
     rainLevel = rain;
@@ -612,6 +712,16 @@ export function ambienceTick(step, { atWater, rain, night }) {
   if (atWater && !night && rain < 0.3 && ambient.bird <= 0) {
     ambient.bird = rand(6, 16);
     bird();
+  }
+  // A fish jumping out on the water now and then, day or night.
+  if (atWater && ambient.jump <= 0) {
+    ambient.jump = rand(20, 60);
+    fishJump();
+  }
+  // Ducks on the water mutter or quack once in a while.
+  if (atWater && ducks > 0 && ambient.duck <= 0) {
+    ambient.duck = rand(12, 30);
+    duck();
   }
   if (atWater && night && rain < 0.3 && ambient.cricket <= 0) {
     ambient.cricket = rand(0.8, 3);

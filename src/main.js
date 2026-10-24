@@ -231,7 +231,8 @@ function handleGameEvent(type, data) {
     ui.commit();
     if (data.type === "escape") {
       // A snapped line or a bent hook twangs; a fish that just slipped off makes a splash.
-      if (data.reason === "unsnagged") sounds.snagFree();
+      if (data.reason === "duck") sounds.duckEats();
+      else if (data.reason === "unsnagged") sounds.snagFree();
       else if (data.reason === "straightened") sounds.hookBend();
       else if (data.hookLost || data.reason === "snap") sounds.snap();
       else sounds.splash(0.5);
@@ -431,7 +432,7 @@ function playLoops(step, dayTime) {
     }
   }
   const hour = (dayTime * 24) % 24;
-  ambienceTick(step, { atWater: mode === "fishing", rain: weather.intensity, night: hour < 5 || hour >= 21.5 });
+  ambienceTick(step, { atWater: mode === "fishing", rain: weather.intensity, night: hour < 5 || hour >= 21.5, ducks: ducks.all.length });
 }
 
 /** Game hours of groundbait left at a water (0 if none). */
