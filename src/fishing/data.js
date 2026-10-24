@@ -1,4 +1,5 @@
 import { locale, t } from "../i18n.js";
+import { DAY_SECONDS } from "../daycycle.js";
 
 /**
  * Fishing catalog (display names live in src/i18n.js): fish, bait, rods, extras and fishing spots. Weights are in
@@ -190,10 +191,14 @@ export const EXTRAS = {
 
 /**
  * Groundbait: a consumable thrown into the water you're at. For `hours` of
- * game time that water bites `boost` times as often; it keeps working while
- * you're away and counts down as the game runs.
+ * game time that water bites `boost` times as often. Game time runs with the
+ * real clock (the same for everyone), so it simply wears off at a set moment,
+ * whether the game is open or not: `progress.baited[spot]` holds that moment.
  */
 export const GROUNDBAIT = { price: 90, hours: 24, boost: 1.7 };
+
+/** Milliseconds of real time in `hours` of game time (a game day lasts DAY_SECONDS). */
+export const gameHoursMs = (hours) => (hours / 24) * DAY_SECONDS * 1000;
 
 /**
  * Fishing spots. `fish` weights who lives there; `bigChance` is the base odds

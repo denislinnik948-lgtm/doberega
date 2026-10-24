@@ -11,6 +11,7 @@ import { Cloud } from "./cloud.js";
 import { onSeasonChange } from "./theme.js";
 import { NightEvents } from "./night-events.js";
 import { track } from "./analytics.js";
+import { setAmbience, sounds } from "./sound.js";
 import { AnglerUI } from "./fishing/ui.js";
 
 // The water look is fixed: a still lake, gentle swell speed, soft glints.
@@ -180,6 +181,16 @@ function toScreen(point) {
 }
 
 function handleGameEvent(type, data) {
+  if (type === "cast") {
+    // The swish comes with the forward swing, partway through the cast.
+    setTimeout(() => sounds.cast(), game.castDuration * (data.style === "over" ? 0.42 : 0.36) * 1000);
+  } else if (type === "splashdown") {
+    sounds.splash(data.lure ? 0.6 : 0.9);
+  } else if (type === "bite") {
+    sounds.bite();
+  } else if (type === "hooked") {
+    sounds.splash(0.8);
+  }
   if (type === "ripple") {
     const point = toScreen(data);
     addRipple({ ...renderer.screenToPlane(point.x, point.y), time: lastElapsed, strength: data.strength, size: data.size });
@@ -189,6 +200,7 @@ function handleGameEvent(type, data) {
   } else if (type === "strike") {
     // A fish hit the spoon: a buzz in the hand on a phone.
     navigator.vibrate?.(60);
+    sounds.strike();
   } else if (type === "outcome") {
     if (BAITS[data.bait].lure) {
       // The spoon comes back with every fish; only a broken line loses it (and it carries its own hook).
@@ -202,6 +214,9 @@ function handleGameEvent(type, data) {
     switchBaitIfEmpty();
     ui.commit();
     if (data.type === "escape") {
+      // A snapped line or a bent hook twangs; a fish that just slipped off makes a splash.
+      if (data.hookLost || data.reason === "snap") sounds.snap();
+      else sounds.splash(0.5);
       const lure = BAITS[data.bait].lure;
       const losses = [
         BAITS[data.bait].free || (lure && !data.hookLost) ? "" : t("toast.lostBait", { bait: nameOf("bait", data.bait).toLowerCase() }),
@@ -212,9 +227,13 @@ function handleGameEvent(type, data) {
     } else {
       progress.caught += 1;
       track("catch");
+      sounds.landed();
       game.release();
       ui.showCatch(data.fish, { bait: data.bait }).then((choice) => {
-        if (choice.type === "sell") ui.toast(`+${choice.price} ₴`, "good", 1200);
+        if (choice.type === "sell") {
+          ui.toast(`+${choice.price} ₴`, "good", 1200);
+          sounds.coin();
+        }
         else if (choice.type === "mount") ui.toast(t("toast.trophy"), "good", 1200);
         game.reset();
         // The first fish ever is the moment to suggest keeping progress safe.
@@ -263,7 +282,7 @@ function tryCast(x, y) {
     ui.commit();
     ui.toast(t("toast.hookSwitched", { hook: nameOf("hook", spare).toLowerCase() }), "", 1800);
   }
-  const groundbait = (progress.baited[LOCATIONS[progress.location].id] ?? 0) > 0;
+  const groundbait = groundbaitLeft(LOCATIONS[progress.location].id) > 0;
   if (game.cast({ x: x / width, y: y / height }, progress.rod, progress.bait, { location: progress.location, extras: progress.extras, groundbait, hook: progress.hook })) {
     // Get the pointer out of the way while watching the float.
     document.body.classList.add("cursor-hidden");
@@ -327,28 +346,53 @@ function maybeJumpFish(elapsed) {
 }
 
 /**
- * Groundbait counts down in game hours as the game runs, at every baited water,
- * whether you're there or not. The countdown is saved locally now and then;
- * the cloud gets it with the next real save.
+ * Groundbait wears off at a set moment of real (and so game) time, the same
+ * whether the game is open, in the background or closed: 24 game hours after
+ * it went in. Here it is only cleared once that moment has passed.
  */
-let groundbaitSaveClock = 0;
-function tickGroundbait(step) {
-  const spots = Object.keys(progress.baited);
-  if (!spots.length || step <= 0) return;
-  const hours = (step * 24) / DAY_LENGTH;
-  for (const id of spots) {
-    progress.baited[id] -= hours;
-    if (progress.baited[id] > 0) continue;
+function tickGroundbait() {
+  const now = Date.now();
+  for (const [id, until] of Object.entries(progress.baited)) {
+    if (until > now) continue;
     delete progress.baited[id];
     if (mode === "fishing" && id === LOCATIONS[progress.location].id) ui.toast(t("toast.groundbaitOver"), "", 2200);
     ui.commit();
   }
-  groundbaitSaveClock += step;
-  if (groundbaitSaveClock > 30) {
-    groundbaitSaveClock = 0;
-    saveProgress(progress, { quiet: true });
+}
+
+/*
+ * The sounds that run on while something happens: the reel's ratchet while
+ * line comes in, the odd splash of a fighting fish, and the bed of water
+ * (fainter behind the menu) and rain.
+ */
+let reelClock = 0;
+let thrashClock = 1;
+let bedClock = 0;
+function playLoops(step) {
+  const reeling = mode === "fishing" && (game.phase === "reeling" || (game.pulling && ["fight", "retrieving"].includes(game.phase)));
+  if (reeling && !game.snag) {
+    reelClock -= step;
+    if (reelClock <= 0) {
+      reelClock = game.phase === "fight" ? 0.085 : 0.065;
+      sounds.reelTick();
+    }
+  }
+  if (mode === "fishing" && game.phase === "fight" && !game.snag && !game.fish?.junk) {
+    thrashClock -= step;
+    if (thrashClock <= 0) {
+      thrashClock = 0.5 + Math.random() * 0.9;
+      sounds.thrash();
+    }
+  }
+  bedClock -= step;
+  if (bedClock <= 0) {
+    bedClock = 0.5;
+    setAmbience({ water: mode === "fishing" ? 1 : 0.35, rain: weather.intensity });
   }
 }
+
+/** Game hours of groundbait left at a water (0 if none). */
+const groundbaitLeft = (id) => Math.max(0, ((progress.baited[id] ?? 0) - Date.now()) / (DAY_LENGTH * 1000) * 24);
 
 function renderNow(now = performance.now()) {
   const elapsed = getElapsed(now);
@@ -371,10 +415,11 @@ function renderNow(now = performance.now()) {
   syncFishingUi();
   game.hour = dayTime * 24;
   ui.setClock(dayTime);
-  tickGroundbait(step);
-  ui.setGroundbait(mode === "fishing" ? progress.baited[LOCATIONS[progress.location].id] ?? 0 : 0);
+  tickGroundbait();
+  ui.setGroundbait(mode === "fishing" ? groundbaitLeft(LOCATIONS[progress.location].id) : 0);
   ui.setWeather(weather.intensity);
   nightEvents.update(step, elapsed, dayTime);
+  playLoops(step);
   renderer.render(elapsed, config, ripples, anglerView(elapsed), dayTime, {
     rain: weather.intensity,
     ducks: ducks.all,

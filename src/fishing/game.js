@@ -146,6 +146,7 @@ export class FishingGame {
     this.castStyle = this.reach() > TUNING.overheadReach ? "over" : "under";
     this.castDuration = this.castStyle === "over" ? TUNING.castOver : TUNING.castUnder;
     this.enter("casting");
+    this.emit("cast", { style: this.castStyle });
     return true;
   }
 
@@ -414,6 +415,7 @@ export class FishingGame {
       case "casting":
         if (this.clock >= this.castDuration) {
           this.ripple(this.target, 0.65, 0.42);
+          this.emit("splashdown", { lure: this.spinning });
           if (this.spinning) {
             this.lureFrom = { ...this.target };
             this.retrieved = 0;
@@ -477,6 +479,7 @@ export class FishingGame {
             this.float.sink = 1;
             this.ripple(this.target, 0.55, 0.35);
             this.enter("bite");
+            this.emit("bite");
             return;
           }
           if (age < 0 || age > 0.45) continue;

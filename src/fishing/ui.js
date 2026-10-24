@@ -1,5 +1,5 @@
 import {
-  BAITS, EXTRAS, FISH, GROUNDBAIT, HOOKS, LOCATIONS, RODS,
+  BAITS, EXTRAS, FISH, GROUNDBAIT, HOOKS, LOCATIONS, RODS, gameHoursMs,
   baitEntries, fishPrice, formatMoney, formatWeight, handbookEntries, spotEntries, trophyCost,
 } from "./data.js";
 import {
@@ -10,6 +10,7 @@ import { SEASONS, season, setSeason } from "../theme.js";
 import { validNickname } from "../cloud.js";
 import { track } from "../analytics.js";
 import { baitCount, saveProgress } from "./store.js";
+import { setSoundEnabled, soundEnabled, sounds } from "../sound.js";
 
 // Hook sprites grow with the hook's size.
 const HOOK_SCALE = { small: 2, medium: 3, large: 4 };
@@ -167,6 +168,17 @@ export class AnglerUI {
       },
     })));
     $("#season-hint").textContent = t(`season.${season()}Hint`);
+    $("#sound-options").replaceChildren(...[true, false].map((on) => element("button", {
+      className: `pixel-btn tab${on === soundEnabled() ? " is-active" : ""}`,
+      type: "button",
+      role: "radio",
+      ariaChecked: String(on === soundEnabled()),
+      textContent: t(on ? "sound.on" : "sound.off"),
+      onclick: () => {
+        setSoundEnabled(on);
+        this.openSettings();
+      },
+    })));
     if (!this.settingsDialog.open) this.settingsDialog.showModal();
   }
 
@@ -711,6 +723,7 @@ export class AnglerUI {
     const pay = (price, apply) => () => {
       if (progress.money < price) return;
       progress.money -= price;
+      sounds.coin();
       apply();
       this.commit();
       this.openShop();
@@ -893,7 +906,8 @@ export class AnglerUI {
     }
     if (progress.groundbait <= 0) return;
     progress.groundbait -= 1;
-    progress.baited[LOCATIONS[progress.location].id] = GROUNDBAIT.hours;
+    // Wears off 24 game hours from now (a fresh bag starts the count again).
+    progress.baited[LOCATIONS[progress.location].id] = Date.now() + gameHoursMs(GROUNDBAIT.hours);
     this.commit();
     this.packDialog.close();
     this.toast(t("toast.groundbaitOn"), "good", 2000);

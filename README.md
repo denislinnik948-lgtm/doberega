@@ -93,7 +93,7 @@ Thirteen baits: bread, dough, worm, maggot, pearl barley, bloodworm, peas, corn,
 ## Casting, groundbait and spinning
 
 - **Casting** (`castSwing` in `src/canvas-renderer.js`, `castStyle` in `src/fishing/game.js`): close to the bank the rod is swung underhand, dipping to the water and sweeping up, and the bait flies low; far out it goes overhead, up and back over the shoulder, then whips forward, and the bait flies on a high arc.
-- **Groundbait** (`GROUNDBAIT` in `src/fishing/data.js`): sold by the bag in Shop → Extras. At the water, tap it in the backpack: that water bites 1.7 times as often for 24 game hours (`progress.baited`, by spot). It keeps counting down while you're elsewhere and survives leaving and coming back; a chip by the clock shows a bar of the time left.
+- **Groundbait** (`GROUNDBAIT` in `src/fishing/data.js`): sold by the bag in Shop → Extras. At the water, tap it in the backpack: that water bites 1.7 times as often for exactly 24 game hours (about 21 real minutes). Game time follows the real clock, so `progress.baited` keeps, by spot, the moment it wears off: it runs out on time whether the game is open, in the background or closed (older saves holding hours left are converted on load). A chip by the clock shows a bar of the time left.
 - **Spinning** (`retrieving` phase in `src/fishing/game.js`): a lure (Shop → Снасті: spinner, spoon or wobbler, each with its own `retrieve` weights for jerks, the flutter in a pause and a steady retrieve) is picked like any bait but needs a spinning reel. After the cast, holding reels it toward the water's edge below the rod; short jerks, and the flutter in the pause after one, tempt a strike far more than a steady retrieve. Untouched at the bank, it's cast again; a strike is a bite like on the float. The spoon isn't used up and needs no hooks; only a broken line loses it.
 
 ## Accounts and cloud saves
@@ -136,6 +136,10 @@ On a phone held upright the landscape isn't squeezed: the scene is laid out at l
 **As an app on the home screen.** Hosted over HTTPS (e.g. on Vercel: import the repo, framework "Other", no build command, output directory `.`), the game installs like an app: on iPhone, Safari → Share → Add to Home Screen; on Android, Chrome → ⋮ → Install app. It then opens full screen from the perch icon, with no browser bars and the status bar over the scene (`manifest.webmanifest` and the `apple-mobile-web-app-*` tags in `index.html`). A small service worker (`sw.js`) fetches every file fresh from the network and keeps a copy, so updates arrive at once and the game still opens offline. For accounts, add the site's address to Supabase → Authentication → URL Configuration (Site URL and Redirect URLs).
 
 When the on-screen keyboard comes up (signing in, a nickname), the window moves into the part of the screen still showing and its fields scroll inside the frame, with the field being typed in brought to the middle; the scene isn't rebuilt for the keyboard (a resize that doesn't change the scene's size is skipped).
+
+## Sound
+
+`src/sound.js` makes every sound on the fly with Web Audio, so there are no sound files to download: the swish of the cast (timed to the forward swing), the plop of the float or lure landing, a plip when the float goes under, a heavier swirl when a fish hits a lure, the reel's ratchet while line comes in, the odd splash of a fighting fish, a twang when the line snaps or a hook bends, two soft notes for a fish on the bank and a coin chime for a sale or a purchase. Under it runs a quiet bed: a hush of water (fainter behind the menu) and rain that follows the weather. Small random shifts in pitch and length keep repeats from sounding mechanical. Sound is on by default and switched off in **Settings → Звук** (remembered in this browser); while it's off, or the tab is hidden, the audio sleeps and costs nothing. Browsers allow sound only after a tap or a key, so the game is silent until the first one.
 
 ## Rendering
 

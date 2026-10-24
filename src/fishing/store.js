@@ -1,4 +1,4 @@
-import { BAITS, EXTRAS, HOOKS, LOCATIONS, RETIRED_BAITS, RODS, START_STATE } from "./data.js";
+import { BAITS, EXTRAS, HOOKS, LOCATIONS, RETIRED_BAITS, RODS, START_STATE, gameHoursMs } from "./data.js";
 
 // The storage key keeps the game's old working name so existing saves carry over.
 const KEY = "stillwater.fishing.v2";
@@ -37,8 +37,14 @@ export function normalizeProgress(saved) {
     if (BAITS[saved.bait]) state.bait = saved.bait;
     if (Array.isArray(saved.extras)) state.extras = saved.extras.filter((id) => EXTRAS[id]);
     if (Number.isFinite(saved.groundbait)) state.groundbait = Math.max(0, saved.groundbait);
+    // Each baited water: the moment its groundbait wears off. Older saves kept
+    // game hours left instead (a small number): those start counting from now.
     if (saved.baited && typeof saved.baited === "object") {
-      state.baited = Object.fromEntries(Object.entries(saved.baited).filter(([id, hours]) => LOCATIONS.some((spot) => spot.id === id) && Number.isFinite(hours) && hours > 0));
+      const now = Date.now();
+      state.baited = Object.fromEntries(Object.entries(saved.baited)
+        .filter(([id, value]) => LOCATIONS.some((spot) => spot.id === id) && Number.isFinite(value) && value > 0)
+        .map(([id, value]) => [id, value < 1e9 ? now + gameHoursMs(value) : value])
+        .filter(([, until]) => until > now));
     }
     // Every trophy needs a stable id so it is published to the cloud only once.
     if (Array.isArray(saved.trophies)) state.trophies = saved.trophies.map((trophy) => ({ ...trophy, id: trophy.id ?? `${trophy.date}-${trophy.species}-${trophy.weight}` }));
