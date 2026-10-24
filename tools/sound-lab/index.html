@@ -39,6 +39,10 @@
       .sound:active { transform: translateY(2px); }
       .sound.is-playing { border-color: var(--gold); }
       .sound.is-chosen { border-color: #4f7a5a; background: #16281f; }
+      .group-title { margin-top: 18px; color: var(--gold); }
+      .done { margin-top: 36px; padding-top: 12px; border-top: 2px solid var(--line); }
+      .done summary { color: var(--text-2); font-size: 24px; cursor: pointer; }
+      .done summary:hover { color: var(--text); }
       .sound strong { font-size: 22px; font-weight: 600; }
       .sound strong b { color: var(--gold); font-weight: 600; }
       .sound span { color: var(--text-2); font-size: 17px; }
@@ -55,6 +59,7 @@
       </div>
       <div id="sections"></div>
     </main>
-    <script type="module" src="./lab.js"></script>
+    <!-- Always the latest candidates, never a cached copy. -->
+    <script type="module">import(`./lab.js?v=${Date.now()}`);</script>
   </body>
 </html>

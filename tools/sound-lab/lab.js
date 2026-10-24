@@ -385,6 +385,8 @@ function uiPacks() {
     id: set.id,
     prefix: set.prefix,
     chosen: set.id === "ui.wood" ? UI_EVENTS.map((_, i) => i) : [],
+    // The other interface sets lost to "Дерево": decided, so they sit with the done ones.
+    settled: set.id !== "ui.wood",
     title: set.title,
     note: `${set.note} Обери набір цілком.`,
     sounds: UI_EVENTS.map(([event, name]) => ({ name, text: event, play: set.play[event] })),
@@ -1803,9 +1805,12 @@ const SECTIONS = [
   },
 ];
 
-/* Build the page: a section per sound, a button per candidate (numbered). */
-const root = document.querySelector("#sections");
-for (const section of SECTIONS) {
+/*
+ * Build the page: the sounds still waiting for a pick on top, then (folded
+ * away) the ones already in the game. A section per sound, a numbered button
+ * per candidate.
+ */
+function renderSection(section, into) {
   const heading = document.createElement("h2");
   heading.textContent = `${section.title} · ${section.id}`;
   const note = document.createElement("p");
@@ -1827,5 +1832,24 @@ for (const section of SECTIONS) {
     });
     grid.append(button);
   });
-  root.append(heading, note, grid);
+  into.append(heading, note, grid);
 }
+
+const root = document.querySelector("#sections");
+const decided = (section) => section.chosen.length > 0 || section.settled;
+const waiting = SECTIONS.filter((section) => !decided(section));
+const done = SECTIONS.filter(decided);
+
+const waitingTitle = document.createElement("h2");
+waitingTitle.className = "group-title";
+waitingTitle.textContent = waiting.length ? `Чекають на вибір · ${waiting.length}` : "Усе вибрано";
+root.append(waitingTitle);
+for (const section of waiting) renderSection(section, root);
+
+const doneBox = document.createElement("details");
+doneBox.className = "done";
+const summary = document.createElement("summary");
+summary.textContent = `Уже в грі · ${done.length}`;
+doneBox.append(summary);
+for (const section of done) renderSection(section, doneBox);
+root.append(doneBox);
