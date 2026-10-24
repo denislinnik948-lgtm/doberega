@@ -396,6 +396,67 @@ function coin({ at = 0, freq, level = 0.04 }) {
   bell({ at, freq: jitter(freq, 0.03), level, length: 0.16 });
 }
 
+/**
+ * A bird's note: a sine whose pitch sweeps from `from` to `to`, with a quick
+ * vibrato, as small songbirds sing.
+ */
+function chirp({ at = 0, from, to, length, level = 0.03, pan = 0, vibrato = 0 }) {
+  const start = ctx.currentTime + at;
+  const osc = ctx.createOscillator();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(from, start);
+  osc.frequency.exponentialRampToValueAtTime(to, start + length);
+  if (vibrato) {
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 38;
+    const depth = ctx.createGain();
+    depth.gain.value = vibrato;
+    lfo.connect(depth).connect(osc.frequency);
+    lfo.start(start);
+    lfo.stop(start + length + 0.02);
+  }
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, start);
+  gain.gain.linearRampToValueAtTime(level, start + length * 0.2);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + length);
+  const panner = ctx.createStereoPanner();
+  panner.pan.value = pan;
+  osc.connect(gain).connect(panner).connect(master);
+  osc.start(start);
+  osc.stop(start + length + 0.02);
+}
+
+/**
+ * A duck's quack: a buzzy, nasal tone (a sawtooth through two vowel-like
+ * resonances) that drops a little in pitch.
+ */
+function quack({ at = 0, freq = 380, length = 0.16, level = 0.06, pan = 0 }) {
+  const start = ctx.currentTime + at;
+  const osc = ctx.createOscillator();
+  osc.type = "sawtooth";
+  osc.frequency.setValueAtTime(freq, start);
+  osc.frequency.exponentialRampToValueAtTime(freq * 0.78, start + length);
+  const panner = ctx.createStereoPanner();
+  panner.pan.value = pan;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, start);
+  gain.gain.linearRampToValueAtTime(level, start + 0.015);
+  gain.gain.setValueAtTime(level, start + length * 0.6);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + length);
+  for (const [formant, q, part] of [[1100, 6, 1], [2500, 8, 0.5]]) {
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = formant;
+    filter.Q.value = q;
+    const amount = ctx.createGain();
+    amount.gain.value = part * 4;
+    osc.connect(filter).connect(amount).connect(gain);
+  }
+  gain.connect(panner).connect(master);
+  osc.start(start);
+  osc.stop(start + length + 0.02);
+}
+
 /** The same sound for a small fish, then (a second later) a big one. */
 function bothSizes(play) {
   play(0, 0);
@@ -1262,7 +1323,7 @@ const SECTIONS = [
   {
     id: "shop.buy",
     prefix: "Щ",
-    chosen: [],
+    chosen: [0],
     title: "Покупка",
     note: "Купив наживку, гачки, приманку: дрібна покупка, часто.",
     sounds: [
@@ -1286,7 +1347,7 @@ const SECTIONS = [
   {
     id: "shop.buy.big",
     prefix: "Ї",
-    chosen: [],
+    chosen: [0],
     title: "Велика покупка",
     note: "Вудка чи спорядження: рідко й приємно.",
     sounds: [
@@ -1310,7 +1371,7 @@ const SECTIONS = [
   {
     id: "keepnet.sell",
     prefix: "Й",
-    chosen: [],
+    chosen: [1],
     title: "Продаж садка",
     note: "Продав увесь улов разом: момент нагороди за риболовлю.",
     sounds: [
@@ -1334,7 +1395,7 @@ const SECTIONS = [
   {
     id: "trophy.mount",
     prefix: "Ц",
-    chosen: [],
+    chosen: [0],
     title: "Трофей",
     note: "Рибу зберегли як трофей: її вішають на стіну.",
     sounds: [
@@ -1352,6 +1413,195 @@ const SECTIONS = [
         name: "Стук і дзвін",
         text: "Повісили на стіну, і короткий дзенькіт",
         play: () => { knock({ freq: 600, level: 0.09 }); knock({ at: 0.15, freq: 640, level: 0.08 }); bell({ at: 0.3, freq: 1760, level: 0.04, length: 0.7 }); },
+      },
+    ],
+  },
+  {
+    id: "water.lap",
+    prefix: "Хв",
+    chosen: [],
+    title: "Хвилька об берег",
+    note: "Фон на воді: раз на кілька секунд маленька хвилька плескає біля берега. Має бути ледь помітно.",
+    sounds: [
+      {
+        name: "Тихий плескіт",
+        text: "М'яке наростання й пара бульбашок",
+        play: () => {
+          wash({ type: "lowpass", from: jitter(380), to: 160, attack: 0.22, length: 1, level: 0.08, deep: true, pan: pan() });
+          bubble({ at: 0.3, freq: jitter(500), rise: 2, length: 0.04, level: 0.02 });
+          bubble({ at: 0.5, freq: jitter(700), rise: 2, length: 0.03, level: 0.015 });
+        },
+      },
+      {
+        name: "Об камінь",
+        text: "Коротший, ясніший шльоп хвильки об камінь",
+        play: () => {
+          wash({ type: "lowpass", from: jitter(1400), to: 300, attack: 0.04, length: 0.35, level: 0.07, pan: pan() });
+          droplets({ count: 3, from: 0.1, to: 0.35, level: 0.025 });
+        },
+      },
+      {
+        name: "Довгий накат",
+        text: "Хвиля повільно набігає й відкочується",
+        play: () => {
+          const start = ctx.currentTime;
+          const source = ctx.createBufferSource();
+          source.buffer = brown;
+          const filter = ctx.createBiquadFilter();
+          filter.type = "lowpass";
+          filter.frequency.setValueAtTime(200, start);
+          filter.frequency.linearRampToValueAtTime(600, start + 0.7);
+          filter.frequency.linearRampToValueAtTime(180, start + 1.8);
+          const gain = ctx.createGain();
+          gain.gain.setValueAtTime(0, start);
+          gain.gain.linearRampToValueAtTime(0.09, start + 0.7);
+          gain.gain.linearRampToValueAtTime(0, start + 1.8);
+          source.connect(filter).connect(gain).connect(master);
+          source.start(start, Math.random(), 1.9);
+        },
+      },
+    ],
+  },
+  {
+    id: "fish.jump",
+    prefix: "Рб",
+    chosen: [],
+    title: "Риба сплеснула вдалині",
+    note: "Фон: час від часу десь на воді грає риба.",
+    sounds: [
+      {
+        name: "Далекий сплеск",
+        text: "Тихий, приглушений відстанню",
+        play: () => {
+          wash({ type: "lowpass", from: jitter(900), to: 200, attack: 0.004, length: 0.25, level: 0.07, deep: true, pan: pan() * 2 });
+          droplets({ count: 2, from: 0.08, to: 0.25, level: 0.012 });
+        },
+      },
+      {
+        name: "Плюх і кола",
+        text: "Ясніший плюх і кілька бульбашок",
+        play: () => {
+          const side = pan() * 2;
+          wash({ type: "lowpass", from: jitter(1600), to: 260, attack: 0.003, length: 0.22, level: 0.08, pan: side });
+          bubble({ at: 0.04, freq: jitter(300), rise: 2.4, length: 0.07, level: 0.05, pan: side });
+          droplets({ count: 3, from: 0.08, to: 0.4, level: 0.02 });
+        },
+      },
+      {
+        name: "Двічі",
+        text: "Вистрибнула й плюхнулась ще раз",
+        play: () => {
+          const side = pan() * 2;
+          wash({ type: "lowpass", from: jitter(1300), to: 240, attack: 0.003, length: 0.2, level: 0.07, deep: true, pan: side });
+          wash({ at: jitter(0.45), type: "lowpass", from: jitter(1100), to: 220, attack: 0.003, length: 0.16, level: 0.05, deep: true, pan: side });
+        },
+      },
+    ],
+  },
+  {
+    id: "bird.day",
+    prefix: "Пт",
+    chosen: [],
+    title: "Пташки вдень",
+    note: "Фон удень, раз на 10–20 секунд, звідкись збоку. Можна обрати кілька: гратимуть по черзі.",
+    sounds: [
+      {
+        name: "Трель",
+        text: "Швидка спадна трель із розчерком у кінці (як зяблик)",
+        play: () => {
+          const side = pan() * 2;
+          for (let i = 0; i < 9; i += 1) chirp({ at: i * 0.07, from: 4200 - i * 120, to: 3600 - i * 120, length: 0.06, level: 0.022, pan: side });
+          chirp({ at: 0.7, from: 3000, to: 4800, length: 0.18, level: 0.025, pan: side });
+        },
+      },
+      {
+        name: "Синиця",
+        text: "Дзвінке «ці-фі, ці-фі»",
+        play: () => {
+          const side = pan() * 2;
+          for (let i = 0; i < 3; i += 1) {
+            chirp({ at: i * 0.38, from: 5200, to: 5000, length: 0.1, level: 0.022, pan: side });
+            chirp({ at: i * 0.38 + 0.14, from: 3900, to: 3700, length: 0.14, level: 0.022, pan: side });
+          }
+        },
+      },
+      {
+        name: "Очеретянка",
+        text: "Балакуче цвірінькання з очерету",
+        play: () => {
+          const side = pan() * 2;
+          let at = 0;
+          for (let i = 0; i < 12; i += 1) {
+            const f = 2500 + Math.random() * 2500;
+            chirp({ at, from: f, to: f * (0.7 + Math.random() * 0.6), length: 0.04 + Math.random() * 0.05, level: 0.015, pan: side, vibrato: Math.random() < 0.4 ? 300 : 0 });
+            at += 0.06 + Math.random() * 0.07;
+          }
+        },
+      },
+      {
+        name: "Іволга",
+        text: "Мелодійне флейтове «фіу-лі-у»",
+        play: () => {
+          const side = pan() * 2;
+          chirp({ from: 1500, to: 2100, length: 0.18, level: 0.03, pan: side });
+          chirp({ at: 0.2, from: 2300, to: 1700, length: 0.16, level: 0.03, pan: side });
+          chirp({ at: 0.38, from: 1600, to: 1900, length: 0.28, level: 0.03, pan: side });
+        },
+      },
+    ],
+  },
+  {
+    id: "duck.quack",
+    prefix: "Кч",
+    chosen: [],
+    title: "Качка крякає",
+    note: "Коли качки пливуть по воді: іноді крякають.",
+    sounds: [
+      {
+        name: "Крижень",
+        text: "Голосне «кря-кря-кря»",
+        play: () => { const side = pan(); for (let i = 0; i < 3; i += 1) quack({ at: i * 0.22, freq: jitter(380) * (1 - i * 0.05), length: 0.15, level: 0.05, pan: side }); },
+      },
+      {
+        name: "Тихе бурмотіння",
+        text: "Низькі тихі «кхр-кхр», качка вдоволено бурмоче",
+        play: () => { const side = pan(); for (let i = 0; i < 4; i += 1) quack({ at: i * jitter(0.14), freq: jitter(260), length: 0.08, level: 0.03, pan: side }); },
+      },
+      {
+        name: "Одне кря",
+        text: "Одне коротке «кря»",
+        play: () => quack({ freq: jitter(400), length: 0.17, level: 0.05, pan: pan() }),
+      },
+    ],
+  },
+  {
+    id: "duck.eats",
+    prefix: "Кз",
+    chosen: [],
+    title: "Качка з'їла наживку",
+    note: "Качка пропливла повз поплавок і з'їла наживку.",
+    sounds: [
+      {
+        name: "Хап і кря",
+        text: "Швидкий плюскіт дзьобом і задоволене «кря»",
+        play: () => {
+          for (let i = 0; i < 4; i += 1) wash({ at: i * 0.05, type: "lowpass", from: 2000, to: 600, attack: 0.002, length: 0.05, level: 0.06 });
+          quack({ at: 0.3, freq: jitter(420), length: 0.15, level: 0.05 });
+        },
+      },
+      {
+        name: "Чвакання",
+        text: "Качка булькає дзьобом у воді",
+        play: () => { for (let i = 0; i < 8; i += 1) bubble({ at: i * 0.06 + Math.random() * 0.03, freq: 400 + Math.random() * 400, rise: 2, length: 0.04, level: 0.06 }); },
+      },
+      {
+        name: "Кря з насмішкою",
+        text: "Плюскіт і два швидкі «кря-кря», ніби сміється",
+        play: () => {
+          wash({ type: "lowpass", from: 1800, to: 500, attack: 0.002, length: 0.12, level: 0.07 });
+          quack({ at: 0.2, freq: 460, length: 0.1, level: 0.05 });
+          quack({ at: 0.34, freq: 500, length: 0.12, level: 0.05 });
+        },
       },
     ],
   },

@@ -283,6 +283,12 @@ function splash(size, pan = 0) {
   for (let i = 0; i < drops; i += 1) bubble(rand(500, 1300), rand(0.015, 0.05) * size, rand(0.02, 0.18 + 0.3 * size), pan + rand(-0.15, 0.15));
 }
 
+/** One coin (or a small piece of metal) clinking: inharmonic partials, like real metal. */
+function clink(freq, level, delay = 0, length = 0.16) {
+  const base = vary(freq, 0.03);
+  for (const [ratio, part] of [[1, 1], [2.76, 0.5], [5.4, 0.25]]) ping(base * ratio, level * part, length / ratio, { delay });
+}
+
 /** A soft wooden tap: a short knock with a little body under it (the interface's "Дерево" set). */
 function knock(freq, level, delay = 0) {
   wash({ type: "bandpass", from: freq, q: 4, attack: 0.001, length: 0.04, volume: level, delay });
@@ -504,9 +510,26 @@ export const sounds = {
   /** Coins: two small metal clinks (inharmonic partials, like real coins). */
   coin() {
     if (!audio()) return;
-    for (const [delay, base] of [[0, 2350], [0.085, 2650]]) {
-      ping(vary(base, 0.03), 0.04, 0.16, { delay });
-      ping(vary(base * 2.76, 0.03), 0.02, 0.1, { delay });
+    clink(2350, 0.04);
+    clink(2650, 0.04, 0.085);
+  },
+  /** A big purchase, a rod or gear (lab: Ї1 "Купа монет"): a whole cascade of coins. */
+  buyBig() {
+    if (!audio()) return;
+    for (let i = 0; i < 9; i += 1) clink(rand(2000, 3200), 0.03, i * 0.045 + rand(0, 0.02));
+  },
+  /** Selling the keepnet (lab: Й2 "Садок і монети"): the net lifted dripping out of the water, then coins. */
+  sell() {
+    if (!audio()) return;
+    droplets(8, 0, 0.4, 0.05);
+    for (let i = 0; i < 6; i += 1) clink(2100 + i * 140, 0.03, 0.45 + i * 0.05);
+  },
+  /** A fish kept as a trophy (lab: Ц1 "Цвях"): three knocks of a hammer on a nail. */
+  trophy() {
+    if (!audio()) return;
+    for (let i = 0; i < 3; i += 1) {
+      knock(700 - i * 40, 0.09, i * 0.18);
+      clink(3200, 0.008, i * 0.18, 0.08);
     }
   },
 };

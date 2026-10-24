@@ -723,7 +723,7 @@ export class AnglerUI {
           progress.money -= cost;
           progress.trophies.unshift(fish);
           progress.keepnet.splice(index, 1);
-          sounds.coin();
+          sounds.trophy();
           this.toast(t("toast.trophy"), "good", 1200);
           refresh();
         },
@@ -754,7 +754,7 @@ export class AnglerUI {
     sell.onclick = () => {
       progress.money += total;
       progress.keepnet = [];
-      sounds.coin();
+      sounds.sell();
       this.commit();
       dialog.close();
       this.toast(t("keepnet.sold", { total: formatMoney(total) }), "good", 1800);
@@ -794,7 +794,9 @@ export class AnglerUI {
     const pay = (price, apply) => () => {
       if (progress.money < price) return;
       progress.money -= price;
-      sounds.coin();
+      // Rods and gear cost a lot more than a bag of bait: they sound like it.
+      if (price >= 1000) sounds.buyBig();
+      else sounds.coin();
       apply();
       this.commit();
       this.openShop();
