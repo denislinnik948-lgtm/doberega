@@ -339,6 +339,25 @@ export const sounds = {
     wash({ buffer: brown, type: "lowpass", from: vary(1100, 0.08), to: 250, attack: 0.006, length: 0.16, volume: 0.13 });
     for (let i = 0; i < 4; i += 1) blup({ delay: 0.15 + i * vary(0.12, 0.08), freq: vary(500 + i * 80, 0.08), rise: 2, length: 0.03, level: 0.05, muffle: 0.6 });
   },
+  /** The strike to set the hook (lab: З1 "Різкий змах"): a short, quick swish of the rod going up. */
+  hookset() {
+    if (!audio()) return;
+    swish({ duration: vary(0.16, 0.08), peakAt: 0.55, low: vary(600, 0.08), high: vary(2400, 0.08), q: 1.2, level: 0.45 });
+  },
+  /**
+   * The drag giving line as a fish runs (lab: М3 "Рвучкі ривки"): a burst of
+   * clicks that speeds up and slows with the fish's pulls; `strength` 0..1.
+   */
+  drag(strength = 1, seconds = 0.6) {
+    if (!audio()) return;
+    let t = 0;
+    const phase = rand(0, 6);
+    while (t < seconds) {
+      const speed = 0.5 + 0.5 * Math.sin(t * 18 + phase);
+      wash({ type: "bandpass", from: vary(2700, 0.07), q: 3, attack: 0.0008, length: 0.008, volume: (0.03 + 0.04 * speed) * (0.5 + 0.5 * strength), delay: t });
+      t += 0.018 + 0.03 * (1 - speed);
+    }
+  },
   /** One click of the spinning reel's anti-reverse (lab: С4 "Дрібна тріскачка"): tiny and bright. */
   spinTick() {
     if (!audio()) return;

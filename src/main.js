@@ -201,7 +201,7 @@ function handleGameEvent(type, data) {
   } else if (type === "bite") {
     sounds.bite();
   } else if (type === "hooked") {
-    sounds.splash(0.8);
+    sounds.hookset();
   }
   if (type === "ripple") {
     const point = toScreen(data);
@@ -378,6 +378,7 @@ function tickGroundbait() {
  */
 let reelClock = 0;
 let thrashClock = 1;
+let dragClock = 0;
 function playLoops(step, dayTime) {
   const reeling = mode === "fishing" && (game.phase === "reeling" || (game.pulling && ["fight", "retrieving"].includes(game.phase)));
   if (reeling && !game.snag) {
@@ -392,6 +393,16 @@ function playLoops(step, dayTime) {
         sounds.reelTick();
       }
     }
+  }
+  // Let go while the fish runs, and line goes out through the drag, in bursts.
+  if (mode === "fishing" && game.phase === "fight" && !game.pulling && !game.snag && !game.fish?.junk && game.behavior > 0.15) {
+    dragClock -= step;
+    if (dragClock <= 0) {
+      dragClock = 0.6;
+      sounds.drag(Math.min(1, game.behavior), 0.6);
+    }
+  } else {
+    dragClock = 0;
   }
   if (mode === "fishing" && game.phase === "fight" && !game.snag && !game.fish?.junk) {
     thrashClock -= step;

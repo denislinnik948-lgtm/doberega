@@ -280,11 +280,11 @@ function bell({ at = 0, freq, level, length }) {
 }
 
 /** Metal bending under strain: a rough, rising creak of quick little grinds. */
-function creak({ at = 0, length, level }) {
-  const grinds = Math.round(length / 0.018);
+function creak({ at = 0, length, level, low = 900, high = 2300, step = 0.018 }) {
+  const grinds = Math.round(length / step);
   for (let i = 0; i < grinds; i += 1) {
     const t = i / grinds;
-    wash({ at: at + i * 0.018, type: "bandpass", from: 900 + 1400 * t, q: 8, attack: 0.001, length: 0.016, level: level * (0.5 + 0.5 * Math.random()) });
+    wash({ at: at + i * step, type: "bandpass", from: low + (high - low) * t, q: 8, attack: 0.001, length: step * 0.9, level: level * (0.5 + 0.5 * Math.random()) });
   }
 }
 
@@ -886,7 +886,7 @@ const SECTIONS = [
   {
     id: "hookset",
     prefix: "З",
-    chosen: [],
+    chosen: [0],
     title: "Підсічка",
     note: "Мить, коли смикаєш вудку й засікаєш рибу: короткий рух і натяг.",
     sounds: [
@@ -921,7 +921,7 @@ const SECTIONS = [
   {
     id: "reel.drag",
     prefix: "М",
-    chosen: [],
+    chosen: [2],
     title: "Фрикціон котушки",
     note: "Сильна риба тягне, і котушка стравлює волосінь з характерним тріском. Грає ривками, поки риба йде. Тут два ривки.",
     sounds: [
@@ -951,6 +951,84 @@ const SECTIONS = [
             t += 0.018 + 0.03 * (1 - speed);
           }
         }),
+      },
+    ],
+  },
+  {
+    id: "rod.creak",
+    prefix: "Е",
+    chosen: [],
+    title: "Вудка рипить під навантаженням",
+    note: "Важка риба гне вудку до межі: рідкий тихий звук, коли натяг високий.",
+    sounds: [
+      {
+        name: "Тихий скрип",
+        text: "Низький скрип бланку, повільно",
+        play: () => creak({ length: 0.45, level: 0.05, low: 300, high: 650, step: 0.03 }),
+      },
+      {
+        name: "Потріскування",
+        text: "Дрібні сухі тріски, ніби вудка от-от не витримає",
+        play: () => {
+          for (let i = 0; i < 6; i += 1) wash({ at: Math.random() * 0.5, type: "bandpass", from: 1500 + Math.random() * 1500, q: 5, attack: 0.001, length: 0.01, level: 0.06 });
+        },
+      },
+      {
+        name: "Стогін",
+        text: "Довгий глухий стогін, як дерево під вагою",
+        play: () => zip({ length: 0.7, from: 180, to: 260, level: 0.12, q: 12 }),
+      },
+    ],
+  },
+  {
+    id: "snag.stuck",
+    prefix: "Ж",
+    chosen: [],
+    title: "Зачепився за корч",
+    note: "Гачок зачепився під водою: замість риби глухий опір.",
+    sounds: [
+      {
+        name: "Глухий натяг",
+        text: "Глухий удар і низький натяг волосіні",
+        play: () => {
+          wash({ type: "lowpass", from: 500, to: 120, attack: 0.002, length: 0.12, level: 0.2, deep: true });
+          zip({ at: 0.04, length: 0.3, from: 500, to: 700, level: 0.06, q: 6 });
+        },
+      },
+      {
+        name: "Тріск під водою",
+        text: "Приглушений скрип гілки там, внизу",
+        play: () => creak({ length: 0.35, level: 0.07, low: 250, high: 500, step: 0.025 }),
+      },
+      {
+        name: "Дзинь волосіні",
+        text: "Натягнута волосінь глухо дзенькає",
+        play: () => pluck({ freq: jitter(180), length: 0.5, level: 0.1 }),
+      },
+    ],
+  },
+  {
+    id: "snag.free",
+    prefix: "Ч",
+    chosen: [],
+    title: "Корч відпустив",
+    note: "Дав слабину, і гачок відчепився: полегшення.",
+    sounds: [
+      {
+        name: "Відпустило",
+        text: "М'яке «пум» і кілька бульбашок угору",
+        play: () => {
+          bubble({ freq: jitter(260), rise: 2.2, length: 0.07, level: 0.14, muffle: 0.5 });
+          for (let i = 0; i < 3; i += 1) bubble({ at: 0.1 + i * 0.09, freq: 500 + i * 120, rise: 2, length: 0.03, level: 0.05 });
+        },
+      },
+      {
+        name: "Шурхіт і бульк",
+        text: "Шурхіт гілки й бульбашка",
+        play: () => {
+          wash({ type: "bandpass", from: 1800, to: 900, q: 0.8, attack: 0.02, length: 0.2, level: 0.05 });
+          bubble({ at: 0.15, freq: jitter(420), rise: 2.3, length: 0.05, level: 0.12 });
+        },
       },
     ],
   },
