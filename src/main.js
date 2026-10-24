@@ -326,6 +326,8 @@ function anglerView(elapsed) {
     reelSkim: TUNING.reelSkim,
     // The spoon on the line from the moment it's picked, not only once it's cast.
     lure: Boolean(BAITS[game.busy ? game.bait : progress.bait]?.lure),
+    // Which lure, so each looks like itself on the line and in the water.
+    lureId: game.busy ? game.bait : progress.bait,
     float: game.float,
     bob: target ? renderer.surfaceOffset(target.x, target.y, elapsed, config, ripples) : { x: 0, y: 0 },
     fish: game.phase === "fight" ? toScreen(game.fishPosition()) : null,

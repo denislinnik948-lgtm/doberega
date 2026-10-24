@@ -662,6 +662,67 @@ export class CanvasWaterRenderer {
     }
   }
 
+  /**
+   * A lure hanging from the tip or flying out, each as itself: the spinner's
+   * blade turning round in front of a red bead, the wobbler a little green
+   * fish with a yellow belly and a clear lip, the spoon a flashing blade.
+   */
+  drawLureInAir(ctx, angler, end, size) {
+    const time = angler.time;
+    if (angler.lureId === "spinner") {
+      // The blade spins: edge on, then face on, round and round.
+      const blade = "|)|("[Math.floor(time * 18) % 4];
+      ctx.fillStyle = "#e6ebe4";
+      ctx.fillText(blade, end.x, end.y - size * 0.3);
+      ctx.fillStyle = "#c4643e";
+      ctx.fillText("o", end.x, end.y + size * 0.35);
+      return;
+    }
+    if (angler.lureId === "wobbler") {
+      ctx.fillStyle = "#5f9a56";
+      ctx.fillText("<", end.x - size * 0.3, end.y);
+      ctx.fillStyle = "#e2b85e";
+      ctx.fillText("=", end.x + size * 0.25, end.y);
+      ctx.fillStyle = "rgba(200, 220, 214, 0.8)";
+      ctx.fillText(",", end.x + size * 0.7, end.y + size * 0.2);
+      return;
+    }
+    ctx.fillStyle = Math.sin(time * 7) > 0 ? "#e6ebe4" : "#b7c2bd";
+    ctx.fillText("0", end.x, end.y);
+    ctx.fillStyle = "#c4643e";
+    ctx.fillText("'", end.x, end.y + size * 0.55);
+  }
+
+  /** A lure being reeled in under the surface, with its own action and wake. */
+  drawLureInWater(ctx, angler, end, size) {
+    const time = angler.time;
+    if (angler.lureId === "spinner") {
+      // A steady buzz: the blade a blur of flashes, a straight line of bubbles behind.
+      ctx.fillStyle = Math.sin(time * 40) > 0 ? "#f2f4ee" : "#aab8b4";
+      ctx.fillText("*", end.x, end.y);
+      ctx.fillStyle = "rgba(200, 220, 214, 0.55)";
+      ctx.fillText(":", end.x, end.y - size * 0.55);
+      ctx.fillText(".", end.x, end.y - size * 1.05);
+      return;
+    }
+    if (angler.lureId === "wobbler") {
+      // It swims: rocking side to side as it dives, a dark green back with a yellow flash.
+      const rock = Math.sin(time * 14) * size * 0.22;
+      ctx.fillStyle = "#5f9a56";
+      ctx.fillText("<", end.x + rock - size * 0.3, end.y);
+      ctx.fillStyle = Math.sin(time * 14) > 0 ? "#e2b85e" : "#8a7a3a";
+      ctx.fillText("=", end.x + rock + size * 0.25, end.y);
+      ctx.fillStyle = "rgba(200, 220, 214, 0.5)";
+      ctx.fillText("~", end.x - rock * 0.5, end.y - size * 0.6);
+      return;
+    }
+    // The spoon flashes as it wobbles through the water, a little wake behind it.
+    ctx.fillStyle = Math.sin(time * 26) > 0 ? "#eef2ec" : "#9fb0ae";
+    ctx.fillText("o", end.x, end.y);
+    ctx.fillStyle = "rgba(200, 220, 214, 0.6)";
+    ctx.fillText("~", end.x, end.y - size * 0.55);
+  }
+
   /** The night's apparition by the far shore (see night-events.js), drawn as glowing glyphs. */
   drawApparition(figure, depth, time, mix, NIGHT) {
     const { glow } = this.ambientBatches;
@@ -1334,22 +1395,18 @@ export class CanvasWaterRenderer {
             ctx.fillText(i % 2 ? "*" : "~", end.x + Math.cos(a) * size * 0.6, end.y + Math.sin(a * 1.4) * size * 0.25);
           }
         } else if (angler.pulling) {
-          // The spoon flashes as it wobbles through the water, a little wake behind it.
-          ctx.fillStyle = Math.sin(angler.time * 26) > 0 ? "#eef2ec" : "#9fb0ae";
-          ctx.fillText("o", end.x, end.y);
-          ctx.fillStyle = "rgba(200, 220, 214, 0.6)";
-          ctx.fillText("~", end.x, end.y - size * 0.55);
+          this.drawLureInWater(ctx, angler, end, size);
+        } else if (angler.lureId === "wobbler") {
+          // Paused, the wobbler floats up and hangs still just under the surface.
+          ctx.fillStyle = "rgba(122, 170, 110, 0.7)";
+          ctx.fillText("<=", end.x, end.y);
         } else {
           // Paused, it flutters down out of sight: just a glint.
           ctx.fillStyle = "rgba(200, 214, 210, 0.55)";
           ctx.fillText(".", end.x, end.y);
         }
       } else if (angler.lure && angler.phase !== "fight") {
-        // A spoon, not a float: hanging from the tip and flying out, a small flashing blade.
-        ctx.fillStyle = Math.sin(angler.time * 7) > 0 ? "#e6ebe4" : "#b7c2bd";
-        ctx.fillText("0", end.x, end.y);
-        ctx.fillStyle = "#c4643e";
-        ctx.fillText("'", end.x, end.y + size * 0.55);
+        this.drawLureInAir(ctx, angler, end, size);
       } else if (angler.phase === "fight" && (angler.snag || angler.junk)) {
         // A snag or an old boot doesn't thrash: the line just goes tight.
       } else if (angler.phase === "fight") {
