@@ -545,7 +545,7 @@ export const sounds = {
  * water lapping now and then while at the water, birds by day, crickets at
  * night, and rain as drops plus a deep murmur that swells with the rain.
  */
-const ambient = { lap: 3, bird: 6, cricket: 2, drop: 0, jump: 25, duck: 8, owl: 60, thunder: 40, frog: 10, wisp: 15, drone: 20, whisper: 200 };
+const ambient = { lap: 3, bird: 6, cricket: 2, drop: 0, jump: 25, duck: 8, owl: 60, thunder: 40, frog: 10, wisp: 15, drone: 20, whisper: 200, river: 4, cow: 40, bell: 90, wreck: 30, geiger: 20 };
 
 function lap() {
   // A small wave against the bank (lab: Хв1 "Тихий плескіт"): a soft swell of deep noise and a couple of bubbles.
@@ -795,6 +795,93 @@ export function nightSound(kind) {
   mystic[kind]();
 }
 
+/* ---------- Each water's own sounds (lab: Рч3, Сл3, Дз2, Пр1, Пр3) ---------- */
+
+/** A voiced animal call: a buzzy tone along a pitch contour, through vowel-like resonances, muffled by distance. */
+function voice({ delay = 0, contour, length, level, formants, pan = 0, muffle = 0 }) {
+  const at = ctx.currentTime + delay;
+  const osc = ctx.createOscillator();
+  osc.type = "sawtooth";
+  osc.frequency.setValueCurveAtTime(Float32Array.from(contour), at, length);
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, at);
+  gain.gain.linearRampToValueAtTime(level, at + Math.min(0.03, length * 0.2));
+  gain.gain.setValueAtTime(level, at + length * 0.7);
+  gain.gain.linearRampToValueAtTime(0, at + length);
+  const mix = ctx.createGain();
+  for (const [freq, q] of formants) {
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = freq;
+    filter.Q.value = q;
+    osc.connect(filter).connect(mix);
+  }
+  const far = ctx.createBiquadFilter();
+  far.type = "lowpass";
+  far.frequency.value = 1800 - 1200 * muffle;
+  mix.connect(far).connect(gain).connect(out(1, pan));
+  osc.start(at);
+  osc.stop(at + length + 0.05);
+}
+
+const local = {
+  /** The old bridge: the wide river swelling up quietly now and then, then fading back. */
+  river() {
+    const at = ctx.currentTime;
+    const length = rand(5, 9);
+    const source = ctx.createBufferSource();
+    source.buffer = brown;
+    source.loop = true;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 400;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, at);
+    gain.gain.linearRampToValueAtTime(0.05, at + length * 0.45);
+    gain.gain.linearRampToValueAtTime(0, at + length);
+    source.connect(filter).connect(gain).connect(master);
+    source.start(at, rand(0, 1));
+    source.stop(at + length + 0.05);
+  },
+  /** The pond by the village: a cow lowing out on the pasture, far off. */
+  cow() {
+    voice({ contour: [150, 180, 170, 130], length: 1.3, level: 0.05, formants: [[400, 3], [900, 5]], pan: rand(-0.7, 0.7), muffle: 0.6 });
+  },
+  /** The castle lake: a distant bell, two slow strokes, as from a far chapel. */
+  bell() {
+    for (const delay of [0, 2.2]) {
+      for (const [ratio, part, decay] of [[0.5, 0.6, 1], [1, 1, 0.8], [1.19, 0.5, 0.6], [1.5, 0.35, 0.45], [2, 0.3, 0.35], [2.74, 0.2, 0.25]]) {
+        const at = ctx.currentTime + delay;
+        const osc = ctx.createOscillator();
+        osc.frequency.value = 220 * ratio;
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0, at);
+        gain.gain.linearRampToValueAtTime((delay ? 0.035 : 0.04) * part, at + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, at + 4 * decay);
+        const far = ctx.createBiquadFilter();
+        far.type = "lowpass";
+        far.frequency.value = 1400;
+        osc.connect(far).connect(gain).connect(master);
+        osc.start(at);
+        osc.stop(at + 4.05);
+      }
+    }
+  },
+  /** Pripyat: the wreck groaning in rusty metal, quietly. */
+  wreck() {
+    creakRun({ length: 1.2, level: 0.035, low: 160, high: 260, step: 0.05 });
+    creakRun({ delay: 1.5, length: 0.6, level: 0.025, low: 300, high: 380, step: 0.04 });
+  },
+  /** Pripyat: a few seconds of a dosimeter's sparse clicks, quietly, as if someone nearby carries one. */
+  geiger() {
+    let t = 0;
+    while (t < 3) {
+      wash({ type: "highpass", from: 3000, q: 0.7, attack: 0.0005, length: 0.004, volume: 0.035, delay: t });
+      t += -Math.log(Math.random()) * 0.12;
+    }
+  },
+};
+
 function treeFrog() {
   // A tree frog in the reeds (lab: Жб2 "Квакша"): a quick high "kek-kek-kek"; now and then a second one answers.
   const call = (delay, pan) => {
@@ -864,7 +951,7 @@ function setRainBed(level) {
  * Advance the background by `step` seconds: `atWater` while fishing, `rain`
  * 0..1, `night` while it's dark.
  */
-export function ambienceTick(step, { atWater, rain, night, ducks = 0, frogs = false, deepNight = 0 }) {
+export function ambienceTick(step, { atWater, rain, night, ducks = 0, frogs = false, deepNight = 0, spot = "" }) {
   if (!audio() || step <= 0) return;
   if (Math.abs(rain - rainLevel) > 0.02 || (rain <= 0.02 && rainBed)) {
     rainLevel = rain;
@@ -903,6 +990,29 @@ export function ambienceTick(step, { atWater, rain, night, ducks = 0, frogs = fa
   if (atWater && night && rain < 0.3 && ambient.owl <= 0) {
     ambient.owl = rand(60, 150);
     owl();
+  }
+  // Each water's own sounds, quiet and now and then.
+  if (atWater && spot === "bridge" && ambient.river <= 0) {
+    ambient.river = rand(8, 16);
+    local.river();
+  }
+  if (atWater && spot === "pond" && !night && ambient.cow <= 0) {
+    ambient.cow = rand(60, 150);
+    local.cow();
+  }
+  if (atWater && spot === "castle" && ambient.bell <= 0) {
+    ambient.bell = rand(180, 360);
+    local.bell();
+  }
+  if (atWater && spot === "reservoir") {
+    if (ambient.wreck <= 0) {
+      ambient.wreck = rand(30, 60);
+      local.wreck();
+    }
+    if (ambient.geiger <= 0) {
+      ambient.geiger = rand(20, 40);
+      local.geiger();
+    }
   }
   // Deep in the night (the mystic hours): the wisps' glass tones, a low drift, and very rarely a whisper.
   if (atWater && deepNight > 0.5) {

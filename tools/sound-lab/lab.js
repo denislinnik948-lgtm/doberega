@@ -1781,7 +1781,7 @@ const SECTIONS = [
   {
     id: "river.flow",
     prefix: "Рч",
-    chosen: [],
+    chosen: [2],
     title: "Течія біля мосту",
     note: "Старий міст: швидка річка, звучить весь час, тихо. Тут 4 секунди.",
     sounds: [
@@ -1805,7 +1805,7 @@ const SECTIONS = [
   {
     id: "village.far",
     prefix: "Сл",
-    chosen: [],
+    chosen: [2],
     title: "Село біля ставка",
     note: "Ставок за селом: зрідка з села долітають звуки. Можна обрати кілька.",
     sounds: [
@@ -1829,7 +1829,7 @@ const SECTIONS = [
   {
     id: "castle.bell",
     prefix: "Дз",
-    chosen: [],
+    chosen: [1],
     title: "Дзвін над замковим озером",
     note: "Замкове озеро: дуже рідко з-за гір лунає далекий дзвін.",
     sounds: [
@@ -1848,7 +1848,7 @@ const SECTIONS = [
   {
     id: "pripyat",
     prefix: "Пр",
-    chosen: [],
+    chosen: [0, 2],
     title: "Прип'ять",
     note: "Порожня зона довкола: рідкі моторошні звуки. Можна обрати кілька.",
     sounds: [
@@ -1871,6 +1871,35 @@ const SECTIONS = [
         name: "Далекий брязкіт",
         text: "Десь далеко брязкає метал, і луна",
         play: () => { const bus = echoBus(0.45, 0.4, 0.7); for (const [at, f] of [[0, 900], [0.12, 1250]]) { const start = ctx.currentTime + at; for (const [ratio, part] of [[1, 1], [2.76, 0.5], [5.4, 0.25]]) { const osc = ctx.createOscillator(); osc.frequency.value = f * ratio; const g = ctx.createGain(); g.gain.setValueAtTime(0, start); g.gain.linearRampToValueAtTime(0.03 * part, start + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, start + 0.6 / ratio); osc.connect(g).connect(bus); osc.start(start); osc.stop(start + 0.7); } } },
+      },
+    ],
+  },
+  {
+    id: "village.dog",
+    prefix: "Пс",
+    chosen: [],
+    title: "Пес у селі (нові варіанти)",
+    note: "Ставок за селом: зрідка гавкає пес. Перший варіант не підійшов, ось інші.",
+    sounds: [
+      {
+        name: "Справжній гав",
+        text: "Різкий короткий «гав»: голос і видих разом, двічі",
+        play: () => { const side = pan() * 2; for (const at of [0, 0.42]) { voice({ at, contour: [460, 520, 360], length: 0.12, level: 0.07, formants: [[800, 2], [1700, 3]], pan: side, muffle: 0.55 }); wash({ at, type: "bandpass", from: 1200, to: 700, q: 1, attack: 0.003, length: 0.1, level: 0.05, pan: side }); } },
+      },
+      {
+        name: "Цуцик",
+        text: "Тонкі швидкі «тяв-тяв-тяв»",
+        play: () => { const side = pan() * 2; for (let i = 0; i < 4; i += 1) voice({ at: i * 0.2, contour: [820, 900, 700], length: 0.07, level: 0.05, formants: [[1300, 3], [2600, 4]], pan: side, muffle: 0.45 }); },
+      },
+      {
+        name: "Великий пес",
+        text: "Низьке глухе «вуф… вуф»",
+        play: () => { const side = pan() * 2; for (const at of [0, 0.7]) { voice({ at, contour: [230, 260, 170], length: 0.2, level: 0.08, formants: [[500, 2.5], [1100, 3]], pan: side, muffle: 0.65 }); wash({ at, type: "lowpass", from: 900, to: 300, attack: 0.005, length: 0.18, level: 0.04, pan: side }); } },
+      },
+      {
+        name: "Пес і відлуння",
+        text: "Гавкіт далеко в селі, з відлунням між хатами",
+        play: () => { const side = pan() * 2; const bus = echoBus(0.25, 0.3, 0.5); for (const at of [0, 0.38, 0.75]) { const start = ctx.currentTime + at; const osc = ctx.createOscillator(); osc.type = "sawtooth"; osc.frequency.setValueCurveAtTime(Float32Array.from([480, 540, 380]), start, 0.13); const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 850; f.Q.value = 2; const far = ctx.createBiquadFilter(); far.type = "lowpass"; far.frequency.value = 900; const g = ctx.createGain(); g.gain.setValueAtTime(0, start); g.gain.linearRampToValueAtTime(0.07, start + 0.02); g.gain.linearRampToValueAtTime(0, start + 0.13); osc.connect(f).connect(far).connect(g).connect(bus); osc.start(start); osc.stop(start + 0.15); } },
       },
     ],
   },
