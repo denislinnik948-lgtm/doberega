@@ -320,6 +320,11 @@ export const sounds = {
     if (!audio()) return;
     splash(0.8, rand(-0.2, 0.2));
   },
+  /** One click of the spinning reel's anti-reverse (lab: С4 "Дрібна тріскачка"): tiny and bright. */
+  spinTick() {
+    if (!audio()) return;
+    wash({ type: "bandpass", from: vary(4600, 0.075), q: 3, attack: 0.0008, length: 0.006, volume: 0.045 });
+  },
   /** One click of the float reel's ratchet (lab: Р1 "Тріскачка"): a dry plastic tick. */
   reelTick() {
     if (!audio()) return;

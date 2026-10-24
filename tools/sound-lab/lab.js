@@ -7,6 +7,7 @@
 let ctx = null;
 let master = null;
 let noise = null;
+let brown = null;
 
 function audio() {
   if (!ctx) {
@@ -18,8 +19,16 @@ function audio() {
     limiter.ratio.value = 8;
     master.connect(limiter).connect(ctx.destination);
     noise = ctx.createBuffer(1, ctx.sampleRate * 3, ctx.sampleRate);
+    brown = ctx.createBuffer(1, ctx.sampleRate * 3, ctx.sampleRate);
     const data = noise.getChannelData(0);
-    for (let i = 0; i < data.length; i += 1) data[i] = Math.random() * 2 - 1;
+    const deep = brown.getChannelData(0);
+    let last = 0;
+    for (let i = 0; i < data.length; i += 1) {
+      data[i] = Math.random() * 2 - 1;
+      // Brown noise: deep and soft, the body of water.
+      last = (last + 0.02 * data[i]) / 1.02;
+      deep[i] = last * 3.5;
+    }
   }
   if (ctx.state === "suspended") ctx.resume();
   return ctx;
@@ -131,10 +140,10 @@ function bubble({ at = 0, freq, rise = 2.3, length = 0.05, level = 0.2, pan = 0,
 }
 
 /** Filtered noise with a quick rise and a fall to silence: the body of a splash or a slap. */
-function wash({ at = 0, type = "lowpass", from, to = from, q = 0.7, attack = 0.006, length, level, pan = 0 }) {
+function wash({ at = 0, type = "lowpass", from, to = from, q = 0.7, attack = 0.006, length, level, pan = 0, deep = false }) {
   const start = ctx.currentTime + at;
   const source = ctx.createBufferSource();
-  source.buffer = noise;
+  source.buffer = deep ? brown : noise;
   const filter = ctx.createBiquadFilter();
   filter.type = type;
   filter.Q.value = q;
@@ -229,6 +238,14 @@ function tick(at, { freq, q = 3, length = 0.012, level = 0.1, ring = 0 }) {
   wash({ at, type: "bandpass", from: freq * (1 + (Math.random() - 0.5) * 0.15), q, attack: 0.0008, length, level });
   if (ring) bubble({ at, freq: freq * 1.6, rise: 1.02, length: 0.04, level: ring });
 }
+
+/** A few of the same sound in a row, at roughly `gap` seconds apart, as they come in a fight. */
+function series(count, gap, play) {
+  for (let i = 0; i < count; i += 1) play(i * gap * (0.8 + Math.random() * 0.4));
+}
+
+/** A little to the left or right, as a fish moves about. */
+const pan = () => Math.random() * 0.6 - 0.3;
 
 /*
  * The candidates. `play` builds the sound fresh each time; with variation on,
@@ -451,7 +468,7 @@ const SECTIONS = [
   {
     id: "reel.spin",
     prefix: "С",
-    chosen: [],
+    chosen: [3],
     title: "Спінінгова котушка",
     note: "Грає, поки ведеш приманку або тягнеш рибу на спінінгу. Гладша за звичайну: більше дзижчання ротора, менше клацань.",
     sounds: [
@@ -485,6 +502,85 @@ const SECTIONS = [
         name: "Ротор у повітрі",
         text: "Швидкі «вжик-вжик» ротора, що обертається",
         play: () => whir({ freq: 2000, q: 0.9, level: 0.08, rate: 9, depth: 0.85 }),
+      },
+    ],
+  },
+  {
+    id: "fish.splash.small",
+    prefix: "Ф",
+    chosen: [],
+    title: "Дрібна риба б'ється",
+    note: "Сплески під час виведення дрібної риби (до кілограма). Тут коротка серія, як у бою.",
+    sounds: [
+      {
+        name: "Дрібні хлюпи",
+        text: "Легкі сплески з краплями",
+        play: () => series(3, 0.35, (at) => {
+          wash({ at, type: "lowpass", from: jitter(2200), to: 500, length: 0.12, level: 0.13, pan: pan() });
+          droplets({ count: 3, from: at + 0.03, to: at + 0.18, level: 0.05 });
+        }),
+      },
+      {
+        name: "Бульбашки й плескіт",
+        text: "Більше «бульк», риба крутиться під поверхнею",
+        play: () => series(3, 0.4, (at) => {
+          bubble({ at, freq: jitter(520), rise: 2.3, length: 0.05, level: 0.14 });
+          bubble({ at: at + 0.05, freq: jitter(760), rise: 2, length: 0.035, level: 0.08 });
+          wash({ at, type: "lowpass", from: jitter(1500), to: 400, length: 0.1, level: 0.08 });
+        }),
+      },
+      {
+        name: "Тріпотіння",
+        text: "Швидкі удари хвостиком по воді",
+        play: () => series(2, 0.55, (at) => {
+          for (let i = 0; i < 6; i += 1) wash({ at: at + i * jitter(0.055), type: "bandpass", from: jitter(1700), to: 900, q: 0.8, length: 0.045, level: 0.07 });
+          droplets({ count: 3, from: at + 0.05, to: at + 0.35, level: 0.04 });
+        }),
+      },
+    ],
+  },
+  {
+    id: "fish.splash.big",
+    prefix: "В",
+    chosen: [],
+    title: "Велика риба б'ється",
+    note: "Сплески великої риби: важчі, глибші, рідші. Тут коротка серія, як у бою.",
+    sounds: [
+      {
+        name: "Важкі сплески",
+        text: "Глибоке тіло сплеску й великі краплі",
+        play: () => series(2, 0.7, (at) => {
+          wash({ at, type: "lowpass", from: jitter(1500), to: 160, length: 0.45, level: 0.32, deep: true, pan: pan() });
+          wash({ at, type: "bandpass", from: 1800, to: 700, q: 0.6, length: 0.18, level: 0.06 });
+          droplets({ count: 7, from: at + 0.06, to: at + 0.5, level: 0.07 });
+        }),
+      },
+      {
+        name: "Удар хвостом",
+        text: "Різкий ляпас по воді й глибокий бульк",
+        play: () => series(2, 0.8, (at) => {
+          wash({ at, type: "lowpass", from: jitter(3000), to: 400, attack: 0.002, length: 0.12, level: 0.28, pan: pan() });
+          bubble({ at: at + 0.06, freq: jitter(180), rise: 2.6, length: 0.12, level: 0.25, muffle: 0.4 });
+          droplets({ count: 4, from: at + 0.1, to: at + 0.4, level: 0.05 });
+        }),
+      },
+      {
+        name: "Бурун",
+        text: "Риба перевертається біля поверхні: довгий плескіт",
+        play: () => series(2, 0.9, (at) => {
+          wash({ at, type: "lowpass", from: jitter(900), to: 200, attack: 0.12, length: 0.7, level: 0.24, deep: true, pan: pan() });
+          wash({ at: at + 0.1, type: "bandpass", from: 1400, to: 800, q: 0.7, attack: 0.08, length: 0.4, level: 0.05 });
+          droplets({ count: 5, from: at + 0.2, to: at + 0.7, level: 0.05 });
+        }),
+      },
+      {
+        name: "Глибокий бульк",
+        text: "Риба йде вглиб: великий глухий бульк і хвиля",
+        play: () => series(2, 0.8, (at) => {
+          bubble({ at, freq: jitter(150), rise: 2.8, length: 0.16, level: 0.3, muffle: 0.5 });
+          wash({ at, type: "lowpass", from: jitter(800), to: 150, length: 0.35, level: 0.18, deep: true });
+          bubble({ at: at + 0.12, freq: jitter(400), rise: 2.2, length: 0.06, level: 0.08 });
+        }),
       },
     ],
   },

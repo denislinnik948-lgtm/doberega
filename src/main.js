@@ -378,9 +378,14 @@ function playLoops(step, dayTime) {
   if (reeling && !game.snag) {
     reelClock -= step;
     if (reelClock <= 0) {
-      // A real ratchet never clicks quite evenly.
-      reelClock = 0.07 * (0.85 + Math.random() * 0.3);
-      sounds.reelTick();
+      // A real ratchet never clicks quite evenly. The spinning reel clicks far faster and finer.
+      if (BAITS[game.bait]?.lure) {
+        reelClock = 0.033 * (0.92 + Math.random() * 0.16);
+        sounds.spinTick();
+      } else {
+        reelClock = 0.07 * (0.85 + Math.random() * 0.3);
+        sounds.reelTick();
+      }
     }
   }
   if (mode === "fishing" && game.phase === "fight" && !game.snag && !game.fish?.junk) {
