@@ -1164,7 +1164,12 @@ export function musicTick(step, { atWater, night, fighting }) {
     musicGain.gain.value = musicLevel();
     musicGain.connect(master);
   }
-  musicGain.gain.setTargetAtTime(musicLevel(), ctx.currentTime, 0.5);
+  // Only when the level actually changes: a new ramp every frame would pile up without end.
+  const level = musicLevel();
+  if (level !== musicGain.lastLevel) {
+    musicGain.lastLevel = level;
+    musicGain.gain.setTargetAtTime(level, ctx.currentTime, 0.5);
+  }
   if (!atWater) {
     if (musicStop) musicStop();
     musicStop = null;

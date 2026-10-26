@@ -369,7 +369,7 @@ function anglerView(elapsed) {
 function maybeJumpFish(elapsed) {
   if (elapsed < nextFishAt) return;
   nextFishAt = elapsed + 6 + Math.random() * 12;
-  addRipple({ ...renderer.randomWaterPoint(), time: elapsed, strength: 0.6, size: 0.3 + Math.random() * 0.3 });
+  addRipple({ ...renderer.randomWaterPoint(), time: elapsed, strength: 0.6, size: 0.3 + Math.random() * 0.3, ambient: true });
 }
 
 /**
@@ -592,16 +592,27 @@ function resize(force = false) {
 }
 
 /*
- * Frame pacing: the water moves slowly, so 60 frames a second is all it needs;
- * a 120 Hz screen would otherwise draw everything twice as often for nothing.
- * Under the menu or an open window the scene is mostly hidden: 30 is plenty.
+ * Frame pacing, to keep a laptop cool. The water drifts slowly, so while you
+ * simply wait at the water 30 frames a second look the same as 60; the full
+ * 60 come only when things move fast: a cast, a fight, reeling in, a fresh
+ * splash, or your finger on the screen. Under the menu or a window the scene
+ * barely shows (12 frames), and in a window you aren't looking at, 20.
  */
 let lastDrawn = -Infinity;
+let lastFast = -Infinity;
+function frameRate(now) {
+  if (mode === "menu" || document.querySelector("dialog[open]")) return 12;
+  if (!document.hasFocus()) return 20;
+  const fast = ["casting", "fight", "reeling", "landed"].includes(game.phase) || game.pulling || pullPointer !== null
+    || ripples.some((ripple) => !ripple.ambient && lastElapsed - ripple.time < 1);
+  // Stay smooth a moment after the action ends, so it eases out rather than steps down.
+  if (fast) lastFast = now;
+  return now - lastFast < 800 ? 60 : 30;
+}
 function draw(now) {
   animationFrame = requestAnimationFrame(draw);
-  const covered = mode === "menu" || document.querySelector("dialog[open]");
   // A little slack, so a 60 Hz screen never skips a frame it should draw.
-  if (now - lastDrawn < (covered ? 1000 / 30 : 1000 / 60) - 3) return;
+  if (now - lastDrawn < 1000 / frameRate(now) - 3) return;
   lastDrawn = now;
   renderNow(now);
 }
