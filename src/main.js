@@ -13,6 +13,7 @@ import { NightEvents } from "./night-events.js";
 import { track } from "./analytics.js";
 import { ambienceTick, musicTick, nightSound, sounds } from "./sound.js";
 import { AnglerUI } from "./fishing/ui.js";
+import { breakStreak, bump, recordCatch } from "./fishing/achievements.js";
 
 // The water look is fixed: a still lake, gentle swell speed, soft glints.
 const config = {
@@ -48,6 +49,11 @@ const nightEvents = new NightEvents({
     if (mode === "fishing") {
       if (type === "figure") nightSound(data.kind);
       else if (type === "eyes") nightSound("eyes");
+      // Two of the apparitions are secret achievements.
+      if (type === "figure" && (data.kind === "mavka" || data.kind === "boat")) {
+        bump(progress, data.kind === "mavka" ? "sawMavka" : "sawBoat");
+        ui.commit();
+      }
     }
     if (type === "eyesSink") {
       // The eyes slip under, leaving rings on the water.
@@ -118,8 +124,12 @@ function ensureSpot() {
 if (progress.keepnet.length) setTimeout(() => ui.openKeepnet(), 800);
 }
 
+// Game hours spent at the water since leaving the menu (a whole day of it is an achievement).
+let hoursAtWater = 0;
+
 function setMode(next) {
   mode = next;
+  hoursAtWater = 0;
   document.body.classList.toggle("in-menu", next === "menu");
   document.body.classList.toggle("in-game", next === "fishing");
   if (next === "menu") {
@@ -207,6 +217,7 @@ function handleGameEvent(type, data) {
     sounds.bite();
   } else if (type === "hooked") {
     sounds.hookset();
+    if (data.onDip) bump(progress, "dipHooks");
   } else if (type === "snag") {
     sounds.snag();
   } else if (type === "liftout") {
@@ -233,6 +244,19 @@ function handleGameEvent(type, data) {
     }
     pullPointer = null;
     switchBaitIfEmpty();
+    // Counted for the achievements: a duck at the bait; a fish lost with the hook breaks the clean streak.
+    if (data.type === "escape" && data.reason === "duck") bump(progress, "duckSteals");
+    if (data.type === "escape" && (data.hookLost || data.reason === "straightened")) breakStreak(progress);
+    if (data.type === "landed") {
+      recordCatch(progress, data.fish, {
+        spot: progress.location,
+        bait: data.bait,
+        lure: Boolean(BAITS[data.bait].lure),
+        hour: game.hour % 24,
+        rain: weather.intensity,
+        rodMaxKg: RODS[progress.rod].maxKg,
+      });
+    }
     ui.commit();
     if (data.type === "escape") {
       // A snapped line or a bent hook twangs; a fish that just slipped off makes a splash.
@@ -464,6 +488,13 @@ function renderNow(now = performance.now()) {
     if (ducks.near(float.x, float.y, 26)) game.duckSteal();
   }
   if (step > 0) game.update(step);
+  if (mode === "fishing" && hoursAtWater < 24) {
+    hoursAtWater += (step / DAY_LENGTH) * 24;
+    if (hoursAtWater >= 24) {
+      bump(progress, "wholeDay");
+      ui.commit();
+    }
+  }
   syncFishingUi();
   game.hour = dayTime * 24;
   ui.setClock(dayTime);

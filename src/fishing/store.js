@@ -1,3 +1,4 @@
+import { ACHIEVEMENTS } from "./achievements.js";
 import { BAITS, EXTRAS, FISH, HOOKS, LOCATIONS, RETIRED_BAITS, RODS, START_STATE, gameHoursMs } from "./data.js";
 
 // The storage key keeps the game's old working name so existing saves carry over.
@@ -55,6 +56,11 @@ export function normalizeProgress(saved) {
     // The keepnet: ordinary fish only (one-of-a-kind ones go straight to the trophies).
     if (Array.isArray(saved.keepnet)) {
       state.keepnet = saved.keepnet.filter((fish) => fish && FISH[fish.species] && !FISH[fish.species].unique && !FISH[fish.species].junk && Number.isFinite(fish.weight) && fish.weight > 0);
+    }
+    // Counters behind the achievements, and when each achievement was earned.
+    if (saved.stats && typeof saved.stats === "object") state.stats = structuredClone(saved.stats);
+    if (saved.achievements && typeof saved.achievements === "object") {
+      state.achievements = Object.fromEntries(Object.entries(saved.achievements).filter(([id, date]) => ACHIEVEMENTS.some((item) => item.id === id) && typeof date === "string"));
     }
     if (LOCATIONS[saved.location]) state.location = saved.location;
     if (Number.isFinite(saved.savedAt)) state.savedAt = saved.savedAt;

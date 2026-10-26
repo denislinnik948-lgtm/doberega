@@ -182,7 +182,7 @@ export class FishingGame {
       }
       case "nibble": {
         const dipping = this.float.sink > 0.5;
-        if (dipping && this.random() < TUNING.dipHookChance) this.hook();
+        if (dipping && this.random() < TUNING.dipHookChance) this.hook(true);
         else this.escape(dipping ? "missed" : "early");
         break;
       }
@@ -220,7 +220,8 @@ export class FishingGame {
     this.emit("snag");
   }
 
-  hook() {
+  /** `onDip`: struck during a dip in the nibble (counted for an achievement). */
+  hook(onDip = false) {
     this.rates = fightRates(this.fish.weight, this.rod, this.extras, Boolean(this.fish.junk));
     // Too heavy for the hook: it may bend straight somewhere on the way in.
     this.giveAt = !this.fish.junk && this.random() < straightenChance(this.gear, this.fish.weight) ? 0.2 + this.random() * 0.6 : null;
@@ -231,7 +232,7 @@ export class FishingGame {
     this.splashClock = 0;
     this.float.sink = 1;
     this.enter("fight");
-    this.emit("hooked", { fish: this.fish });
+    this.emit("hooked", { fish: this.fish, onDip });
     this.ripple(this.target, 0.9, 0.6);
   }
 

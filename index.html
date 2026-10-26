@@ -103,6 +103,7 @@
       </div>
 
       <div class="toast" id="toast" data-frame="box" role="status" aria-live="assertive" hidden><span id="toast-text"></span></div>
+      <div class="achievement-toast" id="achievement-toast" data-frame="box" role="status" aria-live="polite" hidden></div>
     </main>
 
     <dialog class="sheet catch-sheet" id="catch-dialog" data-frame="ornate" aria-labelledby="catch-title">
@@ -203,7 +204,10 @@
       <div class="tabs" role="tablist">
         <button class="pixel-btn tab is-active" type="button" role="tab" aria-selected="true" data-tab="mine" data-i18n="trophies.mine">Mine</button>
         <button class="pixel-btn tab" type="button" role="tab" aria-selected="false" data-tab="others" data-i18n="trophies.others">Other anglers</button>
+        <button class="pixel-btn tab" type="button" role="tab" aria-selected="false" data-tab="achievements" data-i18n="achievements.tab">Achievements</button>
       </div>
+      <p class="achievement-summary" id="achievement-summary" hidden></p>
+      <div class="achievement-list" id="achievement-list" hidden></div>
       <p class="trophy-badges" id="trophy-badges" hidden></p>
       <ul class="trophy-wall" id="trophy-wall"></ul>
       <p class="empty-note" id="trophy-empty"></p>

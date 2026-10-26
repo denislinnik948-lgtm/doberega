@@ -3,14 +3,19 @@ import {
   baitEntries, fishPrice, formatMoney, formatWeight, handbookEntries, spotEntries, trophyCost,
 } from "./data.js";
 import {
-  bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, groundbaitSprite, hookSprite, keepnetSprite, packSprite, rodSprite,
+  bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, groundbaitSprite, hookSprite, keepnetSprite, medalSprite, packSprite, rodSprite,
 } from "./sprites.js";
+import { P } from "./palette.js";
+import { ACHIEVEMENTS, GROUPS, bump, evaluate } from "./achievements.js";
 import { frame, frameAll, repaint, setContent } from "./frames.js";
 import { SEASONS, season, setSeason } from "../theme.js";
 import { validNickname } from "../cloud.js";
 import { track } from "../analytics.js";
 import { baitCount, saveProgress } from "./store.js";
 import { setSoundEnabled, setVolume, soundEnabled, sounds, volume } from "../sound.js";
+
+// Each achievement group's ribbon colour.
+const RIBBONS = { start: P.light, collector: P.soft, weight: P.ember, skill: P.mid, time: P.bone, count: P.gold, special: P.goldDark };
 
 // Hook sprites grow with the hook's size.
 const HOOK_SCALE = { small: 2, medium: 3, large: 4 };
@@ -508,9 +513,53 @@ export class AnglerUI {
     });
   }
 
+  /** Save and redraw; any achievement newly earned is paid out and announced first. */
   commit() {
+    const earned = evaluate(this.progress);
     saveProgress(this.progress);
     this.render();
+    if (earned.length) this.announceAchievements(earned);
+  }
+
+  /**
+   * A quiet note at the top for each achievement earned, one after another,
+   * held back while a dialog is open so it isn't hidden behind it.
+   */
+  announceAchievements(earned) {
+    this.achievementQueue = [...(this.achievementQueue ?? []), ...earned];
+    if (this.achievementShowing) return;
+    const node = $("#achievement-toast");
+    const next = () => {
+      if (!this.achievementQueue.length) {
+        this.achievementShowing = false;
+        return;
+      }
+      if (document.querySelector("dialog[open]")) {
+        this.achievementTimer = setTimeout(next, 500);
+        return;
+      }
+      const achievement = this.achievementQueue.shift();
+      setContent(
+        node,
+        element("span", { className: "achievement-toast-art" }, [medalSprite(2, RIBBONS[achievement.group])]),
+        element("span", { className: "achievement-toast-text" }, [
+          element("small", { textContent: t("achievements.earned") }),
+          element("strong", { textContent: t(`achievements.${achievement.id}.name`) }),
+        ]),
+        element("span", { className: "achievement-toast-reward", textContent: `+${formatMoney(achievement.reward)}` }),
+      );
+      node.hidden = false;
+      node.style.animation = "none";
+      void node.offsetWidth;
+      node.style.animation = "";
+      sounds.coin();
+      this.achievementTimer = setTimeout(() => {
+        node.hidden = true;
+        this.achievementTimer = setTimeout(next, 400);
+      }, 3400);
+    };
+    this.achievementShowing = true;
+    next();
   }
 
   get baitCount() {
@@ -748,6 +797,7 @@ export class AnglerUI {
         textContent: t("keepnet.release"),
         onclick: () => {
           progress.keepnet.splice(index, 1);
+          bump(progress, "releasedFromNet");
           refresh();
         },
       });
@@ -767,6 +817,8 @@ export class AnglerUI {
     sell.disabled = !fishList.length;
     sell.onclick = () => {
       progress.money += total;
+      bump(progress, "sales");
+      if (fishList.length >= 20) bump(progress, "bigSale");
       progress.keepnet = [];
       sounds.sell();
       this.commit();
@@ -994,6 +1046,7 @@ export class AnglerUI {
     }
     if (progress.groundbait <= 0) return;
     progress.groundbait -= 1;
+    bump(progress, "groundbaits");
     sounds.groundbait();
     // Wears off 24 game hours from now (a fresh bag starts the count again).
     progress.baited[LOCATIONS[progress.location].id] = Date.now() + gameHoursMs(GROUNDBAIT.hours);
@@ -1109,6 +1162,17 @@ export class AnglerUI {
       tab.classList.toggle("is-active", active);
       tab.setAttribute("aria-selected", String(active));
     }
+    const achievements = id === "achievements";
+    $("#achievement-list").hidden = !achievements;
+    $("#achievement-summary").hidden = !achievements;
+    $("#trophy-wall").hidden = achievements;
+    if (achievements) {
+      $("#trophy-badges").hidden = true;
+      $("#trophy-empty").hidden = true;
+      $("#trophy-hint").hidden = true;
+      this.fillAchievements();
+      return;
+    }
     // Badges for protected fish let go, above the player's own wall.
     const badges = $("#trophy-badges");
     const released = Object.entries(this.progress.released ?? {});
@@ -1140,6 +1204,47 @@ export class AnglerUI {
       })).filter((trophy) => FISH[trophy.species]);
       this.fillTrophyWall(trophies, trophies.length ? "" : t("trophies.othersEmpty"), !cloud.user ? t("trophies.shareHint") : "");
     });
+  }
+
+  /**
+   * The achievements, by group: earned ones bright with their date, the rest
+   * dim with how far along they are, secret ones only a "?" until earned.
+   */
+  fillAchievements() {
+    const { progress } = this;
+    const done = (achievement) => Boolean(progress.achievements?.[achievement.id]);
+    const earned = ACHIEVEMENTS.filter(done);
+    $("#achievement-summary").textContent = t("achievements.summary", {
+      count: earned.length,
+      total: ACHIEVEMENTS.length,
+      money: formatMoney(earned.reduce((sum, achievement) => sum + achievement.reward, 0)),
+    });
+    $("#achievement-list").replaceChildren(...GROUPS.map((group) => {
+      const items = ACHIEVEMENTS.filter((achievement) => achievement.group === group).map((achievement) => {
+        const got = done(achievement);
+        const hidden = achievement.secret && !got;
+        const value = achievement.value(progress);
+        const date = got ? new Date(progress.achievements[achievement.id]).toLocaleDateString(locale(), { day: "numeric", month: "short", year: "numeric" }) : "";
+        const status = got ? date : hidden ? "" : achievement.target > 1 ? t("achievements.progress", { value, target: achievement.target }) : "";
+        const bar = !got && !hidden && achievement.target > 1
+          ? element("span", { className: "achievement-bar" }, [element("span", { style: `width: ${(value / achievement.target) * 100}%` })])
+          : "";
+        return element("li", { className: `achievement${got ? " is-earned" : ""}${hidden ? " is-secret" : ""}` }, [
+          element("span", { className: "achievement-art" }, [medalSprite(3, got ? RIBBONS[group] : P.mid)]),
+          element("span", { className: "achievement-info" }, [
+            element("strong", { textContent: hidden ? "?" : t(`achievements.${achievement.id}.name`) }),
+            element("span", { textContent: hidden ? t("achievements.secret") : t(`achievements.${achievement.id}.text`) }),
+            bar,
+            status ? element("small", { textContent: status }) : "",
+          ]),
+          element("span", { className: "achievement-reward", textContent: formatMoney(achievement.reward) }),
+        ]);
+      });
+      return element("section", { className: "achievement-group" }, [
+        element("h3", { textContent: t(`achievements.group.${group}`) }),
+        element("ul", {}, items),
+      ]);
+    }));
   }
 
   /** Draw trophy cards, heaviest first: fish, weight, who caught it (for others), where, on what bait and when. */

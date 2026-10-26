@@ -293,6 +293,9 @@ export const START_STATE = {
   keepnet: [],
   // Protected fish let go, by species: each is a badge on the trophy wall.
   released: {},
+  // Counters for the achievements (see achievements.js), and the date each was earned.
+  stats: {},
+  achievements: {},
   caught: 0,
   location: 0,
 };

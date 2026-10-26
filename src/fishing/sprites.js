@@ -759,6 +759,26 @@ export function cupSprite(scale = 3) {
   ], { o: P.ink, Y: P.gold, g: P.bone, d: P.goldDark, M: P.mid, L: P.light }).toCanvas(scale);
 }
 
+/** An achievement badge: a gold medal on a ribbon, the ribbon's colour by group. */
+export function medalSprite(scale = 3, ribbon = P.ember) {
+  return fromRows([
+    "..oooo..oooo..",
+    "..oRRo..oRRo..",
+    "...oRRooRRo...",
+    "....oRRRRo....",
+    ".....oRRo.....",
+    "....oooooo....",
+    "...oYgYYYdo...",
+    "..oYgYYYYYdo..",
+    "..oYYYddYYdo..",
+    "..oYYdYYdYdo..",
+    "..oYYYddYYdo..",
+    "..oYYYYYYddo..",
+    "...oddddddo...",
+    "....oooooo....",
+  ], { o: P.ink, R: ribbon, Y: P.gold, g: P.bone, d: P.goldDark }).toCanvas(scale);
+}
+
 /** Backpack: the inventory. */
 export function packSprite(scale = 3) {
   // A khaki canvas backpack: carry loop, buckled top flap, shoulder straps and a front pocket.
