@@ -208,7 +208,8 @@ export function createStructures(width, height, cellWidth, lineHeight) {
 
   if (structures.houses) {
     // Either explicit spots (`at`) or `count` houses spread evenly over from..to.
-    const { from = 0, to = 1, count = 0, at, scale = 1, roof = "#5a3b2e", walls = "#7a7262" } = structures.houses;
+    // `logs`: a log cabin, its walls in rows of logs.
+    const { from = 0, to = 1, count = 0, at, scale = 1, roof = "#5a3b2e", walls = "#7a7262", logs = false } = structures.houses;
     const spots = at ?? Array.from({ length: count }, (_, i) => from + ((to - from) * (i + 0.5)) / count);
     for (let i = 0; i < spots.length; i += 1) {
       const cx = width * spots[i] + (hash2(i, 3, 5) - 0.5) * width * 0.01;
@@ -228,8 +229,11 @@ export function createStructures(width, height, cellWidth, lineHeight) {
           const edge = Math.abs(c) === half;
           const window = r >= 1 && r <= wallRows - 2 && !edge && Math.abs(c) >= Math.round(2 * scale) && Math.abs(c) <= Math.round(3 * scale);
           const door = r < Math.max(2, wallRows - 1) && Math.abs(c) <= (scale > 1.3 ? 1 : 0);
-          const cell = put(x, y, edge ? "|" : window ? "#" : door ? "]" : r === 0 ? "_" : ":", window ? "#e2b85e" : door ? "#4a3626" : walls);
-          if (window) lights.push(cell);
+          const wall = logs ? (edge ? "#" : "=") : edge ? "|" : r === 0 ? "_" : ":";
+          // A log cabin's windows are dark glass by day, lit only after dark.
+          const glass = logs ? "#2c3236" : "#e2b85e";
+          const cell = put(x, y, window ? "#" : door ? "]" : wall, window ? glass : door ? "#4a3626" : logs && (r + c) % 3 === 0 ? mixHex(walls, "#000000", 0.25) : walls);
+          if (window) lights.push({ ...cell, color: "#e2b85e" });
         }
       }
       for (let r = 0; r < roofRows; r += 1) {
@@ -299,11 +303,82 @@ export function createStructures(width, height, cellWidth, lineHeight) {
   }
 
   const out = { cells, lights, shapes, chimneys, beacons };
+  if (structures.tower) addFireTower(structures.tower, width, height, cellWidth, lineHeight, out);
   if (structures.chnpp) addChnpp(structures.chnpp, width, height, cellWidth, lineHeight, out);
   if (structures.crag) addCrag(structures.crag, width, height, cellWidth, lineHeight, out);
   if (structures.archBridge) addArchBridge(structures.archBridge, width, height, cellWidth, lineHeight, out);
 
   return out;
+}
+
+/**
+ * A wooden fire lookout tower standing in the forest behind the far shore:
+ * four splayed legs braced with crosses, a ladder up the middle, and a small
+ * cabin with a railing on top, high above the trees. Its window is a lamp
+ * that glows after dark. `x` is its place across the scene.
+ */
+function addFireTower({ x: fx, tall = 0.27 }, width, height, cellWidth, lineHeight, out) {
+  const { cells, lights, shapes } = out;
+  const x = width * fx;
+  // It stands a little back in the woods, so the trees hide its feet.
+  const ground = shorelineY(x, height) - height * 0.02;
+  const rows = Math.round((height * tall) / lineHeight);
+  const cabinRows = 3;
+  const legRows = rows - cabinRows - 1;
+  // Weathered, silvery wood: lighter than the pines it stands among.
+  const wood = "#b4a286";
+  const dark = "#857560";
+  // It stands behind the pines: painted under the forest's silhouette, so
+  // only what rises above the treetops shows.
+  const put = (px, py, glyph, color) => {
+    const cell = { ...cellAt(px, py, cellWidth, lineHeight), glyph, color, behind: true };
+    cells.push(cell);
+    return cell;
+  };
+  // Legs splay from 4 cells either side at the top to 10 at the ground.
+  const spreadAt = (r) => 4 + Math.round((6 * (legRows - r)) / legRows);
+  for (let r = 0; r < legRows; r += 1) {
+    const y = ground - r * lineHeight;
+    const spread = spreadAt(r);
+    const lean = spreadAt(r + 1) < spread;
+    // Each leg is a heavy timber, two glyphs thick.
+    for (const k of [0, 1]) {
+      put(x - (spread - k) * cellWidth, y, lean ? "/" : "|", wood);
+      put(x + (spread - k) * cellWidth, y, lean ? "\\" : "|", wood);
+    }
+    // Cross bracing every few rows, and the ladder up the middle.
+    const band = r % 4;
+    if (band === 0) for (let c = -spread + 2; c < spread - 1; c += 1) put(x + c * cellWidth, y, "=", dark);
+    else if (spread > 1) {
+      for (let c = -spread + 2; c < spread - 1; c += 1) {
+        if (c === 0) continue;
+        const along = (band - 1) / 3;
+        const want = Math.round(-spread + 2 + along * (spread * 2 - 4));
+        if (Math.abs(c) === Math.abs(want)) put(x + c * cellWidth, y, c * want > 0 ? "\\" : "/", dark);
+      }
+    }
+    put(x, y, "H", dark);
+  }
+  // The cabin: a railed platform, walls with a window all round, a pyramid roof.
+  const deck = ground - legRows * lineHeight;
+  const half = 6;
+  for (let c = -half - 1; c <= half + 1; c += 1) put(x + c * cellWidth, deck, c === -half - 1 || c === half + 1 ? "+" : "=", wood);
+  shapes.push({ points: [[x - (half + 0.5) * cellWidth, deck - lineHeight * 0.5], [x - (half + 0.5) * cellWidth, deck - (cabinRows - 0.5) * lineHeight], [x + (half + 0.5) * cellWidth, deck - (cabinRows - 0.5) * lineHeight], [x + (half + 0.5) * cellWidth, deck - lineHeight * 0.5]], color: "#4a3e30", behind: true });
+  for (let r = 1; r < cabinRows; r += 1) {
+    const y = deck - r * lineHeight;
+    for (let c = -half; c <= half; c += 1) {
+      const edge = Math.abs(c) === half;
+      const window = r === 1 && !edge;
+      // By day the windows are dark glass; after dark the lamp inside lights them.
+      const cell = put(x + c * cellWidth, y, edge ? "|" : window ? "#" : "=", window ? "#2c3236" : wood);
+      if (window) lights.push({ ...cell, color: "#e2b85e" });
+    }
+  }
+  for (let r = 0; r < 2; r += 1) {
+    const y = deck - (cabinRows + r) * lineHeight;
+    const span = half + 1 - r * 2;
+    for (let c = -span; c <= span; c += 1) put(x + c * cellWidth, y, c === -span ? "/" : c === span ? "\\" : "^", "#7a5a40");
+  }
 }
 
 /**

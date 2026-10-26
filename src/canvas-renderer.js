@@ -1,6 +1,6 @@
 import { sampleWater } from "./water-engine.js";
 import { createForestGlyphs } from "./forest-engine.js";
-import { activeScene, bankWidths, isOpenWater, nearBankY, setScene, shorelineY, sunPosition, view, wreckShape } from "./scene.js";
+import { activeScene, bankWidths, isOpenWater, jettyShape, nearBankY, setScene, shorelineY, sunPosition, view, wreckShape } from "./scene.js";
 import { skyAt, toHex, toInt } from "./daycycle.js";
 import { clamp, hash01, hash2, hexToInt, mixColor } from "./noise.js";
 import { createBankGlyphs, createRidgeGlyphs, createShoreGlyphs, createStructures, ridgeTop } from "./landscape-engine.js";
@@ -341,9 +341,11 @@ export class CanvasWaterRenderer {
       this.backdrop[cell.row * columns + cell.column] = indexOf.get(color);
     };
     for (const cell of this.ridgeCells) put(cell, cell.fill);
+    // What stands behind the forest is mirrored first, so the trees in front win.
+    for (const cell of this.structureCells) if (cell.behind) put(cell, cell.color);
     // Bank trees stand on the near banks, not the far shore, so the water doesn't mirror them.
     for (const cell of this.forestCells) if (!cell.bank) put(cell, cell.color);
-    for (const cell of this.structureCells) put(cell, cell.color);
+    for (const cell of this.structureCells) if (!cell.behind) put(cell, cell.color);
     for (const cell of this.shoreCells) put(cell, "#2a3128");
     this.paletteKey = "";
   }
@@ -524,6 +526,9 @@ export class CanvasWaterRenderer {
       }
     });
 
+    // Anything standing back in the woods (the fire tower) goes under the forest.
+    this.paintStructures(ctx, true);
+
     // A dark canopy silhouette keeps the forest legible against the hazy hills.
     ctx.fillStyle = "#111a14";
     ctx.beginPath();
@@ -548,19 +553,7 @@ export class CanvasWaterRenderer {
     ctx.fill();
 
     // Cottages, the dam and pylons stand on the far shore.
-    for (const shape of this.structureShapes) {
-      ctx.beginPath();
-      shape.points.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
-      ctx.closePath();
-      ctx.fillStyle = shape.color;
-      ctx.fill();
-    }
-    for (const cell of this.structureCells) {
-      // Rustling leaves are drawn every frame by the ambient layer.
-      if (cell.rustle) continue;
-      ctx.fillStyle = cell.color;
-      ctx.fillText(cell.glyph, cell.x, cell.y);
-    }
+    this.paintStructures(ctx, false);
 
     for (const cell of this.shoreCells) {
       ctx.fillStyle = cell.color;
@@ -621,6 +614,24 @@ export class CanvasWaterRenderer {
       for (const cell of this.forestCells) {
         if (cell.bank) ctx.fillRect(cell.x - this.cellWidth * 0.6, cell.y - this.lineHeight * 0.6, this.cellWidth * 1.2, this.lineHeight * 1.2);
       }
+    }
+  }
+
+  /** Structure silhouettes and glyphs: those behind the forest (`behind`), or the rest. */
+  paintStructures(ctx, behind) {
+    for (const shape of this.structureShapes) {
+      if (Boolean(shape.behind) !== behind) continue;
+      ctx.beginPath();
+      shape.points.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+      ctx.closePath();
+      ctx.fillStyle = shape.color;
+      ctx.fill();
+    }
+    for (const cell of this.structureCells) {
+      // Rustling leaves are drawn every frame by the ambient layer.
+      if (cell.rustle || Boolean(cell.behind) !== behind) continue;
+      ctx.fillStyle = cell.color;
+      ctx.fillText(cell.glyph, cell.x, cell.y);
     }
   }
 
@@ -1301,6 +1312,7 @@ export class CanvasWaterRenderer {
       return { stone, foam };
     });
     if (wreck) rocks.push(this.createWreck());
+    if (activeScene().water.jetty) rocks.push(...this.createJetty());
     return rocks;
   }
 
@@ -1379,13 +1391,61 @@ export class CanvasWaterRenderer {
     return { stone, foam, wreck: true };
   }
 
+  /**
+   * The jetty on the far shore, planks over a row of posts, and the rowing
+   * boat tied up beside it (the boat bobs: `bob` marks it for fillSurface).
+   */
+  createJetty() {
+    const { width, height, cellWidth, lineHeight } = this;
+    const shape = jettyShape(width, height);
+    const snap = (x, y) => [(Math.floor(x / cellWidth) + 0.5) * cellWidth, (Math.floor(y / lineHeight) + 0.52) * lineHeight];
+    const deck = [];
+    const put = (list, x, y, glyph, color) => {
+      const [sx, sy] = snap(x, y);
+      list.push(sx, sy, glyph, color);
+    };
+    for (let y = shape.top + lineHeight * 0.5, r = 0; y <= shape.bottom; y += lineHeight, r += 1) {
+      const { left, right } = shape.at(y);
+      for (let x = left; x <= right; x += cellWidth) {
+        const column = Math.round(x / cellWidth);
+        const noise = hash2(column, r, 1901);
+        const edge = x === left || x + cellWidth > right;
+        put(deck, x, y, edge ? "|" : noise > 0.85 ? "-" : "=", edge ? 0x5a4632 : noise > 0.5 ? 0x9a7a52 : 0x846642);
+      }
+    }
+    // Posts under the near end, standing in the water.
+    const end = shape.at(shape.bottom);
+    for (let x = end.left; x <= end.right + 1; x += Math.max(cellWidth, (end.right - end.left) / 2)) {
+      put(deck, x, shape.bottom + lineHeight, "!", 0x3a2a1c);
+    }
+    const foam = [];
+    for (let x = end.left - cellWidth; x <= end.right + cellWidth; x += cellWidth) {
+      const [sx, sy] = snap(x, shape.bottom + lineHeight * 1.6);
+      foam.push({ x: sx, y: sy, noise: hash2(Math.round(x / cellWidth), 5, 1903), downstream: true });
+    }
+    // The boat: a gunwale with its seats, the hull below, a rope to the jetty.
+    const boat = [];
+    const { x: bx, y: by, half } = shape.boat;
+    const cells = Math.max(3, Math.round(half / cellWidth));
+    for (let c = -cells; c <= cells; c += 1) {
+      const x = bx + c * cellWidth;
+      const end = Math.abs(c) === cells;
+      put(boat, x, by - lineHeight, end ? (c < 0 ? "\\" : "/") : c % 3 === 0 ? "#" : "=", end ? 0x6a4a30 : c % 3 === 0 ? 0x5a3e28 : 0x9a7048);
+      if (Math.abs(c) < cells) put(boat, x, by, Math.abs(c) === cells - 1 ? (c < 0 ? "\\" : "/") : "_", 0x4a3424);
+    }
+    put(boat, bx - (cells + 1) * cellWidth, by - lineHeight * 1.2, "~", 0x8a7a5a);
+    return [{ stone: deck, foam }, { stone: boat, foam: [], bob: true }];
+  }
+
   fillSurface(time, ripples) {
     const batch = this.surfaceBatch;
     batch.clear();
 
     // River rocks and the foam the current piles against them.
     for (const rock of this.waterRocks) {
-      for (let i = 0; i < rock.stone.length; i += 4) batch.push(rock.stone[i], rock.stone[i + 1], rock.stone[i + 2], rock.stone[i + 3]);
+      // A moored boat rocks gently on the water.
+      const bob = rock.bob ? Math.sin(time * 1.1) * 1.3 : 0;
+      for (let i = 0; i < rock.stone.length; i += 4) batch.push(rock.stone[i], rock.stone[i + 1] + bob, rock.stone[i + 2], rock.stone[i + 3]);
       for (const cell of rock.foam) {
         const wave = Math.sin(time * 4 + cell.noise * 30 + cell.x * 0.05);
         if (wave > (cell.downstream ? -0.2 : 0.4)) batch.push(cell.x, cell.y, wave > 0.7 ? "~" : "-", wave > 0.7 ? 0xdde8e4 : 0x9fb8b6);

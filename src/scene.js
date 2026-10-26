@@ -50,13 +50,25 @@ export const SCENES = {
     nearBank: 0.075,
     foreground: { reeds: 2.2, rock: false, lilyPads: 0, oak: true },
   },
-  /** Quiet lake: an old, tall conifer forest, pines and spruces, stands along the far shore. */
+  /**
+   * Quiet lake: an old pine forest along the far shore with low blue hills
+   * beyond it. A fire lookout tower stands above the trees (its lamp glows at
+   * night); in a clearing on the bank a log cabin smokes, a wooden jetty runs
+   * out from it and a rowing boat is tied up alongside.
+   */
   lake: {
     horizon: 0.47,
-    ridges: [],
-    forest: { heightScale: 2.2, spacingScale: 0.75, broadleaf: 0 },
-    structures: {},
-    water: {},
+    ridges: [
+      { top: 0.31, amplitude: 0.075, seed: 3.3, fill: "#3d5866", glyph: "#58737f", texture: ".'", density: 0.05 },
+      { top: 0.35, amplitude: 0.06, seed: 6.2, fill: "#2d4840", glyph: "#43614f", texture: "^.'", density: 0.12 },
+    ],
+    forest: { heightScale: 1.7, spacingScale: 0.75, broadleaf: 0, gaps: [[0.365, 0.46]] },
+    structures: {
+      houses: { at: [0.41], scale: 1, roof: "#3b3026", walls: "#7a5636", logs: true },
+      tower: { x: 0.6, tall: 0.24 },
+    },
+    // The jetty runs toward us from below the cabin; the boat is tied up on its right.
+    water: { jetty: { x: 0.415, length: 0.075 } },
     nearBank: 0.055,
     foreground: { reeds: 1, rock: true, lilyPads: 5 },
   },
@@ -201,6 +213,39 @@ export function wreckShape(width, height) {
   };
 }
 
+/**
+ * The wooden jetty on the far shore and the boat tied up beside it, in scene
+ * pixels: the deck narrows away from us (`left`/`right` at a screen y between
+ * `top` and `bottom`), and the boat lies alongside its near end.
+ */
+export function jettyShape(width, height) {
+  const jetty = active.water.jetty;
+  if (!jetty) return null;
+  const x = width * jetty.x;
+  const top = shorelineY(x, height);
+  const bottom = top + height * jetty.length;
+  const span = Math.max(14, height * 0.012);
+  const at = (y) => {
+    const t = Math.min(1, Math.max(0, (y - top) / (bottom - top)));
+    // It widens toward us and drifts a touch left, in perspective.
+    const center = x - t * span * 0.8;
+    const half = span * (0.7 + t * 0.6);
+    return { left: center - half, right: center + half };
+  };
+  const near = at(bottom);
+  const boat = { x: near.right + span * 2.2, y: bottom - height * 0.012, half: span * 2.2 };
+  return {
+    top, bottom, at, boat,
+    covers(px, py) {
+      if (py >= top && py <= bottom + span * 0.4) {
+        const { left, right } = at(py);
+        if (px >= left && px <= right) return true;
+      }
+      return Math.abs(px - boat.x) < boat.half && Math.abs(py - boat.y) < span * 0.9;
+    },
+  };
+}
+
 /** Is this screen point open water (not bank, rock or shore)? */
 export function isOpenWater(x, y, width, height) {
   if (y < shorelineY(x, height)) return false;
@@ -213,6 +258,7 @@ export function isOpenWater(x, y, width, height) {
     if (((x - rock.x * width) / r) ** 2 + ((y - rock.y * height) / (r * 0.45)) ** 2 < 1.4) return false;
   }
   if (wreckShape(width, height)?.covers(x, y)) return false;
+  if (jettyShape(width, height)?.covers(x, y)) return false;
   return true;
 }
 
