@@ -459,7 +459,8 @@ html.keyboard-open .sheet[open] > .account-body {
 .tab.is-active { color: var(--bone); border-color: var(--line-hover); background: var(--dark); }
 
 .card-grid,
-.trophy-wall {
+.trophy-wall,
+.achievement-list {
   min-height: 0;
   max-height: min(60vh, 560px);
   overflow-y: auto;

@@ -644,7 +644,8 @@ function frameRate(now) {
     || ripples.some((ripple) => !ripple.ambient && lastElapsed - ripple.time < 1);
   // Stay smooth a moment after the action ends, so it eases out rather than steps down.
   if (fast) lastFast = now;
-  return now - lastFast < 800 ? 60 : 30;
+  // Waiting for a bite, the slow water reads fine at 24 frames, and the laptop stays cooler.
+  return now - lastFast < 800 ? 60 : 24;
 }
 function draw(now) {
   animationFrame = requestAnimationFrame(draw);
