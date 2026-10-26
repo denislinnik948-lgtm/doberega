@@ -386,7 +386,9 @@ class Canvas2DBackend {
 export function createBackend(canvas) {
   // No `desynchronized` (low-latency) canvas: on some Windows GPUs it lets the screen show a
   // frame before it is finished, flickering black or without its glyphs.
-  const gl = canvas.getContext("webgl2", { alpha: false, antialias: false, powerPreference: "high-performance" });
+  // The built-in GPU draws these glyphs easily; asking for "high-performance"
+  // wakes a laptop's discrete GPU, which runs hot and drains the battery.
+  const gl = canvas.getContext("webgl2", { alpha: false, antialias: false, powerPreference: "low-power" });
   if (gl) {
     try {
       return new WebGLBackend(gl);
