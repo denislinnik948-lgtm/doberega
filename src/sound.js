@@ -111,7 +111,7 @@ function start() {
   master.connect(limiter).connect(ctx.destination);
   fx = ctx.createGain();
   fx.gain.value = volumes.fx;
-  fx.connect(dest());
+  fx.connect(master);
   const length = ctx.sampleRate * 2;
   // White noise for clicks and swishes; brown noise (deep, soft) for water and the rain's murmur.
   noise = ctx.createBuffer(1, length, ctx.sampleRate);
