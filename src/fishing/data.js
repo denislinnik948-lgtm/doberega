@@ -1,5 +1,6 @@
 import { locale, t } from "../i18n.js";
 import { DAY_SECONDS } from "../daycycle.js";
+import { isAutumn } from "../theme.js";
 
 /**
  * Fishing catalog (display names live in src/i18n.js): fish, bait, rods, extras and fishing spots. Weights are in
@@ -26,6 +27,28 @@ export const FISH = {
   shchuka: { min: 1, max: 14, pricePerKg: 45, lure: true, active: { base: 0.2, peaks: [[9, 3, 1], [17, 3, 0.9]] } },
   sudak: { min: 0.8, max: 10, pricePerKg: 55, lure: true, active: { base: 0.15, peaks: [[11, 3, 0.5], [20, 3, 0.9], [5, 3, 0.7]] } },
   som: { min: 5, max: 60, pricePerKg: 40, active: { base: 0.1, peaks: [[14, 4, 0.65], [1, 4, 0.6], [22, 3, 0.35]] } },
+  // Bleak: tiny silver surface fish in shoals, biting fast and often by day.
+  verkhovodka: { min: 0.01, max: 0.06, pricePerKg: 14, active: { base: 0.5, peaks: [[9, 4, 0.6], [15, 4, 0.6]] } },
+  // Amur sleeper: greedy, takes anything at all, even a lure (`greedy`).
+  rotan: { min: 0.05, max: 0.4, pricePerKg: 12, greedy: true, active: { base: 0.55, peaks: [[12, 6, 0.4]] } },
+  // Goby: a small, bold bottom fish of Pripyat.
+  bychok: { min: 0.03, max: 0.25, pricePerKg: 16, active: { base: 0.45, peaks: [[8, 4, 0.5], [19, 4, 0.5]] } },
+  // Ide: strong and wary, ponders over the bait.
+  yaz: { min: 0.3, max: 4, pricePerKg: 38, active: { base: 0.2, peaks: [[6, 3, 0.9], [20, 3, 0.8]] } },
+  // Asp: a predator hitting the surface hard, lures only.
+  zherekh: { min: 1, max: 8, pricePerKg: 50, lure: true, active: { base: 0.2, peaks: [[8, 3, 1], [18, 3, 1]] } },
+  // Trout: clear cold water, the dearest by the kilo; spinner or worm.
+  forel: { min: 0.3, max: 4, pricePerKg: 90, active: { base: 0.25, peaks: [[7, 3, 1], [19, 3, 0.8]] } },
+  // Burbot: bites only at night and only in autumn (`season`).
+  myn: { min: 0.5, max: 4, pricePerKg: 60, season: "autumn", active: { base: 0.02, peaks: [[0, 4, 1.2], [23, 3, 0.6], [3, 3, 0.8]] } },
+  // Grass carp: a big, strong fish for anglers who have climbed far.
+  amur: { min: 3, max: 25, pricePerKg: 42, active: { base: 0.15, peaks: [[11, 4, 0.8], [16, 4, 0.8]] } },
+  // Silver carp: a giant that hardly ever takes a hook.
+  tovstolob: { min: 5, max: 30, pricePerKg: 35, active: { base: 0.1, peaks: [[13, 5, 0.6]] } },
+  // Sterlet: in the Red Book. It can't be sold, only let go, and that earns a badge (`protected`).
+  sterliad: { min: 0.5, max: 3, pricePerKg: 0, protected: true, active: { base: 0.15, peaks: [[4, 3, 0.6], [21, 3, 0.6]] } },
+  // The third joke: a two-headed perch, only at Pripyat. Priceless, trophy only.
+  dvoholovyi: { min: 0.2, max: 0.9, pricePerKg: 0, unique: true, active: { base: 1, peaks: [] } },
   // A joke: Valerka, a clownfish that has no business in a Ukrainian pond. Priceless, trophy only.
   valerka: { min: 0.12, max: 0.28, pricePerKg: 0, unique: true, active: { base: 1, peaks: [] } },
   // Another joke: Artem, a crayfish in sunglasses who simply grabbed the hook. Priceless, trophy only.
@@ -53,6 +76,17 @@ export const NIBBLE = {
   shchuka: { tempers: [6, 1, 1, 2], pace: 0.9, twitches: 0.6, strength: 1.4, window: 1.2 },
   sudak: { tempers: [1, 3, 5, 1], pace: 1.1, twitches: 0.8, strength: 0.7, window: 0.8 },
   som: { tempers: [2, 1, 3, 4], pace: 1.6, twitches: 0.6, strength: 1.5, window: 1.4 },
+  verkhovodka: { tempers: [6, 4, 0, 0], pace: 0.5, twitches: 1.4, strength: 0.4, window: 0.7 },
+  rotan: { tempers: [8, 2, 0, 0], pace: 0.6, twitches: 0.8, strength: 1, window: 1.4 },
+  bychok: { tempers: [6, 3, 1, 0], pace: 0.6, twitches: 1, strength: 1.1, window: 1.2 },
+  yaz: { tempers: [1, 2, 5, 2], pace: 1.3, twitches: 1, strength: 0.9, window: 1 },
+  zherekh: { tempers: [8, 1, 0, 1], pace: 0.8, twitches: 0.5, strength: 1.6, window: 1 },
+  forel: { tempers: [5, 2, 2, 1], pace: 0.8, twitches: 0.8, strength: 1.1, window: 0.9 },
+  myn: { tempers: [2, 2, 3, 3], pace: 1.4, twitches: 0.8, strength: 1, window: 1.4 },
+  amur: { tempers: [1, 2, 4, 3], pace: 1.4, twitches: 1, strength: 1.2, window: 1.1 },
+  tovstolob: { tempers: [0, 1, 4, 5], pace: 1.8, twitches: 0.6, strength: 0.9, window: 1.2 },
+  sterliad: { tempers: [1, 3, 4, 2], pace: 1.2, twitches: 1, strength: 0.8, window: 1 },
+  dvoholovyi: { tempers: [5, 3, 1, 1], pace: 0.8, twitches: 1.2, strength: 1.2, window: 1.4 },
   valerka: { tempers: [3, 3, 1, 3], pace: 0.6, twitches: 1.5, strength: 1.3, window: 1.6 },
   // A crayfish drags the bait off slowly along the bottom.
   artem: { tempers: [1, 4, 4, 1], pace: 1.3, twitches: 1.2, strength: 0.6, window: 1.8 },
@@ -66,6 +100,8 @@ export const FLOAT_PREDATOR = 0.02;
 export const VALERKA_CHANCE = 1 / 25000;
 /** The same for Artem the crayfish, on his own: just as unlikely. */
 export const ARTEM_CHANCE = 1 / 25000;
+/** The two-headed perch: as unlikely, but only at Pripyat. */
+export const TWO_HEADED_CHANCE = 1 / 25000;
 
 /** Chance that reeling in an empty line hooks an old boot. */
 export const BOOT_CHANCE = 0.012;
@@ -105,19 +141,19 @@ export function activePeriods(species) {
  * spinning reel, and is only lost when the line breaks.
  */
 export const BAITS = {
-  bread: { price: 0, free: true, others: 0, size: 0, maxSize: 0.22, species: { plitka: 4, krasnopirka: 4, karas: 3, yorzh: 1 } },
+  bread: { price: 0, free: true, others: 0, size: 0, maxSize: 0.22, species: { plitka: 4, krasnopirka: 4, karas: 3, yorzh: 1, verkhovodka: 4 } },
   // Dough only ever tempts small fish (no carp or bream on it).
-  dough: { price: 2, size: 0.4, maxSize: 0.45, species: { karas: 4, plitka: 3, krasnopirka: 3, yorzh: 1 } },
-  worm: { price: 3, size: 0.6, species: { plitka: 3, karas: 3, okun: 3, yorzh: 3, lyn: 2, lyasch: 1 } },
-  maggot: { price: 4, size: 0.5, species: { plitka: 4, krasnopirka: 3, yorzh: 2, lyasch: 2, karas: 2 } },
-  barley: { price: 4, size: 0.8, species: { karas: 3, lyasch: 3, plitka: 2, korop: 2, lyn: 1 } },
-  bloodworm: { price: 5, size: 0.5, species: { yorzh: 3, plitka: 3, karas: 2, lyn: 3, okun: 2 } },
-  peas: { price: 6, size: 0.9, species: { lyasch: 4, korop: 3, lyn: 2, plitka: 1 } },
-  corn: { price: 7, size: 1, species: { karas: 2, lyasch: 3, korop: 4, lyn: 2 } },
-  boilie: { price: 20, size: 1.6, species: { korop: 6, lyasch: 1 } },
+  dough: { price: 2, size: 0.4, maxSize: 0.45, species: { karas: 4, plitka: 3, krasnopirka: 3, yorzh: 1, verkhovodka: 2 } },
+  worm: { price: 3, size: 0.6, species: { plitka: 3, karas: 3, okun: 3, yorzh: 3, lyn: 2, lyasch: 1, rotan: 3, bychok: 4, yaz: 2, forel: 2, myn: 2, sterliad: 2 } },
+  maggot: { price: 4, size: 0.5, species: { plitka: 4, krasnopirka: 3, yorzh: 2, lyasch: 2, karas: 2, verkhovodka: 4, yaz: 1 } },
+  barley: { price: 4, size: 0.8, species: { karas: 3, lyasch: 3, plitka: 2, korop: 2, lyn: 1, yaz: 2 } },
+  bloodworm: { price: 5, size: 0.5, species: { yorzh: 3, plitka: 3, karas: 2, lyn: 3, okun: 2, bychok: 2, sterliad: 2, verkhovodka: 1 } },
+  peas: { price: 6, size: 0.9, species: { lyasch: 4, korop: 3, lyn: 2, plitka: 1, yaz: 3, amur: 2 } },
+  corn: { price: 7, size: 1, species: { karas: 2, lyasch: 3, korop: 4, lyn: 2, yaz: 2, amur: 4 } },
+  boilie: { price: 20, size: 1.6, species: { korop: 6, lyasch: 1, amur: 3, tovstolob: 0.6 } },
   // Live bait and crayfish: big perch and catfish (pike and zander go for the spoon).
-  livebait: { price: 25, size: 1.4, species: { okun: 4, som: 2 } },
-  crayfish: { price: 30, size: 1.6, species: { som: 3, okun: 2 } },
+  livebait: { price: 25, size: 1.4, species: { okun: 4, som: 2, myn: 3, zherekh: 1 } },
+  crayfish: { price: 30, size: 1.6, species: { som: 3, okun: 2, myn: 1 } },
   frog: { price: 45, size: 1.8, species: { som: 6 } },
   /*
    * Lures for the spinning reel, sold with the tackle. Each works like a hook
@@ -126,11 +162,11 @@ export const BAITS = {
    * in a pause, or on a steady retrieve.
    */
   // A small spinner: mostly perch, takes on a plain steady retrieve.
-  spinner: { price: 150, lure: true, size: 0.7, others: 0, minKg: 0, holdKg: 2, retrieve: { jerk: 1, flutter: 0.6, steady: 3 }, species: { okun: 6, shchuka: 1.2, sudak: 0.6, plitka: 0.8 } },
+  spinner: { price: 150, lure: true, size: 0.7, others: 0, minKg: 0, holdKg: 2, retrieve: { jerk: 1, flutter: 0.6, steady: 3 }, species: { okun: 6, shchuka: 1.2, sudak: 0.6, plitka: 0.8, forel: 4, zherekh: 1 } },
   // The wobbling spoon: pike and zander, best fished in jerks.
-  spoon: { price: 300, lure: true, size: 1.2, others: 0, minKg: 0.3, holdKg: 8, retrieve: { jerk: 1, flutter: 1, steady: 1 }, species: { okun: 4, shchuka: 5, sudak: 4, som: 0.4 } },
+  spoon: { price: 300, lure: true, size: 1.2, others: 0, minKg: 0.3, holdKg: 8, retrieve: { jerk: 1, flutter: 1, steady: 1 }, species: { okun: 4, shchuka: 5, sudak: 4, som: 0.4, zherekh: 4 } },
   // A wobbler: only bigger fish, which hit it as it stops in the pause.
-  wobbler: { price: 900, lure: true, size: 1.5, others: 0, minKg: 1, holdKg: Infinity, retrieve: { jerk: 0.6, flutter: 2.2, steady: 0.5 }, species: { shchuka: 6, sudak: 2.5, okun: 2, som: 0.8 } },
+  wobbler: { price: 900, lure: true, size: 1.5, others: 0, minKg: 1, holdKg: Infinity, retrieve: { jerk: 0.6, flutter: 2.2, steady: 0.5 }, species: { shchuka: 6, sudak: 2.5, okun: 2, som: 0.8, zherekh: 3 } },
 };
 
 /** Baits taken out of the game, with their price: a save that still holds some is paid back. */
@@ -211,32 +247,32 @@ export const LOCATIONS = [
     id: "pond", snagChance: 0.02, kind: "pond", water: "#4a7d66",
     traits: { type: "pond", depth: "shallow", bottom: "mud", current: "none" },
     bigChance: 1 / 100, maxKg: 6, pace: 1.1,
-    fish: { karas: 5, krasnopirka: 3, plitka: 3, yorzh: 2, lyn: 1.5, korop: 0.4 },
+    fish: { karas: 5, krasnopirka: 3, plitka: 3, yorzh: 2, lyn: 1.5, korop: 0.4, verkhovodka: 3, rotan: 2 },
   },
   {
     id: "lake", snagChance: 0.025, kind: "lake", water: "#3f7f86",
     traits: { type: "lake", depth: "medium", bottom: "sandWeed", current: "none" },
     bigChance: 1 / 60, maxKg: 12, pace: 1,
-    fish: { plitka: 3, okun: 3, lyasch: 2, krasnopirka: 2, lyn: 2, shchuka: 1, korop: 1 },
+    fish: { plitka: 3, okun: 3, lyasch: 2, krasnopirka: 2, lyn: 2, shchuka: 1, korop: 1, verkhovodka: 2, amur: 0.3 },
   },
   {
     id: "castle", snagChance: 0.035, kind: "castle", water: "#34b8b0",
     traits: { type: "lake", depth: "deep", bottom: "stones", current: "none" },
     bigChance: 1 / 45, maxKg: 16, pace: 0.95,
     // Clear, deep and stony: a predator lake.
-    fish: { okun: 4, plitka: 3, shchuka: 2.5, sudak: 1.5, lyasch: 1.5, yorzh: 1 },
+    fish: { okun: 4, plitka: 3, shchuka: 2.5, sudak: 1.5, lyasch: 1.5, yorzh: 1, forel: 2, myn: 0.8 },
   },
   {
     id: "reservoir", snagChance: 0.04, kind: "reservoir", water: "#5f7a6c",
     traits: { type: "reservoir", depth: "deep", bottom: "clayLogs", current: "weak" },
     bigChance: 1 / 30, maxKg: 40, pace: 0.9,
-    fish: { lyasch: 3, sudak: 2, shchuka: 2, korop: 2, okun: 2, som: 0.8 },
+    fish: { lyasch: 3, sudak: 2, shchuka: 2, korop: 2, okun: 2, som: 0.8, bychok: 2.5, yaz: 1.5, zherekh: 1.2, amur: 0.4, tovstolob: 0.5 },
   },
   {
     id: "bridge", snagChance: 0.06, kind: "bridge", water: "#2f6a7a",
     traits: { type: "river", depth: "deep", bottom: "logsEddies", current: "strong" },
-    bigChance: 1 / 20, maxKg: 60, pace: 0.8,
-    fish: { som: 3, sudak: 2, lyasch: 2, okun: 1.5, plitka: 1.5, korop: 1, shchuka: 1 },
+    bigChance: 1 / 20, maxKg: 60, pace: 0.95,
+    fish: { som: 3, sudak: 2, lyasch: 2, okun: 1.5, plitka: 1.5, korop: 1, shchuka: 1, verkhovodka: 1.5, yaz: 2, zherekh: 1.5, myn: 1, sterliad: 0.15 },
   },
 ];
 
@@ -255,6 +291,8 @@ export const START_STATE = {
   trophies: [],
   // Fish kept alive in the keepnet until you leave the water: sold together, or some kept as trophies.
   keepnet: [],
+  // Protected fish let go, by species: each is a badge on the trophy wall.
+  released: {},
   caught: 0,
   location: 0,
 };
@@ -264,7 +302,8 @@ export const START_STATE = {
  * (a 40 kg catfish is worth a lot, but not forty crucians' worth per kilo).
  */
 export function fishPrice(fish) {
-  if (FISH[fish.species].unique) return 0;
+  // A one-of-a-kind or a protected fish isn't for sale.
+  if (FISH[fish.species].unique || FISH[fish.species].protected) return 0;
   return Math.round(fish.weight ** 0.88 * FISH[fish.species].pricePerKg + 2);
 }
 
@@ -305,9 +344,13 @@ function candidates(baitId, locationIndex, hour) {
   const location = LOCATIONS[locationIndex] ?? LOCATIONS[0];
   return Object.entries(location.fish)
     .map(([id, weight]) => {
-      // Pike and zander hunt moving prey: a float bait hardly ever tempts them.
+      // Pike, zander and asp hunt moving prey: a float bait hardly ever tempts them.
       const lureFish = FISH[id].lure && !bait.lure ? FLOAT_PREDATOR : 1;
-      return [id, weight * lureFish * (bait.species[id] ?? bait.others ?? 0.08), activity(id, hour)];
+      // A seasonal fish (the burbot) only bites in its season.
+      const inSeason = FISH[id].season !== "autumn" || isAutumn() ? 1 : 0;
+      // A greedy fish (the rotan) takes anything, even a lure.
+      const taste = bait.species[id] ?? (FISH[id].greedy ? 1.5 : bait.others ?? 0.08);
+      return [id, weight * lureFish * inSeason * taste, activity(id, hour)];
     })
     .filter(([, weight]) => weight > 0);
 }
@@ -338,7 +381,10 @@ export function rollFish(baitId, locationIndex, random = Math.random, reach = 0.
   if (!entries.length) return null;
   // The two jokes: one in 25,000 bites each, anywhere, on anything.
   const joke = random();
-  const unique = joke < VALERKA_CHANCE ? "valerka" : joke < VALERKA_CHANCE + ARTEM_CHANCE ? "artem" : null;
+  const unique = joke < VALERKA_CHANCE ? "valerka"
+    : joke < VALERKA_CHANCE + ARTEM_CHANCE ? "artem"
+    : location.id === "reservoir" && joke < VALERKA_CHANCE + ARTEM_CHANCE + TWO_HEADED_CHANCE ? "dvoholovyi"
+    : null;
   if (unique) {
     const { min, max } = FISH[unique];
     return { species: unique, weight: Math.round((min + random() * (max - min)) * 1000) / 1000, big: false, unique: true };
@@ -396,6 +442,8 @@ export function handbookEntries() {
       times: activePeriods(id),
       style: biteStyle(id),
       pricePerKg: fish.pricePerKg,
+      protected: Boolean(fish.protected),
+      season: fish.season ?? null,
       range: `${formatWeight(fish.min)} – ${formatWeight(fish.max)}`,
     };
   });

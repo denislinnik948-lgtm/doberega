@@ -45,6 +45,10 @@ const STRINGS = {
     "catch.ok": "OK",
     "catch.toKeepnet": "Into the keepnet · worth about {price}",
     "catch.toTrophies": "One of a kind: it goes straight to your trophies",
+    "catch.protected": "In the Red Book: we let it go. It counts towards your badge in Trophies",
+    "trophies.released": "Let go: {fish} ×{count}",
+    "handbook.protected": "Weight: {range} · Red Book: let go only, for a badge",
+    "handbook.autumnOnly": "bites only in autumn, at night",
     "catch.junk": "Not much use: thrown back on the bank",
     "keepnet.title": "Keepnet",
     "keepnet.empty": "The keepnet is empty",
@@ -224,6 +228,8 @@ const STRINGS = {
       fish: {
         yorzh: "Ruffe", plitka: "Roach", krasnopirka: "Rudd", karas: "Crucian carp", okun: "Perch", lyn: "Tench",
         lyasch: "Bream", korop: "Carp", shchuka: "Pike", sudak: "Zander", som: "Catfish", valerka: "Valerka", artem: "Artem", boot: "Old boot",
+        verkhovodka: "Bleak", rotan: "Rotan", bychok: "Goby", yaz: "Ide", zherekh: "Asp", forel: "Trout", myn: "Burbot",
+        amur: "Grass carp", tovstolob: "Silver carp", sterliad: "Sterlet", dvoholovyi: "Two-headed perch",
       },
       bait: {
         bread: "Bread", dough: "Dough", worm: "Worm", maggot: "Maggot", bloodworm: "Bloodworm", barley: "Pearl barley",
@@ -279,9 +285,10 @@ const STRINGS = {
       ["Float", "A plain float is barely visible at night. A glowing float lights up as dusk falls and shines all night; by day it is an ordinary float."],
       ["Gear", "A landing net calms fish near the bank, braided line tightens more slowly, and a fish finder helps fish find the bait sooner."],
       ["Keepnet", "Every fish you land goes into the keepnet; the chip at the bottom left shows how many. When you leave the water, the keepnet comes up: sell everything in one go, keep any fish as a trophy, or let it go. Fish left in it wait for next time."],
+      ["Red Book", "The sterlet is protected: it bites rarely by the old bridge, can't be sold and is let go at once. Every one you let go counts towards a badge, shown above your trophies."],
       ["Trophies", "In the keepnet, any fish can be kept as a trophy instead of sold (a trophy costs a little to mount). Signed-in anglers' trophies are on show to everyone in Trophies → Other anglers."],
       ["Night", "Deep in the night strange things happen on the water: pale lights drift over the far shore, a boat with a lantern and no oars drifts past, a ghostly angler casts once and dissolves, a pale girl walks into the water, a lantern wanders along the far bank and goes out, eyes surface by the bank. None of it harms the catch."],
-      ["Season", "In Settings you can pick summer or autumn, or leave it on auto: autumn comes with the calendar, from September to November. It only changes the look: the woods and the grass, not the fish."],
+      ["Season", "In Settings you can pick summer or autumn, or leave it on auto: autumn comes with the calendar, from September to November. Mostly it changes the look, the woods and the grass, but one fish follows it: the burbot bites only on autumn nights."],
       ["Account", "Without an account, progress lives only in this browser and can be lost. Sign in from the main menu to keep it safe and play on any device; set a nickname in the account window so others see it instead of your email."],
     ],
 
@@ -324,6 +331,10 @@ const STRINGS = {
     "catch.ok": "Ок",
     "catch.toKeepnet": "У садок · коштує близько {price}",
     "catch.toTrophies": "Такий один на світі: одразу йде в трофеї",
+    "catch.protected": "У Червоній книзі: відпускаємо. Це зараховується до значка в трофеях",
+    "trophies.released": "Відпущено: {fish} ×{count}",
+    "handbook.protected": "Вага: {range} · Червона книга: лише відпустити, за значок",
+    "handbook.autumnOnly": "клює лише восени, вночі",
     "catch.junk": "Нікуди не годиться: лишаємо на березі",
     "keepnet.title": "Садок",
     "keepnet.empty": "Садок порожній",
@@ -503,6 +514,8 @@ const STRINGS = {
       fish: {
         yorzh: "Йорж", plitka: "Плітка", krasnopirka: "Краснопірка", karas: "Карась", okun: "Окунь", lyn: "Лин",
         lyasch: "Лящ", korop: "Короп", shchuka: "Щука", sudak: "Судак", som: "Сом", valerka: "Валерка", artem: "Артем", boot: "Старий чобіт",
+        verkhovodka: "Верховодка", rotan: "Ротан", bychok: "Бичок", yaz: "Язь", zherekh: "Жерех", forel: "Форель", myn: "Минь",
+        amur: "Білий амур", tovstolob: "Товстолоб", sterliad: "Стерлядь", dvoholovyi: "Двоголовий окунь",
       },
       bait: {
         bread: "Хліб", dough: "Тісто", worm: "Черв'як", maggot: "Опариш", bloodworm: "Мотиль", barley: "Перловка",
@@ -558,9 +571,10 @@ const STRINGS = {
       ["Поплавок", "Звичайний поплавок вночі майже не видно. Світний поплавок розгоряється в сутінках і світить усю ніч, а вдень це звичайний поплавок."],
       ["Спорядження", "Підсак заспокоює рибу біля берега, плетена волосінь повільніше натягується, ехолот допомагає рибі швидше знайти наживку."],
       ["Садок", "Уся витягнута риба йде в садок; скільки її там, видно внизу ліворуч. Коли йдеш із водойми, відкривається садок: можна продати все разом, будь-яку рибу зберегти як трофей або відпустити. Риба, що лишилася в садку, дочекається наступного разу."],
+      ["Червона книга", "Стерлядь під охороною: зрідка клює біля старого мосту, продати її не можна, тож її одразу відпускають. Кожна відпущена зараховується до значка над твоїми трофеями."],
       ["Трофеї", "У садку будь-яку рибу можна не продати, а зберегти як трофей (опудало трохи коштує). Трофеї гравців з акаунтом видно всім у «Трофеї → Інших гравців»."],
       ["Ніч", "Глибокої ночі на воді діється дивне: над тим берегом пливуть бліді вогники, повз пропливає човен без весел із ліхтарем, рибалка-привид робить один закид і розчиняється, біла дівчина заходить у воду й зникає, уздовж того берега блукає ліхтар і гасне, біля берега спливають очі. На улов це не впливає."],
-      ["Сезон", "У налаштуваннях можна обрати літо чи осінь або лишити «Авто»: осінь приходить за календарем, з вересня по листопад. Сезон змінює лише вигляд, тобто ліс і траву, а не рибу."],
+      ["Сезон", "У налаштуваннях можна обрати літо чи осінь або лишити «Авто»: осінь приходить за календарем, з вересня по листопад. Здебільшого сезон змінює вигляд, ліс і траву, але одна риба йому підвладна: минь клює лише осінніми ночами."],
       ["Акаунт", "Без акаунта прогрес живе лише в цьому браузері й може загубитися. Увійдіть із головного меню, щоб зберегти його й грати з будь-якого пристрою; у вікні акаунта вкажіть нікнейм, тоді інші бачитимуть його замість пошти."],
     ],
 

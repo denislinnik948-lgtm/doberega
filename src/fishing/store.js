@@ -49,6 +49,9 @@ export function normalizeProgress(saved) {
     // Every trophy needs a stable id so it is published to the cloud only once.
     if (Array.isArray(saved.trophies)) state.trophies = saved.trophies.map((trophy) => ({ ...trophy, id: trophy.id ?? `${trophy.date}-${trophy.species}-${trophy.weight}` }));
     if (Number.isFinite(saved.caught)) state.caught = saved.caught;
+    if (saved.released && typeof saved.released === "object") {
+      state.released = Object.fromEntries(Object.entries(saved.released).filter(([id, count]) => FISH[id]?.protected && Number.isFinite(count) && count > 0));
+    }
     // The keepnet: ordinary fish only (one-of-a-kind ones go straight to the trophies).
     if (Array.isArray(saved.keepnet)) {
       state.keepnet = saved.keepnet.filter((fish) => fish && FISH[fish.species] && !FISH[fish.species].unique && !FISH[fish.species].junk && Number.isFinite(fish.weight) && fish.weight > 0);

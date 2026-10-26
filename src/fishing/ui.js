@@ -683,11 +683,14 @@ export class AnglerUI {
     $("#catch-weight").textContent = formatWeight(fish.weight);
     const unique = Boolean(fish.unique);
     const junk = Boolean(FISH[fish.species]?.junk);
+    // A Red Book fish (the sterlet) is let go at once; that counts towards its badge.
+    const guarded = Boolean(FISH[fish.species]?.protected);
     $("#catch-note").hidden = false;
-    $("#catch-note").textContent = unique ? t("catch.toTrophies") : junk ? t("catch.junk") : t("catch.toKeepnet", { price: formatMoney(fishPrice(fish)) });
+    $("#catch-note").textContent = unique ? t("catch.toTrophies") : junk ? t("catch.junk") : guarded ? t("catch.protected") : t("catch.toKeepnet", { price: formatMoney(fishPrice(fish)) });
     const date = new Date().toISOString();
     const record = { ...fish, id: `${date}-${fish.species}-${fish.weight}`, date, spot: progress.location, bait };
     if (unique) progress.trophies.unshift(record);
+    else if (guarded) progress.released[fish.species] = (progress.released[fish.species] ?? 0) + 1;
     else if (!junk) progress.keepnet.push(record);
     this.commit();
 
@@ -1051,7 +1054,10 @@ export class AnglerUI {
     let pages;
     if (id === "fish") {
       // Small fish are drawn bigger so all of them read at a glance.
-      pages = handbookEntries().map((entry, index) => page(fishSprite(entry.id, FISH[entry.id].max < 4 ? 3 : 2), nameOf("fish", entry.id), t("handbook.weight", { range: entry.range, price: entry.pricePerKg }), [
+      pages = handbookEntries().map((entry, index) => page(fishSprite(entry.id, FISH[entry.id].max < 4 ? 3 : 2), nameOf("fish", entry.id), [
+        entry.protected ? t("handbook.protected", { range: entry.range }) : t("handbook.weight", { range: entry.range, price: entry.pricePerKg }),
+        entry.season === "autumn" ? t("handbook.autumnOnly") : "",
+      ].filter(Boolean).join(" · "), [
         [t("handbook.livesIn"), entry.spots.map((spot) => t("handbook.spotIn", { spot: nameOf("location", spot.id), abundance: nameOf("abundance", spot.abundance), kg: formatWeight(spot.maxKg) }))],
         [t("handbook.bitesOn"), lower(list(entry.baits.map((bait) => nameOf("bait", bait))))],
         [t("handbook.activeAt"), entry.times.map(periodName).join(", ")],
@@ -1103,9 +1109,14 @@ export class AnglerUI {
       tab.classList.toggle("is-active", active);
       tab.setAttribute("aria-selected", String(active));
     }
+    // Badges for protected fish let go, above the player's own wall.
+    const badges = $("#trophy-badges");
+    const released = Object.entries(this.progress.released ?? {});
+    badges.hidden = id !== "mine" || !released.length;
+    badges.textContent = released.map(([species, count]) => t("trophies.released", { fish: nameOf("fish", species), count })).join(" · ");
     if (id === "mine") {
       const { trophies } = this.progress;
-      this.fillTrophyWall(trophies, trophies.length ? "" : t("trophies.empty"));
+      this.fillTrophyWall(trophies, trophies.length || released.length ? "" : t("trophies.empty"));
       return;
     }
     const cloud = this.cloud;

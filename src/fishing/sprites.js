@@ -146,6 +146,56 @@ export const FISH_LOOKS = {
     len: 20, h: 8, peak: 0.6, back: "#46462c", side: "#96965e", belly: "#dedac0", fin: "#7a7a5a", lowFin: "#8a8a66", tailFin: "#7a7a5a", eye: "#9cb6d0",
     dorsal: [[0.28, 0.8, 4, "spiny"]], anal: [0.18, 0.3, 2], tail: "fork", pattern: "speckle", finDots: "#2e2e1e", bigEye: true,
   },
+  // Bleak: a small slim silver surface fish, mouth turned up.
+  verkhovodka: {
+    len: 22, h: 5, peak: 0.5, back: "#6a8a6a", side: "#dfe6dc", belly: "#f4f6f0", fin: "#b8c0a8", lowFin: "#d0d4c0", tailFin: "#9aa888", eye: "#ece6d4",
+    dorsal: [[0.34, 0.44, 2]], anal: [0.18, 0.34, 2], tail: "fork", mouthUp: true, stem: 0.38,
+  },
+  // Rotan: dark and mottled, a big head and rounded fins.
+  rotan: {
+    len: 22, h: 9, peak: 0.6, back: "#2a2a1c", side: "#5a5434", belly: "#a89c70", fin: "#3a3626", lowFin: "#4a4430", tailFin: "#3a3626", eye: "#d8b040",
+    dorsal: [[0.3, 0.48, 3, "round"], [0.52, 0.66, 3, "round"]], anal: [0.2, 0.34, 3, "round"], tail: "round", pattern: "mottle", broadHead: true, head: 0.9,
+  },
+  // Goby: sandy and mottled, a big head and big eyes.
+  bychok: {
+    len: 20, h: 8, peak: 0.7, back: "#4a3a24", side: "#9c8456", belly: "#dccca0", fin: "#6a5634", lowFin: "#8a7448", tailFin: "#6a5634", eye: "#e0c060",
+    dorsal: [[0.3, 0.48, 3], [0.54, 0.68, 3, "spiny"]], anal: [0.2, 0.36, 2], tail: "round", pattern: "mottle", broadHead: true, bigEye: true,
+  },
+  // Ide: silver going gold, with reddish lower fins.
+  yaz: {
+    len: 34, h: 12, peak: 0.55, back: "#3a4434", side: "#c0b07a", belly: "#ece4c8", fin: "#5a5a46", lowFin: "#c05a3a", tailFin: "#9a5a40", eye: "#e8d080",
+    dorsal: [[0.44, 0.58, 4]], anal: [0.2, 0.32, 3], tail: "fork", pattern: "scales",
+  },
+  // Asp: long and silver, a dark back and a big pointed mouth.
+  zherekh: {
+    len: 52, h: 11, peak: 0.6, back: "#1c2a3a", side: "#9eb0c0", belly: "#e8eef0", fin: "#3a4a5a", lowFin: "#c87a5a", tailFin: "#3a4a5a", eye: "#f0e8c8",
+    dorsal: [[0.5, 0.62, 5]], anal: [0.14, 0.34, 3], tail: "fork", snout: "point", bigEye: true,
+  },
+  // Trout: an olive back, a pinkish flank and dark spots.
+  forel: {
+    len: 34, h: 10, peak: 0.5, back: "#3c4a2a", side: "#c49a8a", belly: "#ecdcc8", fin: "#7a7458", lowFin: "#d0a080", tailFin: "#6a6448", eye: "#e8d0a0",
+    dorsal: [[0.44, 0.58, 4]], anal: [0.2, 0.3, 3], tail: "square", pattern: "spots", spotColor: "#2a2418",
+  },
+  // Burbot: long and mottled brown, one barbel, long low fins.
+  myn: {
+    len: 44, h: 9, peak: 0.7, back: "#2e2a18", side: "#6a5e36", belly: "#c8bc90", fin: "#4a4228", lowFin: "#5a5030", tailFin: "#4a4228", eye: "#c8b070",
+    dorsal: [[0.12, 0.46, 3, "long"], [0.5, 0.62, 3]], anal: [0.08, 0.46, 3, "long"], tail: "round", pattern: "mottle", broadHead: true, barbels: 1, flat: true,
+  },
+  // Grass carp: long, olive-gold, big scales.
+  amur: {
+    len: 48, h: 13, peak: 0.55, back: "#3a4228", side: "#a8a060", belly: "#e0dcb0", fin: "#5a5a3a", lowFin: "#7a7448", tailFin: "#5a5a3a", eye: "#e0d090",
+    dorsal: [[0.46, 0.6, 4]], anal: [0.16, 0.28, 3], tail: "fork", pattern: "scales", stem: 0.42,
+  },
+  // Silver carp: a deep silver body and a big head.
+  tovstolob: {
+    len: 46, h: 22, peak: 0.6, back: "#5a5236", side: "#c8c0a0", belly: "#f0ece0", fin: "#7a7458", lowFin: "#a89c78", tailFin: "#6a6448", eye: "#e8e0c4",
+    dorsal: [[0.46, 0.56, 4]], anal: [0.12, 0.3, 3, "long"], tail: "deep", head: 1.6, stem: 0.3, pattern: "scales",
+  },
+  // Sterlet: long, slim and grey, a pointed snout with barbels, a deep tail.
+  sterliad: {
+    len: 46, h: 8, peak: 0.45, back: "#3e4446", side: "#8c9496", belly: "#e0dcc8", fin: "#5a6264", lowFin: "#7a8284", tailFin: "#5a6264", eye: "#d8d4c0",
+    dorsal: [[0.18, 0.28, 3]], anal: [0.16, 0.24, 2], tail: "deep", snout: "point", barbels: 2, pattern: "speckle", flat: true,
+  },
   // Valerka: a clownfish. Orange, three black-edged white bands, rounded fins edged in black.
   valerka: {
     len: 26, h: 14, peak: 0.5, back: "#d8601a", side: "#f07a20", belly: "#f8a040", fin: "#f07a20", lowFin: "#f07a20", tailFin: "#f07a20", eye: "#f08a2a",
@@ -329,6 +379,33 @@ function bootGrid() {
   ], { o: P.ink, B: "#6a7862", b: "#93a284", S: "#45463c", g: "#8fc06a" });
 }
 
+/**
+ * The two-headed perch: the perch's own portrait with a second head growing
+ * up out of its shoulders.
+ */
+function twoHeadedGrid(scale, label) {
+  const look = FISH_LOOKS.okun;
+  const portrait = fishPortrait(look);
+  const lift = Math.round(portrait.height * 0.36);
+  const grid = new Grid(portrait.width, portrait.height + lift);
+  const from = Math.round(portrait.width * 0.6);
+  // The second head first, up and a little back, then the fish over it.
+  for (let y = 0; y < portrait.height; y += 1) {
+    for (let x = from; x < portrait.width; x += 1) {
+      const cell = portrait.cells[y * portrait.width + x];
+      if (cell) grid.set(x - 3, y, cell);
+    }
+  }
+  for (let y = 0; y < portrait.height; y += 1) {
+    for (let x = 0; x < portrait.width; x += 1) {
+      const cell = portrait.cells[y * portrait.width + x];
+      if (cell) grid.set(x, y + lift, cell);
+    }
+  }
+  const shownWidth = (look.len + 5) * scale * 1.15;
+  return grid.toCanvas(shownWidth / portrait.width, label);
+}
+
 /** Artem: a bright red crayfish in black sunglasses, claws up, feelers out. */
 function artemGrid() {
   return fromRows([
@@ -358,6 +435,7 @@ function artemGrid() {
 export function fishSprite(species, scale = 4, label = "") {
   if (species === "boot") return bootGrid().toCanvas(scale, label);
   if (species === "artem") return artemGrid().toCanvas(scale * 1.2, label);
+  if (species === "dvoholovyi") return twoHeadedGrid(scale, label);
   const look = FISH_LOOKS[species];
   const portrait = fishPortrait(look);
   const grid = new Grid(portrait.width, portrait.height);

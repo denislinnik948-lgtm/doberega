@@ -498,6 +498,8 @@ html.keyboard-open .sheet[open] > .account-body {
 .trophy .caption small + small { display: block; }
 .trophy-player { display: block; color: var(--bone); font-size: 19px; }
 .trophy-hint { margin-top: 0; font-size: 18px; }
+.trophy-badges { margin: 0; color: var(--gold); font-size: 20px; text-align: center; }
+.trophy-badges[hidden] { display: none; }
 .trophy-hint[hidden], #trophy-empty[hidden] { display: none; }
 .empty-note { margin: 0; color: var(--light); font-size: 22px; text-align: center; }
 .empty-note[hidden] { display: none; }
