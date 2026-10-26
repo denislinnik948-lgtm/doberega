@@ -10,18 +10,20 @@ export function createReeds(width, height, frame = { left: 0, width }) {
   const left = frame.left;
   width = frame.width;
   const reeds = [];
-  const { reeds: density = 1 } = activeScene().foreground;
+  const { reeds: density = 1, oak } = activeScene().foreground;
   const perSide = Math.round(Math.max(10, Math.min(30, width / 46)) * density);
 
   for (const side of [-1, 1]) {
-    for (let i = 0; i < perSide; i += 1) {
+    // Where the oak stands on the left there are no reeds, only grass about its roots.
+    const underOak = oak && side < 0;
+    for (let i = 0; i < (underOak ? Math.round(perSide * 0.3) : perSide); i += 1) {
       const seed = 7000 + (side + 1) * 500 + i;
       // Most stalks crowd the screen edge; a few stray toward the open water.
-      const reach = hash01(seed * 3) ** 1.7 * 0.24;
+      const reach = hash01(seed * 3) ** 1.7 * (underOak ? 0.14 : 0.24);
       const baseX = left + (side < 0 ? width * (reach - 0.015) : width * (1.015 - reach));
       const edgeBoost = 1 - reach / 0.24;
       const kindRoll = hash01(seed * 5);
-      const kind = kindRoll < 0.24 ? "cattail" : kindRoll < 0.4 ? "grass" : "blade";
+      const kind = underOak ? "grass" : kindRoll < 0.24 ? "cattail" : kindRoll < 0.4 ? "grass" : "blade";
       const length = height * (kind === "grass" ? 0.06 + hash01(seed * 7) * 0.08 : 0.13 + hash01(seed * 7) * 0.2 + edgeBoost * 0.1);
 
       reeds.push({

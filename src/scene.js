@@ -26,7 +26,8 @@ export const SCENES = {
   /**
    * Village pond in open farmland: a low, flat far bank of meadows and a
    * ploughed strip, scattered groups of trees, a few small houses far off, a
-   * line of reeds along the far edge, and thick reeds framing the near water.
+   * line of reeds along the far edge, thick reeds framing the near water on
+   * the right, and a big old oak on our bank at the left, dropping leaves.
    */
   pond: {
     horizon: 0.44,
@@ -47,7 +48,7 @@ export const SCENES = {
     water: {},
     // We stand on a low grassy bank that rises into mounds at the corners.
     nearBank: 0.075,
-    foreground: { reeds: 2.2, rock: false, lilyPads: 0 },
+    foreground: { reeds: 2.2, rock: false, lilyPads: 0, oak: true },
   },
   /** Quiet lake: an old, tall conifer forest, pines and spruces, stands along the far shore. */
   lake: {

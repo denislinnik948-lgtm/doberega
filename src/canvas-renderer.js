@@ -2,7 +2,7 @@ import { sampleWater } from "./water-engine.js";
 import { createForestGlyphs } from "./forest-engine.js";
 import { activeScene, bankWidths, isOpenWater, nearBankY, setScene, shorelineY, sunPosition, view, wreckShape } from "./scene.js";
 import { skyAt, toHex, toInt } from "./daycycle.js";
-import { clamp, hash2, hexToInt, mixColor } from "./noise.js";
+import { clamp, hash01, hash2, hexToInt, mixColor } from "./noise.js";
 import { createBankGlyphs, createRidgeGlyphs, createShoreGlyphs, createStructures, ridgeTop } from "./landscape-engine.js";
 import { birdsAt, createSkyCells, discOffsets, lightSky, pushDisc, sampleSky, setCloudColors, setCloudiness } from "./sky-engine.js";
 import { createLilyPads, createReeds, createRocks, rockGlyphs } from "./foreground-engine.js";
@@ -320,6 +320,7 @@ export class CanvasWaterRenderer {
     this.rockImages = this.rocks.map((rock) => this.createRockImage(rock));
     this.bridgeImage = scene.foreground.bridge ? this.createBridgeImage(scene.foreground.bridge) : null;
     this.signImage = scene.foreground.sign ? this.createSignImage(scene.foreground.sign) : null;
+    this.oak = scene.foreground.oak ? this.createOak() : null;
     this.skyTime = null;
   }
 
@@ -922,6 +923,232 @@ export class CanvasWaterRenderer {
     ctx.fillStyle = "#3a2a1a";
     ctx.fillText("o", 0, apex + lineHeight * 0.3);
     return { image, left, top, width, height: imageHeight };
+  }
+
+  /**
+   * A big old oak on our own bank at the left, close up: the trunk rising from
+   * the bottom corner, a heavy limb reaching out over the water and the crown
+   * filling the top-left corner (cut off by the edges, it's that near). Drawn
+   * once per layout like the rocks: a dark backing under ASCII bark and
+   * leaves, lit from the sun's side. In autumn the crown turns rust and gold.
+   * Returns the image and the crown cells leaves can fall from.
+   */
+  createOak() {
+    const { height, pixelRatio } = this;
+    const { left: frameLeft, width: frameWidth } = this.frame;
+    const size = Math.min(frameWidth * 1.05, height * 1.25);
+    // On a tall phone screen the tree is laid out taller than it is wide, so
+    // the crown still comes down toward the water instead of perching at the top.
+    const tall = Math.max(size, height * 0.95);
+    const autumn = isAutumn();
+    // It stands close, so its glyphs are larger than the far landscape's.
+    const glyphSize = Math.round(this.reedSize * 0.72);
+    const cellWidth = glyphSize * 0.62;
+    const lineHeight = glyphSize * 0.9;
+    const at = (fx, fy) => ({ x: frameLeft + fx * size, y: fy * tall });
+    const stretch = (size + tall) / 2 / size;
+    // The crown's outline: overlapping masses (centre and radius, in `size` units).
+    const masses = [
+      [0.0, 0.02, 0.17], [0.15, -0.01, 0.14], [0.27, 0.06, 0.1], [0.07, 0.15, 0.12],
+      [0.2, 0.15, 0.085], [0.31, 0.19, 0.06], [-0.02, 0.26, 0.09], [0.12, 0.25, 0.055], [0.24, 0.25, 0.04],
+    ].map(([fx, fy, r]) => ({ ...at(fx, fy), r: r * size, ry: r * size * stretch }));
+    // Each mass is lumpy round its rim, not a clean circle.
+    const envelope = (x, y) => Math.max(...masses.map((mass, i) => {
+      const angle = Math.atan2(y - mass.y, x - mass.x);
+      const r = mass.r * (1 + 0.13 * Math.sin(angle * 5 + i * 1.7) + 0.07 * Math.sin(angle * 11 + i * 3.1));
+      return 1 - Math.hypot(x - mass.x, ((y - mass.y) * mass.r) / mass.ry) / r;
+    }));
+    // Inside it, many smaller clusters of leaves, each lit on its upper right
+    // and shaded below, so the crown reads as heaped foliage, not a flat blob.
+    const clusters = [];
+    for (let i = 0; clusters.length < 80 && i < 1200; i += 1) {
+      const x = frameLeft + (hash01(i * 7 + 1) * 0.6 - 0.2) * size;
+      const y = (hash01(i * 11 + 3) * 0.42 - 0.12) * tall;
+      if (envelope(x, y) < 0.12) continue;
+      clusters.push({ x, y, r: (0.035 + hash01(i * 13 + 5) * 0.04) * size });
+    }
+    const right = Math.max(...masses.map((mass) => mass.x + mass.r)) + cellWidth * 3;
+    const left = frameLeft;
+    const top = 0;
+    const width = Math.ceil(right - left);
+    const image = document.createElement("canvas");
+    image.width = Math.max(1, Math.round(width * pixelRatio));
+    image.height = Math.max(1, Math.round(height * pixelRatio));
+    const ctx = image.getContext("2d");
+    ctx.setTransform(pixelRatio, 0, 0, pixelRatio, -left * pixelRatio, -top * pixelRatio);
+    ctx.font = `600 ${glyphSize}px ${MONO_FONT}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    // Trunk and limbs: tapering bands along gentle curves, from the root up.
+    const curve = (from, bend, to) => (t) => ({
+      x: (1 - t) ** 2 * from.x + 2 * (1 - t) * t * bend.x + t * t * to.x,
+      y: (1 - t) ** 2 * from.y + 2 * (1 - t) * t * bend.y + t * t * to.y,
+    });
+    const limbs = [];
+    const limb = (from, bend, to, w0, w1) => {
+      const point = curve(from, bend, to);
+      const steps = Math.max(8, Math.ceil(Math.hypot(to.x - from.x, to.y - from.y) / (lineHeight * 0.4)));
+      ctx.fillStyle = "#140d08";
+      for (let i = 0; i <= steps; i += 1) {
+        const t = i / steps;
+        const p = point(t);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, ((w0 + (w1 - w0) * t) * size) / 2 + 1, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      limbs.push({ point, w0, w1, steps });
+    };
+    const base = { x: frameLeft + 0.045 * size, y: height + lineHeight * 2 };
+    const fork = at(0.075, 0.3);
+    // Roots flaring into the bank, then the trunk.
+    limb({ x: base.x - 0.09 * size, y: height + lineHeight }, { x: base.x - 0.03 * size, y: height - lineHeight }, { x: base.x, y: height - 0.08 * size }, 0.03, 0.06);
+    limb({ x: base.x + 0.1 * size, y: height + lineHeight }, { x: base.x + 0.04 * size, y: height - lineHeight * 0.5 }, { x: base.x + 0.01 * size, y: height - 0.07 * size }, 0.025, 0.06);
+    limb(base, { x: frameLeft + 0.015 * size, y: (base.y + fork.y) * 0.55 }, fork, 0.12, 0.065);
+    // The long limb over the water, curving up at its end, and the boughs into the crown.
+    const reach = at(0.07, 0.37);
+    limb(reach, at(0.19, 0.38), at(0.31, 0.22), 0.04, 0.012);
+    limb(at(0.15, 0.36), at(0.2, 0.31), at(0.22, 0.26), 0.014, 0.006);
+    limb(at(0.25, 0.3), at(0.27, 0.32), at(0.25, 0.27), 0.01, 0.005);
+    limb(fork, at(0.14, 0.2), at(0.17, 0.04), 0.042, 0.015);
+    limb(fork, at(0.02, 0.17), at(-0.02, 0.05), 0.048, 0.02);
+    limb(at(0.11, 0.2), at(0.2, 0.15), at(0.26, 0.08), 0.02, 0.008);
+    // Bark over the dark limbs: furrowed, lit on the sun's side (the right), with a knot or two.
+    const bark = new Set();
+    for (const { point, w0, w1, steps } of limbs) {
+      for (let i = 0; i <= steps; i += 1) {
+        const t = i / steps;
+        const p = point(t);
+        const half = ((w0 + (w1 - w0) * t) * size) / 2;
+        const row = Math.round(p.y / lineHeight);
+        for (let column = Math.round((p.x - half) / cellWidth); column <= Math.round((p.x + half) / cellWidth); column += 1) {
+          const key = column * 8192 + row;
+          if (bark.has(key)) continue;
+          bark.add(key);
+          const across = half > cellWidth * 0.7 ? (column * cellWidth - p.x) / half : 0.4;
+          const noise = hash2(column, row, 2201);
+          const knot = half > cellWidth * 3 && noise > 0.965;
+          const glyph = knot ? "@" : Math.abs(across) > 0.8 ? (across < 0 ? "(" : ")") : "||!|:{}|"[Math.floor(noise * 8)];
+          ctx.fillStyle = knot ? "#2a1e14" : across > 0.25 ? (noise > 0.5 ? "#8e7656" : "#75603f") : across < -0.35 ? "#33271b" : noise > 0.55 ? "#5c4a35" : "#4a3b2a";
+          ctx.fillText(glyph, column * cellWidth, row * lineHeight + lineHeight / 2);
+        }
+      }
+    }
+
+    // The crown, cell by cell. Leaf clusters on top; where none reaches, the
+    // deep shade inside the crown; a fringe of loose leaves round the edge.
+    const summer = { deep: "#102016", shadow: "#1d3622", middle: "#31552f", light: "#62853d", glint: "#a3b058" };
+    const fall = { deep: "#2a130a", shadow: "#55240f", middle: "#8c4218", light: "#c4762a", glint: "#e4b84a" };
+    const palette = autumn ? fall : summer;
+    const crown = [];
+    const bottom = Math.max(...masses.map((mass) => mass.y + mass.ry));
+    for (let row = 0; row * lineHeight < bottom + lineHeight; row += 1) {
+      const y = row * lineHeight + lineHeight / 2;
+      for (let column = Math.floor(left / cellWidth); column * cellWidth < right; column += 1) {
+        const x = column * cellWidth;
+        const noise = hash2(column, row, 2203);
+        const fill = envelope(x, y) + (noise - 0.5) * 0.12;
+        if (fill < -0.06) continue;
+        // The fringe: loose single leaves just outside the crown.
+        if (fill < 0.03) {
+          if (hash2(column, row, 2205) > 0.45) continue;
+          ctx.fillStyle = palette[noise > 0.5 ? "middle" : "shadow"];
+          ctx.fillText(".,'`*"[Math.floor(noise * 5)], x, y);
+          continue;
+        }
+        let best = 0;
+        let lit = 0;
+        for (const cluster of clusters) {
+          const dx = (x - cluster.x) / cluster.r;
+          const dy = (y - cluster.y) / (cluster.r * stretch);
+          const inside = 1 - Math.hypot(dx, dy);
+          if (inside > best) {
+            best = inside;
+            lit = 0.5 + (dx * 0.55 - dy * 0.85) * 0.5;
+          }
+        }
+        // The lower crown and its left side are in its own shadow.
+        const depth = Math.max(0, (y - 0.1 * tall) / tall) * 1.1 + Math.max(0, (frameLeft + 0.05 * size - x) / size) * 0.8;
+        const shade = best > 0 ? lit - depth + (noise - 0.5) * 0.3 : -1;
+        const tone = shade > 0.72 ? "glint" : shade > 0.42 ? "light" : shade > 0.12 ? "middle" : shade > -0.25 ? "shadow" : "deep";
+        // A dark backing hides the sky between the leaves, except at the ragged rim.
+        if (fill > 0.12) {
+          ctx.fillStyle = autumn ? "#170c06" : "#0c140e";
+          ctx.fillRect(x - cellWidth / 2, y - lineHeight / 2, cellWidth + 0.6, lineHeight + 0.6);
+        }
+        // An autumn crown keeps a few patches of green.
+        const green = autumn && hash2(Math.floor(column / 4), Math.floor(row / 3), 2209) < 0.1;
+        ctx.fillStyle = (green ? summer : palette)[tone];
+        ctx.fillText(tone === "deep" ? "%&*;"[Math.floor(noise * 4)] : "&%@#*8&%"[Math.floor(noise * 8)], x, y);
+        if (fill < 0.5 && best > 0) crown.push({ x, y });
+      }
+    }
+    return { image, left, top, width, height, crown, autumn, leaves: [], landings: [], spawn: 0 };
+  }
+
+  /**
+   * Leaves letting go of the oak: they tumble down and sideways on the wind,
+   * settle on the water (where `landings` lets the caller ripple it), float a
+   * while and sink. Now and then in summer, often in autumn.
+   */
+  drawOakLeaves(ctx, time) {
+    const oak = this.oak;
+    const step = Math.min(0.5, Math.max(0, time - (oak.time ?? time)));
+    oak.time = time;
+    const rate = (oak.autumn ? 0.9 : 0.12) * (1 + this.rain);
+    oak.spawn += step * rate;
+    while (oak.spawn >= 1 && oak.crown.length) {
+      oak.spawn -= 1;
+      if (oak.leaves.length > 40) break;
+      const from = oak.crown[Math.floor(Math.random() * oak.crown.length)];
+      const shore = this.shorelineY(from.x);
+      const colors = oak.autumn ? ["#d08a2c", "#c4642a", "#e0b448", "#a0522a", "#b8742a"] : ["#a6ad4c", "#c8b04a", "#7f9a44"];
+      oak.leaves.push({
+        x: from.x,
+        y: from.y,
+        landY: Math.max(from.y + this.lineHeight * 4, shore + (this.height - shore) * (0.08 + Math.random() * 0.85)),
+        fall: this.height * (0.04 + Math.random() * 0.03),
+        drift: this.cellWidth * (1.2 + Math.random() * 2.5),
+        sway: this.cellWidth * (1 + Math.random() * 1.6),
+        phase: Math.random() * Math.PI * 2,
+        spin: 2.2 + Math.random() * 2,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        afloat: 0,
+      });
+    }
+    ctx.font = `700 ${this.reedSize}px ${MONO_FONT}`;
+    const tumble = ["/", "-", "\\", "~"];
+    oak.leaves = oak.leaves.filter((leaf) => {
+      if (!leaf.afloat) {
+        leaf.y += leaf.fall * step;
+        leaf.x += leaf.drift * step;
+        leaf.phase += leaf.spin * step;
+        if (leaf.y >= leaf.landY) {
+          leaf.afloat = time;
+          if (this.isOpenWater(leaf.x, leaf.y)) oak.landings.push({ x: leaf.x, y: leaf.y });
+        }
+      } else {
+        leaf.x += leaf.drift * 0.08 * step;
+      }
+      const age = leaf.afloat ? time - leaf.afloat : 0;
+      // Afloat it lies flat and darkens as it soaks, then sinks.
+      const fade = leaf.afloat ? Math.min(1, Math.max(0, (14 - age) / 6)) : 1;
+      if (fade <= 0) return false;
+      const x = leaf.x + (leaf.afloat ? 0 : Math.sin(leaf.phase) * leaf.sway);
+      ctx.globalAlpha = fade;
+      ctx.fillStyle = leaf.color;
+      ctx.fillText(leaf.afloat ? "~" : tumble[Math.floor(((leaf.phase % (Math.PI * 2)) / (Math.PI * 2)) * 4) % 4], x, leaf.y);
+      return true;
+    });
+    ctx.globalAlpha = 1;
+  }
+
+  /** Where leaves touched the water since the last call (for ripples). */
+  takeLeafLandings() {
+    if (!this.oak?.landings.length) return [];
+    const landed = this.oak.landings;
+    this.oak.landings = [];
+    return landed;
   }
 
   /** The wooden railing of the bridge we fish from, pre-rendered once per layout. */
@@ -1568,6 +1795,12 @@ export class CanvasWaterRenderer {
     }
 
     if (sign) drawSign();
+
+    // The oak on our bank, in front of the water and the far shore, and its falling leaves.
+    if (this.oak) {
+      ctx.drawImage(this.oak.image, this.oak.left, this.oak.top, this.oak.width, this.oak.height);
+      this.drawOakLeaves(ctx, time);
+    }
 
     // The railing stands between us and the reeds by the far abutments.
     if (this.bridgeImage) ctx.drawImage(this.bridgeImage.image, 0, this.bridgeImage.top, this.width, this.height - this.bridgeImage.top);

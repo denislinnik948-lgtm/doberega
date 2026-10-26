@@ -188,7 +188,7 @@ ui.setCloud(cloud);
 onSeasonChange(() => {
   renderer.lightKey = null;
   renderer.paletteKey = "";
-  resize();
+  resize(true);
 });
 onProgressSaved(() => cloud.schedulePush());
 window.addEventListener("pagehide", () => cloud.flush());
@@ -396,6 +396,11 @@ function maybeJumpFish(elapsed) {
   addRipple({ ...renderer.randomWaterPoint(), time: elapsed, strength: 0.6, size: 0.3 + Math.random() * 0.3, ambient: true });
 }
 
+/** A leaf from the pond's oak settling on the water spreads a faint ring. */
+function rippleLeaves(elapsed) {
+  for (const leaf of renderer.takeLeafLandings()) addRipple({ ...renderer.screenToPlane(leaf.x, leaf.y), time: elapsed, strength: 0.25, size: 0.18, ambient: true });
+}
+
 /**
  * Groundbait wears off at a set moment of real (and so game) time, the same
  * whether the game is open, in the background or closed: 24 game hours after
@@ -473,6 +478,7 @@ const groundbaitLeft = (id) => Math.max(0, ((progress.baited[id] ?? 0) - Date.no
 function renderNow(now = performance.now()) {
   const elapsed = getElapsed(now);
   maybeJumpFish(elapsed);
+  rippleLeaves(elapsed);
   const dt = elapsed - lastElapsed;
   lastElapsed = elapsed;
   const step = Math.max(0, Math.min(dt, 0.1));
