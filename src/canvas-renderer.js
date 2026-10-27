@@ -57,6 +57,7 @@ export class CanvasWaterRenderer {
     // Moving bits of the far landscape (wind in grass, smoke, mist) and lights that blink.
     this.ambientBatches = { ground: new GlyphBatch(), haze: new GlyphBatch(), glow: new GlyphBatch() };
     this.rainBatch = new GlyphBatch();
+    this.boltBatch = new GlyphBatch();
     // Grass blades behind the bank trees, on the bank we stand on, and fireflies.
     this.grassBatches = { far: new GlyphBatch(16384), near: new GlyphBatch(16384), flies: new GlyphBatch() };
     this.ducks = [];
@@ -1918,6 +1919,38 @@ export class CanvasWaterRenderer {
   }
 
   /**
+   * A lightning bolt: a jagged stroke of glyphs from the top of the sky down to
+   * the far treeline, with a branch or two, drawn behind the land.
+   */
+  fillBolt(bolt) {
+    const batch = this.boltBatch;
+    batch.clear();
+    if (!bolt) return;
+    const { cellWidth, lineHeight } = this;
+    const draw = (column, row, rows, seed, branch) => {
+      for (let i = 0; i < rows; i += 1, row += 1) {
+        const y = (row + 0.5) * lineHeight;
+        const ground = this.treeline[Math.max(0, Math.min(this.treeline.length - 1, column))] ?? this.skyBottom;
+        if (y > ground + lineHeight * 0.5) return;
+        const roll = hash2(seed, i, 4401);
+        const shift = roll < 0.38 ? -1 : roll < 0.76 ? 1 : 0;
+        const x = (column + 0.5) * cellWidth;
+        const glyph = shift < 0 ? "/" : shift > 0 ? "\\" : "|";
+        // A doubled stroke reads as a bright line; a faint blue glow either side.
+        if (!branch) {
+          batch.push(x - cellWidth, y, ".", 0x7f96d8);
+          batch.push(x + cellWidth, y, ".", 0x7f96d8);
+          batch.push(x - cellWidth * 0.15, y, glyph, 0xffffff);
+        }
+        batch.push(x + (branch ? 0 : cellWidth * 0.15), y, glyph, branch ? 0xc4d2ff : 0xffffff);
+        column += shift;
+        if (!branch && i > 3 && hash2(seed, i, 4402) < 0.07) draw(column + (shift || 1), row + 1, 4 + Math.floor(hash2(seed, i, 4403) * 6), seed * 7 + i, true);
+      }
+    };
+    draw(Math.round((this.frame.left + bolt.x * this.frame.width) / cellWidth), 0, Math.ceil(this.skyBottom / lineHeight), bolt.seed, false);
+  }
+
+  /**
    * Ducks on the overlay: larger, outlined glyphs so they read clearly over the
    * water texture, with a fading wake behind each.
    */
@@ -1966,7 +1999,7 @@ export class CanvasWaterRenderer {
     this.rain = env.rain ?? 0;
     if (!this.width || !this.height) return;
     const { width, height, cellWidth, lineHeight } = this;
-    const sky = gradeSky(skyAt(dayTime));
+    const sky = gradeSky(skyAt(dayTime, env.moods));
 
     const stale = this.lightKey === null
       || Math.abs(time - this.lightKey.time) >= LIGHT_INTERVAL
@@ -1996,20 +2029,24 @@ export class CanvasWaterRenderer {
     this.grassStale = false;
     this.fillSurface(time, ripples);
     this.fillRain(time, this.rain);
+    this.fillBolt(env.bolt);
     this.ducks = env.ducks ?? [];
     setCloudiness(this.rain);
 
     const backend = this.backend;
-    // Rain dims everything under a heavier sky.
-    const dim = 1 - 0.32 * this.rain;
-    const land = sky.land.map((value) => value * dim);
-    const water = sky.water.map((value) => value * dim);
+    // Rain dims everything under a heavier sky; a lightning flash lights it all up for an instant, bluish.
+    const flash = env.flash ?? 0;
+    const dim = 1 - 0.32 * this.rain - 0.18 * (env.storm ?? 0);
+    const lit = (value, i) => value * dim + flash * (i === 2 ? 0.4 : 0.32);
+    const land = sky.land.map(lit);
+    const water = sky.water.map(lit);
     backend.begin();
     // The sky is opaque, so it is drawn without blending.
-    backend.drawLayer("sky", [dim, dim, dim * 1.02], [0, this.skyBottom], true);
+    backend.drawLayer("sky", [dim + flash * 0.4, dim + flash * 0.45, dim * 1.02 + flash * 0.6], [0, this.skyBottom], true);
     if (sky.stars > 0.03) backend.drawGlyphs(this.starBatch, [1, 1, 1, sky.stars]);
     backend.drawGlyphs(this.discBatch);
-    backend.drawGlyphs(this.skyBatch);
+    backend.drawGlyphs(this.skyBatch, flash ? [1 + flash * 0.5, 1 + flash * 0.5, 1 + flash * 0.7, 1] : undefined);
+    backend.drawGlyphs(this.boltBatch);
     backend.drawLayer("land", land, [this.landTop, height]);
     backend.drawGlyphs(this.ambientBatches.ground, land);
     backend.drawGlyphs(this.grassBatches.far, land);

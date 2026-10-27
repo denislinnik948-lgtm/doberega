@@ -74,6 +74,91 @@ const KEYFRAMES = [
 }));
 
 /**
+ * No two sunsets alike: each evening (and each dawn) takes one of these moods,
+ * picked by the day's number, so the same evening glows the same for everyone.
+ * A mood replaces the colours of its keyframes; the plain "golden" sunset and
+ * "peach" dawn keep the ones above. Weights say how often each comes up.
+ */
+const MOODS = {
+  dusk: [
+    { id: "golden", weight: 30 },
+    {
+      id: "crimson", weight: 15,
+      evening: { sky: ["#141822", "#3e2834", "#a8403a", "#e05a36"], glow: [255, 110, 70, 0.52], cloudLit: "#ff7048", glint: ["#d0502e", "#ffac84"] },
+      dusk: { sky: ["#0c1018", "#26162a", "#62222e", "#a8362c"], glow: [235, 80, 60, 0.32], cloudLit: "#b83c34", glint: ["#a03a2a", "#e07060"] },
+    },
+    {
+      id: "raspberry", weight: 15,
+      evening: { sky: ["#1a1830", "#4a2c58", "#b8467c", "#f0709c"], glow: [255, 120, 175, 0.5], cloudLit: "#ff86b6", glint: ["#cc5a8c", "#ffbcd8"] },
+      dusk: { sky: ["#0e1020", "#2a1a3a", "#6e2a5c", "#b04470"], glow: [225, 90, 155, 0.3], cloudLit: "#b04a80", glint: ["#903a62", "#d87aa6"] },
+    },
+    {
+      id: "fire", weight: 15,
+      evening: { sky: ["#162030", "#4a3e3c", "#cc6e32", "#f8a03a"], glow: [255, 170, 80, 0.58], cloudLit: "#ffae58", glint: ["#e0882e", "#ffe09a"] },
+      dusk: { sky: ["#0c121c", "#24202a", "#743a26", "#c05a26"], glow: [240, 130, 70, 0.3], cloudLit: "#c86030", glint: ["#a85428", "#e89660"] },
+    },
+    {
+      id: "lilac", weight: 12,
+      evening: { sky: ["#1a1c38", "#3e3a6c", "#8e6aa0", "#dc9aac"], glow: [225, 170, 235, 0.42], cloudLit: "#dca6e6", glint: ["#a07cb8", "#eed0f4"] },
+      dusk: { sky: ["#0a0e1e", "#1c1c3c", "#4a3a6c", "#82587e"], glow: [190, 140, 210, 0.24], cloudLit: "#80609a", glint: ["#6a4e86", "#b490c8"] },
+    },
+    {
+      id: "pale", weight: 13,
+      evening: { sky: ["#1a2228", "#3a444a", "#7c807c", "#a8a294"], glow: [235, 225, 205, 0.28], cloudLit: "#c0b8a6", glint: ["#a8a08a", "#e8e2cc"] },
+      dusk: { sky: ["#0a1018", "#1a222c", "#3a3c42", "#5e5658"], glow: [200, 180, 170, 0.16], cloudLit: "#6a6060", glint: ["#6a5e56", "#a89a90"] },
+    },
+  ],
+  dawn: [
+    { id: "peach", weight: 35 },
+    {
+      id: "rose", weight: 20,
+      predawn: { sky: ["#0e1426", "#22264a", "#4c3a60", "#8e5a7a"], glow: [230, 150, 180, 0.14], cloudLit: "#8e5a80", glint: ["#8a5a72", "#d0a8bc"] },
+      dawn: { sky: ["#24304e", "#5a5682", "#c47898", "#f4a2b6"], glow: [255, 170, 195, 0.5], cloudLit: "#ffaec6", glint: ["#d07a96", "#ffd0dc"] },
+    },
+    {
+      id: "crimson", weight: 12,
+      predawn: { sky: ["#0c1220", "#1e2234", "#4c2c3a", "#8c403c"], glow: [235, 120, 100, 0.14], cloudLit: "#7c463e", glint: ["#80483c", "#c08070"] },
+      dawn: { sky: ["#1c2a40", "#4a3e58", "#b84c46", "#ee764c"], glow: [255, 120, 80, 0.54], cloudLit: "#ff865a", glint: ["#d8603e", "#ffbc98"] },
+    },
+    {
+      id: "gold", weight: 20,
+      predawn: { sky: ["#0c1422", "#1e2a3a", "#46464e", "#806a58"], glow: [235, 190, 140, 0.13], cloudLit: "#7e6a56", glint: ["#80705a", "#c8b494"] },
+      dawn: { sky: ["#26384e", "#5a6a78", "#cca06a", "#f8ce80"], glow: [255, 215, 140, 0.52], cloudLit: "#ffd692", glint: ["#e0aa62", "#fff0c0"] },
+    },
+    {
+      id: "lilac", weight: 13,
+      predawn: { sky: ["#0e1426", "#222a48", "#463e62", "#6e5a78"], glow: [200, 170, 220, 0.13], cloudLit: "#6e5a84", glint: ["#6e5a7a", "#b8a4c4"] },
+      dawn: { sky: ["#2a3450", "#5e6082", "#a48aac", "#dcb4c4"], glow: [235, 200, 235, 0.42], cloudLit: "#e4c4e0", glint: ["#b096b8", "#f4e0f0"] },
+    },
+  ],
+};
+
+for (const list of Object.values(MOODS)) {
+  for (const mood of list) {
+    for (const [name, frame] of Object.entries(mood)) {
+      if (typeof frame !== "object") continue;
+      mood[name] = { ...frame, sky: frame.sky.map(hex), cloudLit: hex(frame.cloudLit), glint: frame.glint.map(hex) };
+    }
+  }
+}
+
+/** The mood a weighted pick lands on, for a roll in 0..1. */
+function pickMood(list, roll) {
+  const total = list.reduce((sum, mood) => sum + mood.weight, 0);
+  let left = roll * total;
+  for (const mood of list) {
+    left -= mood.weight;
+    if (left < 0) return mood;
+  }
+  return list[0];
+}
+
+const moodRoll = (day, salt) => {
+  const x = Math.sin(day * 127.1 + salt * 311.7) * 43758.5453;
+  return x - Math.floor(x);
+};
+
+/**
  * How long each part of the day lasts in real seconds. `from`/`to` are clock
  * fractions matching the sky keyframes; the night wraps past midnight.
  */
@@ -113,6 +198,33 @@ export function dayTimeAt(seconds, start, length = DAY_SECONDS) {
   return DAY_PHASES[0].from;
 }
 
+/**
+ * The day's sky moods at a moment: { dawn, dusk } ids. Days are counted from
+ * sunrise; from the start of the sunset the dawn already belongs to the next
+ * day, so no mood ever changes while its colours are on screen. `forced`
+ * ({ dawn, dusk }) pins them (the `?dawn=` and `?sunset=` test switches).
+ */
+export function skyMoodsAt(seconds, start, length = DAY_SECONDS, forced = {}) {
+  const position = cycleOffset(start) + (seconds * DAY_SECONDS) / length;
+  const day = Math.floor(position / DAY_SECONDS);
+  const intoDay = position - day * DAY_SECONDS;
+  const sunsetFrom = DAY_PHASES[0].seconds + DAY_PHASES[1].seconds;
+  const dawnDay = intoDay >= sunsetFrom ? day + 1 : day;
+  const find = (list, id) => list.find((mood) => mood.id === id);
+  return {
+    dawn: (find(MOODS.dawn, forced.dawn) ?? pickMood(MOODS.dawn, moodRoll(dawnDay, 1))).id,
+    dusk: (find(MOODS.dusk, forced.dusk) ?? pickMood(MOODS.dusk, moodRoll(day, 2))).id,
+  };
+}
+
+/** A keyframe as the day's mood paints it. */
+function moodFrame(frame, moods) {
+  const side = frame.name === "predawn" || frame.name === "dawn" ? "dawn" : frame.name === "evening" || frame.name === "dusk" ? "dusk" : null;
+  if (!side || !moods) return frame;
+  const override = MOODS[side].find((mood) => mood.id === moods[side])?.[frame.name];
+  return override ? { ...frame, ...override } : frame;
+}
+
 const SUNRISE = 0.23;
 const SUNSET = 0.83;
 const MOONRISE = 0.86;
@@ -145,13 +257,13 @@ function bodies(t) {
   };
 }
 
-/** The blended look of the scene at time-of-day `t`. */
-export function skyAt(t) {
+/** The blended look of the scene at time-of-day `t`, in the day's `moods` (see skyMoodsAt). */
+export function skyAt(t, moods = null) {
   t = ((t % 1) + 1) % 1;
   let i = KEYFRAMES.length - 1;
   while (i > 0 && KEYFRAMES[i].t > t) i -= 1;
-  const a = KEYFRAMES[i];
-  const b = KEYFRAMES[(i + 1) % KEYFRAMES.length];
+  const a = moodFrame(KEYFRAMES[i], moods);
+  const b = moodFrame(KEYFRAMES[(i + 1) % KEYFRAMES.length], moods);
   const span = (b.t > a.t ? b.t : b.t + 1) - a.t;
   const k = ease(Math.min(1, Math.max(0, (t - a.t) / span)));
 

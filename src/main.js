@@ -1,6 +1,6 @@
 import { CanvasWaterRenderer } from "./canvas-renderer.js";
 import { activeScene, currentAt, setScene } from "./scene.js";
-import { DAY_SECONDS, dayTimeAt } from "./daycycle.js";
+import { DAY_SECONDS, dayTimeAt, skyMoodsAt } from "./daycycle.js";
 import { nameOf, t } from "./i18n.js";
 import { Weather } from "./weather.js";
 import { Ducks } from "./wildlife.js";
@@ -11,7 +11,7 @@ import { Cloud } from "./cloud.js";
 import { onSeasonChange } from "./theme.js";
 import { NightEvents } from "./night-events.js";
 import { track } from "./analytics.js";
-import { ambienceTick, musicTick, nightSound, sounds } from "./sound.js";
+import { ambienceTick, musicTick, nightSound, sounds, thunderClap } from "./sound.js";
 import { AnglerUI } from "./fishing/ui.js";
 import { breakStreak, bump, recordCatch } from "./fishing/achievements.js";
 
@@ -36,8 +36,16 @@ const FIXED_TIME = params.has("time") ? Number(params.get("time")) : null;
 // seconds), with the cycle at this clock fraction at the Unix epoch.
 const WORLD_START = 0.68;
 const worldDayTime = () => dayTimeAt(Date.now() / 1000, WORLD_START, DAY_LENGTH);
-// `?rain=1` forces rain (0..1); otherwise showers come and go on their own.
-const weather = new Weather({ forced: params.has("rain") ? Number(params.get("rain")) : null });
+// Each day's sunset and dawn have their own colours (crimson, raspberry, golden...);
+// `?sunset=crimson` or `?dawn=rose` pins one (see MOODS in daycycle.js).
+const FORCED_MOODS = { dusk: params.get("sunset"), dawn: params.get("dawn") };
+const skyMoods = () => skyMoodsAt(Date.now() / 1000, WORLD_START, DAY_LENGTH, FORCED_MOODS);
+// `?rain=1` forces rain (0..1), `&storm=1` adds lightning; otherwise showers and storms come and go on their own.
+const weather = new Weather({
+  forced: params.has("rain") ? Number(params.get("rain")) : null,
+  storm: params.get("storm") === "1",
+  onThunder: ({ delay, near }) => thunderClap(delay, near),
+});
 const ducks = new Ducks();
 // Mystic nights: lights over the water, an apparition by the far shore, eyes by the bank.
 // Each event is also announced on the window as
@@ -511,6 +519,10 @@ function renderNow(now = performance.now()) {
   playLoops(step, dayTime);
   renderer.render(elapsed, config, ripples, anglerView(elapsed), dayTime, {
     rain: weather.intensity,
+    flash: weather.flash,
+    storm: weather.storm,
+    bolt: weather.bolt,
+    moods: skyMoods(),
     ducks: ducks.all,
     night: nightEvents.visible(elapsed),
   });

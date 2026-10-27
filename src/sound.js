@@ -615,7 +615,7 @@ export const sounds = Object.fromEntries(Object.entries(rawSounds).map(([name, b
  * water lapping now and then while at the water, birds by day, crickets at
  * night, and rain as drops plus a deep murmur that swells with the rain.
  */
-const ambient = { lap: 3, bird: 6, cricket: 2, drop: 0, jump: 25, duck: 8, owl: 60, thunder: 40, frog: 10, wisp: 15, drone: 20, whisper: 200, river: 4, cow: 40, bell: 90, wreck: 30, geiger: 20 };
+const ambient = { lap: 3, bird: 6, cricket: 2, drop: 0, jump: 25, duck: 8, owl: 60, frog: 10, wisp: 15, drone: 20, whisper: 200, river: 4, cow: 40, bell: 90, wreck: 30, geiger: 20 };
 
 function lap() {
   // A small wave against the bank (lab: Хв1 "Тихий плескіт"): a soft swell of deep noise and a couple of bubbles.
@@ -972,22 +972,36 @@ function owl() {
   hoot(420, 0.35, 0.05, pan, 0.5);
 }
 
-function thunder() {
-  // Far thunder in a heavy downpour (lab: Гр1 "Гуркіт"): a low rumble rolling on for a few seconds.
-  const at = ctx.currentTime;
+function thunder(delay = 0, near = 0.3) {
+  // Thunder after a strike (lab: Гр1 "Гуркіт"): a low rumble rolling on for a few seconds,
+  // longer, brighter and louder the nearer it struck, with a sharp crack first when it is close.
+  const at = ctx.currentTime + delay;
+  const length = 3 + near * 2.5;
   const source = ctx.createBufferSource();
   source.buffer = brown;
   const filter = ctx.createBiquadFilter();
   filter.type = "lowpass";
-  filter.frequency.value = 140;
-  const steps = 120;
+  filter.frequency.value = 140 + near * 260;
+  const steps = 160;
   const curve = new Float32Array(steps);
-  for (let i = 0; i < steps; i += 1) curve[i] = 0.3 * Math.sin(Math.PI * (i / (steps - 1))) ** 1.5 * rand(0.6, 1);
+  const loud = 0.3 * (0.7 + near * 1.3);
+  for (let i = 0; i < steps; i += 1) {
+    const k = i / (steps - 1);
+    // A near strike hits at once and rolls away; a far one swells and fades.
+    const shape = near > 0.6 ? Math.min(1, k * 25) * (1 - k) ** 1.2 : Math.sin(Math.PI * k) ** 1.5;
+    curve[i] = loud * shape * rand(0.6, 1);
+  }
   const gain = ctx.createGain();
   gain.gain.value = 0;
-  gain.gain.setValueCurveAtTime(curve, at, 3);
+  gain.gain.setValueCurveAtTime(curve, at, length);
   source.connect(filter).connect(gain).connect(dest());
-  source.start(at, rand(0, 1), 3.05);
+  source.start(at, rand(0, 1), length + 0.05);
+  if (near > 0.6) wash({ type: "highpass", from: 2400, to: 900, length: 0.35, volume: 0.25 * near, delay, pan: rand(-0.5, 0.5) });
+}
+
+/** Thunder for a lightning strike, `delay` seconds after the flash; `near` 0..1. */
+export function thunderClap(delay, near) {
+  play("thunder", () => thunder(delay, near));
 }
 
 let rainLevel = 0;
@@ -1098,11 +1112,6 @@ export function ambienceTick(step, { atWater, rain, night, ducks = 0, frogs = fa
       ambient.whisper = rand(180, 360);
       play("whisper", mystic.whisper);
     }
-  }
-  // Far thunder, only in a heavy downpour.
-  if (rain > 0.7 && ambient.thunder <= 0) {
-    ambient.thunder = rand(40, 90);
-    play("thunder", thunder);
   }
   // Rain: drops landing on the water all around, more as it gets heavier.
   if (rain > 0.05 && ambient.drop <= 0) {
