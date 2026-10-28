@@ -398,7 +398,6 @@ function tryCast(x, y) {
   if (game.cast(target, progress.rod, progress.bait, { location: progress.location, extras: progress.extras, groundbait, hook: progress.hook, school: nearSchool(target) })) {
     // Get the pointer out of the way while watching the float.
     document.body.classList.add("cursor-hidden");
-    if (game.school) ui.toast(t("toast.school"), "good", 1400);
   }
 }
 
@@ -458,11 +457,12 @@ function anglerView(elapsed) {
 }
 
 /*
- * A school of fish keeps to one place on the water for a few minutes, then
- * moves on. Most fish jumps come from it, bigger ones and now and then two in
- * a row, so a watchful angler can tell where it is: a cast that lands close
- * to it bites faster (TUNING.schoolBoost). Elsewhere a fish still jumps now
- * and then, so a single splash proves nothing.
+ * A school of fish keeps to one place on the water for a minute or two, then
+ * moves on. It shows itself only now and then, a bigger splash (sometimes
+ * two in a row) every quarter to half a minute, so a watchful angler can
+ * tell where it is: a cast that lands close to it bites faster
+ * (TUNING.schoolBoost). Stray fish jump elsewhere too, so a single splash
+ * proves nothing.
  */
 const SCHOOL_REACH = 0.07;
 function moveSchool(elapsed) {
@@ -471,7 +471,7 @@ function moveSchool(elapsed) {
     const candidate = renderer.randomWaterScreen();
     if (isOnWater(candidate.x, candidate.y)) point = candidate;
   }
-  school = point ? { x: point.x / width, y: point.y / height, until: elapsed + 150 + Math.random() * 210 } : null;
+  school = point ? { x: point.x / width, y: point.y / height, until: elapsed + 70 + Math.random() * 90, splash: elapsed + 3 + Math.random() * 8 } : null;
 }
 
 /** Whether a normalized point on the water is within reach of the school (an ellipse, flatter with distance). */
@@ -485,9 +485,8 @@ function nearSchool(point) {
 // Now and then a fish breaks the surface out on the water, mostly where the school is.
 function maybeJumpFish(elapsed) {
   if (!school || elapsed > school.until) moveSchool(elapsed);
-  if (elapsed < nextFishAt) return;
-  nextFishAt = elapsed + 5 + Math.random() * 11;
-  if (school && Math.random() < 0.7) {
+  if (school && elapsed >= school.splash) {
+    school.splash = elapsed + 14 + Math.random() * 22;
     const jump = (delay) => {
       const x = (school.x + (Math.random() - 0.5) * SCHOOL_REACH * (height / width)) * width;
       const y = (school.y + (Math.random() - 0.5) * SCHOOL_REACH * 0.4) * height;
@@ -495,9 +494,10 @@ function maybeJumpFish(elapsed) {
       if (mode === "fishing") setTimeout(() => jumpSound(((x - renderer.frame.left) / renderer.frame.width) * 2 - 1), delay * 1000);
     };
     jump(0);
-    if (Math.random() < 0.35) jump(0.5 + Math.random() * 0.6);
-    return;
+    if (Math.random() < 0.25) jump(0.5 + Math.random() * 0.6);
   }
+  if (elapsed < nextFishAt) return;
+  nextFishAt = elapsed + 12 + Math.random() * 20;
   addRipple({ ...renderer.randomWaterPoint(), time: elapsed, strength: 0.6, size: 0.3 + Math.random() * 0.3, ambient: true });
 }
 
