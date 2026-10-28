@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Doberega posts</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Handjet:wght@400;500;600;700&display=swap" />
+    <style>
+      body { margin: 0; background: #070d0c; color: #e2e2c8; font: 18px "Handjet", monospace; padding: 16px; }
+      main { display: flex; flex-wrap: wrap; gap: 16px; }
+      figure { margin: 0; width: min(360px, 100%); }
+      canvas { width: 100%; display: block; }
+      figcaption { opacity: 0.7; }
+      button { font: inherit; margin-bottom: 16px; }
+    </style>
+  </head>
+  <body>
+    <button id="save" type="button">Зберегти всі в posts/</button>
+    <main id="posts"></main>
+    <script type="module" src="./posts.js"></script>
+  </body>
+</html>

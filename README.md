@@ -38,6 +38,8 @@ Deep in the night strange things happen (`src/night-events.js`): will-o'-the-wis
 
 Fish in the catch window, the handbook and the trophy cabinet are detailed portraits (`src/fishing/fish-portrait.js`), drawn the same way as the social cards in `tools/cards` but in each species' own colours from `FISH_LOOKS`: a rounded, shaded body with its markings, rayed fins, a ringed eye with a glint and a dark outline, shaded in dithered steps.
 
+Instagram posts (`tools/posts`, open `/tools/posts/` on the dev server, saved through `tools/posts/save.py` into `posts/`) put real frames of the game (`tools/posts/shots`, taken from the running game with `?debug=1&time=…`) together with the game's fish and rod sprites, its palette and the Handjet font: an intro, the five waters, the fish, the rods, the sunsets, a storm and the night. Captions are in `posts/captions.md`.
+
 ## Grass and sparkle
 
 Grass on the river banks and on the bank we stand on (pond and lake, `nearBank` in `src/scene.js`) is drawn by `src/grass-engine.js` as single strokes: every blade is a `|` glyph turned to its own angle (the glyph batch carries a rotation per glyph), near blades are two or three segments that bend further toward the tip, and gusts sweep across the field as travelling bands. Dark earth shows between the blades. Flowers dot the grass by day, dew sparkles at sunrise, and fireflies pulse over the grass and the shore at night.
