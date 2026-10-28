@@ -608,6 +608,11 @@ const rawSounds = {
 };
 
 /** The effects, each built at its own level: `sounds.cast("over")`, `sounds.bite()`… */
+/** The splash of a fish seen jumping, panned to where it is (-1 left .. 1 right). */
+export function jumpSound(pan) {
+  play("fishJump", () => fishJump(Math.max(-0.6, Math.min(0.6, pan * 0.6))));
+}
+
 export const sounds = Object.fromEntries(Object.entries(rawSounds).map(([name, build]) => [name, (...args) => play(name, () => build(...args))]));
 
 /*
@@ -625,9 +630,8 @@ function lap() {
   blup({ delay: 0.5, freq: vary(700, 0.08), rise: 2, length: 0.03, level: 0.015, pan });
 }
 
-function fishJump() {
+function fishJump(pan = rand(-0.6, 0.6)) {
   // A fish jumping somewhere out on the water (lab: Рб1 "Далекий сплеск"): quiet, muffled by the distance.
-  const pan = rand(-0.6, 0.6);
   wash({ buffer: brown, type: "lowpass", from: vary(900, 0.08), to: 200, attack: 0.004, length: 0.25, volume: 0.07, pan });
   droplets(2, 0.08, 0.25, 0.012);
 }

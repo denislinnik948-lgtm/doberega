@@ -302,6 +302,7 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
 .pick:hover { border-color: var(--soft); }
 .pick.is-selected { border-color: var(--bone); }
 .pick-tag { position: absolute; right: 2px; bottom: 6px; left: 2px; color: var(--gold); font-size: 18px; line-height: 1; text-align: center; }
+.pick-tag.is-worn { color: var(--ember); }
 
 /* The bait in use, bottom left: tap it to change bait. */
 .bait-chip {

@@ -214,6 +214,21 @@ export function straightenChance(gear, weight) {
   return Math.min(0.9, 0.2 * (weight / hold - 1));
 }
 
+/*
+ * The fishing line wears out: every fight takes a little off it, more the
+ * harder the line is pulled, the longer the fight and the heavier the fish
+ * (`wear` per second at full tension, scaled by weight), and a snap takes a
+ * chunk. Braid wears half as fast. Below a quarter left the line is weak and
+ * the tension bar fills faster (`lineWeakness`); at nothing left a spare line
+ * from the backpack goes on by itself. `price` is per spare line.
+ */
+export const LINE = { price: 100, wear: 0.00017, snapWear: 0.02, weakBelow: 0.25 };
+
+/** How much faster the tension bar fills on a line this worn (1 while it's sound, 1.5 when worn through). */
+export function lineWeakness(health) {
+  return health < LINE.weakBelow ? 1 + 2 * (LINE.weakBelow - Math.max(0, health)) : 1;
+}
+
 /** One-off upgrades that make fishing easier. */
 export const EXTRAS = {
   handbook: { price: 900 },
@@ -281,6 +296,9 @@ export const START_STATE = {
   baits: { worm: 5 },
   hooks: { small: 0, medium: 5, large: 0 },
   hook: "medium",
+  // What is left of the line on the reel (1 new .. 0 worn through), and spare lines in the backpack.
+  line: 1,
+  lines: 0,
   rods: ["willow"],
   rod: "willow",
   bait: "worm",

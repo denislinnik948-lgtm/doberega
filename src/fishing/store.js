@@ -26,6 +26,9 @@ export function normalizeProgress(saved) {
       for (const id of Object.keys(HOOKS)) state.hooks[id] = Number.isFinite(saved.hooks[id]) ? Math.max(0, saved.hooks[id]) : 0;
     }
     if (HOOKS[saved.hook]) state.hook = saved.hook;
+    // The line on the reel and the spares (older saves start with a new line).
+    if (Number.isFinite(saved.line)) state.line = Math.max(0, Math.min(1, saved.line));
+    if (Number.isFinite(saved.lines)) state.lines = Math.max(0, Math.floor(saved.lines));
     if (saved.baits && typeof saved.baits === "object") {
       state.baits = Object.fromEntries(Object.entries(saved.baits).filter(([id, count]) => BAITS[id] && Number.isFinite(count)));
       // Baits taken out of the game are paid back in full.

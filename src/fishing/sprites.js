@@ -935,6 +935,23 @@ export function groundbaitSprite(scale = 3) {
   ], { o: P.ink, y: "#e0c068", T: "#c9a35a", R: P.ember, B: "#9a7a46", b: "#7a5e34" }).toCanvas(scale);
 }
 
+/** A spool of fishing line; `worn` greys the line and frays its loose end. */
+export function lineSprite(scale = 3, worn = false) {
+  return fromRows([
+    "..oooooooooo..",
+    ".oDDDDDDDDDDo.",
+    "..oLlLlLlLlo..",
+    "..oLlLlLlLlo..",
+    "..olLlLlLlLo..",
+    "..oLlLlLlLlo..",
+    "..olLlLlLlLo..",
+    ".oDDDDDDDDDDo.",
+    "..oooooooooo..",
+    "...........l..",
+    "............l.",
+  ], { o: P.ink, D: P.goldDark, L: worn ? P.mid : P.light, l: worn ? P.dark : P.soft }).toCanvas(scale);
+}
+
 export function extraSprite(id, scale = 3) {
   return EXTRA_SPRITES[id]().toCanvas(scale);
 }

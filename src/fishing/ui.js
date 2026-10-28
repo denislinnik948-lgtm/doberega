@@ -1,9 +1,9 @@
 import {
-  BAITS, EXTRAS, FISH, GROUNDBAIT, HOOKS, LOCATIONS, RODS, gameHoursMs,
+  BAITS, EXTRAS, FISH, GROUNDBAIT, HOOKS, LINE, LOCATIONS, RODS, gameHoursMs,
   baitEntries, fishPrice, formatMoney, formatWeight, handbookEntries, spotEntries, trophyCost,
 } from "./data.js";
 import {
-  bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, groundbaitSprite, hookSprite, keepnetSprite, medalSprite, packSprite, rodSprite,
+  bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, groundbaitSprite, hookSprite, keepnetSprite, lineSprite, medalSprite, packSprite, rodSprite,
 } from "./sprites.js";
 import { P } from "./palette.js";
 import { ACHIEVEMENTS, GROUPS, bump, evaluate } from "./achievements.js";
@@ -972,7 +972,11 @@ export class AnglerUI {
       [...reach(lure), t(`tackle.style.${id}`), reel ? "" : t("tackle.needReel")].filter(Boolean), lure.price, progress.baits[id] ?? 0, (qty) => {
         progress.baits[id] = (progress.baits[id] ?? 0) + qty;
       }));
-    $("#tackle-shop").replaceChildren(...hookCards, ...lureCards);
+    // Spare line: goes on by itself when the line on the reel wears through.
+    const lineCard = pieceCard("line", lineSprite(4), t("line.name"), t("line.shopText"), LINE.price, progress.lines, (qty) => {
+      progress.lines += qty;
+    });
+    $("#tackle-shop").replaceChildren(...hookCards, lineCard, ...lureCards);
 
     document.querySelectorAll("#bait-shop .card, #rod-shop .card, #tackle-shop .card, #extra-shop .card").forEach((card, index) => frame(card, "well", 300 + index));
     if (!this.shopDialog.open) this.shopDialog.showModal();
@@ -1006,6 +1010,14 @@ export class AnglerUI {
       item.querySelector("button").disabled = left <= 0 && id !== progress.hook;
       return item;
     }));
+    // The line on the reel, how much of it is left; with a spare, a tap puts a new one on.
+    const worn = progress.line < LINE.weakBelow;
+    const lineTile = tile(false, lineSprite(3, worn), t("line.name"), `${Math.round(progress.line * 100)}%`, () => this.renewLine(true));
+    lineTile.querySelector(".pick-tag").classList.toggle("is-worn", worn);
+    lineTile.querySelector("button").title = t("line.hint", { spare: progress.lines });
+    $("#pack-line").replaceChildren(lineTile, ...(progress.lines > 0
+      ? [tile(false, lineSprite(3), t("line.spare"), `×${progress.lines}`, () => this.renewLine(true))]
+      : []));
     // Every bait you have, as in the bait picker: picking one puts it on the hook.
     const reel = progress.extras.includes("spinreel");
     $("#pack-baits").replaceChildren(...this.ownedBaits().map((id) => {
@@ -1027,6 +1039,29 @@ export class AnglerUI {
     );
     $("#pack-extras-empty").hidden = progress.extras.length > 0 || progress.groundbait > 0;
     if (!this.packDialog.open) this.packDialog.showModal();
+  }
+
+  /**
+   * Put a spare line on: on its own once the old one is worn through, or
+   * when asked (`now`, from the backpack) while the old one is worn at all.
+   */
+  renewLine(now = false) {
+    const { progress } = this;
+    if (progress.lines <= 0) {
+      if (now) {
+        this.toast(t("line.noSpare"), "bad", 1800);
+        sounds.ui("denied");
+      }
+      return false;
+    }
+    if (now ? progress.line >= 0.995 : progress.line > 0.001) return false;
+    progress.lines -= 1;
+    progress.line = 1;
+    sounds.ui("select");
+    this.commit();
+    if (this.packDialog.open) this.openPack();
+    this.toast(t("line.renewed"), "good", 1800);
+    return true;
   }
 
   /** The bait picker: every bait you have, with how much is left; picking one puts it on the hook. */

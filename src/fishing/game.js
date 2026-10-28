@@ -1,4 +1,4 @@
-import { BAITS, BOOT_CHANCE, GROUNDBAIT, HOOKS, LOCATIONS, NIBBLE, RODS, biteActivity, rollFish, straightenChance } from "./data.js";
+import { BAITS, BOOT_CHANCE, GROUNDBAIT, HOOKS, LINE, LOCATIONS, NIBBLE, RODS, biteActivity, lineWeakness, rollFish, straightenChance } from "./data.js";
 
 /**
  * Fishing state machine. Positions are normalized to the viewport (0..1) so the
@@ -58,6 +58,8 @@ export const TUNING = {
   strikeJerk: 0.15,
   strikeFlutter: 0.06,
   strikeSteady: 0.04,
+  // A cast into the school that keeps jumping in one place (see main.js) bites this much faster.
+  schoolBoost: 1.3,
 };
 
 /** Rates for a fish of `weight` kg on a rod; exported for balance tests. */
@@ -108,6 +110,9 @@ export class FishingGame {
     this.isWater = () => true;
     // Where a hooked fish is brought in: the middle of what's on screen.
     this.landingX = 0.5;
+    // Set by the host: what is left of the line (0..1), and told how much each fight wears off it.
+    this.lineHealth = () => 1;
+    this.onLineWear = () => {};
     this.reset();
   }
 
@@ -134,7 +139,7 @@ export class FishingGame {
    * Cast toward a normalized water point with the chosen rod, bait, spot and
    * extras; `groundbait` is whether this water is baited.
    */
-  cast(target, rodId, baitId, { location = 0, extras = [], groundbait = false, hook = "medium" } = {}) {
+  cast(target, rodId, baitId, { location = 0, extras = [], groundbait = false, hook = "medium", school = false } = {}) {
     if (this.phase !== "ready") return false;
     this.rod = rodId;
     this.bait = baitId;
@@ -142,6 +147,8 @@ export class FishingGame {
     this.location = location;
     this.extras = extras;
     this.groundbait = groundbait;
+    // Cast where a school of fish is jumping: they find the bait sooner.
+    this.school = school;
     this.target = { ...target };
     this.castStyle = this.reach() > TUNING.overheadReach ? "over" : "under";
     this.castDuration = this.castStyle === "over" ? TUNING.castOver : TUNING.castUnder;
@@ -211,7 +218,8 @@ export class FishingGame {
   startSnag() {
     this.snag = true;
     this.fish = null;
-    this.rates = { strain: 1, fill: TUNING.fillRate * 1.7, drain: TUNING.fillRate * TUNING.drainRatio, reel: 0, escape: 0, jerkRate: 0 };
+    this.rates = { strain: 1, fill: TUNING.fillRate * 1.7 * lineWeakness(this.lineHealth()), drain: TUNING.fillRate * TUNING.drainRatio, reel: 0, escape: 0, jerkRate: 0 };
+    this.wearRate = LINE.wear * 2;
     this.tension = 0;
     this.distance = 1;
     this.slack = 0;
@@ -223,6 +231,9 @@ export class FishingGame {
   /** `onDip`: struck during a dip in the nibble (counted for an achievement). */
   hook(onDip = false) {
     this.rates = fightRates(this.fish.weight, this.rod, this.extras, Boolean(this.fish.junk));
+    // A worn line gives sooner; a heavy fish wears it faster (braid half as fast).
+    this.rates.fill *= lineWeakness(this.lineHealth());
+    this.wearRate = LINE.wear * (1 + this.fish.weight ** 0.8) * (this.extras.includes("braid") ? 0.5 : 1);
     // Too heavy for the hook: it may bend straight somewhere on the way in.
     this.giveAt = !this.fish.junk && this.random() < straightenChance(this.gear, this.fish.weight) ? 0.2 + this.random() * 0.6 : null;
     this.tension = 0;
@@ -308,8 +319,8 @@ export class FishingGame {
     const spotPace = LOCATIONS[this.location]?.pace ?? 1;
     // The floor is low so a bait no local fish wants really does go quiet.
     const pace = Math.min(2.2, Math.max(0.1, hunger * 1.2 * spotPace * this.biteBoost));
-    // Groundbait draws the fish in.
-    return pace * (this.groundbait ? GROUNDBAIT.boost : 1);
+    // Groundbait draws the fish in, and so does a school around the float.
+    return pace * (this.groundbait ? GROUNDBAIT.boost : 1) * (this.school ? TUNING.schoolBoost : 1);
   }
 
   /** Seconds until the next bite: shorter when the local fish are feeding. */
@@ -540,7 +551,11 @@ export class FishingGame {
           return;
         }
       }
-      if (this.tension >= 1) this.escape("snagSnap", true, "snagSnap");
+      if (this.pulling) this.onLineWear(this.tension * this.wearRate * dt);
+      if (this.tension >= 1) {
+        this.onLineWear(LINE.snapWear);
+        this.escape("snagSnap", true, "snagSnap");
+      }
       return;
     }
 
@@ -561,6 +576,9 @@ export class FishingGame {
       }
     }
 
+    // The line wears with the strain on it.
+    this.onLineWear(this.tension * this.wearRate * dt);
+
     if (this.giveAt !== null && 1 - this.distance >= this.giveAt) {
       // The hook (or the lure's hook) bends straight: the fish is gone, and so is the hook.
       this.escape("straightened", true, "straightened");
@@ -575,6 +593,7 @@ export class FishingGame {
 
     if (this.tension >= 1) {
       // A big fish snapping the line takes the hook with it.
+      this.onLineWear(LINE.snapWear);
       this.escape(rates.strain > 1 ? "overweight" : "snap", Boolean(this.fish.big) || rates.strain > 0.8);
     } else if (this.distance <= 0) {
       const fish = this.fish;

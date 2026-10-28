@@ -158,6 +158,12 @@ export class CanvasWaterRenderer {
 
   /** A random point on open water, used for fish jumps. */
   randomWaterPoint(random = Math.random) {
+    const { x, y } = this.randomWaterScreen(random);
+    return this.screenToPlane(x, y);
+  }
+
+  /** The same, in screen pixels. */
+  randomWaterScreen(random = Math.random) {
     const { left, width } = this.frame;
     const horizon = this.shorelineY(left + width / 2);
     let x = left + width / 2;
@@ -171,7 +177,7 @@ export class CanvasWaterRenderer {
         break;
       }
     }
-    return this.screenToPlane(x, y);
+    return { x, y };
   }
 
   isOpenWater(x, y) {

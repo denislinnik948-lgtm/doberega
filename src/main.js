@@ -6,13 +6,13 @@ import { Weather } from "./weather.js";
 import { moonAt, moonBite } from "./moon.js";
 import { Ducks } from "./wildlife.js";
 import { FishingGame, TUNING } from "./fishing/game.js";
-import { BAITS, FISH, GROUNDBAIT, HOOKS, LOCATIONS, RODS } from "./fishing/data.js";
+import { BAITS, FISH, GROUNDBAIT, HOOKS, LINE, LOCATIONS, RODS } from "./fishing/data.js";
 import { baitCount, loadProgress, onProgressSaved, replaceProgress, saveProgress } from "./fishing/store.js";
 import { Cloud } from "./cloud.js";
 import { onSeasonChange } from "./theme.js";
 import { NightEvents } from "./night-events.js";
 import { track } from "./analytics.js";
-import { ambienceTick, musicTick, nightSound, sounds, thunderClap } from "./sound.js";
+import { ambienceTick, jumpSound, musicTick, nightSound, sounds, thunderClap } from "./sound.js";
 import { AnglerUI } from "./fishing/ui.js";
 import { breakStreak, bump, recordCatch } from "./fishing/achievements.js";
 
@@ -92,6 +92,8 @@ let nextFishAt = 4;
 let lastElapsed = 0;
 let shownPhase = "";
 let spaceHeld = false;
+// Where the school of fish is jumping (see maybeJumpFish).
+let school = null;
 const ripples = [];
 
 function getElapsed(now) {
@@ -124,6 +126,8 @@ function applySpot() {
   ducks.reset();
   // Casts can land from just past the far shore to near the bank.
   TUNING.farY = activeScene().horizon + 0.05;
+  // The school finds its place on the new water.
+  school = null;
 }
 
 /** Build the chosen spot's scene if the menu moved on since the last one. */
@@ -310,6 +314,14 @@ function isOnWater(x, y) {
     && renderer.isOpenWater(x, y);
 }
 
+// Every fight wears the line; saying so once as it gets weak, when there's no spare to put on.
+game.lineHealth = () => progress.line;
+game.onLineWear = (amount) => {
+  const before = progress.line;
+  progress.line = Math.max(0, before - amount);
+  if (before >= LINE.weakBelow && progress.line < LINE.weakBelow && progress.lines <= 0) ui.toast(t("line.weak"), "bad", 2600);
+};
+
 // The float drifts only where the current runs, and never onto a bank.
 game.currentAt = (x, y) => currentAt(x, y);
 game.isWater = (point) => isOnWater(point.x * width, point.y * height);
@@ -321,6 +333,8 @@ function tryCast(x, y) {
     sounds.ui("denied");
     return;
   }
+  // A line worn through is swapped for a spare before the cast.
+  ui.renewLine();
   const lure = BAITS[progress.bait].lure;
   // The spoon is fished on a spinning reel and carries its own hook.
   if (lure && !progress.extras.includes("spinreel")) {
@@ -341,14 +355,16 @@ function tryCast(x, y) {
     ui.toast(t("toast.hookSwitched", { hook: nameOf("hook", spare).toLowerCase() }), "", 1800);
   }
   const groundbait = groundbaitLeft(LOCATIONS[progress.location].id) > 0;
-  if (game.cast({ x: x / width, y: y / height }, progress.rod, progress.bait, { location: progress.location, extras: progress.extras, groundbait, hook: progress.hook })) {
+  const target = { x: x / width, y: y / height };
+  if (game.cast(target, progress.rod, progress.bait, { location: progress.location, extras: progress.extras, groundbait, hook: progress.hook, school: nearSchool(target) })) {
     // Get the pointer out of the way while watching the float.
     document.body.classList.add("cursor-hidden");
+    if (game.school) ui.toast(t("toast.school"), "good", 1400);
   }
 }
 
 // `?debug` exposes the game for manual testing from the console.
-if (params.has("debug")) window.doberega = { game, progress, ui, cloud, nightEvents, renderNow, renderer, config, ripples, weather, ducks };
+if (params.has("debug")) window.doberega = { game, progress, ui, cloud, nightEvents, renderNow, renderer, config, ripples, weather, ducks, school: () => school };
 
 const pullable = () => ["waiting", "retrieving", "nibble", "bite", "fight"].includes(game.phase);
 
@@ -398,10 +414,47 @@ function anglerView(elapsed) {
   };
 }
 
-// Now and then a fish breaks the surface somewhere out on the lake.
+/*
+ * A school of fish keeps to one place on the water for a few minutes, then
+ * moves on. Most fish jumps come from it, bigger ones and now and then two in
+ * a row, so a watchful angler can tell where it is: a cast that lands close
+ * to it bites faster (TUNING.schoolBoost). Elsewhere a fish still jumps now
+ * and then, so a single splash proves nothing.
+ */
+const SCHOOL_REACH = 0.07;
+function moveSchool(elapsed) {
+  let point = null;
+  for (let attempt = 0; attempt < 12 && !point; attempt += 1) {
+    const candidate = renderer.randomWaterScreen();
+    if (isOnWater(candidate.x, candidate.y)) point = candidate;
+  }
+  school = point ? { x: point.x / width, y: point.y / height, until: elapsed + 150 + Math.random() * 210 } : null;
+}
+
+/** Whether a normalized point on the water is within reach of the school (an ellipse, flatter with distance). */
+function nearSchool(point) {
+  if (!school) return false;
+  const dx = (point.x - school.x) * (width / height);
+  const dy = (point.y - school.y) * 2.2;
+  return Math.hypot(dx, dy) < SCHOOL_REACH;
+}
+
+// Now and then a fish breaks the surface out on the water, mostly where the school is.
 function maybeJumpFish(elapsed) {
+  if (!school || elapsed > school.until) moveSchool(elapsed);
   if (elapsed < nextFishAt) return;
-  nextFishAt = elapsed + 6 + Math.random() * 12;
+  nextFishAt = elapsed + 5 + Math.random() * 11;
+  if (school && Math.random() < 0.7) {
+    const jump = (delay) => {
+      const x = (school.x + (Math.random() - 0.5) * SCHOOL_REACH * (height / width)) * width;
+      const y = (school.y + (Math.random() - 0.5) * SCHOOL_REACH * 0.4) * height;
+      addRipple({ ...renderer.screenToPlane(x, y), time: elapsed + delay, strength: 0.7, size: 0.45 + Math.random() * 0.35, ambient: true });
+      if (mode === "fishing") setTimeout(() => jumpSound(((x - renderer.frame.left) / renderer.frame.width) * 2 - 1), delay * 1000);
+    };
+    jump(0);
+    if (Math.random() < 0.35) jump(0.5 + Math.random() * 0.6);
+    return;
+  }
   addRipple({ ...renderer.randomWaterPoint(), time: elapsed, strength: 0.6, size: 0.3 + Math.random() * 0.3, ambient: true });
 }
 
