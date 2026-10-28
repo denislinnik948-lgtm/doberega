@@ -377,7 +377,7 @@ const STRINGS = {
         glass: "Fibreglass", carbon: "Carbon", carp: "Carp rod", catfish: "Catfish rod",
       },
       extra: {
-        handbook: "Angler's handbook", glowfloat: "Glowing float", net: "Landing net", braid: "Braided line", sonar: "Fish finder", spinreel: "Spinning reel", campfire: "Campfire",
+        handbook: "Angler's handbook", glowfloat: "Glowing float", net: "Landing net", braid: "Braided line", sonar: "Fish finder", spinreel: "Spinning reel"
       },
       abundance: { common: "often", regular: "sometimes", rare: "rarely" },
       biteStyle: {
@@ -396,7 +396,6 @@ const STRINGS = {
         braid: "The tension bar fills more slowly",
         sonar: "Fish find the bait sooner",
         spinreel: "Needed to fish lures: spinner, spoon, wobbler",
-        campfire: "A fire on the bank after dark: light, sparks and crackle",
       },
       location: {
         pond: "Village pond", lake: "Quiet lake", castle: "Castle lake", reservoir: "Pripyat", bridge: "Old bridge",
@@ -423,7 +422,6 @@ const STRINGS = {
       ["Rod", "The rod decides only how hard a fish is to bring in. Each is rated for a weight: a lighter fish comes in easily, a heavier one fills the tension bar much faster, hard but possible. Let go often and tire it out."],
       ["Hooks", "The hook decides who can bite and whether it holds; pick the size in the backpack. Small: any fish bites, but past 1 kg it may bend straight. Medium: fish from 200 g, holds up to 6 kg. Large: only fish from 1 kg (a smaller one hardly ever manages), holds any. So a large hook on the pond means few bites, and a small one by the old bridge means bent hooks. A bent hook or a big fish snapping the line costs the hook as well as the bait. Run out of one size and the next cast puts on another you have."],
       ["Line", "Every fight wears the line a little: more the harder and longer you pull, and more for a heavy fish; a snap takes a bigger bite out of it, and braid wears half as fast. The backpack shows how much is left in percent. Below 25% the line is weak and the tension bar fills faster. When it wears through, a spare line from the backpack goes on by itself before the next cast; spares are sold in Shop → Tackle, 100 ₴ each, and lighter fish leave a line good for hours."],
-      ["Campfire", "In the shop, under Extras, you can buy a campfire. After dark (from 19:30 to 5:30) it burns on the bank at every water but the bridge: flames, sparks flying up, smoke on the wind and a quiet crackle. It is only for the mood and does not change the fishing."],
       ["Float", "A plain float is barely visible at night. A glowing float lights up as dusk falls and shines all night; by day it is an ordinary float."],
       ["Gear", "A landing net calms fish near the bank, braided line tightens more slowly, and a fish finder helps fish find the bait sooner."],
       ["Keepnet", "Every fish you land goes into the keepnet; the chip at the bottom left shows how many. When you leave the water, the keepnet comes up: sell everything in one go, keep any fish as a trophy, or let it go. Fish left in it wait for next time."],
@@ -806,7 +804,7 @@ const STRINGS = {
         glass: "Скловолоконна", carbon: "Карбонова", carp: "Коропова", catfish: "Сомова",
       },
       extra: {
-        handbook: "Довідник рибака", glowfloat: "Світний поплавок", net: "Підсак", braid: "Плетена волосінь", sonar: "Ехолот", spinreel: "Спінінгова котушка", campfire: "Багаття",
+        handbook: "Довідник рибака", glowfloat: "Світний поплавок", net: "Підсак", braid: "Плетена волосінь", sonar: "Ехолот", spinreel: "Спінінгова котушка"
       },
       abundance: { common: "часто", regular: "іноді", rare: "рідко" },
       biteStyle: {
@@ -825,7 +823,6 @@ const STRINGS = {
         braid: "Шкала натягу заповнюється повільніше",
         sonar: "Риба знаходить наживку швидше",
         spinreel: "Потрібна для бльосен і воблера",
-        campfire: "Вогонь на березі вночі: світло, іскри й потріскування",
       },
       location: {
         pond: "Ставок за селом", lake: "Тихе озеро", castle: "Замкове озеро", reservoir: "Прип'ять", bridge: "Старий міст",
@@ -852,7 +849,6 @@ const STRINGS = {
       ["Вудка", "Вудка визначає лише те, наскільки важко витягнути рибу. Кожна розрахована на свою вагу: легша риба йде легко, важча набагато швидше заповнює шкалу натягу, тож складно, але можливо. Частіше відпускай і вимотуй її."],
       ["Гачки", "Гачок визначає, хто може клюнути і чи втримається риба; розмір обирається в рюкзаку. Малий: клює будь-яка риба, але понад 1 кг його може розігнути. Середній: риба від 200 г, тримає до 6 кг. Великий: лише риба від 1 кг (менша майже ніколи не впорається), тримає будь-яку. Тож із великим гачком на ставку буде мало кльову, а з малим біля старого мосту гачки розгинатиме. Розігнутий гачок або обрив великої риби забирає і гачок, і наживку. Скінчилися гачки одного розміру, то наступний закид поставить інший, який є."],
       ["Волосінь", "Кожен бій трохи зношує волосінь: що сильніше й довше тягнеш, то більше, і важка риба зношує її швидше; обрив забирає більший шматок, а плетена зношується вдвічі повільніше. Скільки лишилось, видно в рюкзаку у відсотках. Нижче 25% волосінь слабка, і шкала натягу заповнюється швидше. Коли вона зноситься, перед наступним закидом сама ставиться запасна з рюкзака; запасні продаються в Магазин → Снасті по 100 ₴, а на дрібній рибі волосіні вистачає на години."],
-      ["Багаття", "У магазині, у розділі «Різне», можна купити багаття. Після смеркання (з 19:30 до 5:30) воно горить на березі будь-якої водойми, крім мосту: полум'я, іскри вгору, дим за вітром і тихе потріскування. Воно лише для настрою й на риболовлю не впливає."],
       ["Поплавок", "Звичайний поплавок вночі майже не видно. Світний поплавок розгоряється в сутінках і світить усю ніч, а вдень це звичайний поплавок."],
       ["Спорядження", "Підсак заспокоює рибу біля берега, плетена волосінь повільніше натягується, ехолот допомагає рибі швидше знайти наживку."],
       ["Садок", "Уся витягнута риба йде в садок; скільки її там, видно внизу ліворуч. Коли йдеш із водойми, відкривається садок: можна продати все разом, будь-яку рибу зберегти як трофей або відпустити. Риба, що лишилася в садку, дочекається наступного разу."],

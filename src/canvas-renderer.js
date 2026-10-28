@@ -2498,8 +2498,7 @@ export class CanvasWaterRenderer {
       ctx.globalCompositeOperation = "source-over";
     }
 
-    // Lights in the dark, after the shade: a campfire on the bank, its sparks, a falling star.
-    if (this.campfire) this.drawCampfire(ctx, time, dt);
+    // After the shade, so they shine in the dark: anything glowing, and a falling star.
     this.drawParticles(ctx, dt, true);
     this.drawMeteor(ctx, time, dt);
 
@@ -2871,50 +2870,6 @@ export class CanvasWaterRenderer {
   }
 
   /**
-   * A campfire on the bank at night (bought in the shop): logs and embers, a
-   * flickering heap of flames in glyphs with a warm glow, sparks flying up
-   * and smoke drifting off on the wind.
-   */
-  drawCampfire(ctx, time, step) {
-    const { left, width } = this.frame;
-    const size = clamp(this.reedSize * 1.5, 20, 38);
-    const x = left + width * (width < 600 ? 0.43 : 0.22);
-    const y = this.height - size * 0.9;
-    const wind = this.wind ?? { dir: 1, strength: 0 };
-    const step6 = size * 0.6;
-    ctx.save();
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.font = `700 ${size}px ${MONO_FONT}`;
-    // The logs, crossed, and the embers between them.
-    const logs = [["/", -2.1, "#5a3a22"], ["=", -1.4, "#6e4a2c"], ["=", -0.7, "#7a5232"], ["=", 0, "#6e4a2c"], ["=", 0.7, "#7a5232"], ["=", 1.4, "#6e4a2c"], ["\\", 2.1, "#5a3a22"]];
-    for (const [glyph, dx, color] of logs) {
-      ctx.fillStyle = color;
-      ctx.fillText(glyph, x + dx * step6, y);
-    }
-    ctx.fillStyle = Math.sin(time * 9) > 0 ? "#ff5a2a" : "#c83a1a";
-    ctx.fillText(".", x - step6 * 0.35, y - size * 0.1);
-    ctx.fillText(".", x + step6 * 0.4, y - size * 0.15);
-    // Flames: each column leaps and falls on its own, white-yellow at the heart, red at the tips.
-    ctx.shadowColor = "rgba(255, 150, 60, 0.9)";
-    ctx.shadowBlur = size * 1.4;
-    const lean = wind.dir * wind.strength * 0.6;
-    for (let c = -2; c <= 2; c += 1) {
-      const tall = (c === 0 ? 4 : Math.abs(c) === 1 ? 3 : 1.6) + Math.sin(time * (6 + c) + c * 2) * 0.7 + Math.sin(time * 13.7 + c * 5) * 0.45;
-      for (let r = 0; r < tall; r += 1) {
-        const k = r / Math.max(1, tall - 1);
-        const glyph = r >= tall - 1 ? "'" : k > 0.6 ? "^" : Math.abs(c) < 2 ? (r ? "&" : "@") : c < 0 ? "(" : ")";
-        ctx.fillStyle = k < 0.3 ? "#fff0b0" : k < 0.65 ? "#ffb444" : "#ff6a2a";
-        ctx.fillText(glyph, x + (c * 0.85 * (1 - k * 0.35) + lean * r * 0.5 + Math.sin(time * 11 + r * 2 + c) * 0.15) * step6, y - (r + 0.8) * size * 0.66);
-      }
-    }
-    ctx.restore();
-    // Sparks up into the dark, and smoke above the flames.
-    if (Math.random() < step * 7) this.addParticle({ x: x + (Math.random() - 0.5) * step6, y: y - size * 1.6, vx: wind.dir * wind.strength * 30 + (Math.random() - 0.5) * 20, vy: -(50 + Math.random() * 50), drag: 0.6, life: 1 + Math.random() * 1.2, glyphs: ["*", "'", "."], color: Math.random() > 0.5 ? "#ffc060" : "#ff8a3a", size: size * 0.6, glow: true });
-    if (Math.random() < step * 2.5) this.addParticle({ x, y: y - size * 2.4, vx: wind.dir * (5 + wind.strength * 40), vy: -(18 + Math.random() * 10), life: 4, glyphs: [".", "o", "o", "~", "~"], color: "#5c5e64", size: size * 0.8, glow: true });
-  }
-
-  /**
    * Bullfinches, in glyphs like the ducks and the heron, each outlined dark
    * so it reads on bark and reeds: a black cap, a grey back, a rose-red
    * breast and a black tail; in flight a blur of wings over the red.
@@ -3119,7 +3074,6 @@ export class CanvasWaterRenderer {
     this.fillBolt(env.bolt);
     this.ducks = env.ducks ?? [];
     this.critters = env.critters ?? null;
-    this.campfire = Boolean(env.campfire);
     this.hour = (dayTime * 24) % 24;
     this.starsLevel = sky.stars;
     setCloudiness(this.rain);

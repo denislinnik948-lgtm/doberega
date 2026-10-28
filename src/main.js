@@ -582,12 +582,7 @@ function playLoops(step, dayTime) {
   const reedy = ["pond", "lake", "reservoir"].includes(LOCATIONS[progress.location].kind);
   musicTick(step, { atWater: mode === "fishing", night: hour < 5 || hour >= 21.5, fighting: game.phase === "fight" });
   // Snow falls without a sound.
-  ambienceTick(step, { atWater: mode === "fishing", wind: wind.strength, windDir: wind.dir, rain: isWinter() ? 0 : weather.intensity, night: hour < 5 || hour >= 21.5, ducks: ducks.all.length, frogs: reedy && (hour >= 19 || hour < 4), deepNight: nightEvents.depth ?? 0, spot: LOCATIONS[progress.location].kind, winter: isWinter(), campfire: campfireLit(hour) });
-}
-
-/** The campfire (from the shop) burns on the bank after dark, when there is a bank to light it on. */
-function campfireLit(hour) {
-  return mode === "fishing" && progress.extras.includes("campfire") && (hour >= 19.5 || hour < 5.5) && !activeScene().foreground.bridge;
+  ambienceTick(step, { atWater: mode === "fishing", wind: wind.strength, windDir: wind.dir, rain: isWinter() ? 0 : weather.intensity, night: hour < 5 || hour >= 21.5, ducks: ducks.all.length, frogs: reedy && (hour >= 19 || hour < 4), deepNight: nightEvents.depth ?? 0, spot: LOCATIONS[progress.location].kind, winter: isWinter() });
 }
 
 // The float, idle on the water, now and then sends out a faint ring; a hard pull makes the line sing.
@@ -662,7 +657,6 @@ function renderNow(now = performance.now()) {
   const winter = isWinter();
   floatLife(step, elapsed);
   renderer.render(elapsed, config, ripples, anglerView(elapsed), dayTime, {
-    campfire: campfireLit(hour),
     rain: weather.intensity,
     // Snow in winter brings no lightning.
     flash: winter ? 0 : weather.flash,

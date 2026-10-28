@@ -40,6 +40,8 @@ export function normalizeProgress(saved) {
     if (state.rods.includes(saved.rod)) state.rod = saved.rod;
     if (BAITS[saved.bait]) state.bait = saved.bait;
     if (Array.isArray(saved.extras)) state.extras = saved.extras.filter((id) => EXTRAS[id]);
+    // The campfire was sold for a day and taken off sale: its price goes back.
+    if (Array.isArray(saved.extras) && saved.extras.includes("campfire")) state.money += 600;
     if (Number.isFinite(saved.groundbait)) state.groundbait = Math.max(0, saved.groundbait);
     // Each baited water: the moment its groundbait wears off. Older saves kept
     // game hours left instead (a small number): those start counting from now.

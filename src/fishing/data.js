@@ -238,8 +238,6 @@ export const EXTRAS = {
   sonar: { price: 20000 },
   // Lets you fish the spoon.
   spinreel: { price: 2500 },
-  // Only for the look and the sound: a fire on the bank after dark.
-  campfire: { price: 600 },
 };
 
 /**

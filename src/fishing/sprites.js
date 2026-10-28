@@ -825,19 +825,6 @@ export function exitSprite(scale = 3) {
 }
 
 const EXTRA_SPRITES = {
-  campfire: () => fromRows([
-    "......y.......",
-    ".....yOy......",
-    "....yORy...y..",
-    "....ORRRO..Oy.",
-    "...ORRYRRO.O..",
-    "...ORYYYRO....",
-    "..ORRYYYRRO...",
-    "...oRRYRRo....",
-    ".bbbbbbbbbbb..",
-    "bBBBBBBBBBBBb.",
-    ".bbbbbbbbbbb..",
-  ], { o: P.ink, y: "#ffd25a", O: "#e8782a", R: P.ember, Y: "#fff0a0", b: "#3a2616", B: "#6a4426" }),
   glowfloat: () => fromRows([
     "......gg......",
     ".....gYYg.....",
