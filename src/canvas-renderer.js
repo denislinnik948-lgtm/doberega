@@ -700,19 +700,35 @@ export class CanvasWaterRenderer {
   paintWreckHull(ctx) {
     const ship = wreckShape(this.width, this.height);
     if (!ship) return;
-    const { cx, half, deck, keel, house } = ship;
-    const steps = 48;
+    const { cx, half, keel, top, funnel, funnelFoot, funnelX, mast, mastFoot, mastX } = ship;
+    const steps = 96;
     const xAt = (u) => cx - half + 2 * half * u;
+    ctx.fillStyle = "#3a2216";
     ctx.beginPath();
     for (let i = 0; i <= steps; i += 1) {
       const u = i / steps;
-      const top = deck(u) - (u >= house.from && u <= house.to ? house.height : 0);
-      if (i) ctx.lineTo(xAt(u), top);
-      else ctx.moveTo(xAt(u), top);
+      if (i) ctx.lineTo(xAt(u), top(u));
+      else ctx.moveTo(xAt(u), top(u));
     }
     for (let i = steps; i >= 0; i -= 1) ctx.lineTo(xAt(i / steps), keel(i / steps));
     ctx.closePath();
-    ctx.fillStyle = "#2a1a12";
+    ctx.fill();
+    const peak = funnelFoot - funnel.height;
+    ctx.beginPath();
+    ctx.moveTo(funnelX(funnelFoot) - funnel.half, funnelFoot);
+    ctx.lineTo(funnelX(peak) - funnel.half, peak);
+    ctx.lineTo(funnelX(peak) + funnel.half, peak);
+    ctx.lineTo(funnelX(funnelFoot) + funnel.half, funnelFoot);
+    ctx.closePath();
+    ctx.fill();
+    // The mast gets a dark backing too, so it stands out against the water.
+    const tip = mastFoot - mast.height;
+    ctx.beginPath();
+    ctx.moveTo(mastX(mastFoot) - mast.half, mastFoot);
+    ctx.lineTo(mastX(tip) - mast.half, tip);
+    ctx.lineTo(mastX(tip) + mast.half * 2.5, tip);
+    ctx.lineTo(mastX(mastFoot) + mast.half * 2.5, mastFoot);
+    ctx.closePath();
     ctx.fill();
   }
 
@@ -1431,72 +1447,182 @@ export class CanvasWaterRenderer {
   }
 
   /**
-   * A rusting ship half sunk in the bay, listing, stern under and bow raised:
-   * a streaked hull with rivets, a wheelhouse with its windows gone, a leaning
-   * mast and bits of railing, with foam lapping along the waterline.
+   * A rusting river freighter half sunk in the bay, stern under and bow raised:
+   * riveted hull plates with seams, a row of portholes weeping rust, patches of
+   * its old green paint, weed along the waterline, the hawse hole and its chain,
+   * draft marks at the bow; on deck a broken railing, a cargo hatch, the
+   * deckhouse and the wheelhouse with their windows gone, a leaning funnel with
+   * its faded red band, and a mast with sagging rigging.
    */
   createWreck() {
     const { width, height } = this;
     const ship = wreckShape(width, height);
-    const { cx, waterline, half, deck, keel, house } = ship;
+    const { cx, waterline, half, deck, keel, house, bridge, funnel, funnelFoot, funnelX } = ship;
     const { cellWidth, lineHeight } = this.gridAt(waterline);
     const stone = [];
     const foam = [];
-    const rust = [0x8c4826, 0x6c361c, 0xa65a30, 0x7c4224];
+    const rust = [0xb05a2c, 0x8c4422, 0xc8703a, 0x9c5228];
     const snap = (x, y) => [(Math.floor(x / cellWidth) + 0.5) * cellWidth, (Math.floor(y / lineHeight) + 0.52) * lineHeight];
     const put = (x, y, glyph, color) => {
       const [sx, sy] = snap(x, y);
       stone.push(sx, sy, glyph, color);
     };
-    for (let x = cx - half; x <= cx + half; x += cellWidth) {
-      const u = ship.along(x);
-      const column = Math.round(x / cellWidth);
-      const top = deck(u);
+    const xAt = (u) => cx - half + 2 * half * u;
+    const span = Math.round((2 * half) / cellWidth);
+    // Seams between the hull plates, rows of rivets, and a few rust streaks under the portholes.
+    const seamEvery = 7;
+    const porthole = (column) => column % 5 === 2;
+    for (let column = 0; column <= span; column += 1) {
+      const x = xAt(column / span);
+      const u = column / span;
+      const deckY = deck(u);
       const bottom = keel(u);
-      for (let y = top, r = 0; y <= bottom; y += lineHeight, r += 1) {
+      const streak = porthole(column) && hash2(column, 1, 1704) > 0.45 ? 2 + Math.floor(hash2(column, 2, 1704) * 5) : 0;
+      for (let y = deckY, r = 0; y <= bottom; y += lineHeight, r += 1) {
         const noise = hash2(column, r, 1700);
+        const fromBottom = (bottom - y) / lineHeight;
+        // Patches of the old dark green paint still cling to the plates.
+        const paint = hash2(Math.floor(column / 6), Math.floor(r / 3), 1705) < 0.22;
         let glyph;
         let color;
         if (r === 0) {
-          glyph = u > 0.92 ? "/" : noise > 0.3 ? "_" : "=";
-          color = 0xb0663a;
-        } else if (bottom - y < lineHeight) {
-          // The waterline: dark and slimy.
-          glyph = noise > 0.5 ? "=" : "~";
-          color = 0x3a2a1c;
+          // The gunwale, its edge catching the light; the stem rakes forward at the bow.
+          glyph = u > 0.96 ? "/" : noise > 0.25 ? "=" : "_";
+          color = 0xe0904c;
+        } else if (fromBottom < 1) {
+          // The waterline: dark slime and weed.
+          glyph = noise > 0.55 ? "~" : noise > 0.25 ? "=" : "%";
+          color = noise > 0.6 ? 0x5a6a34 : 0x4a3620;
+        } else if (fromBottom < 2) {
+          glyph = noise > 0.5 ? "%" : "#";
+          color = 0x6a4428;
+        } else if (r === 1 && porthole(column) && u > 0.06 && u < 0.92) {
+          glyph = "o";
+          color = 0x140e0a;
+        } else if (streak && r > 1 && r <= 1 + streak) {
+          // Rust weeps down from the porthole above.
+          glyph = r === 1 + streak ? "," : "|";
+          color = 0x6a2e14;
+        } else if (column % seamEvery === 0) {
+          glyph = "|";
+          color = 0x6a3418;
+        } else if (r % 3 === 0 && column % 2 === 0) {
+          glyph = ".";
+          color = 0xe09a5c;
+        } else if (paint) {
+          glyph = noise > 0.5 ? ":" : "=";
+          color = noise > 0.4 ? 0x6e8266 : 0x56684e;
         } else {
-          glyph = r === 1 && column % 3 === 0 ? "o" : "#%=#"[Math.floor(noise * 4)];
-          // Rust streaks run down the plates.
-          color = column % 5 === 0 ? 0x9c5530 : rust[Math.floor(noise * rust.length)];
+          glyph = "#%=#&"[Math.floor(noise * 5)];
+          // Lower plates sit in shade.
+          color = rust[Math.floor(noise * rust.length)] - (fromBottom < 3 ? 0x201008 : 0);
         }
         put(x, y, glyph, color);
       }
-      // Bits of railing still standing along the deck.
-      if (u > 0.5 && u < 0.9 && column % 3 === 0 && hash2(column, 9, 1701) > 0.35) put(x, top - lineHeight, "'", 0x8a4a28);
-    }
-    // The wheelhouse, toward the sunk stern, its windows dark holes.
-    const houseRows = Math.max(2, Math.round(house.height / lineHeight));
-    for (let x = cx - half + 2 * half * house.from; x <= cx - half + 2 * half * house.to; x += cellWidth) {
-      const u = ship.along(x);
-      const edge = u - house.from < 0.02 || house.to - u < 0.02;
-      for (let r = 1; r <= houseRows; r += 1) {
-        const y = deck(u) - r * lineHeight;
-        const roof = r === houseRows;
-        const window = r === houseRows - 1 && !edge && Math.round(x / cellWidth) % 2 === 0;
-        put(x, y, roof ? "_" : edge ? "|" : window ? "o" : "#", roof ? 0xa25a32 : window ? 0x1c1612 : rust[(r + Math.round(x / cellWidth)) % rust.length]);
+      // A broken railing along the foredeck: posts, and the rail where it still holds.
+      if (u > 0.42 && u < 0.94) {
+        if (column % 4 === 0 && hash2(column, 9, 1701) > 0.2) put(x, deckY - lineHeight, "|", 0xa86030);
+        if (hash2(Math.floor(column / 3), 10, 1701) > 0.3) put(x, deckY - lineHeight * 2, column % 4 === 0 ? "+" : "-", 0xb86a38);
       }
     }
-    // A mast leaning back toward the stern, with its crosstree.
+    // The hawse hole at the bow, and the anchor chain hanging into the water.
     {
-      const u = 0.62;
-      const footX = cx - half + 2 * half * u;
-      const foot = deck(u) - lineHeight;
-      const rows = Math.max(3, Math.round((ship.size * 0.07) / lineHeight));
-      for (let r = 0; r < rows; r += 1) {
-        const x = footX - r * cellWidth * 0.45;
-        put(x, foot - r * lineHeight, "\\", 0x4a2e1e);
-        if (r === Math.round(rows * 0.7)) for (let c = -2; c <= 2; c += 1) if (c) put(x + c * cellWidth, foot - r * lineHeight, "-", 0x4a2e1e);
+      const u = 0.9;
+      const x = xAt(u);
+      put(x, deck(u) + lineHeight * 1.2, "@", 0x140e0a);
+      for (let y = deck(u) + lineHeight * 2.2; y < waterline + lineHeight * 0.5; y += lineHeight) put(x + cellWidth, y, ":", 0xb0a084);
+      // Draft marks, faded white ticks up the stem.
+      const mx = xAt(0.95);
+      for (let y = keel(0.95) - lineHeight; y > deck(0.95) + lineHeight * 1.5; y -= lineHeight * 2) put(mx, y, "-", 0xd8d0b8);
+    }
+    // A cargo hatch on the foredeck.
+    {
+      const [a, b] = [xAt(0.5), xAt(0.66)];
+      for (let x = a; x <= b; x += cellWidth) {
+        const u = ship.along(x);
+        const edge = x === a || x + cellWidth > b;
+        put(x, deck(u) - lineHeight, edge ? (x === a ? "[" : "]") : "=", 0x9a5430);
+        put(x, deck(u) - lineHeight * 2, "_", 0xc87040);
       }
+    }
+    // The deckhouse and, on top of it, the wheelhouse: dirty white walls run with rust, the windows dark holes.
+    const block = (part, base, rows, { windowRow, wall, roof }) => {
+      const [a, b] = [xAt(part.from), xAt(part.to)];
+      for (let x = a, c = 0; x <= b; x += cellWidth, c += 1) {
+        const u = ship.along(x);
+        const edge = x === a || x + cellWidth > b;
+        for (let r = 1; r <= rows; r += 1) {
+          const y = base(u) - r * lineHeight;
+          const noise = hash2(c, r, 1706);
+          let glyph;
+          let color;
+          if (r === rows) {
+            glyph = "_";
+            color = roof;
+          } else if (edge) {
+            glyph = "|";
+            color = 0x7a7262;
+          } else if (r === windowRow && c % 3 !== 0) {
+            glyph = noise > 0.3 ? "#" : "o";
+            color = 0x120e0c;
+          } else if (r < windowRow && hash2(c, 3, 1707) > 0.6) {
+            // Rust running down the wall from the window frames.
+            glyph = "|";
+            color = 0x9a5430;
+          } else {
+            glyph = noise > 0.55 ? "=" : ":";
+            color = noise > 0.25 ? wall : 0x9a9482;
+          }
+          put(x, y, glyph, color);
+        }
+      }
+      // The roof overhangs a cell at each end.
+      put(a - cellWidth, base(part.from) - rows * lineHeight, "_", roof);
+      put(b + cellWidth, base(part.to) - rows * lineHeight, "_", roof);
+    };
+    const houseRows = Math.max(3, Math.round(house.height / lineHeight));
+    block(house, deck, houseRows, { windowRow: Math.ceil(houseRows / 2), wall: 0xbab4a0, roof: 0xc07040 });
+    const bridgeRows = Math.max(3, Math.round(bridge.height / lineHeight));
+    block(bridge, (u) => deck(u) - houseRows * lineHeight, bridgeRows, { windowRow: bridgeRows - 1, wall: 0xcac4b0, roof: 0xc87848 });
+    // The funnel, leaning back, black at the top over a faded red band.
+    {
+      const rows = Math.max(4, Math.round(funnel.height / lineHeight));
+      const halfCells = Math.max(1, Math.round(funnel.half / cellWidth));
+      for (let r = 0; r < rows; r += 1) {
+        const y = funnelFoot - (r + 0.5) * lineHeight;
+        const centre = funnelX(y);
+        const band = r >= Math.round(rows * 0.55) && r < Math.round(rows * 0.72);
+        for (let c = -halfCells; c <= halfCells; c += 1) {
+          const edge = Math.abs(c) === halfCells;
+          const color = r >= rows - 2 ? 0x4a4038 : band ? 0xd0503a : edge ? 0x7a4020 : rust[(r + c + 8) % rust.length];
+          put(centre + c * cellWidth, y, edge ? (c < 0 ? "(" : ")") : r === rows - 1 ? "_" : band ? "=" : "#", color);
+        }
+      }
+    }
+    // The mast on the foredeck leaning back toward the stern, with its crosstree and sagging stays.
+    {
+      const { mast, mastFoot, mastX } = ship;
+      const rows = Math.max(4, Math.round(mast.height / lineHeight));
+      let tipX = mastX(mastFoot);
+      let tipY = mastFoot;
+      for (let r = 1; r <= rows; r += 1) {
+        tipY = mastFoot - r * lineHeight;
+        tipX = mastX(tipY);
+        // Two glyphs thick, so the mast holds up against the water behind it.
+        put(tipX, tipY, r % 3 === 2 ? "\\" : "|", 0xb88058);
+        put(tipX + cellWidth, tipY, "|", 0x7a5030);
+        if (r === Math.round(rows * 0.72)) for (let c = -3; c <= 4; c += 1) if (c && c !== 1) put(tipX + c * cellWidth, tipY, "-", 0xa07048);
+      }
+      // Stays from the masthead down to the stem and back to the wheelhouse roof, dotted and slack.
+      const stay = (toX, toY) => {
+        const steps = Math.round(Math.hypot(toX - tipX, toY - tipY) / (cellWidth * 1.6));
+        for (let i = 1; i < steps; i += 1) {
+          const t = i / steps;
+          put(tipX + (toX - tipX) * t, tipY + (toY - tipY) * t + Math.sin(t * Math.PI) * lineHeight * 1.2, ".", 0xb0a088);
+        }
+      };
+      stay(xAt(0.99), deck(0.99) - lineHeight);
+      stay(xAt(bridge.to), deck(bridge.to) - (houseRows + bridgeRows) * lineHeight);
     }
     // Foam laps along the hull at the waterline.
     for (let x = cx - half - cellWidth * 3; x <= cx + half + cellWidth * 3; x += cellWidth) {

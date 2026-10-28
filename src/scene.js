@@ -201,15 +201,29 @@ export function wreckShape(width, height) {
   const deck = (u) => waterline - size * (0.012 + 0.075 * u ** 1.7);
   // The raked stem lifts the hull clear of the water at the bow.
   const keel = (u) => waterline - size * 0.004 - (u > 0.86 ? ((u - 0.86) / 0.14) * size * 0.055 : 0);
-  const house = { from: 0.14, to: 0.4, height: size * 0.045 };
+  // A deckhouse toward the sunk stern, the wheelhouse on top of it, and the funnel behind.
+  const house = { from: 0.1, to: 0.38, height: size * 0.032 };
+  const bridge = { from: 0.14, to: 0.29, height: size * 0.028 };
+  const funnel = { u: 0.33, half: half * 0.032, height: size * 0.055, lean: 0.12 };
   const along = (x) => (x - (cx - half)) / (2 * half);
+  const inside = (u, part) => u >= part.from && u <= part.to;
+  // The top of the ship at u: the deck, or the roof of whatever stands on it.
+  const top = (u) => deck(u) - (inside(u, house) ? house.height : 0) - (inside(u, bridge) ? bridge.height : 0);
+  // The funnel leans back with the list: its centre at a height above its foot.
+  const funnelFoot = deck(funnel.u) - house.height;
+  const funnelX = (y) => cx - half + 2 * half * funnel.u - (funnelFoot - y) * funnel.lean;
+  // A mast on the foredeck, leaning back toward the stern.
+  const mast = { u: 0.74, height: size * 0.085, lean: 0.3, half: Math.max(2, half * 0.01) };
+  const mastFoot = deck(mast.u);
+  const mastX = (y) => cx - half + 2 * half * mast.u - (mastFoot - y) * mast.lean;
   return {
-    cx, waterline, half, size, deck, keel, house, along,
+    cx, waterline, half, size, deck, keel, house, bridge, funnel, funnelFoot, funnelX, mast, mastFoot, mastX, along, top,
     covers(x, y) {
+      if (y < funnelFoot && y > funnelFoot - funnel.height && Math.abs(x - funnelX(y)) < funnel.half) return true;
+      if (y < mastFoot && y > mastFoot - mast.height && Math.abs(x - mastX(y)) < mast.half * 2) return true;
       const u = along(x);
       if (u < 0 || u > 1) return false;
-      const top = deck(u) - (u >= house.from && u <= house.to ? house.height : 0);
-      return y > top && y < keel(u) + size * 0.012;
+      return y > top(u) && y < keel(u) + size * 0.012;
     },
   };
 }
