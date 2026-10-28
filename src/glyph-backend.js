@@ -80,6 +80,8 @@ function createAtlasCanvas(font, fontSize, ratio) {
   return { canvas, box };
 }
 
+const FLAT = [0, 1, 1, 1];
+
 const GLYPH_VERTEX = `#version 300 es
 layout(location = 0) in vec2 corner;
 layout(location = 1) in vec4 instance;
@@ -87,10 +89,13 @@ layout(location = 2) in vec4 color;
 uniform vec2 viewport;
 uniform vec2 box;
 uniform vec2 grid;
+// Depth: glyphs scale from perspective.z at y = perspective.x to perspective.w at y = perspective.y.
+uniform vec4 perspective;
 out vec2 uv;
 out vec4 tint;
 void main() {
-  vec2 offset = (corner - 0.5) * box;
+  float depth = clamp((instance.y - perspective.x) / max(1.0, perspective.y - perspective.x), 0.0, 1.0);
+  vec2 offset = (corner - 0.5) * box * mix(perspective.z, perspective.w, depth);
   float c = cos(instance.w);
   float s = sin(instance.w);
   vec2 position = instance.xy + vec2(offset.x * c - offset.y * s, offset.x * s + offset.y * c);
@@ -143,6 +148,7 @@ class WebGLBackend {
       viewport: gl.getUniformLocation(this.glyphProgram, "viewport"),
       box: gl.getUniformLocation(this.glyphProgram, "box"),
       grid: gl.getUniformLocation(this.glyphProgram, "grid"),
+      perspective: gl.getUniformLocation(this.glyphProgram, "perspective"),
       glyphLight: gl.getUniformLocation(this.glyphProgram, "light"),
       layerLight: gl.getUniformLocation(this.layerProgram, "light"),
     };
@@ -204,10 +210,16 @@ class WebGLBackend {
     this.clipWidth = Math.ceil(frame.width * ratio) + 4;
   }
 
-  setFont(font, fontSize) {
-    const { canvas, box } = createAtlasCanvas(font, fontSize, this.ratio);
+  setFont(font, fontSize, sharpness = 1) {
+    const { canvas, box } = createAtlasCanvas(font, fontSize, this.ratio * sharpness);
     this.box = box;
     this.atlas = this.texture(canvas, this.atlas);
+    // Glyphs drawn far smaller than the atlas (the depth experiment) need mipmaps to stay clean.
+    if (sharpness > 1) {
+      const gl = this.gl;
+      gl.generateMipmap(gl.TEXTURE_2D);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    }
   }
 
   setLayer(name, canvas) {
@@ -291,10 +303,11 @@ class WebGLBackend {
   }
 
   /** `light` multiplies glyph colours; its fourth value is opacity. */
-  drawGlyphs(batch, light = NEUTRAL) {
+  drawGlyphs(batch, light = NEUTRAL, perspective = FLAT) {
     if (!batch.count) return;
     const gl = this.gl;
     gl.useProgram(this.glyphProgram);
+    gl.uniform4f(this.uniforms.perspective, perspective[0], perspective[1], perspective[2], perspective[3]);
     gl.uniform4f(this.uniforms.glyphLight, light[0], light[1], light[2], light[3] ?? 1);
     gl.uniform2f(this.uniforms.viewport, this.width, this.height);
     gl.uniform2f(this.uniforms.box, this.box.width, this.box.height);

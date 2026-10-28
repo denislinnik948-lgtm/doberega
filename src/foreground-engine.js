@@ -45,8 +45,11 @@ export function createReeds(width, height, frame = { left: 0, width }) {
   return reeds.sort((a, b) => a.depth - b.depth);
 }
 
-/** Lily pads snap to the water grid so they read as part of the same ASCII field. */
-export function createLilyPads(width, height, cellWidth, lineHeight, frame = { left: 0, width }) {
+/**
+ * Lily pads snap to the water grid so they read as part of the same ASCII field.
+ * `gridAt(y)` gives the water's grid at a height, where it varies with depth.
+ */
+export function createLilyPads(width, height, baseCellWidth, baseLineHeight, frame = { left: 0, width }, gridAt = () => ({ cellWidth: baseCellWidth, lineHeight: baseLineHeight })) {
   const left = frame.left;
   width = frame.width;
   const { lilyPads: count = 5, padScale = 1.2 } = activeScene().foreground;
@@ -72,7 +75,8 @@ export function createLilyPads(width, height, cellWidth, lineHeight, frame = { l
   return pads.map((pad, index) => {
     const cx = left + width * pad.x;
     const cy = height * pad.y;
-    const rx = Math.max(cellWidth * 5, Math.min(width, height * 1.6) * pad.r * padScale);
+    const { cellWidth, lineHeight } = gridAt(cy);
+    const rx = Math.max(baseCellWidth * 5, Math.min(width, height * 1.6) * pad.r * padScale);
     const ry = rx * 0.34;
     const notch = hash01(index * 97 + 5) * Math.PI * 2;
     const cells = [];

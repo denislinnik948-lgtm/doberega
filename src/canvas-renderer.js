@@ -30,6 +30,22 @@ const SKY_INTERVAL = 1 / 15;
 // colours drift so slowly that the steps are invisible.
 const LIGHT_INTERVAL = 0.25;
 const SKY_SCALE = 0.25;
+/*
+ * Depth: each plane of the scene has its own grid, and its glyphs are sized to it.
+ * The hills and mountains are the finest, the far shore and its woods a step
+ * coarser, and the water and the banks grow from that at the horizon to `near`
+ * at the bottom of the screen, thinned out as they grow so they never run
+ * together. `?depth=hills,far,near` tries other sizes; `?depth=off` draws one even grid.
+ */
+const DEPTH = (() => {
+  const value = new URLSearchParams(location.search).get("depth");
+  if (value === "off") return null;
+  const [hills, far, near] = (value ?? "").split(",").map(Number);
+  const depth = { hills: hills || 0.4, far: far || 0.5, near: near || 1.6 };
+  // The water at the horizon starts a little coarser than the shore: it looks much the
+  // same, and the water, the costliest layer to animate, keeps to about the cells it had.
+  return { ...depth, water: depth.far * 1.2 };
+})();
 
 export class CanvasWaterRenderer {
   constructor(canvas) {
@@ -54,6 +70,8 @@ export class CanvasWaterRenderer {
     this.starBatch = new GlyphBatch();
     this.discBatch = new GlyphBatch();
     this.lightBatch = new GlyphBatch();
+    // Lit windows of buildings laid on the far shore's finer grid.
+    this.fineLightBatch = new GlyphBatch();
     // Moving bits of the far landscape (wind in grass, smoke, mist) and lights that blink.
     this.ambientBatches = { ground: new GlyphBatch(), haze: new GlyphBatch(), glow: new GlyphBatch() };
     this.rainBatch = new GlyphBatch();
@@ -206,21 +224,60 @@ export class CanvasWaterRenderer {
     this.rows = rows;
     this.rowWobble = null;
 
-    this.lilyPads = createLilyPads(width, height, cellWidth, lineHeight, this.frame);
-    for (const pad of this.lilyPads) {
-      for (const cell of [...pad.cells, ...pad.flower]) cell.colorValue = hexToInt(gradeHex(cell.color));
-    }
-    const covered = new Set();
-    for (const pad of this.lilyPads) for (const cell of pad.cells) covered.add(cell.row * columns + cell.column);
-
     const scene = activeScene();
     const meanHorizon = height * scene.horizon;
     this.waterCells = [];
-    for (let row = 0; row < rows; row += 1) {
-      const screenY = (row + 0.52) * lineHeight;
+    // With depth on, the grid's rows and columns spread out toward the viewer as the glyphs grow.
+    const scaleAt = (y) => (DEPTH ? DEPTH.far + (DEPTH.near - DEPTH.far) * clamp((y - meanHorizon) / (height - meanHorizon), 0, 1) : 1);
+    this.scaleAt = scaleAt;
+    const waterScaleAt = (y) => (DEPTH ? DEPTH.water + (DEPTH.near - DEPTH.water) * clamp((y - meanHorizon) / (height - meanHorizon), 0, 1) : 1);
+    this.waterScaleAt = waterScaleAt;
+    this.waterPerspective = DEPTH ? [meanHorizon, height, DEPTH.water, DEPTH.near] : undefined;
+    // Lily pads float on the water, on its grid where each one lies.
+    this.lilyPads = createLilyPads(width, height, cellWidth, lineHeight, this.frame, (y) => ({ cellWidth: cellWidth * waterScaleAt(y), lineHeight: lineHeight * waterScaleAt(y) }));
+    const covered = new Set();
+    for (const pad of this.lilyPads) {
+      for (const cell of [...pad.cells, ...pad.flower]) cell.colorValue = hexToInt(gradeHex(cell.color));
+      for (const cell of pad.cells) covered.add(Math.floor(cell.y / lineHeight) * columns + Math.floor(cell.x / cellWidth));
+    }
+    this.charSize = Number(config.charSize);
+    this.perspective = DEPTH ? [meanHorizon, height, DEPTH.far, DEPTH.near] : undefined;
+    // Clouds overhead are nearer than those at the horizon.
+    this.skyPerspective = DEPTH ? [0, meanHorizon, 1.15, DEPTH.hills] : undefined;
+    // The far landscape is laid on a finer grid, as small as its glyphs.
+    const far = DEPTH ? DEPTH.far : 1;
+    const farWidth = cellWidth * far;
+    const farLine = lineHeight * far;
+    this.farCell = { width: farWidth, height: farLine };
+    const hills = DEPTH ? DEPTH.hills : 1;
+    this.hillScale = hills;
+    this.hillCell = { width: cellWidth * hills, height: lineHeight * hills };
+    // Cells from the finer grid answer to the main grid for every lookup by row and column.
+    const regrid = (cells) => {
+      if (DEPTH) for (const cell of cells) {
+        cell.column = Math.floor(cell.x / cellWidth);
+        cell.row = Math.floor(cell.y / lineHeight);
+      }
+      return cells;
+    };
+    // Glyphs that grow toward the viewer are thinned out to match, so they never run together.
+    const thin = (cells, gridScale) => {
+      if (!DEPTH) return cells;
+      const kept = cells.filter((cell) => {
+        const grow = scaleAt(cell.y) / gridScale;
+        return grow <= 1 || hash2(Math.round(cell.x * 3), Math.round(cell.y * 3), 977) < 1 / (grow * grow);
+      });
+      return Object.assign(kept, { trees: cells.trees });
+    };
+    const rowYs = [];
+    for (let y = 0.52 * lineHeight; y < height + lineHeight; y += lineHeight * (y < meanHorizon - lineHeight ? 1 : waterScaleAt(y))) rowYs.push(y);
+    for (const [rowIndex, screenY] of rowYs.entries()) {
+      const row = Math.floor(screenY / lineHeight);
+      const step = cellWidth * waterScaleAt(screenY);
       const band = Math.min(WATER_BANDS - 1, Math.floor(clamp((screenY - meanHorizon) / (height - meanHorizon), 0, 1) ** 0.75 * WATER_BANDS));
-      for (let column = 0; column < columns; column += 1) {
-        const screenX = (column + 0.5) * cellWidth;
+      for (let index = 0; index * step < width; index += 1) {
+        const screenX = (index + 0.5) * step;
+        const column = Math.floor(screenX / cellWidth);
         // On a phone only a slice of the scene is on screen: water outside it is never seen.
         if (screenX < this.frame.left - cellWidth * 2 || screenX > this.frame.left + this.frame.width + cellWidth * 2) continue;
         const shore = this.shorelineY(screenX);
@@ -238,7 +295,7 @@ export class CanvasWaterRenderer {
           depth: screenY / height,
           distance,
           band,
-          noise: hash2(column, row, 61),
+          noise: hash2(index, rowIndex, 61),
           pathWidth: width * (0.016 + 0.11 * distance),
           sunPath: 0,
           reflectionLevel: Math.min(REFLECTION_LEVELS - 1, Math.floor(distance * 6)),
@@ -257,8 +314,8 @@ export class CanvasWaterRenderer {
     this.skyCells = createSkyCells(width, height, cellWidth, lineHeight);
     this.sunDisc = discOffsets(this.sun.radius, cellWidth, lineHeight);
     this.moonDisc = discOffsets(this.sun.radius * 0.8, cellWidth, lineHeight);
-    this.ridgeCells = createRidgeGlyphs(width, height, cellWidth, lineHeight);
-    this.forestCells = createForestGlyphs(width, height, cellWidth, lineHeight, this.sun.x);
+    this.ridgeCells = regrid(createRidgeGlyphs(width, height, this.hillCell.width, this.hillCell.height));
+    this.forestCells = regrid(thin(createForestGlyphs(width, height, farWidth, farLine, this.sun.x), far));
     this.trees = this.forestCells.trees;
     // Where bank tree crowns hang, a cell or so wider: ducks keep out from under them.
     this.canopy = new Uint8Array(columns * rows);
@@ -274,13 +331,15 @@ export class CanvasWaterRenderer {
     }
     // Each style's colour grade is baked into the scene's own colours.
     for (const cell of this.forestCells) cell.colorValue = hexToInt(gradeHex(cell.color));
-    this.shoreCells = createShoreGlyphs(width, height, cellWidth, lineHeight, this.sun.x);
-    const structures = createStructures(width, height, cellWidth, lineHeight);
-    this.structureCells = structures.cells;
+    this.shoreCells = regrid(createShoreGlyphs(width, height, farWidth, farLine, this.sun.x));
+    const structures = createStructures(width, height, cellWidth, lineHeight, DEPTH ? { cellWidth: farWidth, lineHeight: farLine, scale: far } : null);
+    this.structureCells = regrid(structures.cells);
     this.structureShapes = structures.shapes;
     this.lightBatch.clear();
-    for (const cell of structures.lights) this.lightBatch.push(cell.x, cell.y, cell.glyph, hexToInt(cell.color));
-    this.bankCells = createBankGlyphs(width, height, cellWidth, lineHeight, this.sun.x);
+    this.fineLightBatch.clear();
+    for (const cell of structures.lights) (cell.scale ? this.fineLightBatch : this.lightBatch).push(cell.x, cell.y, cell.glyph, hexToInt(cell.color));
+    this.farPerspective = [0, 1, far, far];
+    this.bankCells = thin(createBankGlyphs(width, height, cellWidth, lineHeight, this.sun.x), 1);
     this.grassStale = true;
     this.grass = createGrass({ width, height, cellWidth, lineHeight, frame: this.frame, autumn: isAutumn(), trees: this.trees });
     this.ambient = createAmbient({
@@ -315,7 +374,7 @@ export class CanvasWaterRenderer {
 
     this.font = `${config.charSize}px ${MONO_FONT}`;
     this.reedSize = clamp(Number(config.charSize) * 2, 13, 28);
-    this.backend.setFont(this.font, Number(config.charSize));
+    this.backend.setFont(this.font, Number(config.charSize), DEPTH ? DEPTH.near : 1);
     this.backend.setLayer("land", this.createLayer((ctx) => this.paintLand(ctx)));
     this.lightKey = null;
     this.rockImages = this.rocks.map((rock) => this.createRockImage(rock));
@@ -427,6 +486,7 @@ export class CanvasWaterRenderer {
     const ctx = layer.getContext("2d");
     ctx.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
     ctx.font = this.font;
+    ctx.depthSize = null;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     paint(ctx);
@@ -478,6 +538,16 @@ export class CanvasWaterRenderer {
     }
   }
 
+  /** With depth on, the land layer's font for a glyph at height `y` (sizes rounded to keep font changes few). */
+  glyphFont(ctx, y, scale = this.scaleAt(y)) {
+    if (!DEPTH) return;
+    const size = Math.round(this.charSize * scale * 4) / 4;
+    if (size !== ctx.depthSize) {
+      ctx.depthSize = size;
+      ctx.font = `${size}px ${MONO_FONT}`;
+    }
+  }
+
   /** Ridges, the forest silhouette, shore, mist and the near banks. */
   paintLand(ctx) {
     const { width, height } = this;
@@ -500,7 +570,7 @@ export class CanvasWaterRenderer {
         for (const cell of this.ridgeCells) {
           if (cell.ridge !== index) continue;
           ctx.fillStyle = cell.fill;
-          ctx.fillRect(cell.x - this.cellWidth / 2, cell.y - this.lineHeight / 2, this.cellWidth + 0.5, this.lineHeight + 0.5);
+          ctx.fillRect(cell.x - this.hillCell.width / 2, cell.y - this.hillCell.height / 2, this.hillCell.width + 0.5, this.hillCell.height + 0.5);
         }
         ctx.restore();
       } else {
@@ -513,6 +583,7 @@ export class CanvasWaterRenderer {
         // Breezy meadows are drawn every frame by the ambient layer instead.
         if (cell.ridge !== index || !cell.glyph || this.ambient.breezyRidges.has(index)) continue;
         if (ridge.alpine) ctx.fillStyle = cell.color;
+        this.glyphFont(ctx, cell.y, this.hillScale);
         ctx.fillText(cell.glyph, cell.x, cell.y);
       }
 
@@ -528,6 +599,8 @@ export class CanvasWaterRenderer {
     });
 
     // Anything standing back in the woods (the fire tower) goes under the forest.
+    ctx.font = this.font;
+    ctx.depthSize = null;
     this.paintStructures(ctx, true);
 
     // A dark canopy silhouette keeps the forest legible against the hazy hills.
@@ -535,7 +608,7 @@ export class CanvasWaterRenderer {
     ctx.beginPath();
     if (scene.forest.silhouette === "crowns") {
       // Scattered trees: back each glyph with a soft blob so crowns keep their own shape.
-      const radius = Math.max(this.cellWidth, this.lineHeight) * 0.62;
+      const radius = Math.max(this.farCell.width, this.farCell.height) * 0.62;
       for (const cell of this.forestCells) {
         ctx.moveTo(cell.x + radius, cell.y);
         ctx.arc(cell.x, cell.y, radius, 0, Math.PI * 2);
@@ -558,8 +631,10 @@ export class CanvasWaterRenderer {
 
     for (const cell of this.shoreCells) {
       ctx.fillStyle = cell.color;
+      this.glyphFont(ctx, cell.y);
       ctx.fillText(cell.glyph, cell.x, cell.y);
     }
+    ctx.font = this.font;
 
     const mist = ctx.createLinearGradient(0, horizon - height * 0.035, 0, horizon + height * 0.02);
     mist.addColorStop(0, "rgba(190, 176, 150, 0)");
@@ -569,6 +644,7 @@ export class CanvasWaterRenderer {
     ctx.fillRect(0, horizon - height * 0.035, width, height * 0.055);
 
     this.paintWaterBody(ctx);
+    this.paintWreckHull(ctx);
 
     // The grassy bank we stand on: dark earth under the blades, fading into the
     // water over a few soft steps instead of a hard edge.
@@ -607,8 +683,10 @@ export class CanvasWaterRenderer {
       if (!this.ambient.grassBanks) {
         for (const cell of this.bankCells) {
           ctx.fillStyle = cell.color;
+          this.glyphFont(ctx, cell.y);
           ctx.fillText(cell.glyph, cell.x, cell.y);
         }
+        ctx.font = this.font;
       }
       // Trees on the banks get a dark backing that follows their own leaves, so they stand out from the grass.
       ctx.fillStyle = "#0c140e";
@@ -616,6 +694,26 @@ export class CanvasWaterRenderer {
         if (cell.bank) ctx.fillRect(cell.x - this.cellWidth * 0.6, cell.y - this.lineHeight * 0.6, this.cellWidth * 1.2, this.lineHeight * 1.2);
       }
     }
+  }
+
+  /** A dark hull under the wreck's glyphs, so the ship reads as one solid shape on the water. */
+  paintWreckHull(ctx) {
+    const ship = wreckShape(this.width, this.height);
+    if (!ship) return;
+    const { cx, half, deck, keel, house } = ship;
+    const steps = 48;
+    const xAt = (u) => cx - half + 2 * half * u;
+    ctx.beginPath();
+    for (let i = 0; i <= steps; i += 1) {
+      const u = i / steps;
+      const top = deck(u) - (u >= house.from && u <= house.to ? house.height : 0);
+      if (i) ctx.lineTo(xAt(u), top);
+      else ctx.moveTo(xAt(u), top);
+    }
+    for (let i = steps; i >= 0; i -= 1) ctx.lineTo(xAt(i / steps), keel(i / steps));
+    ctx.closePath();
+    ctx.fillStyle = "#2a1a12";
+    ctx.fill();
   }
 
   /** Structure silhouettes and glyphs: those behind the forest (`behind`), or the rest. */
@@ -632,8 +730,15 @@ export class CanvasWaterRenderer {
       // Rustling leaves are drawn every frame by the ambient layer.
       if (cell.rustle || Boolean(cell.behind) !== behind) continue;
       ctx.fillStyle = cell.color;
+      if (cell.scale) this.glyphFont(ctx, cell.y, cell.scale);
+      else if (ctx.depthSize) {
+        ctx.font = this.font;
+        ctx.depthSize = null;
+      }
       ctx.fillText(cell.glyph, cell.x, cell.y);
     }
+    ctx.font = this.font;
+    ctx.depthSize = null;
   }
 
   /**
@@ -1284,13 +1389,21 @@ export class CanvasWaterRenderer {
   }
 
   /** Lily pads, splash droplets and passing birds. */
+  /** The grid at a height on the water: as fine as the water glyphs drawn there. */
+  gridAt(y) {
+    const scale = this.waterScaleAt(y);
+    return { cellWidth: this.cellWidth * scale, lineHeight: this.lineHeight * scale };
+  }
+
   /** Rocks breaking the river surface, with a ring of foam cells around each. */
   createWaterRocks() {
-    const { width, height, cellWidth, lineHeight } = this;
+    const { width, height } = this;
     const wreck = activeScene().water.wreck;
     const rocks = (activeScene().water.rocks ?? []).map((rock, index) => {
       const cx = rock.x * width;
       const cy = rock.y * height;
+      // Laid on a grid as fine as the water around it.
+      const { cellWidth, lineHeight } = this.gridAt(cy);
       const rx = rock.r * Math.min(width, height * 1.6);
       const ry = rx * 0.45;
       const stone = [];
@@ -1323,9 +1436,10 @@ export class CanvasWaterRenderer {
    * mast and bits of railing, with foam lapping along the waterline.
    */
   createWreck() {
-    const { width, height, cellWidth, lineHeight } = this;
+    const { width, height } = this;
     const ship = wreckShape(width, height);
     const { cx, waterline, half, deck, keel, house } = ship;
+    const { cellWidth, lineHeight } = this.gridAt(waterline);
     const stone = [];
     const foam = [];
     const rust = [0x8c4826, 0x6c361c, 0xa65a30, 0x7c4224];
@@ -1397,8 +1511,9 @@ export class CanvasWaterRenderer {
    * boat tied up beside it (the boat bobs: `bob` marks it for fillSurface).
    */
   createJetty() {
-    const { width, height, cellWidth, lineHeight } = this;
+    const { width, height } = this;
     const shape = jettyShape(width, height);
+    const { cellWidth, lineHeight } = this.gridAt((shape.top + shape.bottom) / 2);
     const snap = (x, y) => [(Math.floor(x / cellWidth) + 0.5) * cellWidth, (Math.floor(y / lineHeight) + 0.52) * lineHeight];
     const deck = [];
     const put = (list, x, y, glyph, color) => {
@@ -2045,22 +2160,23 @@ export class CanvasWaterRenderer {
     backend.drawLayer("sky", [dim + flash * 0.4, dim + flash * 0.45, dim * 1.02 + flash * 0.6], [0, this.skyBottom], true);
     if (sky.stars > 0.03) backend.drawGlyphs(this.starBatch, [1, 1, 1, sky.stars]);
     backend.drawGlyphs(this.discBatch);
-    backend.drawGlyphs(this.skyBatch, flash ? [1 + flash * 0.5, 1 + flash * 0.5, 1 + flash * 0.7, 1] : undefined);
+    backend.drawGlyphs(this.skyBatch, flash ? [1 + flash * 0.5, 1 + flash * 0.5, 1 + flash * 0.7, 1] : undefined, this.skyPerspective);
     backend.drawGlyphs(this.boltBatch);
     backend.drawLayer("land", land, [this.landTop, height]);
-    backend.drawGlyphs(this.ambientBatches.ground, land);
-    backend.drawGlyphs(this.grassBatches.far, land);
-    backend.drawGlyphs(this.forestBatch, land);
-    backend.drawGlyphs(this.ambientBatches.haze, land);
+    backend.drawGlyphs(this.ambientBatches.ground, land, this.perspective);
+    backend.drawGlyphs(this.grassBatches.far, land, this.perspective);
+    backend.drawGlyphs(this.forestBatch, land, this.perspective);
+    backend.drawGlyphs(this.ambientBatches.haze, land, this.perspective);
     // Cottage windows and dam lamps glow as the light fades.
     backend.drawGlyphs(this.lightBatch, [1, 1, 1, Math.min(1, 0.12 + sky.stars)]);
-    backend.drawGlyphs(this.ambientBatches.glow);
-    backend.drawGlyphs(this.waterBatch, water);
-    backend.drawGlyphs(this.glintBatch);
-    backend.drawGlyphs(this.surfaceBatch, water);
+    backend.drawGlyphs(this.fineLightBatch, [1, 1, 1, Math.min(1, 0.12 + sky.stars)], this.farPerspective);
+    backend.drawGlyphs(this.ambientBatches.glow, undefined, this.perspective);
+    backend.drawGlyphs(this.waterBatch, water, this.waterPerspective);
+    backend.drawGlyphs(this.glintBatch, undefined, this.waterPerspective);
+    backend.drawGlyphs(this.surfaceBatch, water, this.waterPerspective);
     this.fillWreckGlow(time, sky.stars);
-    if (this.wreckGlowBatch.count) backend.drawGlyphs(this.wreckGlowBatch);
-    backend.drawGlyphs(this.grassBatches.near, land);
+    if (this.wreckGlowBatch.count) backend.drawGlyphs(this.wreckGlowBatch, undefined, this.waterPerspective);
+    backend.drawGlyphs(this.grassBatches.near, land, this.perspective);
     backend.drawGlyphs(this.grassBatches.flies);
     if (this.rain > 0.02) backend.drawGlyphs(this.rainBatch, [1.15, 1.15, 1.15, 0.4 + 0.5 * this.rain]);
     this.renderOverlay(time, angler);

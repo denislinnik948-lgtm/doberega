@@ -191,7 +191,11 @@ const cellAt = (x, y, cellWidth, lineHeight) => {
  * Man-made things on the far shore: cottages (whose windows light up at night),
  * a concrete dam and power pylons. Returns glyph cells and the window lights.
  */
-export function createStructures(width, height, cellWidth, lineHeight) {
+/**
+ * `fine` ({ cellWidth, lineHeight, scale }): the finer grid of the far shore. The
+ * plant at Pripyat is laid on it, so it shows as much detail as the woods around it.
+ */
+export function createStructures(width, height, cellWidth, lineHeight, fine = null) {
   const { structures } = activeScene();
   const cells = [];
   const lights = [];
@@ -304,7 +308,12 @@ export function createStructures(width, height, cellWidth, lineHeight) {
 
   const out = { cells, lights, shapes, chimneys, beacons };
   if (structures.tower) addFireTower(structures.tower, width, height, cellWidth, lineHeight, out);
-  if (structures.chnpp) addChnpp(structures.chnpp, width, height, cellWidth, lineHeight, out);
+  if (structures.chnpp) {
+    const [firstCell, firstLight] = [cells.length, lights.length];
+    addChnpp(structures.chnpp, width, height, fine?.cellWidth ?? cellWidth, fine?.lineHeight ?? lineHeight, out, 1 / (fine?.scale ?? 1));
+    // Its glyphs are drawn at the fine grid's size.
+    if (fine) for (const cell of [...cells.slice(firstCell), ...lights.slice(firstLight)]) cell.scale = fine.scale;
+  }
   if (structures.crag) addCrag(structures.crag, width, height, cellWidth, lineHeight, out);
   if (structures.archBridge) addArchBridge(structures.archBridge, width, height, cellWidth, lineHeight, out);
 
@@ -388,7 +397,9 @@ function addFireTower({ x: fx, tall = 0.27 }, width, height, cellWidth, lineHeig
  * frame (a warning light blinks on top), and the silver arch of the New Safe
  * Confinement over unit 4. `from`..`to` is the stretch of shore it covers.
  */
-function addChnpp({ from, to }, width, height, cellWidth, lineHeight, out) {
+function addChnpp({ from, to }, width, height, cellWidth, lineHeight, out, k = 1) {
+  // Lengths counted in cells (crane jibs, stack widths, bands) are `k` times as many on a finer grid.
+  const n = (count) => Math.max(1, Math.round(count * k));
   const { cells, lights, beacons } = out;
   // The plant stands in daylight haze across the water: every colour a shade darker than drawn.
   const tone = (hex) => {
@@ -432,12 +443,14 @@ function addChnpp({ from, to }, width, height, cellWidth, lineHeight, out) {
     for (let r = 0; r < rows; r += 1) put(cx, yOf(r), r % 2 ? "|" : "+", "#464844");
     const top = rows;
     // The lattice jib, the counter-jib with its weight, the cab and the hook.
-    for (let c = 1; c <= Math.abs(reach); c += 1) put(cx + dir * c * cellWidth, yOf(top - 1), c % 2 ? "=" : "x", "#464844");
-    for (let c = 1; c <= 3; c += 1) put(cx - dir * c * cellWidth, yOf(top - 1), c === 3 ? "#" : "=", "#464844");
+    const jib = n(Math.abs(reach));
+    const counter = n(3);
+    for (let c = 1; c <= jib; c += 1) put(cx + dir * c * cellWidth, yOf(top - 1), c % 2 ? "=" : "x", "#464844");
+    for (let c = 1; c <= counter; c += 1) put(cx - dir * c * cellWidth, yOf(top - 1), c === counter ? "#" : "=", "#464844");
     put(cx, yOf(top), "^", "#464844");
     put(cx + dir * cellWidth, yOf(top - 2), "#", "#6a6458");
-    const hookX = cx + dir * (Math.abs(reach) - 1) * cellWidth;
-    const drop = 2 + Math.floor(hash2(Math.round(cx), 3, 71) * 4);
+    const hookX = cx + dir * (jib - 1) * cellWidth;
+    const drop = n(2 + Math.floor(hash2(Math.round(cx), 3, 71) * 4));
     for (let r = 1; r <= drop; r += 1) put(hookX, yOf(top - 1 - r), r === drop ? "J" : "|", "#55564f");
   };
 
@@ -468,10 +481,10 @@ function addChnpp({ from, to }, width, height, cellWidth, lineHeight, out) {
         let glyph = stain ? "|" : lit ? ":" : ".";
         let color = stain ? (lit ? "#8f8a76" : "#6a6656") : lit ? "#a7a28d" : "#77725f";
         // The unfinished rim: dark scaffolding and formwork round the top.
-        if (r >= rows - 2) {
+        if (r >= rows - n(2)) {
           glyph = r === rows - 1 ? (c % 2 ? "#" : "=") : c % 3 ? "=" : "|";
           color = "#3f3c34";
-        } else if (r % 6 === 5) {
+        } else if (r % n(6) === n(6) - 1) {
           // Construction joints ring the shell.
           glyph = "-";
           color = lit ? "#b8b39d" : "#6f6a58";
@@ -496,9 +509,9 @@ function addChnpp({ from, to }, width, height, cellWidth, lineHeight, out) {
     box(ua, ub, upper, "#958c7b");
     for (let x = ua + cellWidth * 0.5, c = 0; x < ub; x += cellWidth, c += 1) {
       for (let r = rowsFor(0.055); r < upper; r += 1) {
-        const red = c % 6 < 3 && r < upper - 1;
+        const red = c % n(6) < n(3) && r < upper - 1;
         // Bare frame showing where the walls were never finished.
-        const bare = c % 6 >= 4 && r > upper - 4;
+        const bare = c % n(6) >= n(4) && r > upper - n(4);
         put(x, yOf(r), r === upper - 1 ? "_" : bare ? "#" : red ? "#" : "=", bare ? "#4a4740" : red ? "#94432f" : r === upper - 1 ? "#c0b8a6" : "#a0978a");
       }
     }
@@ -515,8 +528,8 @@ function addChnpp({ from, to }, width, height, cellWidth, lineHeight, out) {
     const rows = rowsFor(0.1);
     for (let r = 0; r < rows; r += 1) {
       const y = yOf(r);
-      for (const leg of [a, a + cellWidth, b - cellWidth, b]) put(leg, y, r % 3 === 0 ? "x" : "#", "#3b3f3e");
-      if (r >= rows - 3) for (let x = a - cellWidth * 2; x <= b + cellWidth * 2; x += cellWidth) put(x, y, r === rows - 1 ? "=" : r === rows - 3 ? "-" : "x", "#3b3f3e");
+      for (let leg = 0; leg < n(2); leg += 1) for (const x of [a + leg * cellWidth, b - leg * cellWidth]) put(x, y, r % 3 === 0 ? "x" : "#", "#3b3f3e");
+      if (r >= rows - n(3)) for (let x = a - cellWidth * n(2); x <= b + cellWidth * n(2); x += cellWidth) put(x, y, r === rows - 1 ? "=" : r === rows - n(3) ? "-" : "x", "#3b3f3e");
     }
     // A small trolley hoist on the beam.
     put(at(0.47), yOf(rows), "n", "#5a4a3a");
@@ -540,7 +553,7 @@ function addChnpp({ from, to }, width, height, cellWidth, lineHeight, out) {
         const rim = y - top < lineHeight;
         const lit = (y - top) / (base - top + 1) < 0.35;
         // The dark band of the end wall low down, and the vertical ribs.
-        const wall = base - y < lineHeight * 2.5 && Math.abs(x - cx) < half * 0.7;
+        const wall = base - y < lineHeight * 2.5 * k && Math.abs(x - cx) < half * 0.7;
         put(x, y, rim ? (x < cx - half * 0.5 ? "/" : x > cx + half * 0.5 ? "\\" : "_") : wall ? (c % 2 ? "#" : "=") : c % 3 === 0 ? "|" : lit ? "=" : "-", rim ? "#c8ccc8" : wall ? "#6c706c" : lit ? "#aab0ae" : "#8c9291");
       }
     }
@@ -553,38 +566,42 @@ function addChnpp({ from, to }, width, height, cellWidth, lineHeight, out) {
     building(at(0.8), at(0.92), rowsFor(0.09), { wall: "#aea999", dark: "#5c5a52", roof: "#ccc7b8", seed: 7, from: rowsFor(0.05) });
     // Vent boxes and a water tank on the roofs.
     for (const [f, rowsAt, glyphs] of [[0.72, 0.075, "[]"], [0.84, 0.09, "[=]"], [0.89, 0.09, "()"], [0.96, 0.05, "[]"]]) {
-      [...glyphs].forEach((glyph, k) => put(at(f) + k * cellWidth, yOf(rowsFor(rowsAt)), glyph, "#8d897d"));
+      [...glyphs].forEach((glyph, i) => put(at(f) + i * cellWidth, yOf(rowsFor(rowsAt)), glyph, "#8d897d"));
     }
     // Two ventilation stacks, banded red and white from foot to top, with
     // service platforms, a lattice brace and a beacon each.
     for (const [f, fraction] of [[0.745, 0.24], [0.95, 0.27]]) {
       const sx = at(f);
       const rows = rowsFor(fraction);
+      const thick = n(2);
       for (let r = 0; r < rows; r += 1) {
-        const red = Math.floor((rows - 1 - r) / 2) % 2 === 0;
-        const platform = r > 0 && r % 7 === 0;
-        for (const dx of [0, cellWidth]) put(sx + dx, yOf(r), platform ? "=" : "|", red ? "#b5432f" : "#d2cdc2");
+        const red = Math.floor((rows - 1 - r) / n(2)) % 2 === 0;
+        const platform = r > 0 && r % n(7) === 0;
+        for (let dx = 0; dx < thick; dx += 1) put(sx + dx * cellWidth, yOf(r), platform ? "=" : "|", red ? "#b5432f" : "#d2cdc2");
         if (platform) {
           put(sx - cellWidth, yOf(r), "-", "#4c4f4c");
-          put(sx + 2 * cellWidth, yOf(r), "-", "#4c4f4c");
+          put(sx + thick * cellWidth, yOf(r), "-", "#4c4f4c");
         }
         // The lattice brace up the lower half.
         if (r < rows * 0.45) {
           put(sx - cellWidth, yOf(r), r % 2 ? "/" : "|", "#4c4f4c");
-          put(sx + 2 * cellWidth, yOf(r), r % 2 ? "\\" : "|", "#4c4f4c");
+          put(sx + thick * cellWidth, yOf(r), r % 2 ? "\\" : "|", "#4c4f4c");
         }
       }
-      shapes.push({ points: [[sx - cellWidth * 0.5, base], [sx - cellWidth * 0.5, base - (rows - 0.5) * lineHeight], [sx + cellWidth * 1.5, base - (rows - 0.5) * lineHeight], [sx + cellWidth * 1.5, base]], color: "#9a9488" });
-      beacons.push({ x: sx + cellWidth * 0.5, y: base - (rows + 0.2) * lineHeight });
+      shapes.push({ points: [[sx - cellWidth * 0.5, base], [sx - cellWidth * 0.5, base - (rows - 0.5) * lineHeight], [sx + cellWidth * (thick - 0.5), base - (rows - 0.5) * lineHeight], [sx + cellWidth * (thick - 0.5), base]], color: "#9a9488" });
+      beacons.push({ x: sx + cellWidth * (thick - 1) * 0.5, y: base - (rows + 0.2) * lineHeight });
     }
   }
 
   // A low line of willows and scrub along the water hides the foot of the plant.
-  shapes.push({ points: [[x0 - span * 0.04, base + lineHeight], [x0 - span * 0.04, base - lineHeight * 0.9], [x1 + span * 0.03, base - lineHeight * 0.9], [x1 + span * 0.03, base + lineHeight]], color: "#2e2c18" });
+  const scrub = lineHeight * k;
+  shapes.push({ points: [[x0 - span * 0.04, base + scrub], [x0 - span * 0.04, base - scrub * 0.9], [x1 + span * 0.03, base - scrub * 0.9], [x1 + span * 0.03, base + scrub]], color: "#2e2c18" });
   for (let x = x0 - span * 0.04, c = 0; x < x1 + span * 0.03; x += cellWidth, c += 1) {
-    const noise = hash2(c, 0, 61);
-    put(x, base, "&%@*"[Math.floor(noise * 4)], noise > 0.55 ? "#8f8a3e" : "#6b6a34");
-    if (noise > 0.45) put(x, base - lineHeight, noise > 0.8 ? "*" : "&", noise > 0.7 ? "#a69a48" : "#7c7638");
+    for (let r = 0; r < n(1); r += 1) {
+      const noise = hash2(c, r, 61);
+      put(x, base - r * lineHeight, "&%@*"[Math.floor(noise * 4)], noise > 0.55 ? "#8f8a3e" : "#6b6a34");
+      if (noise > 0.45) put(x, base - (r + n(1)) * lineHeight, noise > 0.8 ? "*" : "&", noise > 0.7 ? "#a69a48" : "#7c7638");
+    }
   }
 }
 

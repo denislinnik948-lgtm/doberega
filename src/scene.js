@@ -114,7 +114,7 @@ export const SCENES = {
     dry: true,
     // A weak current sets slowly toward the plant's outflow; the water is murky.
     // The wreck: a rusting ship listing near the far bank, bow up (centre, width as screen fractions).
-    water: { drift: { x: 0.0016, y: 0 }, body: "#22302a", wreck: { x: 0.3, y: 0.52, w: 0.15 } },
+    water: { drift: { x: 0.0016, y: 0 }, body: "#22302a", wreck: { x: 0.3, y: 0.55, w: 0.24 } },
     // A rusty radiation sign leans among the reeds on the right.
     foreground: { reeds: 1.6, rock: false, lilyPads: 0, sign: { x: 0.84, lean: 0.2 } },
   },
@@ -191,10 +191,11 @@ export function wreckShape(width, height) {
   const wreck = active.water.wreck;
   if (!wreck) return null;
   // Placed across the visible slice, so it stays in view on a narrow phone
-  // screen, and never smaller than a fifth of the screen height in length.
-  const cx = view.left + wreck.x * view.frameWidth;
+  // screen: never shorter than 0.3 of the screen height, never wider than
+  // about two thirds of the slice, and always clear of its left edge.
+  const half = Math.min(Math.max(wreck.w * view.frameWidth, height * 0.3) / 2, view.frameWidth * 0.32);
+  const cx = view.left + Math.max(wreck.x * view.frameWidth, half + view.frameWidth * 0.03);
   const waterline = wreck.y * height;
-  const half = Math.max(wreck.w * view.frameWidth, height * 0.2) / 2;
   // Heights scale with the ship's length.
   const size = half * 6.2;
   const deck = (u) => waterline - size * (0.012 + 0.075 * u ** 1.7);
