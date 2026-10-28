@@ -35,6 +35,8 @@ const SUN_GLYPHS = [
   { limit: 0.74, glyph: "#", color: hexToInt("#f9dca0") },
   { limit: 1, glyph: "o", color: hexToInt("#eeb877") },
 ];
+// The unlit part of the moon, barely there against the night sky.
+const DARK_MOON = hexToInt("#3b474c");
 const MOON_GLYPHS = [
   { limit: 0.5, glyph: "O", color: hexToInt("#e6eadc") },
   { limit: 1, glyph: "o", color: hexToInt("#b8c4c4") },
@@ -51,15 +53,32 @@ export function discOffsets(radius, cellWidth, lineHeight) {
       if (d < 1) offsets.push({ dx: c * cellWidth, dy: r * lineHeight, d });
     }
   }
+  offsets.radius = radius;
   return offsets;
 }
 
-/** Push the sun or moon as ASCII glyphs, snapped to the character grid. */
-export function pushDisc(batch, offsets, x, y, cellWidth, lineHeight, kind) {
+/**
+ * Push the sun or moon as ASCII glyphs, snapped to the character grid. The
+ * moon shows its phase (`moon` from moonAt): the lit part grows from the
+ * right while it waxes and shrinks to the left as it wanes; the dark part is
+ * a faint ghost of the disc.
+ */
+export function pushDisc(batch, offsets, x, y, cellWidth, lineHeight, kind, moon = null) {
   const tiers = kind === "moon" ? MOON_GLYPHS : SUN_GLYPHS;
   const cx = (Math.round(x / cellWidth - 0.5) + 0.5) * cellWidth;
   const cy = (Math.round(y / lineHeight - 0.5) + 0.5) * lineHeight;
+  const radius = offsets.radius ?? 1;
+  const turn = moon ? Math.cos(2 * Math.PI * moon.phase) : -1;
   for (const { dx, dy, d } of offsets) {
+    if (moon) {
+      const v = (dy * 1.08) / radius;
+      const terminator = Math.sqrt(Math.max(0, 1 - v * v)) * turn;
+      const u = dx / radius;
+      if (moon.waxing ? u < terminator : u > -terminator) {
+        batch.push(cx + dx, cy + dy, ".", DARK_MOON);
+        continue;
+      }
+    }
     // A few darker "craters" on the moon.
     const tier = tiers.find((entry) => d < entry.limit);
     const crater = kind === "moon" && ((dx * 7 + dy * 13) & 15) < 2 && d < 0.8;

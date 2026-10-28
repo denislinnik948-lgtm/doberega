@@ -3,6 +3,7 @@ import { activeScene, currentAt, setScene } from "./scene.js";
 import { DAY_SECONDS, dayTimeAt, skyMoodsAt } from "./daycycle.js";
 import { nameOf, t } from "./i18n.js";
 import { Weather } from "./weather.js";
+import { moonAt, moonBite } from "./moon.js";
 import { Ducks } from "./wildlife.js";
 import { FishingGame, TUNING } from "./fishing/game.js";
 import { BAITS, FISH, GROUNDBAIT, HOOKS, LOCATIONS, RODS } from "./fishing/data.js";
@@ -491,8 +492,10 @@ function renderNow(now = performance.now()) {
   lastElapsed = elapsed;
   const step = Math.max(0, Math.min(dt, 0.1));
   weather.update(step);
-  game.biteBoost = weather.biteBoost;
   const dayTime = FIXED_TIME ?? worldDayTime();
+  // Rain livens the bite; so does a full moon at night (and a new moon by day).
+  const moon = moonAt(Date.now() / 1000);
+  game.biteBoost = weather.biteBoost * moonBite(Date.now() / 1000, (dayTime * 24) % 24);
   // Ducks only come out between 6:00 and 20:00.
   const hour = (dayTime * 24) % 24;
   ducks.update(step, elapsed, width, height, renderer.shorelineY(width / 2), (x, y) => renderer.isDuckWater(x, y), hour >= 6 && hour < 20);
@@ -511,7 +514,7 @@ function renderNow(now = performance.now()) {
   }
   syncFishingUi();
   game.hour = dayTime * 24;
-  ui.setClock(dayTime);
+  ui.setClock(dayTime, moon);
   tickGroundbait();
   ui.setGroundbait(mode === "fishing" ? groundbaitLeft(LOCATIONS[progress.location].id) : 0);
   ui.setWeather(weather.intensity);
@@ -523,6 +526,7 @@ function renderNow(now = performance.now()) {
     storm: weather.storm,
     bolt: weather.bolt,
     moods: skyMoods(),
+    moon,
     ducks: ducks.all,
     night: nightEvents.visible(elapsed),
   });

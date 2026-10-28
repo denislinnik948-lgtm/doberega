@@ -972,15 +972,21 @@ export function hookSprite(scale = 3) {
   ], { o: P.ink, L: P.light, W: P.bone }).toCanvas(scale);
 }
 
-/** Small sun / moon for the clock. */
-export function clockSprite(night, scale = 2) {
+/** Small sun / moon for the clock; at night the moon in its phase (`moon` from moonAt). */
+export function clockSprite(night, scale = 2, moon = null) {
   const grid = new Grid(11, 11);
+  const turn = Math.cos(2 * Math.PI * (moon?.phase ?? 0.2));
+  const waxing = moon?.waxing ?? true;
   for (let x = 0; x < 11; x += 1) {
     for (let y = 0; y < 11; y += 1) {
       const d = Math.hypot(x - 5, y - 5);
       if (night) {
-        // Crescent: a disc minus an offset disc.
-        if (d < 4.6 && Math.hypot(x - 7, y - 3.5) > 3.6) grid.set(x, y, d < 3 ? P.bone : P.light);
+        if (d >= 4.6) continue;
+        // Lit from the right while it waxes, from the left as it wanes; the rest a dark disc.
+        const u = (x - 5) / 4.6;
+        const edge = Math.sqrt(Math.max(0, 1 - ((y - 5) / 4.6) ** 2)) * turn;
+        const lit = waxing ? u >= edge : u <= -edge;
+        grid.set(x, y, lit ? (d < 3 ? P.bone : P.light) : P.mid);
       } else if (d < 3.2) {
         grid.set(x, y, d < 2 ? P.bone : P.gold);
       } else if (d < 5.2 && (x === 5 || y === 5 || x === y || x + y === 10)) {

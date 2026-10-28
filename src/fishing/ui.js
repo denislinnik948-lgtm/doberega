@@ -616,8 +616,8 @@ export class AnglerUI {
     });
   }
 
-    /** In-game clock, e.g. "05:40", with a sun or moon beside it. */
-  setClock(dayTime) {
+  /** In-game clock, e.g. "05:40", with a sun beside it, or at night the moon in its phase. */
+  setClock(dayTime, moon = null) {
     const minutes = Math.floor(dayTime * 24 * 60) % (24 * 60);
     const shown = minutes - (minutes % 10);
     if (shown === this.clockMinutes) return;
@@ -625,9 +625,14 @@ export class AnglerUI {
     const text = `${String(Math.floor(shown / 60)).padStart(2, "0")}:${String(shown % 60).padStart(2, "0")}`;
     const night = shown < 5 * 60 || shown >= 21 * 60;
     document.querySelectorAll(".clock-value").forEach((node) => { node.textContent = text; });
-    if (night !== this.clockNight) {
-      this.clockNight = night;
-      document.querySelectorAll(".clock-icon").forEach((node) => node.replaceChildren(clockSprite(night, 3)));
+    const look = night ? `moon:${moon?.id}` : "sun";
+    if (look !== this.clockNight) {
+      this.clockNight = look;
+      const label = moon ? t("moon.label", { phase: t(`moon.${moon.id}`) }) : "";
+      document.querySelectorAll(".clock-icon").forEach((node) => {
+        node.replaceChildren(clockSprite(night, 3, moon));
+        node.title = label;
+      });
     }
   }
 

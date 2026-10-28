@@ -2241,6 +2241,13 @@ export class CanvasWaterRenderer {
     if (!this.width || !this.height) return;
     const { width, height, cellWidth, lineHeight } = this;
     const sky = gradeSky(skyAt(dayTime, env.moods));
+    // A thin moon lights the water and the clouds less than a full one.
+    const moon = env.moon ?? { phase: 0.5, light: 1, waxing: true };
+    if (sky.light.kind === "moon") {
+      const lit = 0.2 + 0.8 * moon.light;
+      sky.light = { ...sky.light, strength: sky.light.strength * lit };
+      sky.glow = [...sky.glow.slice(0, 3), sky.glow[3] * lit];
+    }
 
     const stale = this.lightKey === null
       || Math.abs(time - this.lightKey.time) >= LIGHT_INTERVAL
@@ -2258,7 +2265,7 @@ export class CanvasWaterRenderer {
     }
     // The sun and moon move every frame, snapped to the character grid.
     this.discBatch.clear();
-    if (sky.moon.up && sky.moon.y < 0.52) pushDisc(this.discBatch, this.moonDisc, sky.moon.x * width, sky.moon.y * height, cellWidth, lineHeight, "moon");
+    if (sky.moon.up && sky.moon.y < 0.52) pushDisc(this.discBatch, this.moonDisc, sky.moon.x * width, sky.moon.y * height, cellWidth, lineHeight, "moon", moon);
     if (sky.sun.up && sky.sun.y < 0.52) pushDisc(this.discBatch, this.sunDisc, sky.sun.x * width, sky.sun.y * height, cellWidth, lineHeight, "sun");
     this.fillForest(time);
     fillAmbient(this.ambient, this.ambientBatches, time, dayTime, this.rain);
