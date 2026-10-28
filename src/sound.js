@@ -341,7 +341,7 @@ const LEVELS = {
   // Nature, places and the night (about −46…−55 dB), rain as a soft bed.
   lap: 0.48, fishJump: 0.88, bird: 1.05, duck: 0.4, cricket: 1.3, owl: 0.27, thunder: 0.2, treeFrog: 1.08,
   wisp: 0.28, boat: 10.4, mavka: 0.32, lantern: 6, eyes: 0.27, drone: 0.09, whisper: 0.88,
-  river: 0.35, cow: 0.47, bell: 0.22, wreck: 9.7, geiger: 1, rainBed: 0.2, wind: 0.5,
+  river: 0.35, cow: 0.47, bell: 0.22, wreck: 9.7, geiger: 1, rainBed: 0.2, wind: 0.5, heron: 0.5, heronStrike: 0.7, beaverSlap: 0.6,
 };
 
 /** Build a sound at its own level (LEVELS[name]) into the effects bus. */
@@ -530,6 +530,41 @@ const rawSounds = {
     wash({ type: "bandpass", from: vary(3200, 0.075), q: 2, attack: 0.0008, length: 0.012, volume: 0.09 });
   },
   /** A duck eating the bait (lab: Кз1 "Хап і кря"): a quick dabbling with the bill and a pleased quack. */
+  /** A grey heron's harsh, croaking "kraank" from somewhere over the water. */
+  heron(pan = 0) {
+    if (!audio()) return;
+    const at = ctx.currentTime;
+    for (const [delay, length] of [[0, 0.32], [0.42, 0.22]].slice(0, Math.random() < 0.5 ? 1 : 2)) {
+      const osc = ctx.createOscillator();
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(vary(420, 0.06), at + delay);
+      osc.frequency.exponentialRampToValueAtTime(vary(260, 0.06), at + delay + length);
+      const filter = ctx.createBiquadFilter();
+      filter.type = "bandpass";
+      filter.frequency.value = 900;
+      filter.Q.value = 1.4;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0, at + delay);
+      gain.gain.linearRampToValueAtTime(0.05, at + delay + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0001, at + delay + length);
+      osc.connect(filter).connect(gain).connect(out(1, pan));
+      osc.start(at + delay);
+      osc.stop(at + delay + length + 0.05);
+    }
+  },
+  /** The heron's beak stabbing into the water. */
+  heronStrike(pan = 0) {
+    if (!audio()) return;
+    wash({ buffer: brown, type: "lowpass", from: 1400, to: 300, attack: 0.003, length: 0.18, volume: 0.06, pan });
+    droplets(2, 0.04, 0.2, 0.01);
+  },
+  /** A beaver's tail slapping the water before it dives: a flat smack and a gulp. */
+  beaverSlap(pan = 0) {
+    if (!audio()) return;
+    wash({ type: "lowpass", from: 2600, to: 400, attack: 0.002, length: 0.12, volume: 0.09, pan });
+    wash({ buffer: brown, type: "lowpass", from: 700, to: 150, attack: 0.01, length: 0.6, volume: 0.07, delay: 0.03, pan });
+    blup({ delay: 0.25, freq: vary(320, 0.1), rise: 1.6, length: 0.08, level: 0.03, pan });
+  },
   duckEats() {
     if (!audio()) return;
     for (let i = 0; i < 4; i += 1) wash({ type: "lowpass", from: 2000, to: 600, attack: 0.002, length: 0.05, volume: 0.06, delay: i * 0.05 });

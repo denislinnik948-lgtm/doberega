@@ -5,12 +5,12 @@ import { nameOf, t } from "./i18n.js";
 import { Weather } from "./weather.js";
 import { moonAt, moonBite } from "./moon.js";
 import { windAt, windBite } from "./wind.js";
-import { Ducks } from "./wildlife.js";
+import { Critters, Ducks } from "./wildlife.js";
 import { FishingGame, TUNING } from "./fishing/game.js";
 import { BAITS, FISH, GROUNDBAIT, HOOKS, LINE, LOCATIONS, RODS } from "./fishing/data.js";
 import { baitCount, loadProgress, onProgressSaved, replaceProgress, saveProgress } from "./fishing/store.js";
 import { Cloud } from "./cloud.js";
-import { isWinter, onSeasonChange } from "./theme.js";
+import { currentSeason, isWinter, onSeasonChange } from "./theme.js";
 import { NightEvents } from "./night-events.js";
 import { track } from "./analytics.js";
 import { ambienceTick, jumpSound, musicTick, nightSound, sounds, thunderClap } from "./sound.js";
@@ -53,6 +53,18 @@ const weather = new Weather({
   },
 });
 const ducks = new Ducks();
+// A heron, a beaver and dragonflies, for the look and sound of the place (they never touch the fishing).
+const critters = new Critters({
+  onEvent: (type, data) => {
+    if (mode !== "fishing") return;
+    const pan = data ? ((data.x - renderer.frame.left) / renderer.frame.width) * 2 - 1 : 0;
+    if (type === "heron") sounds.heron(Math.random() * 1.2 - 0.6);
+    if (type === "heronStrike" || type === "beaverSlap") {
+      addRipple({ ...renderer.screenToPlane(data.x, data.y), time: lastElapsed, strength: type === "beaverSlap" ? 0.7 : 0.35, size: type === "beaverSlap" ? 0.6 : 0.25, ambient: true });
+      sounds[type](Math.max(-0.7, Math.min(0.7, pan)));
+    }
+  },
+});
 // Mystic nights: lights over the water, an apparition by the far shore, eyes by the bank.
 // Each event is also announced on the window as
 // "doberega:night" ({ type }) so sounds can hook in later without touching this.
@@ -131,6 +143,7 @@ function applySpot() {
   if (width) resize(true);
   else renderer.setScene(spot.kind, config);
   ducks.reset();
+  critters.reset();
   // Casts can land from just past the far shore to near the bank.
   TUNING.farY = activeScene().horizon + 0.05;
   // The school finds its place on the new water.
@@ -382,7 +395,7 @@ function tryCast(x, y) {
 }
 
 // `?debug` exposes the game for manual testing from the console.
-if (params.has("debug")) window.doberega = { game, progress, ui, cloud, nightEvents, renderNow, renderer, config, ripples, weather, ducks, school: () => school };
+if (params.has("debug")) window.doberega = { game, progress, ui, cloud, nightEvents, renderNow, renderer, config, ripples, weather, ducks, critters, school: () => school };
 
 const pullable = () => ["waiting", "retrieving", "nibble", "bite", "fight"].includes(game.phase);
 
@@ -574,6 +587,13 @@ function renderNow(now = performance.now()) {
   // Ducks only come out between 6:00 and 20:00.
   const hour = (dayTime * 24) % 24;
   ducks.update(step, elapsed, width, height, renderer.shorelineY(width / 2), (x, y) => renderer.isDuckWater(x, y), hour >= 6 && hour < 20);
+  critters.update(step, elapsed, width, height, renderer.frame, renderer.shorelineY(width / 2), (x, y) => renderer.isDuckWater(x, y), {
+    hour,
+    rain: weather.intensity,
+    wind: wind.strength,
+    warm: ["summer", "spring"].includes(currentSeason()),
+    beavers: LOCATIONS[progress.location].kind !== "castle",
+  });
   // A duck paddling over the float eats the bait.
   if (mode === "fishing" && game.target && ["waiting", "nibble", "bite"].includes(game.phase)) {
     const float = toScreen(game.target);
@@ -606,6 +626,7 @@ function renderNow(now = performance.now()) {
     moon,
     wind,
     ducks: ducks.all,
+    critters,
     night: nightEvents.visible(elapsed),
   });
 }

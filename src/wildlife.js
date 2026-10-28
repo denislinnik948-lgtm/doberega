@@ -181,3 +181,173 @@ export class Ducks {
     return this.all.find((duck) => Math.hypot(duck.x - x, (duck.y - y) * 1.6) < radius) ?? null;
   }
 }
+
+/*
+ * The rest of the wildlife, for the look and sound of the place only (it
+ * never touches the fishing):
+ *
+ * - a grey heron: by day, now and then, it glides in from a side, stands in
+ *   the shallows near one of the edges of the view, stabs at the water every
+ *   few seconds (sometimes coming up with a fish) and flies off again;
+ * - a beaver: in the evening, at the reedy waters and the river, a head with
+ *   a long V of a wake swims across, and may slap its tail and dive;
+ * - dragonflies: on warm days (summer, late spring), with no rain and no
+ *   strong wind, a few hover by the reeds and dart from place to place.
+ *
+ * Positions are in screen pixels; `isWater(x, y)` keeps them on open water.
+ * `onEvent(type, data)` hears a heron's call, its strike and a beaver's slap.
+ */
+export class Critters {
+  constructor({ random = Math.random, onEvent = () => {} } = {}) {
+    this.random = random;
+    this.onEvent = onEvent;
+    this.reset();
+  }
+
+  reset() {
+    const random = this.random;
+    this.heron = null;
+    this.beaver = null;
+    this.flies = [];
+    this.heronTimer = 60 + random() * 120;
+    this.beaverTimer = 30 + random() * 90;
+  }
+
+  /**
+   * `frame` is the visible slice ({ left, width }), `horizonY` where the far
+   * water starts; `when` holds { hour, rain, wind, warm, beavers }.
+   */
+  update(dt, time, width, height, frame, horizonY, isWater, when) {
+    const random = this.random;
+    const day = when.hour >= 6 && when.hour < 19.5;
+    this.updateHeron(dt, time, height, frame, horizonY, isWater, day && when.rain < 0.5);
+    this.updateBeaver(dt, time, height, frame, horizonY, isWater, when.beavers && when.hour >= 18 && when.hour < 22.5);
+    // Dragonflies keep to the reeds near our bank, in the bottom corners of the view.
+    const flying = when.warm && day && when.hour >= 9 && when.hour < 18.5 && when.rain < 0.15 && when.wind < 0.6;
+    if (flying && this.flies.length < 3 && random() < dt * 0.2) {
+      const side = random() < 0.5 ? 0 : 1;
+      const home = { x: frame.left + frame.width * (side ? 0.78 + random() * 0.16 : 0.06 + random() * 0.16), y: height * (0.66 + random() * 0.2) };
+      this.flies.push({ x: home.x, y: home.y - 80, home, to: { ...home }, from: { x: home.x, y: home.y - 80 }, t: 0, dart: 0.4, hover: 0, life: 25 + random() * 40, heading: 1, phase: random() * 6 });
+    }
+    for (const fly of this.flies) {
+      fly.life -= dt;
+      if (fly.hover > 0) {
+        fly.hover -= dt;
+        continue;
+      }
+      fly.t += dt / fly.dart;
+      const k = Math.min(1, fly.t);
+      const e = 1 - (1 - k) ** 3;
+      fly.x = fly.from.x + (fly.to.x - fly.from.x) * e;
+      fly.y = fly.from.y + (fly.to.y - fly.from.y) * e;
+      if (k >= 1) {
+        // Hover a moment, then dart somewhere near home (or away, at the end of its life).
+        fly.hover = 0.8 + random() * 2.5;
+        fly.from = { x: fly.x, y: fly.y };
+        const leaving = fly.life <= 0 || !flying;
+        fly.to = leaving
+          ? { x: fly.x + (random() < 0.5 ? -1 : 1) * 400, y: fly.y - 260 }
+          : { x: fly.home.x + (random() - 0.5) * 160, y: fly.home.y + (random() - 0.5) * 70 };
+        fly.heading = fly.to.x >= fly.x ? 1 : -1;
+        fly.dart = 0.18 + random() * 0.3;
+        fly.t = 0;
+        if (leaving) fly.gone = true;
+      }
+    }
+    this.flies = this.flies.filter((fly) => !(fly.gone && fly.t >= 1));
+  }
+
+  updateHeron(dt, time, height, frame, horizonY, isWater, allowed) {
+    const random = this.random;
+    this.heronTimer -= dt;
+    if (!this.heron && allowed && this.heronTimer <= 0) {
+      this.heronTimer = 150 + random() * 240;
+      // A place to stand: shallow water near one side of the view, toward our bank.
+      for (let attempt = 0; attempt < 16; attempt += 1) {
+        const left = random() < 0.5;
+        // Clear of the reeds in the bottom corners, but off to one side of the float's water.
+        const x = frame.left + frame.width * (left ? 0.2 + random() * 0.14 : 0.66 + random() * 0.14);
+        const y = horizonY + (height - horizonY) * (0.2 + random() * 0.25);
+        if (!isWater(x, y) || !isWater(x - 20, y) || !isWater(x + 20, y)) continue;
+        const from = { x: left ? frame.left - 120 : frame.left + frame.width + 120, y: height * (0.12 + random() * 0.12) };
+        this.heron = { state: "in", x: from.x, y: from.y, from, spot: { x, y }, t: 0, heading: left ? 1 : -1, stand: 30 + random() * 40, strike: 4 + random() * 6, stab: 0, catch: 0 };
+        this.onEvent("heron");
+        break;
+      }
+    }
+    const heron = this.heron;
+    if (!heron) return;
+    if (heron.state === "in" || heron.state === "out") {
+      heron.t += dt / 6.5;
+      const k = Math.min(1, heron.t);
+      const e = k * k * (3 - 2 * k);
+      const to = heron.state === "in" ? heron.spot : heron.away;
+      heron.x = heron.from.x + (to.x - heron.from.x) * e;
+      // A long glide down, with a little rise just before it lands.
+      heron.y = heron.from.y + (to.y - heron.from.y) * e - Math.sin(Math.PI * e) * 30;
+      if (k >= 1) {
+        if (heron.state === "out") this.heron = null;
+        else heron.state = "stand";
+      }
+      return;
+    }
+    // Standing: still for a while, then a quick stab at the water.
+    heron.stand -= dt;
+    heron.strike -= dt;
+    if (heron.stab > 0) heron.stab = Math.max(0, heron.stab - dt);
+    if (heron.catch > 0) heron.catch = Math.max(0, heron.catch - dt);
+    if (heron.strike <= 0 && heron.stab === 0) {
+      heron.strike = 5 + random() * 9;
+      heron.stab = 0.7;
+      const caught = random() < 0.35;
+      if (caught) heron.catch = 3;
+      this.onEvent("heronStrike", { x: heron.x + heron.heading * 26, y: heron.y + 4, caught });
+    }
+    if (heron.stand <= 0 && heron.stab === 0) {
+      // Off again, up and away past the other side.
+      heron.state = "out";
+      heron.from = { x: heron.x, y: heron.y };
+      heron.heading = -heron.heading;
+      heron.away = { x: heron.heading > 0 ? frame.left + frame.width + 160 : frame.left - 160, y: height * (0.08 + random() * 0.1) };
+      heron.t = 0;
+      if (random() < 0.6) this.onEvent("heron");
+    }
+  }
+
+  updateBeaver(dt, time, height, frame, horizonY, isWater, allowed) {
+    const random = this.random;
+    this.beaverTimer -= dt;
+    if (!this.beaver && allowed && this.beaverTimer <= 0) {
+      this.beaverTimer = 120 + random() * 200;
+      for (let attempt = 0; attempt < 12; attempt += 1) {
+        const y = horizonY + (height - horizonY) * (0.12 + random() * 0.35);
+        const fromLeft = random() < 0.5;
+        const startX = frame.left + (fromLeft ? frame.width * 0.02 : frame.width * 0.98);
+        if (!isWater(startX, y)) continue;
+        this.beaver = { x: fromLeft ? frame.left - 20 : frame.left + frame.width + 20, y, heading: fromLeft ? 1 : -1, speed: 14 + random() * 8, dive: random() < 0.5 ? 6 + random() * 14 : Infinity, under: 0, wake: [] };
+        break;
+      }
+    }
+    const beaver = this.beaver;
+    if (!beaver) return;
+    if (beaver.under > 0) {
+      // Under water after the slap: gone for good after a moment.
+      beaver.under += dt;
+      if (beaver.under > 1.2) this.beaver = null;
+      return;
+    }
+    const nx = beaver.x + beaver.heading * beaver.speed * dt;
+    const onScreen = nx > frame.left && nx < frame.left + frame.width;
+    if (onScreen && !isWater(nx, beaver.y)) beaver.dive = 0;
+    else beaver.x = nx;
+    if (!beaver.wake.length || time - beaver.wake[0].t > 0.3) beaver.wake.unshift({ x: beaver.x, y: beaver.y, t: time });
+    if (beaver.wake.length > 12) beaver.wake.length = 12;
+    beaver.dive -= dt;
+    if (beaver.dive <= 0) {
+      // A slap of the tail, and it's under.
+      beaver.under = 0.01;
+      this.onEvent("beaverSlap", { x: beaver.x - beaver.heading * 10, y: beaver.y });
+    }
+    if (beaver.x < frame.left - 40 || beaver.x > frame.left + frame.width + 40) this.beaver = null;
+  }
+}

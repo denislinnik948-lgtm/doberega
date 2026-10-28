@@ -2060,6 +2060,7 @@ export class CanvasWaterRenderer {
     ctx.clearRect(this.frame.left, 0, this.frame.width, this.height);
     for (const rock of this.rockImages) ctx.drawImage(rock.image, rock.left, rock.top, rock.width, rock.height);
     this.drawDucks(ctx, time, this.ducks);
+    if (this.critters) this.drawCritters(ctx, time, this.critters);
     if (angler && !angler.hidden) this.renderAngler(ctx, angler, "line");
 
     // Reeds are close to the viewer, so they use larger glyphs and sway harder.
@@ -2295,6 +2296,105 @@ export class CanvasWaterRenderer {
     ctx.restore();
   }
 
+  /**
+   * The heron, the beaver and the dragonflies (see Critters in wildlife.js),
+   * drawn in glyphs like the ducks, each with a dark outline so it reads on the water.
+   */
+  drawCritters(ctx, time, { heron, beaver, flies }) {
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.lineJoin = "round";
+    const glyph = (text, x, y, color, outline = "#141109") => {
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = outline;
+      ctx.strokeText(text, x, y);
+      ctx.fillStyle = color;
+      ctx.fillText(text, x, y);
+    };
+    if (beaver) {
+      const size = 14;
+      ctx.font = `700 ${size}px ${MONO_FONT}`;
+      // A long V of a wake behind the head.
+      beaver.wake.forEach((point, i) => {
+        if (i < 1) return;
+        const spread = i * 3.2;
+        ctx.fillStyle = `rgba(190, 210, 206, ${0.5 - i * 0.035})`;
+        ctx.fillText(beaver.heading > 0 ? "\\" : "/", point.x, point.y - spread * 0.5);
+        ctx.fillText(beaver.heading > 0 ? "/" : "\\", point.x, point.y + spread * 0.5);
+      });
+      if (!beaver.under) {
+        const bob = Math.sin(time * 2) * 0.8;
+        glyph(beaver.heading > 0 ? "o" : "o", beaver.x, beaver.y + bob, "#6e4c2e");
+        glyph(".", beaver.x + beaver.heading * 6, beaver.y - 3 + bob, "#1a120a", "#6e4c2e");
+      }
+    }
+    if (heron) {
+      const size = 19;
+      ctx.font = `700 ${size}px ${MONO_FONT}`;
+      const step = size * 0.6;
+      const line = size * 0.95;
+      const right = heron.heading > 0;
+      const put = (column, row, text, color) => glyph(text, heron.x + (right ? column : -column) * step, heron.y + row * line, color);
+      const grey = "#8e9aa4";
+      const dark = "#4e575e";
+      const pale = "#d8dcd6";
+      const beak = "#d4a640";
+      if (heron.state === "stand") {
+        // Standing in the shallows; on a stab the neck shoots forward and down to the water.
+        const stab = heron.stab > 0 ? Math.sin((1 - heron.stab / 0.7) * Math.PI) : 0;
+        put(-1.6, -1.5, right ? "\\" : "/", dark);
+        put(-0.7, -1.6, "#", dark);
+        put(0.2, -1.6, "#", grey);
+        put(1.1, -1.7, right ? ")" : "(", grey);
+        put(0, -0.6, "|", dark);
+        put(0.3, 0.2, "|", dark);
+        if (stab > 0.3) {
+          put(1.6, -1.2, right ? "\\" : "/", pale);
+          put(2.4, -0.3, "o", pale);
+          put(3.2, 0.1, heron.catch > 0 && stab > 0.8 ? "~" : right ? "\\" : "/", beak);
+        } else {
+          put(1.3, -2.5, right ? "/" : "\\", pale);
+          put(1.1, -3.4, "o", pale);
+          put(2, -3.4, "=", beak);
+          put(2.8, -3.4, "-", beak);
+          // A fish caught, wriggling in the beak.
+          if (heron.catch > 0) put(3.4, -3.3, Math.sin(time * 18) > 0 ? "<" : "~", "#c8d0c4");
+        }
+        // Rings round its legs.
+        ctx.fillStyle = "rgba(190, 210, 206, 0.45)";
+        ctx.fillText("~", heron.x - step * 0.6, heron.y + line * 0.9);
+        ctx.fillText("~", heron.x + step * 0.9, heron.y + line * 0.9);
+      } else {
+        // In flight: neck tucked in, legs trailing, the big wings beating slowly.
+        const up = Math.sin(time * 4.2) > 0;
+        put(-2.4, 0, "-", dark);
+        put(-1.5, 0, "=", grey);
+        put(-0.5, 0, "=", grey);
+        put(0.5, 0, "o", pale);
+        put(1.4, 0, ">", beak);
+        if (up) {
+          put(-1, -0.9, right ? "\\" : "/", grey);
+          put(-0.2, -1.6, right ? "\\" : "/", dark);
+          put(-0.6, -0.9, right ? "/" : "\\", grey);
+        } else {
+          put(-1, 0.9, right ? "/" : "\\", grey);
+          put(-0.2, 1.6, right ? "/" : "\\", dark);
+        }
+      }
+    }
+    if (flies.length) {
+      ctx.font = `700 11px ${MONO_FONT}`;
+      for (const fly of flies) {
+        // A shimmering blue body and a blur of wings.
+        const shimmer = Math.sin(time * 40 + fly.phase) > 0;
+        glyph(shimmer ? "+" : "x", fly.x, fly.y, "#9ad6e6", "#10202a");
+        glyph("-", fly.x - fly.heading * 6, fly.y + 1, "#3a9ac0", "#10202a");
+      }
+    }
+    ctx.restore();
+  }
+
   render(time, config, ripples = [], angler = null, dayTime = 0.76, env = {}) {
     this.rain = env.rain ?? 0;
     this.winter = isWinter();
@@ -2341,6 +2441,7 @@ export class CanvasWaterRenderer {
     this.fillRain(time, this.rain);
     this.fillBolt(env.bolt);
     this.ducks = env.ducks ?? [];
+    this.critters = env.critters ?? null;
     setCloudiness(this.rain);
 
     const backend = this.backend;
