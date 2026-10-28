@@ -2639,53 +2639,48 @@ export class CanvasWaterRenderer {
     ctx.restore();
   }
 
-  /** Bullfinches: a rose-red breast, black cap, grey back, perched or flitting. */
+  /**
+   * Bullfinches, in glyphs like the ducks and the heron, each outlined dark
+   * so it reads on bark and reeds: a black cap, a grey back, a rose-red
+   * breast and a black tail; in flight a blur of wings over the red.
+   */
   drawFinches(ctx, time, finches) {
     ctx.save();
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.lineJoin = "round";
-    ctx.lineCap = "round";
-    const size = clamp(this.reedSize * 0.7, 9, 15);
+    const size = clamp(this.reedSize * 0.75, 11, 17);
     ctx.font = `700 ${size}px ${MONO_FONT}`;
-    const blob = (x, y, rx, ry, color) => {
-      ctx.beginPath();
-      ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+    const step = size * 0.55;
+    const line = size * 0.8;
+    const glyph = (text, x, y, color) => {
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#141109";
+      ctx.strokeText(text, x, y);
       ctx.fillStyle = color;
-      ctx.fill();
-      ctx.stroke();
+      ctx.fillText(text, x, y);
     };
-    ctx.strokeStyle = "rgba(20, 17, 9, 0.8)";
-    ctx.lineWidth = 1;
+    const cap = "#16181a";
+    const back = "#9aa3ab";
+    const breast = "#f0604c";
     for (const bird of finches) {
       const h = bird.heading;
+      const put = (column, row, text, color) => glyph(text, bird.x + column * step * h, bird.y + row * line, color);
       if (bird.flying) {
-        // Wings a blur over a little round body.
         const up = Math.sin(time * 26 + bird.phase) > 0;
-        ctx.fillStyle = "#4a5058";
-        ctx.lineWidth = 2.5;
-        ctx.strokeStyle = "#141109";
-        ctx.strokeText(up ? "v" : "^", bird.x, bird.y - size * 0.5);
-        ctx.fillText(up ? "v" : "^", bird.x, bird.y - size * 0.5);
-        ctx.lineWidth = 1;
-        ctx.strokeStyle = "rgba(20, 17, 9, 0.8)";
-        blob(bird.x + h * size * 0.1, bird.y - size * 0.45, size * 0.26, size * 0.18, "#d85444");
+        put(-1, -0.6, "-", cap);
+        put(0, -0.6, "o", breast);
+        put(0.9, -0.75, "o", cap);
+        put(-0.1, up ? -1.4 : 0.2, up ? "^" : "v", back);
         continue;
       }
-      // Perched, feet on the twig; now and then a quick bob to peck.
-      const bob = bird.peck > 0 ? Math.sin((bird.peck / 0.35) * Math.PI) * size * 0.2 : 0;
-      const cy = bird.y - size * 0.4;
-      ctx.beginPath();
-      ctx.moveTo(bird.x - h * size * 0.2, cy);
-      ctx.lineTo(bird.x - h * size * 0.75, cy + size * 0.2);
-      ctx.lineWidth = Math.max(1.5, size * 0.16);
-      ctx.strokeStyle = "#1e2024";
-      ctx.stroke();
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = "rgba(20, 17, 9, 0.8)";
-      blob(bird.x - h * size * 0.05, cy - size * 0.05, size * 0.42, size * 0.32, "#8c949c");
-      blob(bird.x + h * size * 0.08, cy + size * 0.06, size * 0.3, size * 0.24, "#ec5a48");
-      blob(bird.x + h * size * 0.3, cy - size * 0.28 + bob, size * 0.2, size * 0.19, "#16181a");
+      // Perched on the twig; now and then the head dips to peck.
+      const bob = bird.peck > 0 ? Math.sin((bird.peck / 0.35) * Math.PI) * 0.3 : 0;
+      put(-1.1, -0.35, h > 0 ? "/" : "\\", cap);
+      put(-0.1, -1.15, "_", back);
+      put(0, -0.5, "@", back);
+      put(0.75, -0.45, "@", breast);
+      put(0.85, -1.2 + bob, "o", cap);
     }
     ctx.restore();
   }
