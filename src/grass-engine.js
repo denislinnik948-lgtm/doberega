@@ -132,9 +132,11 @@ export function createGrass({ width, height, cellWidth, lineHeight, frame, seaso
     });
   }
 
-  // Fireflies wander over the grass, or along the far shore where there is none; none in winter.
+  // Fireflies wander over the grass, or along the far shore where there is none:
+  // a summer night is full of them, a few in late spring and early autumn, none in winter.
   const homes = [];
-  for (let i = 0; i < (season === "winter" ? 0 : FIREFLIES); i += 1) {
+  const fireflies = Math.round(FIREFLIES * ({ summer: 1, spring: 0.35, autumn: 0.2 }[season] ?? 0));
+  for (let i = 0; i < fireflies; i += 1) {
     const pool = i % 2 ? near.blades : far.blades;
     const blade = pool.length ? pool[Math.floor(hash2(i, 7, 313) * pool.length)] : null;
     const x = blade ? blade.x : frame.left + frame.width * hash2(i, 8, 313);

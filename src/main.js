@@ -124,6 +124,8 @@ function addRipple(ripple) {
   ripples.push(ripple);
   while (ripples.length > 8) ripples.shift();
 }
+// Bubbles the renderer pops on the water leave a faint ring.
+renderer.onRipple = (x, y, strength, size) => addRipple({ ...renderer.screenToPlane(x, y), time: lastElapsed, strength, size, ambient: true });
 
 // --- Fishing -----------------------------------------------------------------
 
@@ -251,6 +253,11 @@ function handleGameEvent(type, data) {
     sounds.bite();
   } else if (type === "hooked") {
     sounds.hookset();
+    // Spray flung up where the float was.
+    if (game.target) {
+      const point = toScreen(game.target);
+      renderer.splash(point.x, point.y, Math.min(1.5, 0.6 + (data.fish?.weight ?? 0) * 0.1));
+    }
     if (data.onDip) bump(progress, "dipHooks");
   } else if (type === "snag") {
     sounds.snag();
@@ -575,7 +582,30 @@ function playLoops(step, dayTime) {
   const reedy = ["pond", "lake", "reservoir"].includes(LOCATIONS[progress.location].kind);
   musicTick(step, { atWater: mode === "fishing", night: hour < 5 || hour >= 21.5, fighting: game.phase === "fight" });
   // Snow falls without a sound.
-  ambienceTick(step, { atWater: mode === "fishing", wind: wind.strength, windDir: wind.dir, rain: isWinter() ? 0 : weather.intensity, night: hour < 5 || hour >= 21.5, ducks: ducks.all.length, frogs: reedy && (hour >= 19 || hour < 4), deepNight: nightEvents.depth ?? 0, spot: LOCATIONS[progress.location].kind, winter: isWinter() });
+  ambienceTick(step, { atWater: mode === "fishing", wind: wind.strength, windDir: wind.dir, rain: isWinter() ? 0 : weather.intensity, night: hour < 5 || hour >= 21.5, ducks: ducks.all.length, frogs: reedy && (hour >= 19 || hour < 4), deepNight: nightEvents.depth ?? 0, spot: LOCATIONS[progress.location].kind, winter: isWinter(), campfire: campfireLit(hour) });
+}
+
+/** The campfire (from the shop) burns on the bank after dark, when there is a bank to light it on. */
+function campfireLit(hour) {
+  return mode === "fishing" && progress.extras.includes("campfire") && (hour >= 19.5 || hour < 5.5) && !activeScene().foreground.bridge;
+}
+
+// The float, idle on the water, now and then sends out a faint ring; a hard pull makes the line sing.
+let floatRingClock = 2;
+let singClock = 0;
+function floatLife(step, elapsed) {
+  if (mode !== "fishing") return;
+  floatRingClock -= step;
+  if (game.phase === "waiting" && game.target && !BAITS[game.bait]?.lure && floatRingClock <= 0) {
+    floatRingClock = 2.8 + Math.random() * 2.6;
+    const point = toScreen(game.target);
+    addRipple({ ...renderer.screenToPlane(point.x, point.y), time: elapsed, strength: 0.16, size: 0.1, ambient: true });
+  }
+  singClock -= step;
+  if (game.phase === "fight" && game.tension > 0.8 && !game.snag && singClock <= 0) {
+    singClock = 1.2 + Math.random();
+    sounds.lineSing(Math.min(1, (game.tension - 0.8) * 5));
+  }
 }
 
 /** Game hours of groundbait left at a water (0 if none). */
@@ -630,7 +660,9 @@ function renderNow(now = performance.now()) {
   nightEvents.update(step, elapsed, dayTime);
   playLoops(step, dayTime);
   const winter = isWinter();
+  floatLife(step, elapsed);
   renderer.render(elapsed, config, ripples, anglerView(elapsed), dayTime, {
+    campfire: campfireLit(hour),
     rain: weather.intensity,
     // Snow in winter brings no lightning.
     flash: winter ? 0 : weather.flash,

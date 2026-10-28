@@ -141,25 +141,50 @@ export function sampleSky(cells, time, batch, starBatch) {
   }
 }
 
-/** A loose V of distant birds crosses the sky every forty seconds or so. */
-export function birdsAt(time, width, height) {
+/*
+ * Birds cross the sky every forty seconds or so, by the season: a loose V of
+ * ducks; in autumn a long skein of geese flying south (to the left), in
+ * spring flying back; in summer a pair or three of swallows darting low and
+ * fast; in winter only a crow or two, slow.
+ */
+const FLIGHTS = {
+  ducks: { duration: 30, count: [3, 5], spacing: [15, 8], top: [0.13, 0.11], beat: 6.5, wander: 0.012 },
+  geese: { duration: 38, count: [7, 11], spacing: [19, 10], top: [0.07, 0.08], beat: 3.6, wander: 0.006 },
+  swallows: { duration: 11, count: [2, 3], spacing: [26, 14], top: [0.26, 0.1], beat: 14, wander: 0.04 },
+  crows: { duration: 34, count: [1, 2], spacing: [40, 12], top: [0.12, 0.12], beat: 3, wander: 0.01 },
+};
+
+function flightKind(flight, season) {
+  if (season === "winter") return "crows";
+  if (season === "autumn" && flight % 2 === 0) return "geese";
+  if (season === "spring" && flight % 3 === 0) return "geese";
+  if (season === "summer" && flight % 2 === 1) return "swallows";
+  return "ducks";
+}
+
+export function birdsAt(time, width, height, season = "summer") {
   const period = 41;
   const flight = Math.floor(time / period);
-  const progress = (time - flight * period) / 30;
+  const kind = flightKind(flight, season);
+  const spec = FLIGHTS[kind];
+  const progress = (time - flight * period) / spec.duration;
   if (progress > 1) return [];
 
-  const direction = flight % 2 === 0 ? 1 : -1;
-  const count = 3 + (flight % 3);
+  // Geese go south in autumn (to the left) and come back in spring.
+  const direction = kind === "geese" ? (season === "autumn" ? -1 : 1) : flight % 2 === 0 ? 1 : -1;
+  const count = spec.count[0] + (flight % (spec.count[1] - spec.count[0] + 1));
   const leadX = direction > 0 ? -0.08 * width + progress * width * 1.16 : width * 1.08 - progress * width * 1.16;
-  const leadY = height * (0.13 + hash2(flight, 1, 5) * 0.11) + Math.sin(progress * 5.5) * height * 0.012;
+  const leadY = height * (spec.top[0] + hash2(flight, 1, 5) * spec.top[1]) + Math.sin(progress * (kind === "swallows" ? 17 : 5.5)) * height * spec.wander;
   const birds = [];
   for (let i = 0; i < count; i += 1) {
     const rank = Math.ceil(i / 2);
     const side = i % 2 === 0 ? 1 : -1;
-    const flap = Math.sin(time * 6.5 + i * 1.7);
+    const flap = Math.sin(time * spec.beat + i * 1.7);
+    // Swallows each dart about on their own.
+    const dart = kind === "swallows" ? Math.sin(time * 4.3 + i * 2.1) * 10 : 0;
     birds.push({
-      x: leadX - direction * rank * 15,
-      y: leadY + side * rank * 8 + Math.sin(time * 0.9 + i) * 2,
+      x: leadX - direction * rank * spec.spacing[0] + dart,
+      y: leadY + side * rank * spec.spacing[1] + Math.sin(time * 0.9 + i) * 2 + dart * 0.6,
       glyph: flap > 0.2 ? "v" : flap < -0.5 ? "^" : "-",
     });
   }

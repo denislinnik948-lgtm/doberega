@@ -377,7 +377,7 @@ const STRINGS = {
         glass: "Fibreglass", carbon: "Carbon", carp: "Carp rod", catfish: "Catfish rod",
       },
       extra: {
-        handbook: "Angler's handbook", glowfloat: "Glowing float", net: "Landing net", braid: "Braided line", sonar: "Fish finder", spinreel: "Spinning reel",
+        handbook: "Angler's handbook", glowfloat: "Glowing float", net: "Landing net", braid: "Braided line", sonar: "Fish finder", spinreel: "Spinning reel", campfire: "Campfire",
       },
       abundance: { common: "often", regular: "sometimes", rare: "rarely" },
       biteStyle: {
@@ -396,6 +396,7 @@ const STRINGS = {
         braid: "The tension bar fills more slowly",
         sonar: "Fish find the bait sooner",
         spinreel: "Needed to fish lures: spinner, spoon, wobbler",
+        campfire: "A fire on the bank after dark: light, sparks and crackle",
       },
       location: {
         pond: "Village pond", lake: "Quiet lake", castle: "Castle lake", reservoir: "Pripyat", bridge: "Old bridge",
@@ -417,11 +418,12 @@ const STRINGS = {
       ["The bite", "Every fish bites in its own way: perch and pike grab at once, crucian, tench, bream and carp fiddle for a long time, catfish tug and go quiet. A twitch is too early: strike then and the fish is gone with the bait. A short dip: you can try to strike. The float goes under: you have about one to two seconds."],
       ["Current", "On still water the float stays where it landed and only moves when a fish tugs it, or slowly in a strong wind. At Pripyat the current carries it slowly sideways; at the old bridge it is swept quickly downstream."],
       ["Ducks", "By day, ducks sometimes paddle out from the bank; at night they sleep. A duck that swims past the float eats the bait. You can reel in in time."],
-      ["Wildlife", "Now and then by day a grey heron glides in, stands in the shallows and stabs at the water, sometimes coming up with a fish; in the evening a beaver swims across, its head trailing a long V, and may slap its tail and dive (not at the castle lake); on warm days dragonflies hover by the reeds. None of them touch your fishing."],
+      ["Wildlife", "Now and then by day a grey heron glides in, stands in the shallows and stabs at the water, sometimes coming up with a fish; in the evening a beaver swims across, its head trailing a long V, and may slap its tail and dive (not at the castle lake); on warm days dragonflies hover by the reeds. At dusk and before dawn bats loop low over the water. Birds cross the sky by the season: skeins of geese flying south in autumn and back in spring, swallows in summer, crows in winter; now and then a bird starts up out of the woods, and in a gust snow or leaves come down off the trees. On clear nights a star falls now and then, far more often in August. None of them touch your fishing."],
       ["Snags", "Sometimes the hook catches a sunken log as you reel in. Pull hard and you'll lose the hook too, so give slack instead and wait for it to come free. And now and then you reel in an old boot instead of a fish."],
       ["Rod", "The rod decides only how hard a fish is to bring in. Each is rated for a weight: a lighter fish comes in easily, a heavier one fills the tension bar much faster, hard but possible. Let go often and tire it out."],
       ["Hooks", "The hook decides who can bite and whether it holds; pick the size in the backpack. Small: any fish bites, but past 1 kg it may bend straight. Medium: fish from 200 g, holds up to 6 kg. Large: only fish from 1 kg (a smaller one hardly ever manages), holds any. So a large hook on the pond means few bites, and a small one by the old bridge means bent hooks. A bent hook or a big fish snapping the line costs the hook as well as the bait. Run out of one size and the next cast puts on another you have."],
       ["Line", "Every fight wears the line a little: more the harder and longer you pull, and more for a heavy fish; a snap takes a bigger bite out of it, and braid wears half as fast. The backpack shows how much is left in percent. Below 25% the line is weak and the tension bar fills faster. When it wears through, a spare line from the backpack goes on by itself before the next cast; spares are sold in Shop → Tackle, 100 ₴ each, and lighter fish leave a line good for hours."],
+      ["Campfire", "In the shop, under Extras, you can buy a campfire. After dark (from 19:30 to 5:30) it burns on the bank at every water but the bridge: flames, sparks flying up, smoke on the wind and a quiet crackle. It is only for the mood and does not change the fishing."],
       ["Float", "A plain float is barely visible at night. A glowing float lights up as dusk falls and shines all night; by day it is an ordinary float."],
       ["Gear", "A landing net calms fish near the bank, braided line tightens more slowly, and a fish finder helps fish find the bait sooner."],
       ["Keepnet", "Every fish you land goes into the keepnet; the chip at the bottom left shows how many. When you leave the water, the keepnet comes up: sell everything in one go, keep any fish as a trophy, or let it go. Fish left in it wait for next time."],
@@ -804,7 +806,7 @@ const STRINGS = {
         glass: "Скловолоконна", carbon: "Карбонова", carp: "Коропова", catfish: "Сомова",
       },
       extra: {
-        handbook: "Довідник рибака", glowfloat: "Світний поплавок", net: "Підсак", braid: "Плетена волосінь", sonar: "Ехолот", spinreel: "Спінінгова котушка",
+        handbook: "Довідник рибака", glowfloat: "Світний поплавок", net: "Підсак", braid: "Плетена волосінь", sonar: "Ехолот", spinreel: "Спінінгова котушка", campfire: "Багаття",
       },
       abundance: { common: "часто", regular: "іноді", rare: "рідко" },
       biteStyle: {
@@ -823,6 +825,7 @@ const STRINGS = {
         braid: "Шкала натягу заповнюється повільніше",
         sonar: "Риба знаходить наживку швидше",
         spinreel: "Потрібна для бльосен і воблера",
+        campfire: "Вогонь на березі вночі: світло, іскри й потріскування",
       },
       location: {
         pond: "Ставок за селом", lake: "Тихе озеро", castle: "Замкове озеро", reservoir: "Прип'ять", bridge: "Старий міст",
@@ -843,12 +846,13 @@ const STRINGS = {
       ["Місяць", "Місяць проходить свої фази приблизно за вісім ігрових днів, трохи менше трьох годин реального часу, однаково для всіх рибалок; вночі місяць біля годинника показує фазу. У повню ночами клює помітно краще, а вдень трохи гірше; у молодик ночі тихі, зате вдень кльов жвавіший."],
       ["Покльовка", "Кожна риба клює по-своєму: окунь і щука хапають одразу, карась, лин, лящ і короп довго возяться, сом смикне й затихає. Поплавок смикається: ще рано, і якщо підсікти, риба втече з наживкою. Поплавок пірнув на мить: можна спробувати підсікти. Поплавок потонув: на підсічку є одна-дві секунди."],
       ["Течія", "На стоячій воді поплавок стоїть там, де впав, і зрушує, лише коли його смикає риба або повільно за сильного вітру. На Прип'яті течія повільно зносить його вбік, а біля старого мосту швидко вниз за течією."],
-      ["Звірі й птахи", "Інколи вдень прилітає сіра чапля, стає на мілині й б'є дзьобом у воду, часом витягаючи рибку; увечері воду перепливає бобер, за головою тягнеться довгий клин, і він може ляснути хвостом і пірнути (крім замкового озера); у теплі дні біля очерету зависають бабки. На вашу рибалку вони не впливають."],
+      ["Звірі й птахи", "Інколи вдень прилітає сіра чапля, стає на мілині й б'є дзьобом у воду, часом витягаючи рибку; увечері воду перепливає бобер, за головою тягнеться довгий клин, і він може ляснути хвостом і пірнути (крім замкового озера); у теплі дні біля очерету зависають бабки. У сутінках і перед світанком низько над водою кружляють кажани. Небом пролітають птахи за сезоном: восени ключі гусей на південь, навесні назад, влітку ластівки, взимку ворони; час від часу з лісу злітає пташка, а від пориву вітру з дерев сиплеться сніг чи листя. Ясної ночі зрідка падає зірка, а в серпні значно частіше. На вашу рибалку вони не впливають."],
       ["Качки", "Вдень інколи з берега випливають качки, вночі вони сплять. Якщо качка пропливе повз поплавок, вона з'їсть наживку. Можна вчасно змотати."],
       ["Коряги", "Буває, що гачок чіпляється за корягу, коли змотуєш волосінь. Якщо тягнути щосили, обірвеш і гачок. Краще відпускати й чекати, поки відчепиться. А інколи замість риби витягуєш старий чобіт."],
       ["Вудка", "Вудка визначає лише те, наскільки важко витягнути рибу. Кожна розрахована на свою вагу: легша риба йде легко, важча набагато швидше заповнює шкалу натягу, тож складно, але можливо. Частіше відпускай і вимотуй її."],
       ["Гачки", "Гачок визначає, хто може клюнути і чи втримається риба; розмір обирається в рюкзаку. Малий: клює будь-яка риба, але понад 1 кг його може розігнути. Середній: риба від 200 г, тримає до 6 кг. Великий: лише риба від 1 кг (менша майже ніколи не впорається), тримає будь-яку. Тож із великим гачком на ставку буде мало кльову, а з малим біля старого мосту гачки розгинатиме. Розігнутий гачок або обрив великої риби забирає і гачок, і наживку. Скінчилися гачки одного розміру, то наступний закид поставить інший, який є."],
       ["Волосінь", "Кожен бій трохи зношує волосінь: що сильніше й довше тягнеш, то більше, і важка риба зношує її швидше; обрив забирає більший шматок, а плетена зношується вдвічі повільніше. Скільки лишилось, видно в рюкзаку у відсотках. Нижче 25% волосінь слабка, і шкала натягу заповнюється швидше. Коли вона зноситься, перед наступним закидом сама ставиться запасна з рюкзака; запасні продаються в Магазин → Снасті по 100 ₴, а на дрібній рибі волосіні вистачає на години."],
+      ["Багаття", "У магазині, у розділі «Різне», можна купити багаття. Після смеркання (з 19:30 до 5:30) воно горить на березі будь-якої водойми, крім мосту: полум'я, іскри вгору, дим за вітром і тихе потріскування. Воно лише для настрою й на риболовлю не впливає."],
       ["Поплавок", "Звичайний поплавок вночі майже не видно. Світний поплавок розгоряється в сутінках і світить усю ніч, а вдень це звичайний поплавок."],
       ["Спорядження", "Підсак заспокоює рибу біля берега, плетена волосінь повільніше натягується, ехолот допомагає рибі швидше знайти наживку."],
       ["Садок", "Уся витягнута риба йде в садок; скільки її там, видно внизу ліворуч. Коли йдеш із водойми, відкривається садок: можна продати все разом, будь-яку рибу зберегти як трофей або відпустити. Риба, що лишилася в садку, дочекається наступного разу."],

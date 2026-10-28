@@ -45,7 +45,8 @@ export const SCENES = {
       houses: { at: [0.07, 0.31, 0.95], scale: 0.75 },
     },
     shore: "reeds",
-    water: {},
+    // A muddy bottom: bubbles break the surface often.
+    water: { bubbles: 1.6 },
     // We stand on a low grassy bank that rises into mounds at the corners.
     nearBank: 0.075,
     foreground: { reeds: 2.2, rock: false, lilyPads: 0, oak: true },
@@ -114,7 +115,7 @@ export const SCENES = {
     dry: true,
     // A weak current sets slowly toward the plant's outflow; the water is murky.
     // The wreck: a rusting ship listing near the far bank, bow up (centre, width as screen fractions).
-    water: { drift: { x: 0.0016, y: 0 }, body: "#22302a", wreck: { x: 0.3, y: 0.55, w: 0.24 } },
+    water: { drift: { x: 0.0016, y: 0 }, body: "#22302a", wreck: { x: 0.3, y: 0.55, w: 0.24 }, bubbles: 1.4 },
     // A rusty radiation sign leans among the reeds on the right.
     foreground: { reeds: 1.6, rock: false, lilyPads: 0, sign: { x: 0.84, lean: 0.2 } },
   },

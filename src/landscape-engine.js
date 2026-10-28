@@ -246,7 +246,7 @@ export function createStructures(width, height, cellWidth, lineHeight, fine = nu
           // A log cabin's windows are dark glass by day, lit only after dark.
           const glass = logs ? "#2c3236" : "#e2b85e";
           const cell = put(x, y, window ? "#" : door ? "]" : wall, window ? glass : door ? "#4a3626" : logs && (r + c) % 3 === 0 ? mixHex(walls, "#000000", 0.25) : walls);
-          if (window) lights.push({ ...cell, color: "#e2b85e" });
+          if (window) lights.push({ ...cell, color: "#e2b85e", flicker: true });
         }
       }
       for (let r = 0; r < roofRows; r += 1) {
@@ -402,7 +402,7 @@ function addFireTower({ x: fx, tall = 0.27 }, width, height, cellWidth, lineHeig
       const window = r === 1 && !edge;
       // By day the windows are dark glass; after dark the lamp inside lights them.
       const cell = put(x + c * cellWidth, y, edge ? "|" : window ? "#" : "=", window ? "#2c3236" : wood);
-      if (window) lights.push({ ...cell, color: "#e2b85e" });
+      if (window) lights.push({ ...cell, color: "#e2b85e", flicker: true });
     }
   }
   for (let r = 0; r < 2; r += 1) {

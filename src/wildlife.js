@@ -193,6 +193,8 @@ export class Ducks {
  *   a long V of a wake swims across, and may slap its tail and dive;
  * - dragonflies: on warm days (summer, late spring), with no rain and no
  *   strong wind, a few hover by the reeds and dart from place to place;
+ * - bats: at dusk and before dawn, out of winter, one or two flit and loop
+ *   low over the water, then are gone;
  * - bullfinches: on winter days a few fly in, sit on the oak's twigs, the
  *   cattails or the bridge rail, hop about, pipe and fly off.
  *
@@ -213,6 +215,8 @@ export class Critters {
     this.flies = [];
     this.finches = [];
     this.finchTimer = 20 + random() * 60;
+    this.bats = [];
+    this.batTimer = 10 + random() * 30;
     this.heronTimer = 60 + random() * 120;
     this.beaverTimer = 30 + random() * 90;
   }
@@ -260,7 +264,27 @@ export class Critters {
       }
     }
     this.flies = this.flies.filter((fly) => !(fly.gone && fly.t >= 1));
+    const dusk = (when.hour >= 19.3 && when.hour < 21.8) || (when.hour >= 4.2 && when.hour < 5.6);
+    this.updateBats(dt, height, frame, horizonY, !when.winter && dusk && when.rain < 0.3 && when.wind < 0.7);
     this.updateFinches(dt, frame, when.winter && day && when.hour >= 8 && when.hour < 16.5 && when.rain < 0.6 && when.wind < 0.7, when.perches ?? []);
+  }
+
+  /** Bats looping over the water in the half dark, crossing the view in a jagged, twisting flight. */
+  updateBats(dt, height, frame, horizonY, allowed) {
+    const random = this.random;
+    this.batTimer -= dt;
+    if (allowed && this.batTimer <= 0 && this.bats.length < 2) {
+      this.batTimer = 25 + random() * 50;
+      this.bats.push({ t: 0, duration: 22 + random() * 18, dir: random() < 0.5 ? 1 : -1, base: horizonY + (height - horizonY) * (0.02 + random() * 0.18), phase: random() * 6, x: -100, y: -100 });
+    }
+    for (const bat of this.bats) {
+      bat.t += dt;
+      const u = bat.t / bat.duration;
+      const across = bat.dir > 0 ? -40 + (frame.width + 80) * u : frame.width + 40 - (frame.width + 80) * u;
+      bat.x = frame.left + across + 55 * Math.sin(bat.t * 1.7 + bat.phase) + 14 * Math.sin(bat.t * 5.3);
+      bat.y = bat.base + 24 * Math.sin(bat.t * 2.9 + bat.phase) + 8 * Math.sin(bat.t * 7.3) - 30 * Math.abs(Math.sin(bat.t * 0.8));
+    }
+    this.bats = this.bats.filter((bat) => bat.t < bat.duration);
   }
 
   /** A little flock of bullfinches calling in to perch for a while. */

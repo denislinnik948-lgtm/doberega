@@ -392,6 +392,8 @@ export class CanvasWaterRenderer {
     this.lightBatch.clear();
     this.fineLightBatch.clear();
     for (const cell of structures.lights) (cell.scale ? this.fineLightBatch : this.lightBatch).push(cell.x, cell.y, cell.glyph, hexToInt(cell.color));
+    // Cottage windows lit by a stove or a lamp flicker a little, each at its own pace.
+    this.flickerLights = structures.lights.filter((cell) => cell.flicker && !cell.scale).map((cell, i) => ({ ...cell, colorValue: hexToInt(cell.color), seed: i * 1.7 }));
     this.farPerspective = [0, 1, far, far];
     this.bankCells = thin(createBankGlyphs(width, height, cellWidth, lineHeight, this.sun.x), 1);
     this.grassStale = true;
@@ -1297,6 +1299,8 @@ export class CanvasWaterRenderer {
     const spring = { deep: "#0f2414", shadow: "#244a26", middle: "#3f7a36", light: "#7cae4a", glint: "#c4d870" };
     const palette = autumn ? fall : isSpring() ? spring : summer;
     const crown = [];
+    // Winter: where snow lies on the twigs (a gust can shake a clump of it down).
+    const snowy = [];
     const bottom = Math.max(...masses.map((mass) => mass.y + mass.ry));
     for (let row = 0; row * lineHeight < bottom + lineHeight; row += 1) {
       const y = row * lineHeight + lineHeight / 2;
@@ -1309,6 +1313,7 @@ export class CanvasWaterRenderer {
         if (winter) {
           if (fill < 0.02 || noise < 0.6) continue;
           const up = y < 0.16 * tall && hash2(column, row, 2207) > 0.55;
+          if (up) snowy.push({ x, y });
           ctx.fillStyle = up ? "#e2e9ec" : noise > 0.8 ? "#5a4c3e" : "#3e342a";
           ctx.fillText(up ? "-" : "/\\|'`,"[Math.floor(hash2(column, row, 2211) * 6)], x, y);
           continue;
@@ -1361,7 +1366,7 @@ export class CanvasWaterRenderer {
         }
       }
     }
-    return { image, left, top, width, height, crown, autumn, winter, perches, leaves: [], landings: [], spawn: 0 };
+    return { image, left, top, width, height, crown, autumn, winter, perches, snowy, leaves: [], landings: [], spawn: 0 };
   }
 
   /**
@@ -2066,7 +2071,7 @@ export class CanvasWaterRenderer {
       }
     }
 
-    for (const bird of birdsAt(time, this.width, this.height)) batch.push(bird.x, bird.y, bird.glyph, BIRD_COLOR);
+    for (const bird of birdsAt(time, this.width, this.height, currentSeason())) batch.push(bird.x, bird.y, bird.glyph, BIRD_COLOR);
   }
 
   /**
@@ -2150,6 +2155,10 @@ export class CanvasWaterRenderer {
       tip.x += (angler.fish.x - tip.x) * 0.12 * pull;
       tip.y += height * 0.09 * pull;
       bend += 0.22 * pull;
+      // Under a hard pull the tip quivers.
+      const quiver = Math.max(0, angler.tension - 0.45) * 1.8;
+      tip.x += Math.sin(angler.time * 53) * height * 0.0035 * quiver;
+      tip.y += Math.sin(angler.time * 41 + 1) * height * 0.003 * quiver;
     } else if (angler.phase === "bite" || angler.phase === "nibble") {
       tip.y += height * 0.004 * Math.sin(angler.time * 30) * (angler.phase === "bite" ? 1 : 0.4);
     } else if (angler.phase === "casting") {
@@ -2237,11 +2246,14 @@ export class CanvasWaterRenderer {
       const taut = angler.phase === "fight" ? Math.min(1, angler.tension * 1.6 + (angler.pulling ? 0.4 : 0))
         : (angler.phase === "retrieving" && angler.pulling) || angler.phase === "reeling" ? 0.8 : 0;
       const sag = angler.phase === "casting" ? 0 : (1 - taut) * height * 0.035;
+      // Strained near breaking, the line sings: it hums sideways, bright and thin.
+      const sing = angler.phase === "fight" ? Math.max(0, angler.tension - 0.7) / 0.3 : 0;
+      const hum = Math.sin(angler.time * 90) * 2.5 * sing;
       ctx.beginPath();
       ctx.moveTo(rod.tip.x, rod.tip.y);
-      ctx.quadraticCurveTo((rod.tip.x + end.x) / 2, (rod.tip.y + end.y) / 2 + sag, end.x, end.y);
-      ctx.lineWidth = 0.9;
-      ctx.strokeStyle = `rgba(226, 232, 222, ${0.32 + taut * 0.3})`;
+      ctx.quadraticCurveTo((rod.tip.x + end.x) / 2 + hum, (rod.tip.y + end.y) / 2 + sag, end.x, end.y);
+      ctx.lineWidth = 0.9 + sing * 0.4;
+      ctx.strokeStyle = `rgba(${226 + sing * 20}, ${232 + sing * 14}, ${222 + sing * 20}, ${0.32 + taut * 0.3 + sing * 0.2})`;
       ctx.stroke();
 
       ctx.font = `600 ${size}px ${MONO_FONT}`;
@@ -2366,8 +2378,12 @@ export class CanvasWaterRenderer {
 
   renderOverlay(time, angler) {
     const ctx = this.overlayContext;
+    const dt = clamp(time - (this.overlayTime ?? time), 0, 0.1);
+    this.overlayTime = time;
     // Only the slice on screen is ever seen (a phone shows part of a wider canvas).
     ctx.clearRect(this.frame.left, 0, this.frame.width, this.height);
+    this.spawnLife(time, dt);
+    this.drawBubbles(ctx, time, dt);
     for (const rock of this.rockImages) ctx.drawImage(rock.image, rock.left, rock.top, rock.width, rock.height);
     this.drawDucks(ctx, time, this.ducks);
     if (this.floes?.length) this.drawFloes(ctx);
@@ -2472,6 +2488,7 @@ export class CanvasWaterRenderer {
     if (this.bridgeImage) ctx.drawImage(this.bridgeImage.image, 0, this.bridgeImage.top, this.width, this.height - this.bridgeImage.top);
     if (angler && !angler.hidden) this.renderAngler(ctx, angler, "rod");
     if (this.critters?.finches.length) this.drawFinches(ctx, time, this.critters.finches);
+    this.drawParticles(ctx, dt, false);
 
     // Darken the close-up foreground at dusk and night, only where it's drawn.
     if (this.shade > 0.01) {
@@ -2480,6 +2497,11 @@ export class CanvasWaterRenderer {
       ctx.fillRect(this.frame.left, 0, this.frame.width, this.height);
       ctx.globalCompositeOperation = "source-over";
     }
+
+    // Lights in the dark, after the shade: a campfire on the bank, its sparks, a falling star.
+    if (this.campfire) this.drawCampfire(ctx, time, dt);
+    this.drawParticles(ctx, dt, true);
+    this.drawMeteor(ctx, time, dt);
 
     // A glowing float shines through the dark: off by day, fading in at dusk, full at night.
     const mark = this.floatMark;
@@ -2663,6 +2685,236 @@ export class CanvasWaterRenderer {
   }
 
   /**
+   * Small glyphs thrown about: spray, sparks and smoke, snow and leaves shaken
+   * off the trees, a bird starting from the woods. Each one: position, speed,
+   * gravity, a life, its glyphs (by age, or flapping), a colour, and whether
+   * it glows (drawn after the night shade) or not.
+   */
+  addParticle(particle) {
+    const list = (this.particles ??= []);
+    list.push({ age: 0, gravity: 0, drag: 0, fade: true, glow: false, size: 12, ...particle });
+    if (list.length > 300) list.shift();
+  }
+
+  drawParticles(ctx, step, glow) {
+    const list = this.particles;
+    if (!list?.length) return;
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    let font = "";
+    for (const p of list) {
+      if (p.glow !== glow) continue;
+      p.age += step;
+      p.vy += p.gravity * step;
+      p.vx *= 1 - p.drag * step;
+      p.vy *= 1 - p.drag * step;
+      p.x += p.vx * step;
+      p.y += p.vy * step;
+      if (p.age >= p.life) continue;
+      const k = p.age / p.life;
+      const glyph = p.flap ? (Math.sin(p.age * 24 + p.x) > 0 ? "v" : "^") : p.glyphs[Math.min(p.glyphs.length - 1, Math.floor(k * p.glyphs.length))];
+      const next = `700 ${Math.round(p.size)}px ${MONO_FONT}`;
+      if (next !== font) ctx.font = font = next;
+      ctx.globalAlpha = p.fade ? 1 - k * k : 1;
+      ctx.fillStyle = p.color;
+      ctx.fillText(glyph, p.x, p.y);
+    }
+    ctx.restore();
+    this.particles = list.filter((p) => p.age < p.life);
+  }
+
+  /** The float struck: a burst of spray flung up and falling back. */
+  splash(x, y, power = 1) {
+    const size = clamp(this.reedSize * 0.7, 10, 18);
+    for (let i = 0; i < 9 + Math.round(power * 6); i += 1) {
+      const angle = -Math.PI / 2 + (Math.random() - 0.5) * 2.2;
+      const speed = (60 + Math.random() * 90) * (0.7 + power * 0.4);
+      this.addParticle({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, gravity: 320, life: 0.5 + Math.random() * 0.35, glyphs: ["*", "'", ".", "."], color: Math.random() > 0.4 ? "#e4eeea" : "#a9c6c2", size });
+    }
+  }
+
+  /**
+   * Life about the place, a little at a time: a bird starting up out of the
+   * woods now and then by day; and when a gust comes, snow in winter or
+   * leaves in autumn shaken off the far trees, and in winter a clump of snow
+   * off the oak's twigs.
+   */
+  spawnLife(time, step) {
+    if (!step) return;
+    const hour = this.hour ?? 12;
+    const wind = this.wind ?? { strength: 0, gust: 1, dir: 1 };
+    const trees = this.forestCells ?? [];
+    const { left, width } = this.frame;
+    const visible = (cell) => cell.x > left && cell.x < left + width;
+    const pick = () => {
+      for (let i = 0; i < 8; i += 1) {
+        const cell = trees[Math.floor(Math.random() * trees.length)];
+        if (cell && visible(cell) && cell.y - this.treeline[cell.column] < this.lineHeight * 2.5) return cell;
+      }
+      return null;
+    };
+    const small = Math.max(7, this.farCell.height * 1.1);
+    // A bird startled out of the woods.
+    if (trees.length && hour > 6 && hour < 19 && this.rain < 0.4 && Math.random() < step / 35) {
+      const cell = pick();
+      if (cell) {
+        const side = Math.random() < 0.5 ? -1 : 1;
+        this.addParticle({ x: cell.x, y: cell.y - this.lineHeight, vx: side * (40 + Math.random() * 40), vy: -(25 + Math.random() * 25), life: 3.5, flap: true, fade: false, color: "#26292c", size: small * 1.2 });
+      }
+    }
+    const gust = wind.strength * wind.gust;
+    const season = currentSeason();
+    if (gust > 0.4 && trees.length && (season === "winter" || season === "autumn") && Math.random() < step * (gust - 0.4) * 14) {
+      const cell = pick();
+      if (cell) {
+        const winter = season === "winter";
+        this.addParticle({
+          x: cell.x, y: cell.y, vx: wind.dir * (8 + Math.random() * 14), vy: 8 + Math.random() * 10, life: 1.6 + Math.random(),
+          glyphs: winter ? ["*", ".", "."] : [",", "'", "."], color: winter ? "#e8eef1" : Math.random() > 0.5 ? "#d48a32" : "#b85a24", size: small,
+        });
+      }
+    }
+    // A clump of snow off the oak.
+    const oak = this.oak;
+    if (oak?.winter && oak.snowy.length && gust > 0.3 && Math.random() < step * gust * 0.5) {
+      const from = oak.snowy[Math.floor(Math.random() * oak.snowy.length)];
+      const size = clamp(this.reedSize * 0.8, 11, 20);
+      this.addParticle({ x: from.x, y: from.y, vx: wind.dir * 15, vy: 0, gravity: 260, life: 1.6, glyphs: ["@", "*", "*"], color: "#eef3f5", size, fade: false });
+      for (let i = 0; i < 5; i += 1) this.addParticle({ x: from.x + (Math.random() - 0.5) * 10, y: from.y, vx: wind.dir * (10 + Math.random() * 20), vy: Math.random() * 20, gravity: 60 + Math.random() * 60, life: 1.8 + Math.random(), glyphs: [".", "'", "."], color: "#dfe7eb", size: size * 0.7 });
+    }
+  }
+
+  /**
+   * Bubbles rising from the bottom: now and then a little chain of them
+   * breaks the surface in one place, each swelling and popping. Most at the
+   * muddy pond and the reservoir, never on the fast river.
+   */
+  drawBubbles(ctx, time, step) {
+    const rate = activeScene().water.bubbles ?? (activeScene().water.flowAway ? 0 : 0.5);
+    if (!rate) return;
+    this.bubbleClock = (this.bubbleClock ?? 4) - step;
+    const chains = (this.bubbleChains ??= []);
+    if (this.bubbleClock <= 0) {
+      this.bubbleClock = (8 + Math.random() * 14) / rate;
+      const point = this.randomWaterScreen();
+      if (!this.onIce(point.x, point.y)) chains.push({ x: point.x, y: point.y, born: time, count: 3 + Math.floor(Math.random() * 4), seed: Math.random() * 100 });
+    }
+    if (!chains.length) return;
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    for (const chain of chains) {
+      const { cellWidth, lineHeight } = this.gridAt(chain.y);
+      ctx.font = `700 ${Math.max(6, lineHeight * 0.9)}px ${MONO_FONT}`;
+      for (let i = 0; i < chain.count; i += 1) {
+        // One after another, a little apart.
+        const age = time - chain.born - i * (0.5 + hash01(chain.seed + i) * 0.5);
+        if (age < 0 || age > 1.2) continue;
+        const x = chain.x + (hash01(chain.seed * 3 + i) - 0.5) * cellWidth * 3;
+        const y = chain.y + (hash01(chain.seed * 7 + i) - 0.5) * lineHeight;
+        ctx.fillStyle = age > 1 ? "rgba(214, 228, 226, 0.5)" : "rgba(200, 218, 216, 0.85)";
+        ctx.fillText(age > 1 ? "*" : age > 0.45 ? "o" : ".", x, y);
+        if (age > 1 && !chain[`popped${i}`]) {
+          chain[`popped${i}`] = true;
+          this.onRipple?.(x, y, 0.12, 0.08);
+        }
+      }
+    }
+    ctx.restore();
+    this.bubbleChains = chains.filter((chain) => time - chain.born < chain.count * 1.1 + 1.5);
+  }
+
+  /**
+   * A falling star on a clear night: a bright head and a short fading trail
+   * across the upper sky, now and then (in August, the Perseids, far more
+   * often). Kept above the treetops.
+   */
+  drawMeteor(ctx, time, step) {
+    const stars = this.starsLevel ?? 0;
+    if (!this.meteor && stars > 0.5 && this.rain < 0.15) {
+      const often = new Date().getMonth() === 7 ? 10 : 40;
+      if (Math.random() < step / often) {
+        const { left, width } = this.frame;
+        // Where the oak's crown fills the upper left, only out in the open sky, away from it.
+        const oak = Boolean(this.oak);
+        const dir = oak || Math.random() < 0.5 ? 1 : -1;
+        const top = Math.max(20, this.landTop - this.height * 0.08);
+        this.meteor = { x: left + width * (oak ? 0.45 + Math.random() * 0.3 : 0.15 + Math.random() * 0.7), y: top * (0.08 + Math.random() * 0.4), vx: dir * (380 + Math.random() * 260), vy: 120 + Math.random() * 120, age: 0, life: 0.55 + Math.random() * 0.4 };
+      }
+    }
+    const meteor = this.meteor;
+    if (!meteor) return;
+    meteor.age += step;
+    if (meteor.age > meteor.life) {
+      this.meteor = null;
+      return;
+    }
+    const fade = Math.sqrt(Math.sin((meteor.age / meteor.life) * Math.PI));
+    const size = Math.max(12, this.charSize * 1.8);
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = `700 ${Math.round(size)}px ${MONO_FONT}`;
+    const speed = Math.hypot(meteor.vx, meteor.vy);
+    const ux = meteor.vx / speed;
+    const uy = meteor.vy / speed;
+    const glyph = Math.abs(uy / ux) < 0.35 ? "-" : ux * uy > 0 ? "\\" : "/";
+    for (let i = 10; i >= 0; i -= 1) {
+      const x = meteor.x + meteor.vx * meteor.age - ux * i * size * 0.55;
+      const y = meteor.y + meteor.vy * meteor.age - uy * i * size * 0.55;
+      if (y > this.landTop) continue;
+      ctx.fillStyle = `rgba(236, 242, 255, ${(fade * (1 - i / 11)).toFixed(3)})`;
+      ctx.fillText(i ? glyph : "*", x, y);
+    }
+    ctx.restore();
+  }
+
+  /**
+   * A campfire on the bank at night (bought in the shop): logs and embers, a
+   * flickering heap of flames in glyphs with a warm glow, sparks flying up
+   * and smoke drifting off on the wind.
+   */
+  drawCampfire(ctx, time, step) {
+    const { left, width } = this.frame;
+    const size = clamp(this.reedSize * 1.5, 20, 38);
+    const x = left + width * (width < 600 ? 0.43 : 0.22);
+    const y = this.height - size * 0.9;
+    const wind = this.wind ?? { dir: 1, strength: 0 };
+    const step6 = size * 0.6;
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = `700 ${size}px ${MONO_FONT}`;
+    // The logs, crossed, and the embers between them.
+    const logs = [["/", -2.1, "#5a3a22"], ["=", -1.4, "#6e4a2c"], ["=", -0.7, "#7a5232"], ["=", 0, "#6e4a2c"], ["=", 0.7, "#7a5232"], ["=", 1.4, "#6e4a2c"], ["\\", 2.1, "#5a3a22"]];
+    for (const [glyph, dx, color] of logs) {
+      ctx.fillStyle = color;
+      ctx.fillText(glyph, x + dx * step6, y);
+    }
+    ctx.fillStyle = Math.sin(time * 9) > 0 ? "#ff5a2a" : "#c83a1a";
+    ctx.fillText(".", x - step6 * 0.35, y - size * 0.1);
+    ctx.fillText(".", x + step6 * 0.4, y - size * 0.15);
+    // Flames: each column leaps and falls on its own, white-yellow at the heart, red at the tips.
+    ctx.shadowColor = "rgba(255, 150, 60, 0.9)";
+    ctx.shadowBlur = size * 1.4;
+    const lean = wind.dir * wind.strength * 0.6;
+    for (let c = -2; c <= 2; c += 1) {
+      const tall = (c === 0 ? 4 : Math.abs(c) === 1 ? 3 : 1.6) + Math.sin(time * (6 + c) + c * 2) * 0.7 + Math.sin(time * 13.7 + c * 5) * 0.45;
+      for (let r = 0; r < tall; r += 1) {
+        const k = r / Math.max(1, tall - 1);
+        const glyph = r >= tall - 1 ? "'" : k > 0.6 ? "^" : Math.abs(c) < 2 ? (r ? "&" : "@") : c < 0 ? "(" : ")";
+        ctx.fillStyle = k < 0.3 ? "#fff0b0" : k < 0.65 ? "#ffb444" : "#ff6a2a";
+        ctx.fillText(glyph, x + (c * 0.85 * (1 - k * 0.35) + lean * r * 0.5 + Math.sin(time * 11 + r * 2 + c) * 0.15) * step6, y - (r + 0.8) * size * 0.66);
+      }
+    }
+    ctx.restore();
+    // Sparks up into the dark, and smoke above the flames.
+    if (Math.random() < step * 7) this.addParticle({ x: x + (Math.random() - 0.5) * step6, y: y - size * 1.6, vx: wind.dir * wind.strength * 30 + (Math.random() - 0.5) * 20, vy: -(50 + Math.random() * 50), drag: 0.6, life: 1 + Math.random() * 1.2, glyphs: ["*", "'", "."], color: Math.random() > 0.5 ? "#ffc060" : "#ff8a3a", size: size * 0.6, glow: true });
+    if (Math.random() < step * 2.5) this.addParticle({ x, y: y - size * 2.4, vx: wind.dir * (5 + wind.strength * 40), vy: -(18 + Math.random() * 10), life: 4, glyphs: [".", "o", "o", "~", "~"], color: "#5c5e64", size: size * 0.8, glow: true });
+  }
+
+  /**
    * Bullfinches, in glyphs like the ducks and the heron, each outlined dark
    * so it reads on bark and reeds: a black cap, a grey back, a rose-red
    * breast and a black tail; in flight a blur of wings over the red.
@@ -2712,7 +2964,7 @@ export class CanvasWaterRenderer {
    * The heron, the beaver and the dragonflies (see Critters in wildlife.js),
    * drawn in glyphs like the ducks, each with a dark outline so it reads on the water.
    */
-  drawCritters(ctx, time, { heron, beaver, flies }) {
+  drawCritters(ctx, time, { heron, beaver, flies, bats }) {
     ctx.save();
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -2795,6 +3047,17 @@ export class CanvasWaterRenderer {
         }
       }
     }
+    if (bats?.length) {
+      // Little dark bats, wings beating fast.
+      ctx.font = `700 12px ${MONO_FONT}`;
+      for (const bat of bats) {
+        const up = Math.sin(time * 30 + bat.phase) > 0;
+        ctx.fillStyle = "#16141a";
+        ctx.fillText(up ? "\\" : "/", bat.x - 6, bat.y + (up ? -2 : 1));
+        ctx.fillText("v", bat.x, bat.y);
+        ctx.fillText(up ? "/" : "\\", bat.x + 6, bat.y + (up ? -2 : 1));
+      }
+    }
     if (flies.length) {
       ctx.font = `700 11px ${MONO_FONT}`;
       for (const fly of flies) {
@@ -2856,6 +3119,9 @@ export class CanvasWaterRenderer {
     this.fillBolt(env.bolt);
     this.ducks = env.ducks ?? [];
     this.critters = env.critters ?? null;
+    this.campfire = Boolean(env.campfire);
+    this.hour = (dayTime * 24) % 24;
+    this.starsLevel = sky.stars;
     setCloudiness(this.rain);
 
     const backend = this.backend;
@@ -2878,6 +3144,13 @@ export class CanvasWaterRenderer {
     backend.drawGlyphs(this.forestBatch, land, this.perspective);
     backend.drawGlyphs(this.ambientBatches.haze, land, this.perspective);
     // Cottage windows and dam lamps glow as the light fades.
+    if (this.flickerLights?.length) {
+      this.lightBatch.clear();
+      for (const cell of this.flickerLights) {
+        const flicker = 0.8 + 0.2 * (0.6 * Math.sin(time * 7.3 + cell.seed) + 0.4 * Math.sin(time * 13.1 + cell.seed * 2.3));
+        this.lightBatch.push(cell.x, cell.y, cell.glyph, cell.colorValue, 0, Math.round(255 * flicker));
+      }
+    }
     backend.drawGlyphs(this.lightBatch, [1, 1, 1, Math.min(1, 0.12 + sky.stars)]);
     backend.drawGlyphs(this.fineLightBatch, [1, 1, 1, Math.min(1, 0.12 + sky.stars)], this.farPerspective);
     backend.drawGlyphs(this.ambientBatches.glow, undefined, this.perspective);
