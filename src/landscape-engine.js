@@ -770,6 +770,7 @@ function addCrag({ to, peak }, width, height, cellWidth, lineHeight, out, k = 1)
     ry: crownH * (0.6 + hash2(i, j, 4209) * 0.25),
     conifer: hash2(i, j, 4211) > 0.82,
   });
+  const snowy = isWinter();
   const crownGlyph = (x, y, noise) => {
     const i0 = Math.floor(x / crownW);
     const j0 = Math.floor(y / crownH);
@@ -788,6 +789,14 @@ function addCrag({ to, peak }, width, height, cellWidth, lineHeight, out, k = 1)
     if (!best) return { glyph: noise > 0.5 ? "." : ",", color: "#16241a" };
     const { nx, ny, d, crown } = best;
     const light = -nx * 0.6 - ny * 0.8;
+    if (snowy) {
+      // Winter: snow lies thick on the upper crowns, the dark wood showing under it and between the trees.
+      // The shade is a cold blue, which the snow laid over the land later leaves as it is.
+      if (d > 0.72 && ny > -0.2) return { glyph: "%&#"[Math.floor(noise * 3)], color: "#1c2838" };
+      if (light > 0.15 || (ny < 0 && noise > 0.25)) return { glyph: crown.conifer ? "^" : "*=~"[Math.floor(noise * 3)], color: light > 0.5 ? "#f2f6f8" : noise > 0.35 ? "#dde6eb" : "#c2cfd6" };
+      if (light > -0.25) return { glyph: crown.conifer ? "*" : noise > 0.5 ? "*" : ":", color: noise > 0.45 ? "#8496b0" : "#3a4a60" };
+      return { glyph: "*&%"[Math.floor(noise * 3)], color: noise > 0.7 ? "#5a6c88" : "#24304a" };
+    }
     if (d > 0.72 && ny > -0.2) return { glyph: "%&#"[Math.floor(noise * 3)], color: "#16291a" };
     if (light > 0.45) return { glyph: crown.conifer ? "^" : noise > 0.5 ? "o" : "O", color: noise > 0.4 ? "#6a9a4a" : "#557f3c" };
     if (light > 0) return { glyph: crown.conifer ? "*" : "o*&"[Math.floor(noise * 3)], color: "#3a6230" };
@@ -804,7 +813,7 @@ function addCrag({ to, peak }, width, height, cellWidth, lineHeight, out, k = 1)
   const outline = [[0, horizon + lineHeight]];
   for (let x = 0; x <= width * to; x += cellWidth) outline.push([x, skyline(x)]);
   outline.push([width * to, horizon + lineHeight]);
-  out.shapes.push({ points: outline, color: "#0e1a10" });
+  out.shapes.push({ points: outline, color: snowy ? "#18222e" : "#0e1a10" });
   const cliff = [];
   for (let x = width * 0.12; x <= width * 0.34; x += cellWidth) cliff.push([x, skyline(x) - lineHeight * 0.3]);
   for (let x = width * 0.34; x >= width * 0.12; x -= cellWidth) cliff.push([x, skyline(x) + cliffDepth(x)]);
@@ -828,10 +837,10 @@ function addCrag({ to, peak }, width, height, cellWidth, lineHeight, out, k = 1)
         : ellipse(crown.x, crown.y, crown.rx, crown.ry);
       // On the fine grid the glyphs are dense enough to shade each crown themselves:
       // the body stays a dark backing and the lighter cap is left to them.
-      out.shapes.push({ points: body, color: k > 1 ? "#0f1d13" : "#15281b" });
+      out.shapes.push({ points: body, color: snowy ? (k > 1 ? "#33435a" : "#2e3d52") : k > 1 ? "#0f1d13" : "#15281b" });
       if (k <= 1) out.shapes.push({ points: crown.conifer
         ? [[crown.x - crown.rx * 0.45, crown.y + crown.ry * 0.2], [crown.x, crown.y - crown.ry * 1.1], [crown.x + crown.rx * 0.05, crown.y + crown.ry * 0.2]]
-        : ellipse(crown.x - crown.rx * 0.18, crown.y - crown.ry * 0.25, crown.rx * 0.62, crown.ry * 0.55), color: "#243f26" });
+        : ellipse(crown.x - crown.rx * 0.18, crown.y - crown.ry * 0.25, crown.rx * 0.62, crown.ry * 0.55), color: snowy ? "#a9b8c1" : "#243f26" });
     }
   }
 
@@ -850,7 +859,8 @@ function addCrag({ to, peak }, width, height, cellWidth, lineHeight, out, k = 1)
       } else {
         // On a finer grid only as many leaves stir as on the base one (the rest hold
         // still in the painted layer): the hill looks as alive and costs no more a frame.
-        const rustle = k <= 1 || hash2(column, row, 4107) < 1 / (k * k);
+        // Branches heavy with snow hold still.
+        const rustle = !snowy && (k <= 1 || hash2(column, row, 4107) < 1 / (k * k));
         out.cells.push({ x, y, column, row, rustle, ...crownGlyph(x, y, noise) });
       }
     }
