@@ -219,6 +219,27 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
 .groundbait-bar { display: block; width: 80px; height: 12px; background: var(--ink); box-shadow: 0 0 0 2px var(--mid); }
 .groundbait-fill { display: block; height: 100%; background: var(--gold); transition: width 400ms steps(4); }
 .hud-top .clock { min-height: 60px; }
+/* Today's quest: a chip under the clock in game, a line above the menu buttons. */
+.quest-icon .sprite { display: block; }
+.quest-chip { display: flex; align-items: center; gap: 8px; min-height: 60px; padding: 8px 14px 8px 10px; color: var(--gold); font: inherit; font-size: 26px; font-variant-numeric: tabular-nums; cursor: pointer; }
+.quest-chip.is-done, .quest-strip.is-done .quest-strip-count { color: var(--light); }
+.quest-strip { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; width: min(620px, 100%); min-height: 52px; padding: 6px 14px 6px 10px; color: var(--bone); font: inherit; font-size: 20px; line-height: 1.15; text-align: left; cursor: pointer; }
+.quest-strip-text { display: grid; min-width: 0; }
+.quest-strip-text small { color: var(--light); font-size: 16px; }
+.quest-strip-count { color: var(--gold); font-size: 24px; font-variant-numeric: tabular-nums; }
+.quest-strip:active, .quest-chip:active { transform: translateY(2px); }
+.quest-sheet { width: min(480px, calc(100% - 24px)); }
+.quest-body { display: grid; gap: 10px; }
+.quest-body h3 { margin: 6px 0 0; }
+.quest-goal { margin: 0; color: var(--bone); font-size: 26px; line-height: 1.2; }
+.quest-bar { display: block; height: 12px; background: var(--ink); box-shadow: 0 0 0 2px var(--mid); }
+.quest-bar span { display: block; height: 100%; background: var(--gold); }
+.quest-status { margin: 0; color: var(--gold); font-size: 22px; }
+.quest-next { margin: 0; color: var(--light); font-size: 18px; }
+.quest-list { display: grid; gap: 4px; max-height: 40vh; margin: 0; padding: 0 0 0 34px; overflow-y: auto; color: var(--bone); font-size: 20px; }
+.quest-list li::marker { color: var(--light); }
+.quest-list small { margin-left: 8px; color: var(--light); }
+.quest-list .is-me { color: var(--gold); }
 
 .chip {
   display: inline-flex;
@@ -767,6 +788,8 @@ html.keyboard-open .sheet[open] > .account-body {
   .hud-top .clock { min-height: 52px; font-size: 26px; }
   .groundbait-chip { min-height: 52px; padding: 6px 10px 6px 8px; }
   .groundbait-bar { width: 52px; }
+  .quest-chip { min-height: 52px; padding: 6px 10px 6px 8px; font-size: 22px; }
+  .quest-strip { min-height: 48px; font-size: 18px; }
   .bait-chip { min-height: 48px; font-size: 22px; }
 
   /* Dialogs use almost the whole screen and scroll inside. */

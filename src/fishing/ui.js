@@ -3,10 +3,11 @@ import {
   baitEntries, fishPrice, formatMoney, formatWeight, handbookEntries, spotEntries, trophyCost,
 } from "./data.js";
 import {
-  bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, groundbaitSprite, hookSprite, keepnetSprite, lineSprite, medalSprite, packSprite, rodSprite,
+  bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, groundbaitSprite, hookSprite, keepnetSprite, lineSprite, medalSprite, packSprite, questSprite, rodSprite,
 } from "./sprites.js";
 import { P } from "./palette.js";
 import { ACHIEVEMENTS, GROUPS, bump, evaluate } from "./achievements.js";
+import { questReward, questState, todaysQuest, untilNextQuest } from "./quests.js";
 import { frame, frameAll, repaint, setContent } from "./frames.js";
 import { SEASONS, season, setSeason } from "../theme.js";
 import { validNickname } from "../cloud.js";
@@ -96,6 +97,8 @@ export class AnglerUI {
     $("#keepnet-chip").addEventListener("click", () => this.openKeepnet());
     $("#settings-button").addEventListener("click", () => this.openSettings());
     $("#account-button").addEventListener("click", () => this.openAccount());
+    $("#quest-strip").addEventListener("click", () => this.openQuest());
+    $("#quest-chip").addEventListener("click", () => this.openQuest());
     for (const tab of document.querySelectorAll("#shop-dialog .tab")) {
       tab.addEventListener("click", () => this.showShopTab(tab.dataset.tab));
     }
@@ -598,11 +601,103 @@ export class AnglerUI {
     $("#keepnet-chip-count").textContent = `×${netCount}`;
     $("#keepnet-chip").setAttribute("aria-label", `${t("a11y.keepnet")}: ${netCount}`);
 
+    this.renderQuest();
+
     // The hook size in use and how many are left.
     const hooksLeft = progress.hooks[progress.hook] ?? 0;
     $("#pack-hook-sprite").replaceChildren(hookSprite(2));
     $("#pack-hook-count").textContent = `×${hooksLeft}`;
     $("#pack-hook-count").closest(".chip").classList.toggle("is-empty", hooksLeft <= 0);
+  }
+
+  /* ---------- Daily quest ---------- */
+
+  /** What today's quest asks, in words. */
+  questGoal(quest) {
+    const fish = quest.fish ? nameOf("fish", quest.fish).toLocaleLowerCase(locale()) : "";
+    if (quest.kind === "count") return t("quest.count", { fish, count: quest.target });
+    if (quest.kind === "heavy") return t("quest.heavy", { fish, weight: formatWeight(quest.weight) });
+    if (quest.kind === "spot") return t("quest.spot", { spot: nameOf("location", quest.spot), count: quest.target });
+    if (quest.kind === "total") return t("quest.total", { weight: formatWeight(quest.target) });
+    return t("quest.kinds", { count: quest.target });
+  }
+
+  /** "2/5", or for a weight "3.2/8 kg". */
+  questCount(quest, state) {
+    if (quest.kind === "total") return `${Number(Math.min(state.value, quest.target).toFixed(1))}/${formatWeight(quest.target)}`;
+    return `${Math.min(state.value, quest.target)}/${quest.target}`;
+  }
+
+  /** The quest line in the menu and the chip in game, kept to today's quest. */
+  renderQuest() {
+    const quest = todaysQuest();
+    const state = questState(this.progress, quest);
+    const done = Boolean(state.done);
+    const key = `${quest.day}:${state.value}:${done}:${language()}`;
+    if (key === this.questKey) return;
+    this.questKey = key;
+    const count = done ? t("quest.doneShort") : this.questCount(quest, state);
+    $("#quest-strip-goal").textContent = this.questGoal(quest);
+    $("#quest-strip-count").textContent = count;
+    $("#quest-strip").classList.toggle("is-done", done);
+    $("#quest-chip-count").textContent = done ? "✓" : this.questCount(quest, state);
+    $("#quest-chip").classList.toggle("is-done", done);
+    $("#quest-chip").setAttribute("aria-label", `${t("quest.title")}: ${this.questGoal(quest)}, ${count}`);
+    $("#quest-strip-icon").replaceChildren(questSprite(3, done));
+    $("#quest-chip-icon").replaceChildren(questSprite(3, done));
+  }
+
+  /** Today's quest done: the reward is already paid; say so once the catch card is closed. */
+  questDone({ reward }) {
+    this.renderQuest();
+    const show = () => {
+      if (document.querySelector("dialog[open]")) {
+        setTimeout(show, 400);
+        return;
+      }
+      sounds.coin();
+      this.toast(t("quest.toast", { reward: formatMoney(reward) }), "good", 3200);
+    };
+    show();
+  }
+
+  /** The quest window: what it asks, how far along, the reward, and who has done it today. */
+  openQuest() {
+    const quest = todaysQuest();
+    const state = questState(this.progress, quest);
+    const dialog = $("#quest-dialog");
+    $("#quest-goal").textContent = this.questGoal(quest);
+    $("#quest-fill").style.width = `${Math.min(100, (state.value / quest.target) * 100)}%`;
+    $("#quest-status").textContent = state.done
+      ? t("quest.done", { time: new Date(state.done).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" }) })
+      : t("quest.progress", { count: this.questCount(quest, state), reward: formatMoney(questReward(this.progress)) });
+    const left = untilNextQuest();
+    $("#quest-next").textContent = t("quest.next", { hours: Math.floor(left / 3600000), minutes: Math.floor((left % 3600000) / 60000) });
+    const list = $("#quest-list");
+    const note = $("#quest-list-note");
+    const say = (text) => {
+      note.textContent = text;
+      note.hidden = !text;
+    };
+    list.replaceChildren();
+    const cloud = this.cloud;
+    if (!cloud?.enabled) say(t("quest.listOff"));
+    else {
+      say(t("trophies.loading"));
+      const request = (this.questRequest = cloud.questFinishers(quest.day));
+      request.then((result) => {
+        if (request !== this.questRequest) return;
+        if (result.error) return say(t("quest.listError"));
+        const me = cloud.user?.id;
+        list.replaceChildren(...result.finishers.map((row) => element("li", { className: row.user_id === me ? "is-me" : "" }, [
+          row.player || t("trophies.anonymous"),
+          element("small", { textContent: new Date(row.done_at).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" }) }),
+        ])));
+        const hint = !cloud.user ? t("quest.signInHint") : "";
+        say(result.finishers.length ? hint : [t("quest.nobody"), hint].filter(Boolean).join(" "));
+      });
+    }
+    if (!dialog.open) dialog.showModal();
   }
 
   /** A rain cloud beside the clock while it's raining. */
@@ -622,6 +717,8 @@ export class AnglerUI {
     const shown = minutes - (minutes % 10);
     if (shown === this.clockMinutes) return;
     this.clockMinutes = shown;
+    // A new day brings a new quest.
+    this.renderQuest();
     const text = `${String(Math.floor(shown / 60)).padStart(2, "0")}:${String(shown % 60).padStart(2, "0")}`;
     const night = shown < 5 * 60 || shown >= 21 * 60;
     document.querySelectorAll(".clock-value").forEach((node) => { node.textContent = text; });

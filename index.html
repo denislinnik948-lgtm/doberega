@@ -49,6 +49,13 @@
 
         <button class="pixel-btn pixel-btn-primary fish-button" id="fish-button" type="button" data-i18n="menu.fish">Go fishing</button>
 
+        <!-- Today's quest, the same for everyone: what it asks and how far along you are. -->
+        <button class="quest-strip" id="quest-strip" data-frame="box" type="button" aria-haspopup="dialog">
+          <span class="quest-icon" id="quest-strip-icon" aria-hidden="true"></span>
+          <span class="quest-strip-text"><small data-i18n="quest.title">Daily quest</small><span id="quest-strip-goal"></span></span>
+          <span class="quest-strip-count" id="quest-strip-count"></span>
+        </button>
+
         <nav class="menu-nav" data-i18n-aria="a11y.menu">
           <button class="menu-item" id="shop-button" data-frame="box" type="button"><span class="menu-icon" id="shop-icon"></span><span data-i18n="menu.shop">Shop</span></button>
           <button class="menu-item" id="pack-button" data-frame="box" type="button"><span class="menu-icon" id="pack-icon"></span><span data-i18n="menu.pack">Backpack</span></button>
@@ -74,6 +81,11 @@
             <span class="groundbait-icon" id="groundbait-icon" aria-hidden="true"></span>
             <span class="groundbait-bar" aria-hidden="true"><span class="groundbait-fill" id="groundbait-fill"></span></span>
           </div>
+          <!-- Today's quest: how far along; tap for the details. -->
+          <button class="quest-chip" id="quest-chip" data-frame="box" type="button" aria-haspopup="dialog">
+            <span class="quest-icon" id="quest-chip-icon" aria-hidden="true"></span>
+            <span id="quest-chip-count"></span>
+          </button>
         </div>
         <button id="exit-button" class="icon-btn" data-frame="box" type="button" data-i18n-aria="a11y.exit" data-i18n-title="a11y.exitTitle"></button>
       </div>
@@ -134,6 +146,22 @@
         <p class="keepnet-summary" id="keepnet-summary"></p>
         <button class="pixel-btn pixel-btn-primary" id="keepnet-sell" type="button"></button>
         <button class="pixel-btn" id="keepnet-keep" type="button" data-i18n="keepnet.keep">Keep for later</button>
+      </div>
+    </dialog>
+
+    <dialog class="sheet quest-sheet" id="quest-dialog" data-frame="ornate" aria-labelledby="quest-title">
+      <header class="sheet-heading">
+        <h2 class="title-tab" id="quest-title" data-frame="tab" data-i18n="quest.title">Daily quest</h2>
+        <form method="dialog"><button class="pixel-btn pixel-btn-square" type="submit" data-i18n-aria="a11y.close">✕</button></form>
+      </header>
+      <div class="quest-body">
+        <p class="quest-goal" id="quest-goal"></p>
+        <span class="quest-bar" aria-hidden="true"><span id="quest-fill"></span></span>
+        <p class="quest-status" id="quest-status"></p>
+        <p class="quest-next" id="quest-next"></p>
+        <h3 id="quest-done-title" data-i18n="quest.doneToday">Done today</h3>
+        <ol class="quest-list" id="quest-list"></ol>
+        <p class="empty-note" id="quest-list-note" hidden></p>
       </div>
     </dialog>
 

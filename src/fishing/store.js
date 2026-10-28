@@ -66,6 +66,15 @@ export function normalizeProgress(saved) {
       state.achievements = Object.fromEntries(Object.entries(saved.achievements).filter(([id, date]) => ACHIEVEMENTS.some((item) => item.id === id) && typeof date === "string"));
     }
     if (LOCATIONS[saved.location]) state.location = saved.location;
+    // Today's run at the daily quest (see quests.js); another day's is simply started afresh.
+    if (saved.quest && Number.isFinite(saved.quest.day) && Number.isFinite(saved.quest.value)) {
+      state.quest = {
+        day: saved.quest.day,
+        value: Math.max(0, saved.quest.value),
+        kinds: Array.isArray(saved.quest.kinds) ? saved.quest.kinds.filter((id) => FISH[id]) : [],
+        done: typeof saved.quest.done === "string" ? saved.quest.done : null,
+      };
+    }
     if (Number.isFinite(saved.savedAt)) state.savedAt = saved.savedAt;
   }
   return state;

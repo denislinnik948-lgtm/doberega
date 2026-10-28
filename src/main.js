@@ -15,6 +15,7 @@ import { track } from "./analytics.js";
 import { ambienceTick, jumpSound, musicTick, nightSound, sounds, thunderClap } from "./sound.js";
 import { AnglerUI } from "./fishing/ui.js";
 import { breakStreak, bump, recordCatch } from "./fishing/achievements.js";
+import { recordQuest } from "./fishing/quests.js";
 
 // The water look is fixed: a still lake, gentle swell speed, soft glints.
 const config = {
@@ -269,6 +270,9 @@ function handleGameEvent(type, data) {
         rain: weather.intensity,
         rodMaxKg: RODS[progress.rod].maxKg,
       });
+      // Today's quest, the same for everyone: paid the moment it's done.
+      const quest = recordQuest(progress, data.fish, progress.location);
+      if (quest) ui.questDone(quest);
     }
     ui.commit();
     if (data.type === "escape") {

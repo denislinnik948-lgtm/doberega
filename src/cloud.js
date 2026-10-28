@@ -103,8 +103,10 @@ export class Cloud {
       const { data, error } = await this.client.auth.updateUser({ data: { nickname: nickname.trim() } });
       if (error) throw error;
       this.user = data.user;
-      // Trophies on show carry the new name too.
+      // Trophies on show carry the new name too, and so does today's quest.
       await this.publishTrophies(this.getProgress());
+      this.questPublished = null;
+      await this.publishQuest(this.getProgress());
       return {};
     });
   }
@@ -170,6 +172,31 @@ export class Cloud {
     this.lastSync = Date.now();
     this.onChange();
     await this.publishTrophies(progress);
+    await this.publishQuest(progress);
+  }
+
+  /**
+   * Today's quest done: put this player on the day's list (once per day; a
+   * quest done before signing in goes up with the first save after it).
+   */
+  async publishQuest(progress) {
+    const quest = progress.quest;
+    if (!this.user || !quest?.done || this.questPublished === quest.day) return;
+    const { error } = await this.client.from("quest_done").upsert({
+      day: quest.day,
+      user_id: this.user.id,
+      player: this.user.user_metadata?.nickname ?? "",
+      done_at: quest.done,
+    }, { onConflict: "day,user_id" });
+    if (error) console.warn("The quest was not published:", error.message);
+    else this.questPublished = quest.day;
+  }
+
+  /** Who has done a day's quest, first first (anyone can look, signed in or not). */
+  async questFinishers(day, limit = 100) {
+    if (!this.client) return { error: "unavailable" };
+    const { data, error } = await this.client.from("quest_done").select("user_id, player, done_at").eq("day", day).order("done_at", { ascending: true }).limit(limit);
+    return error ? { error: error.message } : { finishers: data };
   }
 
   /** Put this player's trophies on show for everyone (each only once, refreshed under a new nickname). */
