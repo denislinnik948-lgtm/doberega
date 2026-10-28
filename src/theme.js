@@ -97,6 +97,23 @@ export function snowHex(hex, amount = 0.7) {
   return `#${[r, g, b].map((c) => Math.round(Math.max(0, Math.min(255, c))).toString(16).padStart(2, "0")).join("")}`;
 }
 
+/*
+ * Winter water: cold and dark under a low sky. Every lake keeps a hint of
+ * its own tint (the castle lake stays a little green), but most of it goes
+ * to a steel grey-blue, and the depths to near black.
+ */
+const WINTER_WATER = [96, 120, 134];
+const WINTER_DEEP = [20, 32, 42];
+function coldHex(hex, [r, g, b], amount) {
+  const n = parseInt(hex.slice(1), 16);
+  const own = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  return `#${own.map((c, i) => Math.round(c + ([r, g, b][i] - c) * amount).toString(16).padStart(2, "0")).join("")}`;
+}
+/** A water tint in the season: colder and greyer in winter, as it is otherwise. */
+export const seasonWater = (hex) => (isWinter() ? coldHex(hex, WINTER_WATER, 0.72) : hex);
+/** The dark of deep water in the season. */
+export const seasonDeep = (hex) => (isWinter() ? coldHex(hex, WINTER_DEEP, 0.6) : hex);
+
 /** Called when the season changes. */
 export function onSeasonChange(listener) {
   listeners.add(listener);
@@ -139,9 +156,15 @@ export function gradeImageData(data) {
 
 /** The sky with the grade applied; the lit side of clouds keeps some of its warmth. */
 export function gradeSky(sky) {
+  // A winter sky is paler and colder: a good part of its colour drains to a blue-grey.
+  const winter = isWinter();
+  const cold = ([r, g, b]) => {
+    const lum = 0.3 * r + 0.59 * g + 0.11 * b;
+    return [r, g, b].map((c, i) => c * 0.6 + lum * [0.94, 1, 1.1][i] * 0.4);
+  };
   return {
     ...sky,
-    sky: sky.sky.map((stop) => gradeRgb(stop)),
+    sky: sky.sky.map((stop) => gradeRgb(winter ? cold(stop) : stop)),
     cloudShade: gradeRgb(sky.cloudShade),
     cloudLit: gradeRgb(sky.cloudLit).map((c, i) => c * 0.6 + sky.cloudLit[i] * 0.4),
   };

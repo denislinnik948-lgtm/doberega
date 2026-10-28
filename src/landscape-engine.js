@@ -1,5 +1,6 @@
 import { clamp, hash2, valueNoise } from "./noise.js";
 import { activeScene, bankWidths, shorelineY, view } from "./scene.js";
+import { isWinter } from "./theme.js";
 
 /** Ridged fractal noise: sharp crests where the smooth noise crosses its midpoint. */
 function ridged(x, y, seed, octaves = 4) {
@@ -204,6 +205,11 @@ export function createStructures(width, height, cellWidth, lineHeight, fine = nu
   // Where animated extras attach: chimney tops for smoke, pylon tips for warning lights.
   const chimneys = [];
   const beacons = [];
+  // Winter: holiday lights strung under the eaves, twinkling after dark.
+  const garlands = [];
+  const winter = isWinter();
+  // Holiday lights only round the turn of the year, not into February.
+  const festive = winter && new Date().getMonth() !== 1;
   const put = (x, y, glyph, color, extra = {}) => {
     const cell = { ...cellAt(x, y, cellWidth, lineHeight), glyph, color, ...extra };
     cells.push(cell);
@@ -225,7 +231,8 @@ export function createStructures(width, height, cellWidth, lineHeight, fine = nu
       const right = cx + (half + 0.5) * cellWidth;
       const wallTop = base - (wallRows - 0.5) * lineHeight;
       shapes.push({ points: [[left, base + lineHeight * 0.5], [left, wallTop], [right, wallTop], [right, base + lineHeight * 0.5]], color: "#4a453c" });
-      shapes.push({ points: [[left - cellWidth, wallTop], [cx, wallTop - roofRows * lineHeight], [right + cellWidth, wallTop]], color: mixHex(roof, "#000000", 0.3) });
+      // In winter snow lies thick on the roof.
+      shapes.push({ points: [[left - cellWidth, wallTop], [cx, wallTop - roofRows * lineHeight], [right + cellWidth, wallTop]], color: winter ? "#8e9ca6" : mixHex(roof, "#000000", 0.3) });
       for (let r = 0; r < wallRows; r += 1) {
         const y = base - r * lineHeight;
         for (let c = -half; c <= half; c += 1) {
@@ -245,8 +252,19 @@ export function createStructures(width, height, cellWidth, lineHeight, fine = nu
         const span = Math.round(half + 1 - (r * (half + 1)) / roofRows);
         for (let c = -span; c <= span; c += 1) {
           const glyph = c === -span ? "/" : c === span ? "\\" : r === roofRows - 1 ? "^" : "=";
-          put(cx + c * cellWidth, y, glyph, roof);
+          // Snow on all but the eave row, where the roof itself shows under the overhang.
+          const snowy = winter && (r > 0 || hash2(c, i, 41) > 0.6);
+          put(cx + c * cellWidth, y, snowy && glyph === "=" ? (hash2(c, r, 43) > 0.7 ? "~" : "=") : glyph, snowy ? (hash2(c, r + i, 47) > 0.5 ? "#e4ebee" : "#c6d2d8") : roof);
         }
+      }
+      if (winter) {
+        // Icicles hang from the eaves, longer here and there.
+        for (let c = -half - 1; c <= half + 1; c += 1) {
+          const roll = hash2(c, i, 53);
+          if (roll < 0.45) continue;
+          put(cx + c * cellWidth, wallTop + lineHeight * 0.1, roll > 0.85 ? "|" : "'", "#cfe2ec");
+        }
+        if (festive) for (let c = -half; c <= half; c += 1) garlands.push({ x: cx + c * cellWidth, y: wallTop + lineHeight * 0.35 + Math.sin((c / half) * Math.PI) * lineHeight * 0.2, seed: c + i * 17 });
       }
       // Chimney.
       put(cx + (half - 2) * cellWidth, base - (wallRows + 1) * lineHeight, "|", "#5a4a3e");
@@ -306,7 +324,7 @@ export function createStructures(width, height, cellWidth, lineHeight, fine = nu
     }
   }
 
-  const out = { cells, lights, shapes, chimneys, beacons };
+  const out = { cells, lights, shapes, chimneys, beacons, garlands };
   if (structures.tower) addFireTower(structures.tower, width, height, cellWidth, lineHeight, out);
   // The plant at Pripyat, the castle hill and the arch bridge stand on the far
   // shore with its woods, so they are laid on its finer grid and drawn at its size.

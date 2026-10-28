@@ -341,7 +341,7 @@ const LEVELS = {
   // Nature, places and the night (about −46…−55 dB), rain as a soft bed.
   lap: 0.48, fishJump: 0.88, bird: 1.05, duck: 0.4, cricket: 1.3, owl: 0.27, thunder: 0.2, treeFrog: 1.08,
   wisp: 0.28, boat: 10.4, mavka: 0.32, lantern: 6, eyes: 0.27, drone: 0.09, whisper: 0.88,
-  river: 0.35, cow: 0.47, bell: 0.22, wreck: 9.7, geiger: 1, rainBed: 0.2, wind: 0.5, heron: 0.5, heronStrike: 0.7, beaverSlap: 0.6,
+  river: 0.35, cow: 0.47, bell: 0.22, wreck: 9.7, geiger: 1, rainBed: 0.2, wind: 0.5, heron: 0.5, heronStrike: 0.7, beaverSlap: 0.6, finch: 1,
 };
 
 /** Build a sound at its own level (LEVELS[name]) into the effects bus. */
@@ -552,6 +552,12 @@ const rawSounds = {
       osc.stop(at + delay + length + 0.05);
     }
   },
+  /** A bullfinch's soft, piping "pyu", once or twice. */
+  finch(pan = 0) {
+    if (!audio()) return;
+    const notes = Math.random() < 0.5 ? 1 : 2;
+    for (let i = 0; i < notes; i += 1) chirp({ delay: i * 0.45, from: vary(1450, 0.04), to: vary(1150, 0.04), length: 0.22, level: 0.03, pan });
+  },
   /** The heron's beak stabbing into the water. */
   heronStrike(pan = 0) {
     if (!audio()) return;
@@ -754,8 +760,20 @@ const BIRDS = [
     chirp({ delay: 0.38, from: 1600, to: 1900, length: 0.28, level: 0.03, pan });
   },
 ];
+// In winter only the birds that stay: a tit's "tsi-fee" and a bullfinch's piping.
+const WINTER_BIRDS = [
+  BIRDS[1],
+  (pan) => {
+    chirp({ from: 1450, to: 1150, length: 0.22, level: 0.03, pan });
+    chirp({ delay: 0.5, from: 1400, to: 1120, length: 0.22, level: 0.028, pan });
+  },
+];
 let lastBird = -1;
-function bird() {
+function bird(winter = false) {
+  if (winter) {
+    WINTER_BIRDS[Math.floor(Math.random() * WINTER_BIRDS.length)](rand(-0.8, 0.8));
+    return;
+  }
   let pick = Math.floor(Math.random() * BIRDS.length);
   if (pick === lastBird) pick = (pick + 1) % BIRDS.length;
   lastBird = pick;
@@ -1102,7 +1120,7 @@ function setRainBed(level) {
  * Advance the background by `step` seconds: `atWater` while fishing, `rain`
  * 0..1, `night` while it's dark.
  */
-export function ambienceTick(step, { atWater, rain, night, ducks = 0, frogs = false, deepNight = 0, spot = "", wind = 0, windDir = 1 }) {
+export function ambienceTick(step, { atWater, rain, night, ducks = 0, frogs = false, deepNight = 0, spot = "", wind = 0, windDir = 1, winter = false }) {
   if (!audio() || step <= 0) return;
   if (Math.abs(rain - rainLevel) > 0.02 || (rain <= 0.02 && rainBed)) {
     rainLevel = rain;
@@ -1118,10 +1136,10 @@ export function ambienceTick(step, { atWater, rain, night, ducks = 0, frogs = fa
     ambient.lap = rand(2.5, 6);
     play("lap", lap);
   }
-  // Birds sing by day, and not in the rain; crickets chirp on dry nights.
+  // Birds sing by day, and not in the rain (in winter fewer, and only those that stay); crickets chirp on dry nights.
   if (atWater && !night && rain < 0.3 && ambient.bird <= 0) {
-    ambient.bird = rand(6, 16);
-    play("bird", bird);
+    ambient.bird = winter ? rand(14, 32) : rand(6, 16);
+    play("bird", () => bird(winter));
   }
   // A fish jumping out on the water now and then, day or night.
   if (atWater && ambient.jump <= 0) {
@@ -1133,12 +1151,12 @@ export function ambienceTick(step, { atWater, rain, night, ducks = 0, frogs = fa
     ambient.duck = rand(12, 30);
     play("duck", duck);
   }
-  if (atWater && night && rain < 0.3 && ambient.cricket <= 0) {
+  if (atWater && night && !winter && rain < 0.3 && ambient.cricket <= 0) {
     ambient.cricket = rand(0.8, 3);
     play("cricket", cricket);
   }
   // Tree frogs in the reeds on warm evenings and nights.
-  if (atWater && frogs && rain < 0.5 && ambient.frog <= 0) {
+  if (atWater && frogs && !winter && rain < 0.5 && ambient.frog <= 0) {
     ambient.frog = rand(6, 15);
     play("treeFrog", treeFrog);
   }
@@ -1152,7 +1170,8 @@ export function ambienceTick(step, { atWater, rain, night, ducks = 0, frogs = fa
     ambient.river = rand(8, 16);
     play("river", local.river);
   }
-  if (atWater && spot === "pond" && !night && ambient.cow <= 0) {
+  // The herd is in the barn in winter.
+  if (atWater && spot === "pond" && !night && !winter && ambient.cow <= 0) {
     ambient.cow = rand(60, 150);
     play("cow", local.cow);
   }

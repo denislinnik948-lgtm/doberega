@@ -192,7 +192,9 @@ export class Ducks {
  * - a beaver: in the evening, at the reedy waters and the river, a head with
  *   a long V of a wake swims across, and may slap its tail and dive;
  * - dragonflies: on warm days (summer, late spring), with no rain and no
- *   strong wind, a few hover by the reeds and dart from place to place.
+ *   strong wind, a few hover by the reeds and dart from place to place;
+ * - bullfinches: on winter days a few fly in, sit on the oak's twigs, the
+ *   cattails, the snowman or the bridge rail, hop about, pipe and fly off.
  *
  * Positions are in screen pixels; `isWater(x, y)` keeps them on open water.
  * `onEvent(type, data)` hears a heron's call, its strike and a beaver's slap.
@@ -209,13 +211,16 @@ export class Critters {
     this.heron = null;
     this.beaver = null;
     this.flies = [];
+    this.finches = [];
+    this.finchTimer = 20 + random() * 60;
     this.heronTimer = 60 + random() * 120;
     this.beaverTimer = 30 + random() * 90;
   }
 
   /**
    * `frame` is the visible slice ({ left, width }), `horizonY` where the far
-   * water starts; `when` holds { hour, rain, wind, warm, beavers }.
+   * water starts; `when` holds { hour, rain, wind, warm, beavers, winter,
+   * perches }, `perches` being where a small bird can sit this frame.
    */
   update(dt, time, width, height, frame, horizonY, isWater, when) {
     const random = this.random;
@@ -255,6 +260,93 @@ export class Critters {
       }
     }
     this.flies = this.flies.filter((fly) => !(fly.gone && fly.t >= 1));
+    this.updateFinches(dt, frame, when.winter && day && when.hour >= 8 && when.hour < 16.5 && when.rain < 0.6 && when.wind < 0.7, when.perches ?? []);
+  }
+
+  /** A little flock of bullfinches calling in to perch for a while. */
+  updateFinches(dt, frame, allowed, perches) {
+    const random = this.random;
+    this.finchTimer -= dt;
+    if (!this.finches.length && allowed && perches.length && this.finchTimer <= 0) {
+      this.finchTimer = 90 + random() * 150;
+      const count = Math.min(perches.length, 2 + Math.floor(random() * 3));
+      const free = perches.map((_, i) => i).sort(() => random() - 0.5);
+      const fromLeft = random() < 0.5;
+      this.finches = free.slice(0, count).map((perch, i) => ({
+        x: fromLeft ? frame.left - 30 - i * 25 : frame.left + frame.width + 30 + i * 25,
+        y: perches[perch].y - 120 - random() * 60,
+        perch,
+        from: null,
+        t: 0,
+        flight: 1.6 + random() * 0.8,
+        sit: 25 + random() * 35,
+        hop: 3 + random() * 6,
+        peck: 0,
+        heading: fromLeft ? 1 : -1,
+        flying: true,
+        phase: random() * 6,
+      }));
+      this.onEvent("finch", { x: this.finches[0].x });
+    }
+    for (const bird of this.finches) {
+      // The view was laid out afresh and its perch is gone: off it flies.
+      if (bird.perch !== null && !perches[bird.perch]) {
+        bird.perch = null;
+        bird.flying = true;
+        bird.from = null;
+        bird.t = 0;
+        bird.away = { x: bird.x + bird.heading * 400, y: bird.y - 200 };
+      }
+      const perch = bird.perch === null ? null : perches[bird.perch];
+      if (bird.flying) {
+        bird.from ??= { x: bird.x, y: bird.y };
+        bird.t += dt / bird.flight;
+        const k = Math.min(1, bird.t);
+        const e = k * k * (3 - 2 * k);
+        // Flying to a perch that sways with the reed it is on, or off and away.
+        const to = perch ?? bird.away;
+        bird.x = bird.from.x + (to.x - bird.from.x) * e;
+        bird.y = bird.from.y + (to.y - bird.from.y) * e - Math.sin(Math.PI * e) * 24;
+        if (k >= 1) {
+          bird.flying = false;
+          bird.from = null;
+          bird.t = 0;
+          if (!perch) bird.gone = true;
+        }
+        continue;
+      }
+      if (!perch) continue;
+      bird.x = perch.x;
+      bird.y = perch.y;
+      bird.sit -= dt;
+      bird.hop -= dt;
+      if (bird.peck > 0) bird.peck = Math.max(0, bird.peck - dt);
+      else if (random() < dt * 0.4) bird.peck = 0.35;
+      if (random() < dt * 0.06) bird.heading = -bird.heading;
+      if (random() < dt * 0.05) this.onEvent("finch", { x: bird.x });
+      const leave = bird.sit <= 0 || !allowed;
+      if (leave || bird.hop <= 0) {
+        bird.hop = 4 + random() * 8;
+        // Hop over to a free perch, or at the end leave the way they came.
+        const taken = new Set(this.finches.map((other) => other.perch));
+        const options = perches.map((_, i) => i).filter((i) => !taken.has(i));
+        if (!leave && !options.length) continue;
+        bird.from = { x: bird.x, y: bird.y };
+        bird.flying = true;
+        bird.t = 0;
+        if (leave) {
+          bird.perch = null;
+          bird.flight = 1.8 + random() * 0.6;
+          bird.heading = bird.x < frame.left + frame.width / 2 ? -1 : 1;
+          bird.away = { x: bird.heading > 0 ? frame.left + frame.width + 60 : frame.left - 60, y: bird.y - 160 - random() * 80 };
+        } else {
+          bird.perch = options[Math.floor(random() * options.length)];
+          bird.flight = 0.5 + random() * 0.5;
+          bird.heading = perches[bird.perch].x >= bird.x ? 1 : -1;
+        }
+      }
+    }
+    this.finches = this.finches.filter((bird) => !bird.gone);
   }
 
   updateHeron(dt, time, height, frame, horizonY, isWater, allowed) {

@@ -5,7 +5,7 @@ import { ridgeTop } from "./landscape-engine.js";
  * Small living details for the far landscape, rebuilt every frame on top of
  * the static land layer: wind running through meadows and grassy banks,
  * chimney smoke, mist on the far shore, cloud wisps clinging to the peaks,
- * and blinking warning lights on pylons. Everything is plain glyph pushes.
+ * blinking warning lights on pylons and, in winter, holiday lights on the houses. Everything is plain glyph pushes.
  */
 
 const mix = (a, b, t) => {
@@ -17,6 +17,7 @@ const SMOKE = [0x6e6c68, 0xa4acb4];
 const MIST = 0xb4c2cc;
 const WISP = 0xe6ecf0;
 const BEACON = 0xff4a30;
+const GARLAND = [0xff5a4a, 0xffd25a, 0x6ae07a, 0x6ab8ff];
 const SMOKE_PUFFS = 16;
 const SMOKE_LIFE = 7;
 
@@ -76,6 +77,7 @@ export function createAmbient({ scene, structures, ridgeCells, bankCells, width,
     grassBanks,
     chimneys: structures.chimneys ?? [],
     beacons: structures.beacons ?? [],
+    garlands: structures.garlands ?? [],
     mist,
     wisps,
     cellWidth,
@@ -147,6 +149,15 @@ export function fillAmbient(ambient, { ground, haze, glow }, time, dayTime, rain
   for (const cell of ambient.wisps) {
     const density = valueNoise(cell.x * 0.008 - time * 0.03, cell.y * 0.02, 57);
     if (density > 0.58) haze.push(cell.x, cell.y, density > 0.72 ? "~" : "-", WISP);
+  }
+
+  // Holiday lights under the eaves twinkle after dark, the colours running along the string.
+  if (dayTime < 0.29 || dayTime > 0.77) {
+    const run = Math.floor(time * 0.8);
+    for (const bulb of ambient.garlands) {
+      if (Math.sin(time * 1.9 + bulb.seed * 2.3) < -0.4) continue;
+      glow.push(bulb.x, bulb.y, "*", GARLAND[(((bulb.seed + run) % 4) + 4) % 4]);
+    }
   }
 
   // Pylon warning lights blink once dusk falls.

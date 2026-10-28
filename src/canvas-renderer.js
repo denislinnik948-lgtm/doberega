@@ -1,14 +1,14 @@
 import { sampleWater } from "./water-engine.js";
 import { createForestGlyphs } from "./forest-engine.js";
-import { activeScene, bankWidths, isOpenWater, jettyShape, nearBankY, setScene, shorelineY, sunPosition, view, wreckShape } from "./scene.js";
+import { activeScene, bankWidths, currentAt, isOpenWater, jettyShape, nearBankY, setScene, shorelineY, sunPosition, view, wreckShape } from "./scene.js";
 import { skyAt, toHex, toInt } from "./daycycle.js";
-import { clamp, hash01, hash2, hexToInt, mixColor } from "./noise.js";
+import { clamp, hash01, hash2, hexToInt, mixColor, valueNoise } from "./noise.js";
 import { createBankGlyphs, createRidgeGlyphs, createShoreGlyphs, createStructures, ridgeTop } from "./landscape-engine.js";
 import { birdsAt, createSkyCells, discOffsets, lightSky, pushDisc, sampleSky, setCloudColors, setCloudiness } from "./sky-engine.js";
 import { createLilyPads, createReeds, createRocks, rockGlyphs } from "./foreground-engine.js";
 import { GlyphBatch, createBackend } from "./glyph-backend.js";
 import { createAmbient, fillAmbient } from "./ambient-engine.js";
-import { currentSeason, gradeHex, gradeImageData, gradeInt, gradeSky, isAutumn, isSpring, isWinter, snowHex, snowImageData } from "./theme.js";
+import { currentSeason, gradeHex, gradeImageData, gradeInt, gradeSky, isAutumn, isSpring, isWinter, seasonDeep, seasonWater, snowHex, snowImageData } from "./theme.js";
 import { createGrass, fillGrass } from "./grass-engine.js";
 import { ROD_LOOKS } from "./fishing/sprites.js";
 
@@ -22,6 +22,10 @@ const REFLECTION_LEVELS = 3;
 const DEPTH_LEVELS = 4;
 const DEEP_WATER = "#142a32";
 const SPRAY_COLOR = hexToInt("#d3e2dc");
+// Winter ice, from the glassy open edge to snow lying on it; cracks darker.
+const ICE = ["#7d95a2", "#a8bcc6", "#d6e0e5"].map((color) => hexToInt(gradeHex(color)));
+const ICE_CRACK = hexToInt(gradeHex("#5c7482"));
+const STEAM = [hexToInt("#b8c6d0"), hexToInt("#eef3f6")];
 const BIRD_COLOR = hexToInt("#1f272b");
 // Clouds and stars drift slowly enough to resample a few times per second;
 // everything else animates on every frame.
@@ -84,6 +88,8 @@ export class CanvasWaterRenderer {
     this.forestBatch = new GlyphBatch();
     this.waterBatch = new GlyphBatch(32768);
     this.surfaceBatch = new GlyphBatch();
+    // Winter: steam rising off the open water in the frost.
+    this.steamBatch = new GlyphBatch();
     // The wreck's faint green glow at Pripyat after dark, drawn unlit over it.
     this.wreckGlowBatch = new GlyphBatch();
     this.skyTime = null;
@@ -171,7 +177,7 @@ export class CanvasWaterRenderer {
     for (let attempt = 0; attempt < 12; attempt += 1) {
       const px = left + width * (0.12 + random() * 0.76);
       const py = horizon + (this.height - horizon) * (0.12 + random() * 0.55);
-      if (isOpenWater(px, py, this.width, this.height)) {
+      if (isOpenWater(px, py, this.width, this.height) && !this.onIce(px, py)) {
         x = px;
         y = py;
         break;
@@ -189,13 +195,37 @@ export class CanvasWaterRenderer {
    * out from the river banks, anywhere along its body or its head.
    */
   isDuckWater(x, y) {
-    if (!this.isOpenWater(x, y)) return false;
+    if (!this.isOpenWater(x, y) || this.onIce(x, y)) return false;
     const { canopy, columns, rows, cellWidth, lineHeight } = this;
     return [[-36, 0], [0, 0], [36, 0], [0, -16]].every(([dx, dy]) => {
       const column = Math.floor((x + dx) / cellWidth);
       const row = Math.floor((y + dy) / lineHeight);
       return column < 0 || row < 0 || column >= columns || row >= rows || !canopy[row * columns + column];
     });
+  }
+
+  /**
+   * Winter: a rim of ice along the shores, ragged and wider here and there,
+   * while the open water stays open: along the far shore, our own bank and
+   * the river banks. 0 is open water, rising to 1 at the shore.
+   */
+  iceAt(x, y) {
+    const { width, height } = this;
+    const ragged = valueNoise(x * 0.011, y * 0.006, 811);
+    const shore = this.shorelineY(x);
+    let ice = 1 - (y - shore) / (this.lineHeight * (1.2 + 2.4 * ragged) * this.waterScaleAt(y));
+    const bank = nearBankY(x, height);
+    if (Number.isFinite(bank)) ice = Math.max(ice, 1 - (bank - y) / (height * (0.035 + 0.04 * ragged)));
+    const { left, right } = bankWidths(y / height);
+    const reach = width * (0.012 + 0.03 * ragged);
+    if (left) ice = Math.max(ice, 1 - Math.abs(x - left * width) / reach);
+    if (right) ice = Math.max(ice, 1 - Math.abs(x - width * (1 - right)) / reach);
+    return clamp(ice, 0, 1);
+  }
+
+  /** Whether a screen point is on the winter shore ice (no casting, ducks or splashes there). */
+  onIce(x, y) {
+    return Boolean(this.winterIce) && this.iceAt(x, y) > 0;
   }
 
   /**
@@ -239,8 +269,8 @@ export class CanvasWaterRenderer {
     const waterScaleAt = (y) => (DEPTH ? DEPTH.water + (DEPTH.near - DEPTH.water) * clamp((y - meanHorizon) / (height - meanHorizon), 0, 1) : 1);
     this.waterScaleAt = waterScaleAt;
     this.waterPerspective = DEPTH ? [meanHorizon, height, DEPTH.water, DEPTH.near] : undefined;
-    // Lily pads float on the water, on its grid where each one lies.
-    this.lilyPads = createLilyPads(width, height, cellWidth, lineHeight, this.frame, (y) => ({ cellWidth: cellWidth * waterScaleAt(y), lineHeight: lineHeight * waterScaleAt(y) }));
+    // Lily pads float on the water, on its grid where each one lies; none in winter.
+    this.lilyPads = isWinter() ? [] : createLilyPads(width, height, cellWidth, lineHeight, this.frame, (y) => ({ cellWidth: cellWidth * waterScaleAt(y), lineHeight: lineHeight * waterScaleAt(y) }));
     const covered = new Set();
     for (const pad of this.lilyPads) {
       for (const cell of [...pad.cells, ...pad.flower]) cell.colorValue = hexToInt(gradeHex(cell.color));
@@ -275,6 +305,7 @@ export class CanvasWaterRenderer {
       });
       return Object.assign(kept, { trees: cells.trees });
     };
+    this.winterIce = isWinter();
     const rowYs = [];
     for (let y = 0.52 * lineHeight; y < height + lineHeight; y += lineHeight * (y < meanHorizon - lineHeight ? 1 : waterScaleAt(y))) rowYs.push(y);
     for (const [rowIndex, screenY] of rowYs.entries()) {
@@ -292,6 +323,7 @@ export class CanvasWaterRenderer {
         if (!isOpenWater(screenX, screenY, width, height)) continue;
         const plane = this.screenToPlane(screenX, screenY);
         const distance = (screenY - shore) / (height - shore);
+        const noise = hash2(index, rowIndex, 61);
         this.waterCells.push({
           x: plane.x,
           y: plane.y,
@@ -301,7 +333,8 @@ export class CanvasWaterRenderer {
           depth: screenY / height,
           distance,
           band,
-          noise: hash2(index, rowIndex, 61),
+          noise,
+          ice: this.winterIce ? this.iceGlyph(screenX, screenY, noise) : null,
           pathWidth: width * (0.016 + 0.11 * distance),
           sunPath: 0,
           reflectionLevel: Math.min(REFLECTION_LEVELS - 1, Math.floor(distance * 6)),
@@ -317,6 +350,24 @@ export class CanvasWaterRenderer {
     }
 
     this.siteCount = this.waterCells.length;
+    // Winter: a few cells of open water to send up steam, and the floes drifting about.
+    this.steamCells = this.winterIce ? this.waterCells.filter((cell) => !cell.ice && cell.distance < 0.75 && cell.column % 2 === 0) : [];
+    this.floes = [];
+    if (this.winterIce) {
+      for (let i = 0; i < (scene.water.flowAway ? 9 : 6); i += 1) {
+        const floe = { seed: i * 0.37 + 0.11, size: this.frame.width * (0.018 + hash01(i * 31 + 7) ** 2 * 0.055), x: 0, y: 0, rx: 0, ry: 0 };
+        this.placeFloe(floe, false);
+        this.floes.push(floe);
+      }
+    }
+    this.floeTime = null;
+    this.waterClip = null;
+    // Winter: someone has built a snowman on our bank and left footprints in the snow.
+    this.snowman = null;
+    if (this.winterIce && scene.nearBank) {
+      const x = this.frame.left + this.frame.width * 0.27;
+      this.snowman = { x, y: nearBankY(x, height) + lineHeight * 1.2, size: clamp(Math.min(height * 0.032, this.frame.width * 0.05), 14, 28) };
+    }
     this.skyCells = createSkyCells(width, height, cellWidth, lineHeight);
     this.sunDisc = discOffsets(this.sun.radius, cellWidth, lineHeight);
     this.moonDisc = discOffsets(this.sun.radius * 0.8, cellWidth, lineHeight);
@@ -391,6 +442,22 @@ export class CanvasWaterRenderer {
     this.bridgeImage = scene.foreground.bridge ? this.createBridgeImage(scene.foreground.bridge) : null;
     this.signImage = scene.foreground.sign ? this.createSignImage(scene.foreground.sign) : null;
     this.oak = scene.foreground.oak ? this.createOak() : null;
+    // Where bullfinches can sit in winter: the oak's boughs, the snowman, the bridge rail
+    // and (added as the reeds are drawn, since they sway) the cattails.
+    this.perches = [];
+    if (this.winterIce) {
+      this.perches.push(...(this.oak?.perches ?? []));
+      if (this.snowman) {
+        const { x, y, size } = this.snowman;
+        const middle = y - 1.35 * size - 0.31 * size;
+        this.perches.push({ x, y: y - 2.3 * size - 0.225 * size - 0.82 * size }, { x: x - size * 1.3, y: middle - size * 0.58 }, { x: x + size * 1.3, y: middle - size * 0.4 });
+      }
+      if (scene.foreground.bridge) {
+        const railY = height * scene.foreground.bridge - this.reedSize * 0.55;
+        for (const k of [0.12, 0.3, 0.46, 0.62, 0.8]) this.perches.push({ x: this.frame.left + this.frame.width * k, y: railY });
+      }
+    }
+    this.reedPerches = null;
     this.skyTime = null;
   }
 
@@ -421,7 +488,7 @@ export class CanvasWaterRenderer {
   }
 
   updatePalette(rawWater, sky) {
-    const waterColor = gradeHex(rawWater);
+    const waterColor = gradeHex(seasonWater(rawWater));
     const horizon = toHex(sky.sky[3]);
     const key = `${waterColor}|${horizon}`;
     if (this.paletteKey === key) return;
@@ -519,12 +586,13 @@ export class CanvasWaterRenderer {
     ctx.lineTo(width, height);
     ctx.closePath();
     // Dark over the depths so the strokes stand out, lighter and greener over the shallows.
-    const deep = scene.water.body ?? DEEP_WATER;
+    const deep = seasonDeep(scene.water.body ?? DEEP_WATER);
     ctx.fillStyle = deep;
     ctx.fill();
-    {
-      // A coarse map of the shallows, smoothed as it is stretched over the water.
-      const [r, g, b] = [1, 3, 5].map((i) => parseInt(mixColor(deep, this.waterColor ?? "#3f7f86", 0.3).slice(i, i + 2), 16));
+    for (const ice of this.winterIce ? [false, true] : [false]) {
+      // A coarse map of the shallows, smoothed as it is stretched over the water;
+      // in winter another of the shore ice, pale under its glyphs.
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt((ice ? "#8a9ea8" : mixColor(deep, seasonWater(this.waterColor ?? "#3f7f86"), 0.3)).slice(i, i + 2), 16));
       const map = document.createElement("canvas");
       map.width = Math.ceil(width / (this.cellWidth * 2));
       map.height = Math.ceil(height / this.lineHeight);
@@ -536,7 +604,9 @@ export class CanvasWaterRenderer {
           image.data[i] = r;
           image.data[i + 1] = g;
           image.data[i + 2] = b;
-          image.data[i + 3] = Math.round(255 * this.shallowAt(((column + 0.5) * width) / map.width, ((row + 0.5) * height) / map.height));
+          const x = ((column + 0.5) * width) / map.width;
+          const y = ((row + 0.5) * height) / map.height;
+          image.data[i + 3] = Math.round(255 * (ice ? clamp((this.iceAt(x, y) - 0.1) * 3, 0, 1) : this.shallowAt(x, y)));
         }
       }
       mapContext.putImageData(image, 0, 0);
@@ -1247,7 +1317,21 @@ export class CanvasWaterRenderer {
         if (fill < 0.5 && best > 0) crown.push({ x, y });
       }
     }
-    return { image, left, top, width, height, crown, autumn, winter, leaves: [], landings: [], spawn: 0 };
+    // Winter: places along the thinner boughs where a small bird can sit.
+    const perches = [];
+    if (winter) {
+      // Only where a bough runs nearly level, so a bird sits on top of it, not against it.
+      for (const { point, w0, w1 } of limbs) {
+        if (w1 > 0.02) continue;
+        for (let t = 0.15; t < 0.96; t += 0.2) {
+          const p = point(t);
+          const next = point(t + 0.04);
+          if (Math.abs(next.y - p.y) > Math.abs(next.x - p.x) * 0.7) continue;
+          perches.push({ x: p.x, y: p.y - ((w0 + (w1 - w0) * t) * size) / 2 - lineHeight * 0.5 });
+        }
+      }
+    }
+    return { image, left, top, width, height, crown, autumn, winter, perches, leaves: [], landings: [], spawn: 0 };
   }
 
   /**
@@ -1413,6 +1497,83 @@ export class CanvasWaterRenderer {
     }
   }
 
+  /** A shore-ice cell's look (null for open water): snow on it by the shore, glassy at its ragged edge. */
+  iceGlyph(x, y, noise) {
+    const ice = this.iceAt(x, y);
+    // The edge is lacy: open water shows between the last pieces.
+    if (ice <= 0 || (ice < 0.25 && noise < 0.4)) return null;
+    if (noise > 0.94) return { glyph: noise > 0.97 ? "/" : "\\", color: ICE_CRACK };
+    if (ice > 0.6) return { glyph: "=-=_.="[Math.floor(noise * 6)], color: ICE[noise > 0.3 ? 2 : 1] };
+    if (ice > 0.25) return { glyph: "=-:="[Math.floor(noise * 4)], color: ICE[1] };
+    return { glyph: "-_~"[Math.floor(noise * 3)], color: ICE[0] };
+  }
+
+  /**
+   * Put a floe on open water: anywhere at first; later back in where the
+   * water comes from (a river's near reach, or the upwind side of a lake).
+   */
+  placeFloe(floe, returning) {
+    const { width, height } = this;
+    const { left, width: frameWidth } = this.frame;
+    const flowing = Boolean(activeScene().water.flowAway);
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const shore = this.shorelineY(left + frameWidth / 2);
+      let x = left + frameWidth * (0.05 + Math.random() * 0.9);
+      let y = shore + (height - shore) * (0.12 + Math.random() * 0.6);
+      if (returning && flowing) y = height * (0.78 + Math.random() * 0.08);
+      else if (returning) x = this.wind.dir >= 0 ? left - floe.size : left + frameWidth + floe.size;
+      if (returning && !flowing ? isOpenWater(this.wind.dir >= 0 ? left + 4 : left + frameWidth - 4, y, width, height) : isOpenWater(x, y, width, height) && !this.onIce(x, y)) {
+        floe.x = x;
+        floe.y = y;
+        return;
+      }
+    }
+  }
+
+  /** Drift the floes on the current, or on still water slowly before the wind. */
+  moveFloes(time) {
+    const step = clamp(time - (this.floeTime ?? time), 0, 0.1);
+    this.floeTime = time;
+    const { width, height, lineHeight } = this;
+    const { left, width: frameWidth } = this.frame;
+    const wind = this.wind;
+    for (const floe of this.floes) {
+      const flow = currentAt(floe.x / width, floe.y / height);
+      floe.x += (flow.x * width + (this.waterParams.flowAway ? 0 : wind.dir * wind.strength * 7)) * step;
+      floe.y += flow.y * height * step;
+      const shore = this.shorelineY(floe.x);
+      if (floe.y < shore + lineHeight * 1.5 || floe.x < left - floe.size * 1.5 || floe.x > left + frameWidth + floe.size * 1.5) this.placeFloe(floe, true);
+      // Smaller and flatter in the distance.
+      const distance = clamp((floe.y - shore) / (height - shore), 0, 1);
+      floe.rx = floe.size * (0.25 + 0.75 * distance);
+      floe.ry = Math.max(this.lineHeight * 0.9, floe.rx * (0.3 + 0.2 * distance));
+    }
+    return this.floes;
+  }
+
+  /**
+   * Steam off the open water in the frost: most on a cold still morning,
+   * thin by afternoon, again at night; a wind tears it away.
+   */
+  fillSteam(time, dayTime) {
+    const batch = this.steamBatch;
+    batch.clear();
+    if (!this.steamCells?.length) return;
+    const hour = (dayTime * 24) % 24;
+    const wind = this.wind;
+    const strength = (0.35 + 0.75 * Math.exp(-(((hour - 8) / 2.5) ** 2)) + (hour < 6 || hour > 20 ? 0.3 : 0)) * (1 - 0.7 * wind.strength);
+    const { lineHeight } = this;
+    // Patches of it drift downwind and lift off the water as they go.
+    const drift = time * 0.05 * wind.dir * (0.4 + wind.strength);
+    const lift = time * 0.22;
+    for (const cell of this.steamCells) {
+      const density = valueNoise(cell.screenX * 0.006 - drift, cell.screenY * 0.03 + lift, 71) * strength * (1 - cell.distance * 0.5);
+      if (density < 0.5) continue;
+      const thick = density > 0.62;
+      batch.push(cell.screenX, cell.screenY - lineHeight * 0.4, thick ? "~" : "-", STEAM[thick ? 1 : 0]);
+    }
+  }
+
   fillWater(time, config, ripples) {
     const { cellWidth, lineHeight, columns, backdrop, reflectionColors } = this;
     const { centerX, centerY, axisX, axisY } = this.projection;
@@ -1433,6 +1594,11 @@ export class CanvasWaterRenderer {
     for (let row = 0; row <= this.rows; row += 1) rowWobble[row] = Math.sin(row * 0.83 + wobbleTime) * cellWidth * 0.7 * amplitudeScale;
 
     for (const cell of this.waterCells) {
+      // Ice lies still on the water.
+      if (cell.ice) {
+        batch.push(cell.screenX, cell.screenY, cell.ice.glyph, cell.ice.color);
+        continue;
+      }
       const sample = sampleWater(cell, time, waveConfig, cell.depth, ripples);
       const rampPosition = clamp((sample.density - 0.58) / 0.32, 0, 0.9999);
       const glyph = WATER_RAMP[Math.floor(rampPosition * WATER_RAMP.length)];
@@ -2113,6 +2279,8 @@ export class CanvasWaterRenderer {
     ctx.clearRect(this.frame.left, 0, this.frame.width, this.height);
     for (const rock of this.rockImages) ctx.drawImage(rock.image, rock.left, rock.top, rock.width, rock.height);
     this.drawDucks(ctx, time, this.ducks);
+    if (this.floes?.length) this.drawFloes(ctx);
+    if (this.snowman) this.drawSnowman(ctx, this.snowman);
     if (this.critters) this.drawCritters(ctx, time, this.critters);
     if (angler && !angler.hidden) this.renderAngler(ctx, angler, "line");
 
@@ -2137,6 +2305,11 @@ export class CanvasWaterRenderer {
       sign = null;
     };
 
+    // The first time through in winter, a perch on top of each cattail (moved with it every frame).
+    if (winter && !this.reedPerches) {
+      this.reedPerches = new Map(this.reeds.filter((reed) => reed.kind === "cattail").map((reed) => [reed, { x: 0, y: 0 }]));
+      this.perches.push(...this.reedPerches.values());
+    }
     for (const reed of this.reeds) {
       if (sign && reed.depth > 0.66) drawSign();
       const segments = Math.max(2, Math.round(reed.length / step));
@@ -2160,6 +2333,11 @@ export class CanvasWaterRenderer {
       if (reed.kind === "cattail") {
         const top = at(0.86);
         const bottom = at(0.62);
+        const perch = this.reedPerches?.get(reed);
+        if (perch) {
+          perch.x = top.x;
+          perch.y = top.y - size * 0.45;
+        }
         ctx.beginPath();
         ctx.moveTo(bottom.x, bottom.y);
         ctx.lineTo(top.x, top.y);
@@ -2203,6 +2381,7 @@ export class CanvasWaterRenderer {
     // The railing stands between us and the reeds by the far abutments.
     if (this.bridgeImage) ctx.drawImage(this.bridgeImage.image, 0, this.bridgeImage.top, this.width, this.height - this.bridgeImage.top);
     if (angler && !angler.hidden) this.renderAngler(ctx, angler, "rod");
+    if (this.critters?.finches.length) this.drawFinches(ctx, time, this.critters.finches);
 
     // Darken the close-up foreground at dusk and night, only where it's drawn.
     if (this.shade > 0.01) {
@@ -2350,6 +2529,211 @@ export class CanvasWaterRenderer {
   }
 
   /**
+   * Floes drifting on the open water: flat slabs of ice with snow on top,
+   * their wet edge showing darker below, smaller and flatter in the distance.
+   */
+  drawFloes(ctx) {
+    ctx.save();
+    // Kept to the water: never over a river bank or our own.
+    if (!this.waterClip) {
+      const { width, height } = this;
+      const clip = new Path2D();
+      clip.moveTo(0, this.shorelineY(0));
+      for (let x = 8; x <= width + 8; x += 8) clip.lineTo(x, this.shorelineY(x));
+      for (let y = this.shorelineY(width); y <= height; y += 8) clip.lineTo(width * (1 - bankWidths(y / height).right), y);
+      for (let x = width; x >= -8; x -= 8) clip.lineTo(x, Math.min(height, nearBankY(x, height) + this.lineHeight * 0.5));
+      for (let y = height; y >= this.shorelineY(0); y -= 8) clip.lineTo(width * bankWidths(y / height).left, y);
+      clip.closePath();
+      this.waterClip = clip;
+    }
+    ctx.clip(this.waterClip);
+    for (const floe of this.floes) {
+      // An outline of its own, ragged round the rim.
+      const outline = (lift) => {
+        ctx.beginPath();
+        for (let i = 0; i < 11; i += 1) {
+          const angle = (i / 11) * Math.PI * 2;
+          const r = 0.78 + 0.22 * hash01(floe.seed * 97 + i * 13);
+          const x = floe.x + Math.cos(angle) * floe.rx * r;
+          const y = floe.y + Math.sin(angle) * floe.ry * r - lift;
+          if (i) ctx.lineTo(x, y);
+          else ctx.moveTo(x, y);
+        }
+        ctx.closePath();
+      };
+      const edge = Math.max(1.5, floe.ry * 0.28);
+      outline(0);
+      ctx.fillStyle = "#4e6674";
+      ctx.fill();
+      outline(edge);
+      const top = ctx.createLinearGradient(floe.x - floe.rx, floe.y - floe.ry, floe.x + floe.rx, floe.y + floe.ry);
+      top.addColorStop(0, "#c2cfd6");
+      top.addColorStop(1, "#e4ebee");
+      ctx.fillStyle = top;
+      ctx.fill();
+      // Wind-packed snow on it in the game's own strokes.
+      ctx.save();
+      ctx.clip();
+      const size = Math.max(6, floe.ry * 0.9);
+      ctx.font = `600 ${size}px ${MONO_FONT}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#9fb1bb";
+      for (let row = -1; row <= 1; row += 1) {
+        for (let column = -3; column <= 3; column += 1) {
+          if (hash01(floe.seed * 53 + row * 7 + column) < 0.45) continue;
+          ctx.fillText(hash01(floe.seed * 61 + column) > 0.5 ? "=" : "-", floe.x + column * size * 0.6 * (floe.rx / floe.ry) * 0.3, floe.y - edge + row * size * 0.6);
+        }
+      }
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  /**
+   * The snowman on our bank: three balls of snow lit from the sun's side, coal
+   * eyes and buttons, a carrot nose, twig arms and an old bucket for a hat,
+   * with a trail of footprints up from the edge of the screen.
+   */
+  drawSnowman(ctx, { x, y, size }) {
+    ctx.save();
+    // Footprints: pairs of dents wandering up to him.
+    ctx.fillStyle = "rgba(70, 90, 108, 0.55)";
+    for (let i = 1; i < 10; i += 1) {
+      const t = i / 10;
+      const px = x + size * (1.4 + t * t * 5) + Math.sin(i * 1.7) * size * 0.2;
+      const py = y + size * 0.4 + t * (this.height - y);
+      const dent = size * (0.1 + t * 0.12);
+      ctx.beginPath();
+      ctx.ellipse(px - dent * 1.4, py, dent, dent * 0.45, 0, 0, Math.PI * 2);
+      ctx.ellipse(px + dent * 1.4, py + dent * 1.2, dent, dent * 0.45, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // A soft blue shadow on the snow.
+    ctx.fillStyle = "rgba(60, 80, 100, 0.35)";
+    ctx.beginPath();
+    ctx.ellipse(x + size * 0.5, y + size * 0.15, size * 1.3, size * 0.3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // The balls, from the bottom up, each lit on the upper right.
+    const balls = [[0, 0.85], [-1.35, 0.62], [-2.3, 0.45]];
+    for (const [rise, r] of balls) {
+      const cy = y + rise * size - r * size * 0.5;
+      const radius = r * size;
+      const light = ctx.createRadialGradient(x + radius * 0.35, cy - radius * 0.4, radius * 0.1, x, cy, radius);
+      light.addColorStop(0, "#f4f8f9");
+      light.addColorStop(0.6, "#d8e2e7");
+      light.addColorStop(1, "#9fb0ba");
+      ctx.beginPath();
+      ctx.arc(x, cy, radius, 0, Math.PI * 2);
+      ctx.fillStyle = light;
+      ctx.fill();
+      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = "rgba(40, 54, 66, 0.7)";
+      ctx.stroke();
+    }
+    const head = y - 2.3 * size - 0.45 * size * 0.5;
+    const middle = y - 1.35 * size - 0.62 * size * 0.5;
+    const dot = (dx, dy, r) => {
+      ctx.beginPath();
+      ctx.arc(x + dx * size, dy, r * size, 0, Math.PI * 2);
+      ctx.fill();
+    };
+    // Coal eyes and buttons.
+    ctx.fillStyle = "#1a1c1e";
+    dot(-0.15, head - size * 0.08, 0.055);
+    dot(0.15, head - size * 0.08, 0.055);
+    for (const dy of [-0.25, 0, 0.25]) dot(0, middle + dy * size, 0.06);
+    // The carrot, pointing toward the water.
+    ctx.fillStyle = "#e8782a";
+    ctx.beginPath();
+    ctx.moveTo(x + size * 0.02, head + size * 0.02);
+    ctx.lineTo(x + size * 0.5, head + size * 0.1);
+    ctx.lineTo(x + size * 0.02, head + size * 0.14);
+    ctx.closePath();
+    ctx.fill();
+    // Twig arms, forked at the ends.
+    ctx.strokeStyle = "#4a3626";
+    ctx.lineWidth = Math.max(1.5, size * 0.07);
+    ctx.lineCap = "round";
+    for (const side of [-1, 1]) {
+      const from = { x: x + side * size * 0.5, y: middle - size * 0.05 };
+      const to = { x: x + side * size * 1.35, y: middle - size * (side < 0 ? 0.55 : 0.35) };
+      ctx.beginPath();
+      ctx.moveTo(from.x, from.y);
+      ctx.lineTo(to.x, to.y);
+      ctx.moveTo(to.x - side * size * 0.2, to.y + size * 0.06);
+      ctx.lineTo(to.x + side * size * 0.05, to.y - size * 0.22);
+      ctx.stroke();
+    }
+    // The old bucket, tipped a little.
+    ctx.translate(x, head - size * 0.42);
+    ctx.rotate(-0.12);
+    ctx.fillStyle = "#5f707b";
+    ctx.beginPath();
+    ctx.moveTo(-size * 0.3, size * 0.05);
+    ctx.lineTo(-size * 0.22, -size * 0.34);
+    ctx.lineTo(size * 0.22, -size * 0.34);
+    ctx.lineTo(size * 0.3, size * 0.05);
+    ctx.closePath();
+    ctx.fill();
+    // Snow on its upturned bottom.
+    ctx.fillStyle = "#e6edf0";
+    ctx.fillRect(-size * 0.24, -size * 0.4, size * 0.48, size * 0.08);
+    ctx.restore();
+  }
+
+  /** Bullfinches: a rose-red breast, black cap, grey back, perched or flitting. */
+  drawFinches(ctx, time, finches) {
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    const size = clamp(this.reedSize * 0.7, 9, 15);
+    ctx.font = `700 ${size}px ${MONO_FONT}`;
+    const blob = (x, y, rx, ry, color) => {
+      ctx.beginPath();
+      ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.stroke();
+    };
+    ctx.strokeStyle = "rgba(20, 17, 9, 0.8)";
+    ctx.lineWidth = 1;
+    for (const bird of finches) {
+      const h = bird.heading;
+      if (bird.flying) {
+        // Wings a blur over a little round body.
+        const up = Math.sin(time * 26 + bird.phase) > 0;
+        ctx.fillStyle = "#4a5058";
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = "#141109";
+        ctx.strokeText(up ? "v" : "^", bird.x, bird.y - size * 0.5);
+        ctx.fillText(up ? "v" : "^", bird.x, bird.y - size * 0.5);
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = "rgba(20, 17, 9, 0.8)";
+        blob(bird.x + h * size * 0.1, bird.y - size * 0.45, size * 0.26, size * 0.18, "#d85444");
+        continue;
+      }
+      // Perched, feet on the twig; now and then a quick bob to peck.
+      const bob = bird.peck > 0 ? Math.sin((bird.peck / 0.35) * Math.PI) * size * 0.2 : 0;
+      const cy = bird.y - size * 0.4;
+      ctx.beginPath();
+      ctx.moveTo(bird.x - h * size * 0.2, cy);
+      ctx.lineTo(bird.x - h * size * 0.75, cy + size * 0.2);
+      ctx.lineWidth = Math.max(1.5, size * 0.16);
+      ctx.strokeStyle = "#1e2024";
+      ctx.stroke();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(20, 17, 9, 0.8)";
+      blob(bird.x - h * size * 0.05, cy - size * 0.05, size * 0.42, size * 0.32, "#8c949c");
+      blob(bird.x + h * size * 0.08, cy + size * 0.06, size * 0.3, size * 0.24, "#ec5a48");
+      blob(bird.x + h * size * 0.3, cy - size * 0.28 + bob, size * 0.2, size * 0.19, "#16181a");
+    }
+    ctx.restore();
+  }
+
+  /**
    * The heron, the beaver and the dragonflies (see Critters in wildlife.js),
    * drawn in glyphs like the ducks, each with a dark outline so it reads on the water.
    */
@@ -2491,6 +2875,8 @@ export class CanvasWaterRenderer {
     this.fillWater(time, config, ripples);
     this.grassStale = false;
     this.fillSurface(time, ripples);
+    if (this.winterIce) this.moveFloes(time);
+    this.fillSteam(time, dayTime);
     this.fillRain(time, this.rain);
     this.fillBolt(env.bolt);
     this.ducks = env.ducks ?? [];
@@ -2523,6 +2909,8 @@ export class CanvasWaterRenderer {
     backend.drawGlyphs(this.waterBatch, water, this.waterPerspective);
     backend.drawGlyphs(this.glintBatch, undefined, this.waterPerspective);
     backend.drawGlyphs(this.surfaceBatch, water, this.waterPerspective);
+    // Pale against the dark water, lit like the land (dim at night).
+    if (this.steamBatch.count) backend.drawGlyphs(this.steamBatch, [...land.map((value) => Math.min(1.2, value * 1.25)), 0.85], this.waterPerspective);
     this.fillWreckGlow(time, sky.stars);
     if (this.wreckGlowBatch.count) backend.drawGlyphs(this.wreckGlowBatch, undefined, this.waterPerspective);
     backend.drawGlyphs(this.grassBatches.near, land, this.perspective);

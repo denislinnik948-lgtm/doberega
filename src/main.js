@@ -59,6 +59,7 @@ const critters = new Critters({
     if (mode !== "fishing") return;
     const pan = data ? ((data.x - renderer.frame.left) / renderer.frame.width) * 2 - 1 : 0;
     if (type === "heron") sounds.heron(Math.random() * 1.2 - 0.6);
+    if (type === "finch") sounds.finch(Math.max(-0.8, Math.min(0.8, pan)));
     if (type === "heronStrike" || type === "beaverSlap") {
       addRipple({ ...renderer.screenToPlane(data.x, data.y), time: lastElapsed, strength: type === "beaverSlap" ? 0.7 : 0.35, size: type === "beaverSlap" ? 0.6 : 0.25, ambient: true });
       sounds[type](Math.max(-0.7, Math.min(0.7, pan)));
@@ -360,7 +361,8 @@ game.currentAt = (x, y) => {
 game.isWater = (point) => isOnWater(point.x * width, point.y * height);
 
 function tryCast(x, y) {
-  if (mode !== "fishing" || !isOnWater(x, y)) return;
+  // Winter shore ice is no place for a float.
+  if (mode !== "fishing" || !isOnWater(x, y) || renderer.onIce(x, y)) return;
   if (ui.baitCount <= 0) {
     ui.toast(t("toast.noBait"), "bad", 1600);
     sounds.ui("denied");
@@ -392,7 +394,7 @@ function tryCast(x, y) {
   let target = { x: x / width, y: y / height };
   const reach = Math.min(1, Math.max(0, (TUNING.nearY - target.y) / (TUNING.nearY - TUNING.farY)));
   const blown = { x: target.x + wind.dir * wind.strength * wind.gust * 0.035 * (0.4 + reach) * (0.5 + Math.random()), y: target.y };
-  if (isOnWater(blown.x * width, blown.y * height)) target = blown;
+  if (isOnWater(blown.x * width, blown.y * height) && !renderer.onIce(blown.x * width, blown.y * height)) target = blown;
   if (game.cast(target, progress.rod, progress.bait, { location: progress.location, extras: progress.extras, groundbait, hook: progress.hook, school: nearSchool(target) })) {
     // Get the pointer out of the way while watching the float.
     document.body.classList.add("cursor-hidden");
@@ -573,7 +575,7 @@ function playLoops(step, dayTime) {
   const reedy = ["pond", "lake", "reservoir"].includes(LOCATIONS[progress.location].kind);
   musicTick(step, { atWater: mode === "fishing", night: hour < 5 || hour >= 21.5, fighting: game.phase === "fight" });
   // Snow falls without a sound.
-  ambienceTick(step, { atWater: mode === "fishing", wind: wind.strength, windDir: wind.dir, rain: isWinter() ? 0 : weather.intensity, night: hour < 5 || hour >= 21.5, ducks: ducks.all.length, frogs: reedy && (hour >= 19 || hour < 4), deepNight: nightEvents.depth ?? 0, spot: LOCATIONS[progress.location].kind });
+  ambienceTick(step, { atWater: mode === "fishing", wind: wind.strength, windDir: wind.dir, rain: isWinter() ? 0 : weather.intensity, night: hour < 5 || hour >= 21.5, ducks: ducks.all.length, frogs: reedy && (hour >= 19 || hour < 4), deepNight: nightEvents.depth ?? 0, spot: LOCATIONS[progress.location].kind, winter: isWinter() });
 }
 
 /** Game hours of groundbait left at a water (0 if none). */
@@ -603,6 +605,8 @@ function renderNow(now = performance.now()) {
     wind: wind.strength,
     warm: ["summer", "spring"].includes(currentSeason()),
     beavers: LOCATIONS[progress.location].kind !== "castle",
+    winter: isWinter(),
+    perches: renderer.perches,
   });
   // A duck paddling over the float eats the bait.
   if (mode === "fishing" && game.target && ["waiting", "nibble", "bite"].includes(game.phase)) {
