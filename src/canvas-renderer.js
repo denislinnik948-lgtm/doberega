@@ -8,7 +8,7 @@ import { birdsAt, createSkyCells, discOffsets, lightSky, pushDisc, sampleSky, se
 import { createLilyPads, createReeds, createRocks, rockGlyphs } from "./foreground-engine.js";
 import { GlyphBatch, createBackend } from "./glyph-backend.js";
 import { createAmbient, fillAmbient } from "./ambient-engine.js";
-import { gradeHex, gradeImageData, gradeInt, gradeSky, isAutumn } from "./theme.js";
+import { currentSeason, gradeHex, gradeImageData, gradeInt, gradeSky, isAutumn, isSpring, isWinter, snowHex, snowImageData } from "./theme.js";
 import { createGrass, fillGrass } from "./grass-engine.js";
 import { ROD_LOOKS } from "./fishing/sprites.js";
 
@@ -347,13 +347,17 @@ export class CanvasWaterRenderer {
     this.farPerspective = [0, 1, far, far];
     this.bankCells = thin(createBankGlyphs(width, height, cellWidth, lineHeight, this.sun.x), 1);
     this.grassStale = true;
-    this.grass = createGrass({ width, height, cellWidth, lineHeight, frame: this.frame, autumn: isAutumn(), trees: this.trees });
+    this.grass = createGrass({ width, height, cellWidth, lineHeight, frame: this.frame, season: currentSeason(), trees: this.trees });
     this.ambient = createAmbient({
       // Plain grass on the banks is drawn as blades; the scrub along the water stays glyphs.
       scene, structures, ridgeCells: this.ridgeCells, bankCells: this.bankCells.filter((cell) => !cell.plain),
       width, height, cellWidth, lineHeight, shorelineY: (x) => this.shorelineY(x),
     });
-    for (const cell of [...this.ambient.breeze, ...this.ambient.leaves]) cell.colorValue = gradeInt(cell.colorValue);
+    // Meadows drawn live by the ambient layer lie under the same snow as the painted land.
+    const winter = isWinter();
+    for (const cell of [...this.ambient.breeze, ...this.ambient.leaves]) {
+      cell.colorValue = gradeInt(winter ? hexToInt(snowHex(`#${cell.colorValue.toString(16).padStart(6, "0")}`, 0.65)) : cell.colorValue);
+    }
     this.waterRocks = this.createWaterRocks();
     const bend = scene.water.bend;
     this.waterParams = {
@@ -614,7 +618,8 @@ export class CanvasWaterRenderer {
     ctx.beginPath();
     if (scene.forest.silhouette === "crowns") {
       // Scattered trees: back each glyph with a soft blob so crowns keep their own shape.
-      const radius = Math.max(this.farCell.width, this.farCell.height) * 0.62;
+      // Bare winter crowns are mostly sky: only a thin backing behind their twigs.
+      const radius = Math.max(this.farCell.width, this.farCell.height) * (isWinter() ? 0.3 : 0.62);
       for (const cell of this.forestCells) {
         ctx.moveTo(cell.x + radius, cell.y);
         ctx.arc(cell.x, cell.y, radius, 0, Math.PI * 2);
@@ -649,6 +654,14 @@ export class CanvasWaterRenderer {
     ctx.fillStyle = mist;
     ctx.fillRect(0, horizon - height * 0.035, width, height * 0.055);
 
+    // Winter: snow over everything painted so far (hills, meadows, the far shore, roofs), not the water.
+    const winter = isWinter();
+    if (winter) {
+      const image = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
+      snowImageData(image.data, 0.72);
+      ctx.putImageData(image, 0, 0);
+    }
+
     this.paintWaterBody(ctx);
     this.paintWreckHull(ctx);
 
@@ -663,7 +676,8 @@ export class CanvasWaterRenderer {
         for (let x = 0; x <= width + 8; x += 8) ctx.lineTo(x, nearBankY(x, height) - rise + this.lineHeight * 0.8);
         ctx.lineTo(width, height);
         ctx.closePath();
-        ctx.fillStyle = step ? `rgba(20, 34, 26, ${0.16})` : "#14221a";
+        // Under snow in winter.
+        ctx.fillStyle = winter ? (step ? "rgba(176, 190, 198, 0.16)" : "#b0bec6") : step ? `rgba(20, 34, 26, ${0.16})` : "#14221a";
         ctx.fill();
       }
     }
@@ -683,19 +697,20 @@ export class CanvasWaterRenderer {
         ctx.lineTo(outer, height);
         ctx.closePath();
         // Near black between the blades, like earth in deep grass.
-        ctx.fillStyle = cliff ? "#121614" : "#111c14";
+        ctx.fillStyle = cliff ? (winter ? "#5e666a" : "#121614") : winter ? "#a6b3ba" : "#111c14";
         ctx.fill();
       }
       if (!this.ambient.grassBanks) {
         for (const cell of this.bankCells) {
-          ctx.fillStyle = cell.color;
+          ctx.fillStyle = winter ? snowHex(cell.color, 0.6) : cell.color;
           this.glyphFont(ctx, cell.y);
           ctx.fillText(cell.glyph, cell.x, cell.y);
         }
         ctx.font = this.font;
       }
-      // Trees on the banks get a dark backing that follows their own leaves, so they stand out from the grass.
-      ctx.fillStyle = "#0c140e";
+      // Trees on the banks get a dark backing that follows their own leaves, so they stand out from the grass;
+      // bare in winter, only a grey-brown haze of twigs against the snow.
+      ctx.fillStyle = winter ? "rgba(92, 82, 72, 0.4)" : "#0c140e";
       for (const cell of this.forestCells) {
         if (cell.bank) ctx.fillRect(cell.x - this.cellWidth * 0.6, cell.y - this.lineHeight * 0.6, this.cellWidth * 1.2, this.lineHeight * 1.2);
       }
@@ -1080,6 +1095,7 @@ export class CanvasWaterRenderer {
     // the crown still comes down toward the water instead of perching at the top.
     const tall = Math.max(size, height * 0.95);
     const autumn = isAutumn();
+    const winter = isWinter();
     // It stands close, so its glyphs are larger than the far landscape's.
     const glyphSize = Math.round(this.reedSize * 0.72);
     const cellWidth = glyphSize * 0.62;
@@ -1178,7 +1194,8 @@ export class CanvasWaterRenderer {
     // deep shade inside the crown; a fringe of loose leaves round the edge.
     const summer = { deep: "#102016", shadow: "#1d3622", middle: "#31552f", light: "#62853d", glint: "#a3b058" };
     const fall = { deep: "#2a130a", shadow: "#55240f", middle: "#8c4218", light: "#c4762a", glint: "#e4b84a" };
-    const palette = autumn ? fall : summer;
+    const spring = { deep: "#0f2414", shadow: "#244a26", middle: "#3f7a36", light: "#7cae4a", glint: "#c4d870" };
+    const palette = autumn ? fall : isSpring() ? spring : summer;
     const crown = [];
     const bottom = Math.max(...masses.map((mass) => mass.y + mass.ry));
     for (let row = 0; row * lineHeight < bottom + lineHeight; row += 1) {
@@ -1188,6 +1205,14 @@ export class CanvasWaterRenderer {
         const noise = hash2(column, row, 2203);
         const fill = envelope(x, y) + (noise - 0.5) * 0.12;
         if (fill < -0.06) continue;
+        // Winter: the crown is bare, a web of dark twigs with snow along the upper ones.
+        if (winter) {
+          if (fill < 0.02 || noise < 0.6) continue;
+          const up = y < 0.16 * tall && hash2(column, row, 2207) > 0.55;
+          ctx.fillStyle = up ? "#e2e9ec" : noise > 0.8 ? "#5a4c3e" : "#3e342a";
+          ctx.fillText(up ? "-" : "/\\|'`,"[Math.floor(hash2(column, row, 2211) * 6)], x, y);
+          continue;
+        }
         // The fringe: loose single leaves just outside the crown.
         if (fill < 0.03) {
           if (hash2(column, row, 2205) > 0.45) continue;
@@ -1222,7 +1247,7 @@ export class CanvasWaterRenderer {
         if (fill < 0.5 && best > 0) crown.push({ x, y });
       }
     }
-    return { image, left, top, width, height, crown, autumn, leaves: [], landings: [], spawn: 0 };
+    return { image, left, top, width, height, crown, autumn, winter, leaves: [], landings: [], spawn: 0 };
   }
 
   /**
@@ -1234,7 +1259,8 @@ export class CanvasWaterRenderer {
     const oak = this.oak;
     const step = Math.min(0.5, Math.max(0, time - (oak.time ?? time)));
     oak.time = time;
-    const rate = (oak.autumn ? 0.9 : 0.12) * (1 + this.rain);
+    // No leaves left to fall in winter.
+    const rate = (oak.winter ? 0 : oak.autumn ? 0.9 : 0.12) * (1 + this.rain);
     oak.spawn += step * rate;
     while (oak.spawn >= 1 && oak.crown.length) {
       oak.spawn -= 1;
@@ -2040,7 +2066,9 @@ export class CanvasWaterRenderer {
     ctx.textBaseline = "middle";
     ctx.lineCap = "round";
     const gust = 0.6 + 0.4 * Math.sin(time * 0.21);
-    const dry = activeScene().dry;
+    const winter = isWinter();
+    const spring = !winter && isSpring() && !activeScene().dry;
+    const dry = activeScene().dry || winter;
     // The sign stands among the reeds: the farther two thirds behind it, the nearest in front.
     let sign = this.signImage;
     const drawSign = () => {
@@ -2056,9 +2084,10 @@ export class CanvasWaterRenderer {
         x: reed.baseX + reed.length * (reed.lean * t + reed.curve * t * t + swing * reed.flex * t * t),
         y: reed.baseY - reed.length * t,
       });
-      // Dry reeds at Pripyat: straw and old brown instead of green.
-      const shade = dry ? (reed.depth < 0.5 ? "#4a3b22" : "#3a2e1a") : reed.depth < 0.5 ? "#2c3b2c" : "#223024";
-      const rim = dry ? (reed.lit ? "#c9a85e" : "#8c7242") : reed.lit ? "#71804f" : "#46573c";
+      // Dry reeds at Pripyat (and everywhere in winter): straw and old brown instead of green;
+      // fresh green in spring; frost on the tips in winter.
+      const shade = dry ? (reed.depth < 0.5 ? "#4a3b22" : "#3a2e1a") : spring ? (reed.depth < 0.5 ? "#2e4a2c" : "#243a24") : reed.depth < 0.5 ? "#2c3b2c" : "#223024";
+      const rim = winter ? (reed.lit ? "#d8d4c0" : "#9a8c68") : dry ? (reed.lit ? "#c9a85e" : "#8c7242") : spring ? (reed.lit ? "#8fb05a" : "#557040") : reed.lit ? "#71804f" : "#46573c";
       const points = Array.from({ length: segments + 1 }, (_, i) => at(i / segments));
 
       // A solid silhouette hides the water glyphs behind each stalk.
@@ -2147,6 +2176,20 @@ export class CanvasWaterRenderer {
     const { height } = this;
     // Rain falls only over the visible slice, just as densely.
     const { left, width } = this.frame;
+    if (this.winter) {
+      // In winter the showers come down as snow: slow flakes, each drifting and swaying on its own.
+      const flakes = Math.round(intensity * 520 * (width / this.width));
+      for (let i = 0; i < flakes; i += 1) {
+        const near = hash2(i, 5, 79);
+        const speed = 28 + near * 46;
+        const span = height * 1.15;
+        const y = ((hash2(i, 2, 79) * span + time * speed) % span) - height * 0.05;
+        const sway = Math.sin(time * (0.6 + near) + i) * (6 + near * 10);
+        const x = left + ((((hash2(i, 1, 79) * width + y * 0.12 + sway) % width) + width) % width);
+        batch.push(x, y, near > 0.75 ? "*" : near > 0.4 ? "+" : ".", near > 0.5 ? 0xf2f6f8 : 0xc4d0d6);
+      }
+      return;
+    }
     const drops = Math.round(intensity * 900 * (width / this.width));
     for (let i = 0; i < drops; i += 1) {
       const speed = 380 + hash2(i, 3, 77) * 220;
@@ -2244,6 +2287,7 @@ export class CanvasWaterRenderer {
 
   render(time, config, ripples = [], angler = null, dayTime = 0.76, env = {}) {
     this.rain = env.rain ?? 0;
+    this.winter = isWinter();
     if (!this.width || !this.height) return;
     const { width, height, cellWidth, lineHeight } = this;
     const sky = gradeSky(skyAt(dayTime, env.moods));

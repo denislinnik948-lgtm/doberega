@@ -14,9 +14,17 @@ import { inCrown } from "./forest-engine.js";
  * `near` (the bank we stand on at the bottom of the view, drawn over the water).
  */
 
-const SUMMER = [0x183222, 0x234832, 0x316248, 0x427e5a, 0x5e9c72];
-const AUTUMN = [0x30301e, 0x444628, 0x5e5c30, 0x7a7238, 0x988a44];
+// Blade tones by season, dark to light; in winter dry straw pokes up through the snow.
+const PALETTES = {
+  spring: [0x1a3a20, 0x285a30, 0x3a7a40, 0x56a052, 0x84c46c],
+  summer: [0x183222, 0x234832, 0x316248, 0x427e5a, 0x5e9c72],
+  autumn: [0x30301e, 0x444628, 0x5e5c30, 0x7a7238, 0x988a44],
+  winter: [0x5e5a4a, 0x766e58, 0x8e866c, 0xb4b2a4, 0xdde3e4],
+};
+// How many flowers dot the grass: a meadow full of them in spring, none under snow.
+const BLOOM = { spring: 2, summer: 1, autumn: 0.4, winter: 0 };
 const FLOWERS = [0xd8662a, 0xe0a030, 0xc8442c];
+const SPRING_FLOWERS = [0xf0eee0, 0xe8d050, 0xa88ad8, 0xe0a030];
 const DEW = 0xe6f0ea;
 const FIREFLY = 0xd8f080;
 const FIREFLIES = 40;
@@ -48,7 +56,8 @@ function sow(out, { top, bottom, left, right, inside, covered, nearness, cellWid
       if (!inside(jx, jy) || covered(jx, jy)) continue;
       const roll = hash2(column, row, seed + 3);
       if (roll < 0.014 * flowers) {
-        out.sparkles.push({ x: jx, y: jy, kind: "flower", color: gradeInt(FLOWERS[Math.floor(noise * FLOWERS.length) % FLOWERS.length]), phase: noise * 40 });
+        const colors = flowers > 1.5 ? SPRING_FLOWERS : FLOWERS;
+        out.sparkles.push({ x: jx, y: jy, kind: "flower", color: gradeInt(colors[Math.floor(noise * colors.length) % colors.length]), phase: noise * 40 });
         continue;
       }
       if (roll > 0.97) out.sparkles.push({ x: jx, y: jy - lineHeight * 0.3, kind: "dew", color: DEW, phase: noise * 40 });
@@ -74,13 +83,14 @@ function sow(out, { top, bottom, left, right, inside, covered, nearness, cellWid
   out.blades.sort((a, b) => a.y - b.y);
 }
 
-/** Build the grass and fireflies for the current scene. */
-export function createGrass({ width, height, cellWidth, lineHeight, frame, autumn, trees = [] }) {
+/** Build the grass and fireflies for the current scene, in its `season`. */
+export function createGrass({ width, height, cellWidth, lineHeight, frame, season = "summer", trees = [] }) {
   const scene = activeScene();
   // No grass inside the crowns of trees standing on the banks: they keep their dark backing.
   const crowns = trees.filter((tree) => tree.bank);
   const covered = (x, y) => crowns.some((tree) => inCrown(tree, x, y));
-  const palette = (autumn ? AUTUMN : SUMMER).map(gradeInt);
+  const palette = (PALETTES[season] ?? PALETTES.summer).map(gradeInt);
+  const flowers = BLOOM[season] ?? 1;
   const horizon = height * scene.horizon;
   const far = field();
   const near = field();
@@ -100,7 +110,7 @@ export function createGrass({ width, height, cellWidth, lineHeight, frame, autum
       },
       covered,
       nearness: (y) => Math.max(0, (y - horizon) / (height - horizon)),
-      cellWidth, lineHeight, seed: 901, palette, flowers: autumn ? 0.4 : 1,
+      cellWidth, lineHeight, seed: 901, palette, flowers,
     });
   }
 
@@ -118,13 +128,13 @@ export function createGrass({ width, height, cellWidth, lineHeight, frame, autum
       // Close up, the grass catches more light.
       lift: 1,
       nearness: (y) => 0.55 + 0.45 * Math.min(1, Math.max(0, (y - top) / (height - top))),
-      cellWidth, lineHeight, seed: 977, palette, flowers: autumn ? 0.4 : 1,
+      cellWidth, lineHeight, seed: 977, palette, flowers,
     });
   }
 
-  // Fireflies wander over the grass, or along the far shore where there is none.
+  // Fireflies wander over the grass, or along the far shore where there is none; none in winter.
   const homes = [];
-  for (let i = 0; i < FIREFLIES; i += 1) {
+  for (let i = 0; i < (season === "winter" ? 0 : FIREFLIES); i += 1) {
     const pool = i % 2 ? near.blades : far.blades;
     const blade = pool.length ? pool[Math.floor(hash2(i, 7, 313) * pool.length)] : null;
     const x = blade ? blade.x : frame.left + frame.width * hash2(i, 8, 313);

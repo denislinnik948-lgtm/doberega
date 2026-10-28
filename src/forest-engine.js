@@ -1,6 +1,6 @@
 import { hash01 } from "./noise.js";
 import { activeScene, shorelineY } from "./scene.js";
-import { isAutumn } from "./theme.js";
+import { currentSeason, isAutumn, isWinter } from "./theme.js";
 
 const FOREST_LAYERS = [
   { offset: 0.034, variation: 0.01, height: [0.03, 0.055], spacing: [30, 52], sway: 0.075 },
@@ -32,6 +32,19 @@ const DRY = [
   { share: 0.2, shadow: "#3e3a1e", middle: "#62602c", light: "#8f8a40" },
   { share: 0.15, shadow: "#46301a", middle: "#6e4a28", light: "#9a6c3c" },
 ];
+
+// Spring crowns: fresh light greens, and here and there a tree in white or pink blossom.
+const SPRING = [
+  { share: 0.42, shadow: "#2c4a2a", middle: "#4f7f3a", light: "#9cc060" },
+  { share: 0.36, shadow: "#36522e", middle: "#64903f", light: "#b8d070" },
+  { share: 0.13, shadow: "#7a6670", middle: "#cfb2ba", light: "#f2e0e4", blossom: true },
+  { share: 0.09, shadow: "#727466", middle: "#d4d6c6", light: "#f4f4ea", blossom: true },
+];
+
+// Winter: bare twigs, frost and the snow lying on the branches.
+const BARK = ["#4e463e", "#5a5148", "#6c6258"];
+const SNOW = "#e4ebee";
+const SNOW_SHADE = "#9eacb4";
 
 /** A broadleaf tree's autumn (or dry) palette, or null for the odd one still green. */
 function autumnPalette(tree, palettes = AUTUMN) {
@@ -146,12 +159,27 @@ function createTrees(width, height, sunX) {
   return trees;
 }
 
+/**
+ * The season's palette for a tree, or null for the usual greens: autumn
+ * colours, spring greens and blossom, the dry woods at Pripyat (green again
+ * in spring). In winter conifers keep their dark green and broadleaf trees
+ * are bare (see bareGlyph).
+ */
+function seasonalPalette(tree, broad) {
+  const season = currentSeason();
+  if (season === "winter") return null;
+  if (activeScene().forest.dry && season !== "spring") return autumnPalette(tree, DRY);
+  if (!broad) return null;
+  if (season === "autumn") return autumnPalette(tree);
+  if (season === "spring") return autumnPalette(tree, SPRING);
+  return null;
+}
+
 function foliageColor(tree, lit, shadow = false) {
   const broad = tree.species === "oak" || tree.species === "round";
-  const dry = activeScene().forest.dry;
-  const palette = (dry && autumnPalette(tree, DRY)) || (broad && isAutumn() && autumnPalette(tree)) || (tree.bank ? BANK_FOLIAGE : FOLIAGE[tree.layer]);
-  // Distant autumn woods keep to their darker tones.
-  if ((AUTUMN.includes(palette) || DRY.includes(palette)) && tree.layer === 0) return shadow ? palette.shadow : palette.middle;
+  const palette = seasonalPalette(tree, broad) || (tree.bank ? BANK_FOLIAGE : FOLIAGE[tree.layer]);
+  // Distant autumn (and spring) woods keep to their darker tones.
+  if ((AUTUMN.includes(palette) || DRY.includes(palette) || SPRING.includes(palette)) && tree.layer === 0) return shadow ? palette.shadow : palette.middle;
   if (shadow) return palette.shadow;
   return lit ? palette.light : palette.middle;
 }
@@ -192,11 +220,33 @@ function coniferGlyph(tree, localX, progress, x, y, cellWidth) {
   else if (tree.species === "spruce" && noise > 0.8) glyph = "Y";
   else glyph = ["*", "#", "+", "x"][Math.floor(noise * 4)];
 
+  // Winter: snow lies along the top of each tier of branches, brightest on the sunny side.
+  if (isWinter() && (tierProgress < 0.34 || (lit && noise > 0.55)) && noise > 0.22) {
+    return { glyph: tierProgress < 0.2 ? (edge ? glyph : "^") : glyph, color: lit || !shadow ? SNOW : SNOW_SHADE, ...makeSway(tree, progress, cellWidth) };
+  }
+
   return {
     glyph,
     color: edge || (tierProgress < 0.13 && lit)
       ? foliageColor(tree, true)
       : foliageColor(tree, lit && noise > 0.3, shadow && noise < 0.76),
+    ...makeSway(tree, progress, cellWidth),
+  };
+}
+
+/**
+ * A winter crown: no leaves, only a sparse web of twigs leaning out from the
+ * middle, with snow caught on the upper ones. `nx`, `ny` are the cell's place
+ * in the crown (about -1..1, y down), `noise` its own hash.
+ */
+function bareGlyph(tree, nx, ny, noise, progress, cellWidth) {
+  // Near bank trees are thinned out with distance already; far crowns lose more of their cells.
+  if (noise < (tree.bank ? 0.2 : 0.56)) return null;
+  const glyph = Math.abs(nx) < 0.12 ? (ny > 0.2 ? "Y" : "|") : noise > 0.93 ? "'" : nx < 0 ? "\\" : "/";
+  const snowy = ny < -0.15 && noise > 0.84;
+  return {
+    glyph: snowy ? (noise > 0.92 ? "*" : "-") : glyph,
+    color: snowy ? SNOW : BARK[Math.min(BARK.length - 1, tree.bank ? 2 : tree.layer)],
     ...makeSway(tree, progress, cellWidth),
   };
 }
@@ -227,6 +277,7 @@ function broadleafGlyph(tree, localX, progress, x, y, cellWidth) {
   const inside = edgeDistance < 1 + undulation;
   if (!inside) return null;
 
+  if (isWinter()) return bareGlyph(tree, normalizedX, normalizedY, noise, progress, cellWidth);
   const isEdge = edgeDistance > 0.63 + undulation * 0.35;
   if (!isEdge && noise < [0.12, 0.085, 0.065][tree.layer]) return null;
   const sunwardX = -normalizedX * tree.lightSide;
@@ -280,6 +331,7 @@ function bankTreeGlyph(tree, localX, progress, x, y, cellWidth) {
     const ragged = 1 + (noise - 0.5) * 0.28;
     if (dx * dx + dy * dy < ragged * ragged) front = { clump, dx, dy };
   }
+  if (front && isWinter()) return bareGlyph(tree, nx, front.dy * front.clump.r - 0.2, noise, progress, cellWidth);
   if (front) {
     const { clump, dx, dy } = front;
     // Light from above and the sun's side; clumps low in the crown sit in shade.

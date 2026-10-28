@@ -32,7 +32,12 @@ Deep in the night strange things happen (`src/night-events.js`): will-o'-the-wis
 
 ## Season
 
-**Налаштування → Сезон** picks summer, autumn or auto (`isAutumn()` in `src/theme.js`; auto follows the calendar, autumn from September to November). Autumn turns broadleaf crowns into heavy masses of `0 O @` in blood red, rust, gold and brown (`AUTUMN` in `src/forest-engine.js`; conifers stay green) and the grass yellow.
+**Налаштування → Сезон** picks spring, summer, autumn, winter or auto (`currentSeason()` in `src/theme.js`; auto follows the calendar: spring from March, summer from June, autumn from September, winter from December). It changes only the look of the place, except that the burbot bites on autumn nights.
+
+- **Spring:** broadleaf crowns in fresh light greens, about one tree in five in white or pink blossom (`SPRING` in `src/forest-engine.js`), bright young grass with twice the flowers, in white, yellow, violet and orange, the pond's oak in new leaf and green reeds; Pripyat's woods turn green too.
+- **Summer:** green woods and grass.
+- **Autumn:** broadleaf crowns turn into heavy masses of `0 O @` in blood red, rust, gold and brown (`AUTUMN`; conifers stay green), the grass yellow, and the oak's leaves fall seven times as often.
+- **Winter:** snow over the painted land (`snowImageData` in `src/theme.js`, run once per rebuild before the water is painted): meadows, hills, banks and roofs go white in the light and blue-grey in the shade, while warm walls, pale stone and plain grey rock take only a dusting and lamplight and the water are left alone. Broadleaf trees are bare, a sparse web of twigs with snow on the upper ones (`bareGlyph`), the near willows a grey-brown haze; conifers carry snow along each tier; the bank we stand on is snow with dry straw poking through, the reeds are dry with frosted tips, the oak bare with no leaves to fall, and there are no fireflies. Showers fall as snow: slow flakes drifting and swaying, no splashes, no rain sound, no thunder or lightning (the bite still livens as in rain). The water stays open.
 
 ## Fish pictures
 

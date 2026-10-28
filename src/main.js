@@ -9,7 +9,7 @@ import { FishingGame, TUNING } from "./fishing/game.js";
 import { BAITS, FISH, GROUNDBAIT, HOOKS, LINE, LOCATIONS, RODS } from "./fishing/data.js";
 import { baitCount, loadProgress, onProgressSaved, replaceProgress, saveProgress } from "./fishing/store.js";
 import { Cloud } from "./cloud.js";
-import { onSeasonChange } from "./theme.js";
+import { isWinter, onSeasonChange } from "./theme.js";
 import { NightEvents } from "./night-events.js";
 import { track } from "./analytics.js";
 import { ambienceTick, jumpSound, musicTick, nightSound, sounds, thunderClap } from "./sound.js";
@@ -46,7 +46,10 @@ const skyMoods = () => skyMoodsAt(Date.now() / 1000, WORLD_START, DAY_LENGTH, FO
 const weather = new Weather({
   forced: params.has("rain") ? Number(params.get("rain")) : null,
   storm: params.get("storm") === "1",
-  onThunder: ({ delay, near }) => thunderClap(delay, near),
+  // Winter showers fall as snow: no thunder then.
+  onThunder: ({ delay, near }) => {
+    if (!isWinter()) thunderClap(delay, near);
+  },
 });
 const ducks = new Ducks();
 // Mystic nights: lights over the water, an apparition by the far shore, eyes by the bank.
@@ -535,7 +538,8 @@ function playLoops(step, dayTime) {
   // Tree frogs call from the reeds in the evening and at night, at the reedy waters only.
   const reedy = ["pond", "lake", "reservoir"].includes(LOCATIONS[progress.location].kind);
   musicTick(step, { atWater: mode === "fishing", night: hour < 5 || hour >= 21.5, fighting: game.phase === "fight" });
-  ambienceTick(step, { atWater: mode === "fishing", rain: weather.intensity, night: hour < 5 || hour >= 21.5, ducks: ducks.all.length, frogs: reedy && (hour >= 19 || hour < 4), deepNight: nightEvents.depth ?? 0, spot: LOCATIONS[progress.location].kind });
+  // Snow falls without a sound.
+  ambienceTick(step, { atWater: mode === "fishing", rain: isWinter() ? 0 : weather.intensity, night: hour < 5 || hour >= 21.5, ducks: ducks.all.length, frogs: reedy && (hour >= 19 || hour < 4), deepNight: nightEvents.depth ?? 0, spot: LOCATIONS[progress.location].kind });
 }
 
 /** Game hours of groundbait left at a water (0 if none). */
@@ -577,11 +581,13 @@ function renderNow(now = performance.now()) {
   ui.setWeather(weather.intensity);
   nightEvents.update(step, elapsed, dayTime);
   playLoops(step, dayTime);
+  const winter = isWinter();
   renderer.render(elapsed, config, ripples, anglerView(elapsed), dayTime, {
     rain: weather.intensity,
-    flash: weather.flash,
-    storm: weather.storm,
-    bolt: weather.bolt,
+    // Snow in winter brings no lightning.
+    flash: winter ? 0 : weather.flash,
+    storm: winter ? 0 : weather.storm,
+    bolt: winter ? null : weather.bolt,
     moods: skyMoods(),
     moon,
     ducks: ducks.all,

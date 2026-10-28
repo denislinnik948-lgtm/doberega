@@ -1,16 +1,18 @@
 /**
  * The look of the scene: a soft, cool evening colour grade baked into the
- * scene's own colours, and the season (summer greens or autumn crowns).
+ * scene's own colours, and the season (spring, summer, autumn or winter).
  */
 
 const listeners = new Set();
 
 /*
- * The season: summer greens or autumn crowns in red, rust and gold. "auto"
- * follows the calendar (September to November is autumn).
+ * The season changes only the look of the place, except for one fish (the
+ * burbot bites on autumn nights). "auto" follows the calendar: spring from
+ * March, summer from June, autumn from September, winter from December.
  */
 const SEASON_KEY = "stillwater.season";
-export const SEASONS = ["auto", "summer", "autumn"];
+export const SEASONS = ["auto", "spring", "summer", "autumn", "winter"];
+const BY_MONTH = ["winter", "winter", "spring", "spring", "spring", "summer", "summer", "summer", "autumn", "autumn", "autumn", "winter"];
 
 let seasonChoice = (() => {
   try {
@@ -21,14 +23,19 @@ let seasonChoice = (() => {
   }
 })();
 
+/** The choice in Settings: "auto" or a season. */
 export function season() {
   return seasonChoice;
 }
 
-export function isAutumn() {
-  if (seasonChoice === "auto") return [8, 9, 10].includes(new Date().getMonth());
-  return seasonChoice === "autumn";
+/** The season the scene is in now: spring, summer, autumn or winter. */
+export function currentSeason() {
+  return seasonChoice === "auto" ? BY_MONTH[new Date().getMonth()] : seasonChoice;
 }
+
+export const isAutumn = () => currentSeason() === "autumn";
+export const isWinter = () => currentSeason() === "winter";
+export const isSpring = () => currentSeason() === "spring";
 
 export function setSeason(id) {
   seasonChoice = SEASONS.includes(id) ? id : "auto";
@@ -38,6 +45,56 @@ export function setSeason(id) {
     // Without storage the choice lasts for this visit.
   }
   for (const listener of listeners) listener(seasonChoice);
+}
+
+/*
+ * Snow for winter, laid over painted land: pale where the light falls, a cool
+ * blue-grey in the shade. Lamplight and the deepest darks are left alone, and
+ * bluish colours (water, sky) are never touched.
+ */
+const SNOW_LIT = [226, 233, 238];
+const SNOW_SHADE = [128, 142, 156];
+export function snowRgb([r, g, b], amount = 0.7) {
+  if (r > 170 && g > 120 && b < 110 && r > b * 1.7) return [r, g, b];
+  if (b > g + 12 && b > r + 12) return [r, g, b];
+  const lum = 0.3 * r + 0.59 * g + 0.11 * b;
+  // Green and grey ground takes the snow; warm walls, logs and bark only a little frost.
+  const k = amount * Math.min(1, Math.max(0, (lum - 22) / 70)) * (r > g + 6 ? 0.35 : 1)
+    // Pale stone (cliffs, walls, bridges) keeps its own detail, and plain grey stone takes only a dusting.
+    * (1 - 0.85 * Math.min(1, Math.max(0, (lum - 85) / 60)))
+    * (Math.max(r, g, b) - Math.min(r, g, b) < 12 ? 0.35 : 1);
+  const light = Math.min(1, lum / 150);
+  return [0, 1, 2].map((i) => {
+    const snow = SNOW_SHADE[i] + (SNOW_LIT[i] - SNOW_SHADE[i]) * light;
+    return [r, g, b][i] + (snow - [r, g, b][i]) * k;
+  });
+}
+
+/** Snow over a canvas's pixels (RGBA), in place: the sums of snowRgb, unrolled for a screen-sized layer. */
+export function snowImageData(data, amount = 0.7) {
+  for (let i = 0; i < data.length; i += 4) {
+    if (!data[i + 3]) continue;
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    if (r > 170 && g > 120 && b < 110 && r > b * 1.7) continue;
+    if (b > g + 12 && b > r + 12) continue;
+    const lum = 0.3 * r + 0.59 * g + 0.11 * b;
+    const k = amount * Math.min(1, Math.max(0, (lum - 22) / 70)) * (r > g + 6 ? 0.35 : 1) * (1 - 0.85 * Math.min(1, Math.max(0, (lum - 85) / 60)))
+      * (Math.max(r, g, b) - Math.min(r, g, b) < 12 ? 0.35 : 1);
+    if (!k) continue;
+    const light = Math.min(1, lum / 150);
+    data[i] = r + (SNOW_SHADE[0] + (SNOW_LIT[0] - SNOW_SHADE[0]) * light - r) * k;
+    data[i + 1] = g + (SNOW_SHADE[1] + (SNOW_LIT[1] - SNOW_SHADE[1]) * light - g) * k;
+    data[i + 2] = b + (SNOW_SHADE[2] + (SNOW_LIT[2] - SNOW_SHADE[2]) * light - b) * k;
+  }
+}
+
+/** A "#rrggbb" colour under snow. */
+export function snowHex(hex, amount = 0.7) {
+  const value = parseInt(hex.slice(1), 16);
+  const [r, g, b] = snowRgb([(value >> 16) & 255, (value >> 8) & 255, value & 255], amount);
+  return `#${[r, g, b].map((c) => Math.round(Math.max(0, Math.min(255, c))).toString(16).padStart(2, "0")).join("")}`;
 }
 
 /** Called when the season changes. */
