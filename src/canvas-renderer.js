@@ -362,13 +362,6 @@ export class CanvasWaterRenderer {
     }
     this.floeTime = null;
     this.waterClip = null;
-    // Winter: someone has built a snowman on our bank and left footprints in the snow.
-    this.snowman = null;
-    if (this.winterIce && scene.nearBank) {
-      // Clear of the bait button in the corner on a narrow phone screen.
-      const x = this.frame.left + this.frame.width * (this.frame.width < 600 ? 0.4 : 0.27);
-      this.snowman = { x, y: nearBankY(x, height) + lineHeight * 1.2, size: clamp(Math.min(height * 0.04, this.frame.width * 0.06), 16, 34) };
-    }
     this.skyCells = createSkyCells(width, height, cellWidth, lineHeight);
     this.sunDisc = discOffsets(this.sun.radius, cellWidth, lineHeight);
     this.moonDisc = discOffsets(this.sun.radius * 0.8, cellWidth, lineHeight);
@@ -443,16 +436,11 @@ export class CanvasWaterRenderer {
     this.bridgeImage = scene.foreground.bridge ? this.createBridgeImage(scene.foreground.bridge) : null;
     this.signImage = scene.foreground.sign ? this.createSignImage(scene.foreground.sign) : null;
     this.oak = scene.foreground.oak ? this.createOak() : null;
-    // Where bullfinches can sit in winter: the oak's boughs, the snowman, the bridge rail
+    // Where bullfinches can sit in winter: the oak's boughs, the bridge rail
     // and (added as the reeds are drawn, since they sway) the cattails.
     this.perches = [];
     if (this.winterIce) {
       this.perches.push(...(this.oak?.perches ?? []));
-      if (this.snowman) {
-        const { x, y, size } = this.snowman;
-        const middle = y - 1.35 * size - 0.31 * size;
-        this.perches.push({ x, y: y - 2.3 * size - 0.225 * size - 0.82 * size }, { x: x - size * 1.3, y: middle - size * 0.58 }, { x: x + size * 1.3, y: middle - size * 0.4 });
-      }
       if (scene.foreground.bridge) {
         const railY = height * scene.foreground.bridge - this.reedSize * 0.55;
         for (const k of [0.12, 0.3, 0.46, 0.62, 0.8]) this.perches.push({ x: this.frame.left + this.frame.width * k, y: railY });
@@ -2342,7 +2330,6 @@ export class CanvasWaterRenderer {
     for (const rock of this.rockImages) ctx.drawImage(rock.image, rock.left, rock.top, rock.width, rock.height);
     this.drawDucks(ctx, time, this.ducks);
     if (this.floes?.length) this.drawFloes(ctx);
-    if (this.snowman) this.drawSnowman(ctx, this.snowman);
     if (this.critters) this.drawCritters(ctx, time, this.critters);
     if (angler && !angler.hidden) this.renderAngler(ctx, angler, "line");
 
@@ -2650,109 +2637,6 @@ export class CanvasWaterRenderer {
       ctx.restore();
     }
     ctx.restore();
-  }
-
-  /**
-   * The snowman on our bank, in glyphs like the oak: three balls of packed
-   * snow lit on the sun's side and shaded blue-grey below, coal eyes and
-   * buttons, a carrot nose, twig arms, an old bucket for a hat, and a trail
-   * of footprints up from the edge of the screen. Drawn once into an image.
-   */
-  createSnowman({ x, y, size }) {
-    const { height, pixelRatio } = this;
-    const glyphSize = Math.max(7, Math.round(size * 0.32));
-    const cellWidth = glyphSize * 0.62;
-    const lineHeight = glyphSize * 0.9;
-    const left = x - size * 2.2;
-    const top = y - size * 3.6;
-    const width = size * 9;
-    const image = document.createElement("canvas");
-    image.width = Math.max(1, Math.round(width * pixelRatio));
-    image.height = Math.max(1, Math.round((height - top) * pixelRatio));
-    const ctx = image.getContext("2d");
-    ctx.setTransform(pixelRatio, 0, 0, pixelRatio, -left * pixelRatio, -top * pixelRatio);
-    ctx.font = `700 ${glyphSize}px ${MONO_FONT}`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    const put = (px, py, glyph, color) => {
-      ctx.fillStyle = color;
-      ctx.fillText(glyph, px, py);
-    };
-    // Footprints: pairs of dents wandering up to him.
-    for (let i = 1; i < 12; i += 1) {
-      const t = i / 12;
-      const px = x + size * (1.4 + t * t * 5) + Math.sin(i * 1.7) * size * 0.2;
-      const py = y + size * 0.4 + t * (height - y);
-      put(px - size * 0.18, py, i % 2 ? "o" : ".", "#71838f");
-      put(px + size * 0.18, py + lineHeight * 0.4, i % 2 ? "." : "o", "#71838f");
-    }
-    // Its blue shadow on the snow, cast away from the sun.
-    for (let c = -1; c <= 6; c += 1) put(x + c * cellWidth * 1.1, y + lineHeight * 0.35, c > 4 ? "-" : "~", "#7d909c");
-    // The balls, cell by cell, from the bottom up; the lower ones show only below the next.
-    const balls = [[0, 0.85], [-1.35, 0.62], [-2.3, 0.45]].map(([rise, r]) => ({ cy: y + rise * size - r * size * 0.5, r: r * size }));
-    // A soft backing under each ball, so the snow reads as one round packed lump.
-    for (const ball of balls) {
-      const shade = ctx.createRadialGradient(x + ball.r * 0.35, ball.cy - ball.r * 0.4, ball.r * 0.1, x, ball.cy, ball.r);
-      shade.addColorStop(0, "#f2f6f8");
-      shade.addColorStop(0.55, "#d2dde3");
-      shade.addColorStop(1, "#8fa2ae");
-      ctx.beginPath();
-      ctx.arc(x, ball.cy, ball.r, 0, Math.PI * 2);
-      ctx.fillStyle = shade;
-      ctx.fill();
-    }
-    // Packed snow in strokes a shade darker than the snow under them, from shadow to the lit side.
-    const tones = [["#73879a", ":"], ["#8a9cab", ";"], ["#a6b6c1", "*"], ["#bdcad2", "+"], ["#d2dde3", "."]];
-    for (let row = Math.floor(top / lineHeight); row * lineHeight < y + size; row += 1) {
-      const py = (row + 0.5) * lineHeight;
-      for (let column = Math.floor((x - size) / cellWidth); column * cellWidth < x + size; column += 1) {
-        const px = (column + 0.5) * cellWidth;
-        let ball = null;
-        for (const candidate of balls) if (Math.hypot(px - x, py - candidate.cy) < candidate.r) ball = candidate;
-        if (!ball) continue;
-        const nx = (px - x) / ball.r;
-        const ny = (py - ball.cy) / ball.r;
-        const rim = Math.hypot(nx, ny) > 0.82;
-        const noise = hash2(column, row, 2301);
-        const lit = 0.55 + nx * 0.35 - ny * 0.45 + (noise - 0.5) * 0.25;
-        const [color, glyph] = tones[Math.max(0, Math.min(tones.length - 1, Math.floor(lit * tones.length)))];
-        put(px, py, rim ? (Math.abs(nx) > Math.abs(ny) ? (nx < 0 ? "(" : ")") : ny < 0 ? "-" : "_") : glyph, rim ? "#5f7280" : color);
-      }
-    }
-    const [, middle, head] = balls;
-    // Coal eyes, buttons and the carrot.
-    put(x - size * 0.15, head.cy - size * 0.08, "o", "#16181a");
-    put(x + size * 0.15, head.cy - size * 0.08, "o", "#16181a");
-    for (const dy of [-0.25, 0, 0.25]) put(x, middle.cy + dy * size, "@", "#16181a");
-    put(x + size * 0.2, head.cy + size * 0.1, "=", "#e8782a");
-    put(x + size * 0.38, head.cy + size * 0.1, ">", "#e8782a");
-    // Twig arms, forked at the ends.
-    for (const side of [-1, 1]) {
-      const from = { x: x + side * size * 0.55, y: middle.cy - size * 0.05 };
-      const to = { x: x + side * size * 1.35, y: middle.cy - size * (side < 0 ? 0.55 : 0.35) };
-      const steps = Math.max(2, Math.round(Math.hypot(to.x - from.x, to.y - from.y) / (cellWidth * 0.9)));
-      const slope = (to.y - from.y) / (to.x - from.x);
-      for (let i = 0; i <= steps; i += 1) {
-        const t = i / steps;
-        put(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t, Math.abs(slope) < 0.3 ? "-" : slope < 0 ? "/" : "\\", "#5a4230");
-      }
-      put(to.x + side * cellWidth * 0.6, to.y - lineHeight * 0.5, side < 0 ? "\\" : "/", "#5a4230");
-      put(to.x + side * cellWidth * 0.2, to.y - lineHeight * 0.7, "|", "#5a4230");
-    }
-    // The old bucket, with snow on its upturned bottom.
-    const brim = head.cy - head.r * 0.75;
-    for (let c = -2; c <= 2; c += 1) {
-      put(x + c * cellWidth, brim, c === -2 ? "[" : c === 2 ? "]" : "=", "#6e7f8a");
-      if (Math.abs(c) < 2) put(x + c * cellWidth, brim - lineHeight, Math.abs(c) === 1 ? (c < 0 ? "|" : "|") : "#", "#5a6a74");
-      if (Math.abs(c) < 2) put(x + c * cellWidth, brim - lineHeight * 1.7, "~", "#e6edf0");
-    }
-    return { image, left, top, width, height: height - top };
-  }
-
-  drawSnowman(ctx, snowman) {
-    snowman.look ??= this.createSnowman(snowman);
-    const { image, left, top, width, height } = snowman.look;
-    ctx.drawImage(image, left, top, width, height);
   }
 
   /** Bullfinches: a rose-red breast, black cap, grey back, perched or flitting. */

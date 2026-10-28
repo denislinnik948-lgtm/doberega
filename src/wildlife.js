@@ -194,7 +194,7 @@ export class Ducks {
  * - dragonflies: on warm days (summer, late spring), with no rain and no
  *   strong wind, a few hover by the reeds and dart from place to place;
  * - bullfinches: on winter days a few fly in, sit on the oak's twigs, the
- *   cattails, the snowman or the bridge rail, hop about, pipe and fly off.
+ *   cattails or the bridge rail, hop about, pipe and fly off.
  *
  * Positions are in screen pixels; `isWater(x, y)` keeps them on open water.
  * `onEvent(type, data)` hears a heron's call, its strike and a beaver's slap.
