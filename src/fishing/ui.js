@@ -1001,6 +1001,17 @@ export class AnglerUI {
       item.querySelector("button").disabled = left <= 0 && id !== progress.hook;
       return item;
     }));
+    // Every bait you have, as in the bait picker: picking one puts it on the hook.
+    const reel = progress.extras.includes("spinreel");
+    $("#pack-baits").replaceChildren(...this.ownedBaits().map((id) => {
+      // Lures can't be fished without a spinning reel.
+      const locked = BAITS[id].lure && !reel;
+      const item = tile(id === progress.bait, baitSprite(id, 3), nameOf("bait", id), locked ? t("pack.needReel") : countLabel(baitCount(progress, id)), choose(() => { progress.bait = id; }));
+      const button = item.querySelector("button");
+      button.disabled = locked;
+      if (locked) button.title = t("toast.needReel");
+      return item;
+    }));
     $("#pack-extras").replaceChildren(
       // Groundbait goes into the water you're at, straight from the backpack.
       ...(progress.groundbait > 0 ? [tile(false, groundbaitSprite(3), t("shop.groundbait"), `×${progress.groundbait}`, () => this.useGroundbait())] : []),
