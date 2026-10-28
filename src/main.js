@@ -4,6 +4,7 @@ import { DAY_SECONDS, dayTimeAt, skyMoodsAt } from "./daycycle.js";
 import { nameOf, t } from "./i18n.js";
 import { Weather } from "./weather.js";
 import { moonAt, moonBite } from "./moon.js";
+import { windAt, windBite } from "./wind.js";
 import { Ducks } from "./wildlife.js";
 import { FishingGame, TUNING } from "./fishing/game.js";
 import { BAITS, FISH, GROUNDBAIT, HOOKS, LINE, LOCATIONS, RODS } from "./fishing/data.js";
@@ -98,6 +99,8 @@ let shownPhase = "";
 let spaceHeld = false;
 // Where the school of fish is jumping (see maybeJumpFish).
 let school = null;
+// The wind right now (see wind.js), kept current every frame.
+let wind = windAt(Date.now() / 1000);
 const ripples = [];
 
 function getElapsed(now) {
@@ -329,8 +332,12 @@ game.onLineWear = (amount) => {
   if (before >= LINE.weakBelow && progress.line < LINE.weakBelow && progress.lines <= 0) ui.toast(t("line.weak"), "bad", 2600);
 };
 
-// The float drifts only where the current runs, and never onto a bank.
-game.currentAt = (x, y) => currentAt(x, y);
+// The float drifts where the current runs, and on still water in a strong wind; never onto a bank.
+game.currentAt = (x, y) => {
+  const flow = currentAt(x, y);
+  const push = Math.max(0, (wind.strength - 0.6) / 0.4) * 0.0012 * wind.dir;
+  return push ? { x: flow.x + push, y: flow.y } : flow;
+};
 game.isWater = (point) => isOnWater(point.x * width, point.y * height);
 
 function tryCast(x, y) {
@@ -362,7 +369,11 @@ function tryCast(x, y) {
     ui.toast(t("toast.hookSwitched", { hook: nameOf("hook", spare).toLowerCase() }), "", 1800);
   }
   const groundbait = groundbaitLeft(LOCATIONS[progress.location].id) > 0;
-  const target = { x: x / width, y: y / height };
+  // The wind carries the bait a little downwind in flight, the more the farther the cast.
+  let target = { x: x / width, y: y / height };
+  const reach = Math.min(1, Math.max(0, (TUNING.nearY - target.y) / (TUNING.nearY - TUNING.farY)));
+  const blown = { x: target.x + wind.dir * wind.strength * wind.gust * 0.035 * (0.4 + reach) * (0.5 + Math.random()), y: target.y };
+  if (isOnWater(blown.x * width, blown.y * height)) target = blown;
   if (game.cast(target, progress.rod, progress.bait, { location: progress.location, extras: progress.extras, groundbait, hook: progress.hook, school: nearSchool(target) })) {
     // Get the pointer out of the way while watching the float.
     document.body.classList.add("cursor-hidden");
@@ -539,7 +550,7 @@ function playLoops(step, dayTime) {
   const reedy = ["pond", "lake", "reservoir"].includes(LOCATIONS[progress.location].kind);
   musicTick(step, { atWater: mode === "fishing", night: hour < 5 || hour >= 21.5, fighting: game.phase === "fight" });
   // Snow falls without a sound.
-  ambienceTick(step, { atWater: mode === "fishing", rain: isWinter() ? 0 : weather.intensity, night: hour < 5 || hour >= 21.5, ducks: ducks.all.length, frogs: reedy && (hour >= 19 || hour < 4), deepNight: nightEvents.depth ?? 0, spot: LOCATIONS[progress.location].kind });
+  ambienceTick(step, { atWater: mode === "fishing", wind: wind.strength, windDir: wind.dir, rain: isWinter() ? 0 : weather.intensity, night: hour < 5 || hour >= 21.5, ducks: ducks.all.length, frogs: reedy && (hour >= 19 || hour < 4), deepNight: nightEvents.depth ?? 0, spot: LOCATIONS[progress.location].kind });
 }
 
 /** Game hours of groundbait left at a water (0 if none). */
@@ -554,9 +565,12 @@ function renderNow(now = performance.now()) {
   const step = Math.max(0, Math.min(dt, 0.1));
   weather.update(step);
   const dayTime = FIXED_TIME ?? worldDayTime();
-  // Rain livens the bite; so does a full moon at night (and a new moon by day).
+  // Rain livens the bite; so does a full moon at night (and a new moon by day), and a light ripple of wind.
   const moon = moonAt(Date.now() / 1000);
-  game.biteBoost = weather.biteBoost * moonBite(Date.now() / 1000, (dayTime * 24) % 24);
+  wind = windAt(Date.now() / 1000, weather.intensity);
+  config.waveAmplitude = wind.strength * 1.1;
+  config.ruffle = wind.strength;
+  game.biteBoost = weather.biteBoost * moonBite(Date.now() / 1000, (dayTime * 24) % 24) * windBite(wind.strength);
   // Ducks only come out between 6:00 and 20:00.
   const hour = (dayTime * 24) % 24;
   ducks.update(step, elapsed, width, height, renderer.shorelineY(width / 2), (x, y) => renderer.isDuckWater(x, y), hour >= 6 && hour < 20);
@@ -578,7 +592,7 @@ function renderNow(now = performance.now()) {
   ui.setClock(dayTime, moon);
   tickGroundbait();
   ui.setGroundbait(mode === "fishing" ? groundbaitLeft(LOCATIONS[progress.location].id) : 0);
-  ui.setWeather(weather.intensity);
+  ui.setWeather(weather.intensity, wind.strength);
   nightEvents.update(step, elapsed, dayTime);
   playLoops(step, dayTime);
   const winter = isWinter();
@@ -590,6 +604,7 @@ function renderNow(now = performance.now()) {
     bolt: winter ? null : weather.bolt,
     moods: skyMoods(),
     moon,
+    wind,
     ducks: ducks.all,
     night: nightEvents.visible(elapsed),
   });

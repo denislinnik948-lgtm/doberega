@@ -1366,8 +1366,12 @@ export class CanvasWaterRenderer {
   fillForest(time) {
     const batch = this.forestBatch;
     batch.clear();
+    // Trees sway harder in the wind, and lean a little downwind.
+    const { strength, dir, gust } = this.wind;
+    const swing = 0.6 + 1.8 * strength * gust;
+    const lean = dir * strength * gust * 0.7;
     for (const cell of this.forestCells) {
-      const sway = Math.sin(time * 0.42 + cell.swayPhase) * cell.swayAmount;
+      const sway = (Math.sin(time * 0.42 + cell.swayPhase) * swing + lean) * cell.swayAmount;
       batch.push(cell.x + sway, cell.y, cell.glyph, cell.colorValue);
     }
   }
@@ -2065,7 +2069,10 @@ export class CanvasWaterRenderer {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.lineCap = "round";
-    const gust = 0.6 + 0.4 * Math.sin(time * 0.21);
+    // The reeds swing harder in the wind and bow downwind.
+    const wind = this.wind;
+    const gust = (0.6 + 0.4 * Math.sin(time * 0.21)) * (0.6 + 1.6 * wind.strength * wind.gust);
+    const bow = wind.dir * wind.strength * wind.gust * 0.22;
     const winter = isWinter();
     const spring = !winter && isSpring() && !activeScene().dry;
     const dry = activeScene().dry || winter;
@@ -2081,7 +2088,7 @@ export class CanvasWaterRenderer {
       const segments = Math.max(2, Math.round(reed.length / step));
       const swing = (Math.sin(time * 0.95 + reed.phase) * 0.65 + Math.sin(time * 0.37 + reed.baseX * 0.01) * 0.35) * gust;
       const at = (t) => ({
-        x: reed.baseX + reed.length * (reed.lean * t + reed.curve * t * t + swing * reed.flex * t * t),
+        x: reed.baseX + reed.length * (reed.lean * t + reed.curve * t * t + (swing + bow) * reed.flex * t * t),
         y: reed.baseY - reed.length * t,
       });
       // Dry reeds at Pripyat (and everywhere in winter): straw and old brown instead of green;
@@ -2185,7 +2192,8 @@ export class CanvasWaterRenderer {
         const span = height * 1.15;
         const y = ((hash2(i, 2, 79) * span + time * speed) % span) - height * 0.05;
         const sway = Math.sin(time * (0.6 + near) + i) * (6 + near * 10);
-        const x = left + ((((hash2(i, 1, 79) * width + y * 0.12 + sway) % width) + width) % width);
+        // The wind carries the flakes sideways.
+        const x = left + ((((hash2(i, 1, 79) * width + y * (0.04 + 0.6 * this.wind.strength) * this.wind.dir + sway) % width) + width) % width);
         batch.push(x, y, near > 0.75 ? "*" : near > 0.4 ? "+" : ".", near > 0.5 ? 0xf2f6f8 : 0xc4d0d6);
       }
       return;
@@ -2195,8 +2203,10 @@ export class CanvasWaterRenderer {
       const speed = 380 + hash2(i, 3, 77) * 220;
       const span = height * 1.2;
       const y = ((hash2(i, 2, 77) * span + time * speed) % span) - height * 0.1;
-      const x = left + ((((hash2(i, 1, 77) * width + y * 0.2) % width) + width) % width);
-      batch.push(x, y, hash2(i, 4, 77) > 0.35 ? "\\" : "|", 0xa8bcc6);
+      // The rain slants with the wind.
+      const slant = (0.06 + 0.45 * this.wind.strength) * this.wind.dir;
+      const x = left + ((((hash2(i, 1, 77) * width + y * slant) % width) + width) % width);
+      batch.push(x, y, hash2(i, 4, 77) > 0.35 && Math.abs(slant) > 0.12 ? (slant > 0 ? "\\" : "/") : "|", 0xa8bcc6);
     }
     const cells = this.waterCells;
     if (!cells.length) return;
@@ -2288,6 +2298,8 @@ export class CanvasWaterRenderer {
   render(time, config, ripples = [], angler = null, dayTime = 0.76, env = {}) {
     this.rain = env.rain ?? 0;
     this.winter = isWinter();
+    // The wind (see wind.js): how hard it blows, which way, and the gust of the moment.
+    this.wind = env.wind ?? { strength: 0.2, dir: 1, gust: 1 };
     if (!this.width || !this.height) return;
     const { width, height, cellWidth, lineHeight } = this;
     const sky = gradeSky(skyAt(dayTime, env.moods));
@@ -2318,10 +2330,10 @@ export class CanvasWaterRenderer {
     if (sky.moon.up && sky.moon.y < 0.52) pushDisc(this.discBatch, this.moonDisc, sky.moon.x * width, sky.moon.y * height, cellWidth, lineHeight, "moon", moon);
     if (sky.sun.up && sky.sun.y < 0.52) pushDisc(this.discBatch, this.sunDisc, sky.sun.x * width, sky.sun.y * height, cellWidth, lineHeight, "sun");
     this.fillForest(time);
-    fillAmbient(this.ambient, this.ambientBatches, time, dayTime, this.rain);
+    fillAmbient(this.ambient, this.ambientBatches, time, dayTime, this.rain, this.wind);
     // Grass sways slowly, so it is refilled every other frame; the water moves every frame.
     this.frameIndex = (this.frameIndex ?? 0) + 1;
-    if (this.frameIndex % 2 === 0 || this.grassStale) fillGrass(this.grass, this.grassBatches, time, dayTime, this.rain);
+    if (this.frameIndex % 2 === 0 || this.grassStale) fillGrass(this.grass, this.grassBatches, time, dayTime, this.rain, this.wind);
     if (env.night) this.drawNightEvents(env.night, time);
     this.fillWater(time, config, ripples);
     this.grassStale = false;

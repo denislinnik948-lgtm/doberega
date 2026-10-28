@@ -150,13 +150,16 @@ function dewAt(dayTime) {
   return Math.max(0, 1 - Math.abs(dayTime - 0.27) / 0.1);
 }
 
-function fillField(batch, grass, data, time, dayTime) {
+function fillField(batch, grass, data, time, dayTime, wind) {
   const { lineHeight } = grass;
+  // Gusts bend the grass harder in the wind, and it leans downwind.
+  const strength = 0.5 + 1.5 * wind.strength * wind.gust;
+  const lean = wind.dir * wind.strength * 0.35;
   for (const blade of data.blades) {
     // Gusts run across the field as bands; every blade also flutters on its own.
     const wave = Math.max(0, fastSin(blade.band - time * 1.3));
     const gust = (0.5 + 0.5 * fastSin(blade.sweep - time * 0.35)) * wave * wave * wave;
-    const bend = blade.lean + gust * 0.7 + fastSin(time * 1.7 + blade.phase) * 0.05;
+    const bend = blade.lean + lean + gust * 0.7 * strength * (wind.dir < 0 ? -1 : 1) + fastSin(time * 1.7 + blade.phase) * 0.05 * strength;
     const step = blade.length / blade.segments;
     const shares = SEGMENT_LEAN[blade.segments];
     let x = blade.x;
@@ -190,12 +193,12 @@ function fillField(batch, grass, data, time, dayTime) {
  * Push this frame's grass. `far` sits behind the bank trees, `near` over the
  * water; fireflies go to `flies`, which stays bright at night.
  */
-export function fillGrass(grass, { far, near, flies }, time, dayTime, rain = 0) {
+export function fillGrass(grass, { far, near, flies }, time, dayTime, rain = 0, wind = { strength: 0.2, dir: 1, gust: 1 }) {
   far.clear();
   near.clear();
   flies.clear();
-  fillField(far, grass, grass.far, time, dayTime);
-  fillField(near, grass, grass.near, time, dayTime);
+  fillField(far, grass, grass.far, time, dayTime, wind);
+  fillField(near, grass, grass.near, time, dayTime, wind);
 
   const night = dayTime < 0.2 || dayTime > 0.88;
   if (!night || rain > 0.2) return;

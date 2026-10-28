@@ -341,7 +341,7 @@ const LEVELS = {
   // Nature, places and the night (about −46…−55 dB), rain as a soft bed.
   lap: 0.48, fishJump: 0.88, bird: 1.05, duck: 0.4, cricket: 1.3, owl: 0.27, thunder: 0.2, treeFrog: 1.08,
   wisp: 0.28, boat: 10.4, mavka: 0.32, lantern: 6, eyes: 0.27, drone: 0.09, whisper: 0.88,
-  river: 0.35, cow: 0.47, bell: 0.22, wreck: 9.7, geiger: 1, rainBed: 0.2,
+  river: 0.35, cow: 0.47, bell: 0.22, wreck: 9.7, geiger: 1, rainBed: 0.2, wind: 0.5,
 };
 
 /** Build a sound at its own level (LEVELS[name]) into the effects bus. */
@@ -620,7 +620,7 @@ export const sounds = Object.fromEntries(Object.entries(rawSounds).map(([name, b
  * water lapping now and then while at the water, birds by day, crickets at
  * night, and rain as drops plus a deep murmur that swells with the rain.
  */
-const ambient = { lap: 3, bird: 6, cricket: 2, drop: 0, jump: 25, duck: 8, owl: 60, frog: 10, wisp: 15, drone: 20, whisper: 200, river: 4, cow: 40, bell: 90, wreck: 30, geiger: 20 };
+const ambient = { wind: 8, lap: 3, bird: 6, cricket: 2, drop: 0, jump: 25, duck: 8, owl: 60, frog: 10, wisp: 15, drone: 20, whisper: 200, river: 4, cow: 40, bell: 90, wreck: 30, geiger: 20 };
 
 function lap() {
   // A small wave against the bank (lab: Хв1 "Тихий плескіт"): a soft swell of deep noise and a couple of bubbles.
@@ -628,6 +628,34 @@ function lap() {
   wash({ buffer: brown, type: "lowpass", from: vary(380, 0.08), to: 160, attack: 0.22, length: 1, volume: 0.08, pan });
   blup({ delay: 0.3, freq: vary(500, 0.08), rise: 2, length: 0.04, level: 0.02, pan });
   blup({ delay: 0.5, freq: vary(700, 0.08), rise: 2, length: 0.03, level: 0.015, pan });
+}
+
+/**
+ * A gust of wind going past: soft deep noise through a band that rises and
+ * falls with the gust, panned the way it blows; longer and louder in a strong wind.
+ */
+function windGust(strength, dir) {
+  const at = ctx.currentTime;
+  const length = 2.2 + strength * 2.5 + rand(0, 1);
+  const source = ctx.createBufferSource();
+  source.buffer = brown;
+  source.loop = true;
+  const filter = ctx.createBiquadFilter();
+  filter.type = "bandpass";
+  filter.Q.value = 0.9;
+  filter.frequency.setValueAtTime(vary(260, 0.15), at);
+  filter.frequency.linearRampToValueAtTime(vary(520 + strength * 380, 0.12), at + length * 0.45);
+  filter.frequency.linearRampToValueAtTime(vary(240, 0.15), at + length);
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, at);
+  gain.gain.linearRampToValueAtTime(0.05 + strength * 0.07, at + length * 0.45);
+  gain.gain.linearRampToValueAtTime(0, at + length);
+  const panner = ctx.createStereoPanner();
+  panner.pan.setValueAtTime(-dir * 0.5, at);
+  panner.pan.linearRampToValueAtTime(dir * 0.5, at + length);
+  source.connect(filter).connect(gain).connect(panner).connect(out(1, 0));
+  source.start(at, rand(0, 1.5));
+  source.stop(at + length + 0.1);
 }
 
 function fishJump(pan = rand(-0.6, 0.6)) {
@@ -1039,13 +1067,18 @@ function setRainBed(level) {
  * Advance the background by `step` seconds: `atWater` while fishing, `rain`
  * 0..1, `night` while it's dark.
  */
-export function ambienceTick(step, { atWater, rain, night, ducks = 0, frogs = false, deepNight = 0, spot = "" }) {
+export function ambienceTick(step, { atWater, rain, night, ducks = 0, frogs = false, deepNight = 0, spot = "", wind = 0, windDir = 1 }) {
   if (!audio() || step <= 0) return;
   if (Math.abs(rain - rainLevel) > 0.02 || (rain <= 0.02 && rainBed)) {
     rainLevel = rain;
     setRainBed(rain);
   }
   for (const key of Object.keys(ambient)) ambient[key] -= step;
+  // Gusts of wind go past while it blows: more often, longer and louder the stronger it is.
+  if (atWater && wind > 0.35 && ambient.wind <= 0) {
+    ambient.wind = rand(9, 20) * (1.4 - wind);
+    play("wind", () => windGust(wind, windDir));
+  }
   if (atWater && ambient.lap <= 0) {
     ambient.lap = rand(2.5, 6);
     play("lap", lap);

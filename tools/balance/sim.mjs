@@ -9,7 +9,7 @@
  * The angler is a fair player, not a perfect one: it misses about one bite in
  * five and reacts 0.3–1.2 s late, pumps the rod in the fight (pulling to about
  * 80% tension, easing off to 35%), fishes lures in jerks and pauses, and casts
- * mostly far out. Game time and rain follow the real clock, as in the game.
+ * mostly far out. Game time, rain, wind and the moon follow the real clock, as in the game.
  * Every cast pays for its bait, every lost hook or lure and every worn-out
  * line is bought again. At each rod it tries every water, bait and hook,
  * keeps the five best in a short screen, measures those properly and fishes
@@ -24,6 +24,7 @@ import { BAITS, EXTRAS, HOOKS, LINE, LOCATIONS, RODS, START_STATE, fishPrice } f
 import { dayTimeAt } from "../../src/daycycle.js";
 import { rainAt } from "../../src/weather.js";
 import { moonBite } from "../../src/moon.js";
+import { windAt, windBite } from "../../src/wind.js";
 
 const quick = process.argv.includes("--quick");
 // Hours of fishing in the screen, and in the measurement of the best few.
@@ -100,7 +101,8 @@ function session({ rod, spot, bait, hook, hours, seed, extras = [] }) {
   let previous = "";
   while (elapsed < end) {
     game.hour = dayTimeAt(epoch, WORLD_START) * 24;
-    game.biteBoost = (1 + 1.15 * rainAt(epoch)) * moonBite(epoch, game.hour);
+    const rain = rainAt(epoch);
+    game.biteBoost = (1 + 1.15 * rain) * moonBite(epoch, game.hour) * windBite(windAt(epoch, rain).strength);
     const phase = game.phase;
     if (phase !== previous) {
       // A bite: most are struck, a little late; some are simply missed.

@@ -1041,8 +1041,8 @@ export function clockSprite(night, scale = 2, moon = null) {
   return grid.outline(P.ink).toCanvas(scale);
 }
 
-/** Rain cloud for the clock while it's raining. */
-export function rainSprite(scale = 3) {
+/** Rain cloud for the clock while it's raining; flakes under it in winter. */
+export function rainSprite(scale = 3, snow = false) {
   return fromRows([
     "....oooo....",
     "..ooLLLLoo..",
@@ -1050,9 +1050,24 @@ export function rainSprite(scale = 3) {
     "oLBBBBBBBBLo",
     "oBBBBBBBBBBo",
     ".oooooooooo.",
-    "..d..d..d...",
-    ".d..d..d....",
-  ], { o: P.ink, L: P.bone, B: P.light, d: "#8fb4d0" }).toCanvas(scale);
+    snow ? "..s...s...s." : "..d..d..d...",
+    snow ? "....s...s..." : ".d..d..d....",
+  ], { o: P.ink, L: P.bone, B: P.light, d: "#8fb4d0", s: "#f2f6f8" }).toCanvas(scale);
+}
+
+/** Gusts of wind for the clock while it blows. */
+export function windSprite(scale = 3) {
+  return fromRows([
+    "......ooo...",
+    "oooooooLLo..",
+    "LLLLLLLLLo..",
+    "........o...",
+    "ooooooooooo.",
+    "LLLLLLLLLLLo",
+    "..........o.",
+    "ooooooo.....",
+    "LLLLLLo.....",
+  ], { o: P.ink, L: P.light }).toCanvas(scale);
 }
 
 /** A cog: settings. */

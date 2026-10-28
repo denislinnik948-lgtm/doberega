@@ -88,7 +88,10 @@ export function createAmbient({ scene, structures, ridgeCells, bankCells, width,
  * `haze` drifts in front of them (smoke, mist, cloud); both take the daylight
  * tint. `glow` holds lights that stay bright at night.
  */
-export function fillAmbient(ambient, { ground, haze, glow }, time, dayTime, rain = 0) {
+export function fillAmbient(ambient, { ground, haze, glow }, time, dayTime, rain = 0, wind = { strength: 0.2, dir: 1, gust: 1 }) {
+  // Stronger wind, brighter and harder gusts across the meadows; smoke blown flatter and farther downwind.
+  const blow = 0.5 + 1.5 * wind.strength * wind.gust;
+  const downwind = wind.dir < 0 ? -1 : 1;
   ground.clear();
   haze.clear();
   glow.clear();
@@ -97,10 +100,10 @@ export function fillAmbient(ambient, { ground, haze, glow }, time, dayTime, rain
   // Gusts sweep across the grass as bright travelling bands.
   for (const cell of ambient.breeze) {
     const gust = 0.5 + 0.5 * Math.sin(cell.x * 0.004 - time * 0.35);
-    const wave = Math.max(0, Math.sin(cell.x * 0.02 + cell.y * 0.03 - time * 1.4)) ** 3 * gust;
+    const wave = Math.min(1, Math.max(0, Math.sin(cell.x * 0.02 * downwind + cell.y * 0.03 - time * 1.4)) ** 3 * gust * blow);
     // The gust bends each stalk over and shifts it a little downwind.
-    const lean = wave * cellWidth * 0.15;
-    ground.push(cell.x + lean, cell.y, cell.glyph, wave > 0.05 ? mix(cell.colorValue, 0xe8e6b8, wave * 0.45) : cell.colorValue, wave * 0.6);
+    const lean = wave * cellWidth * 0.15 * downwind;
+    ground.push(cell.x + lean, cell.y, cell.glyph, wave > 0.05 ? mix(cell.colorValue, 0xe8e6b8, wave * 0.45) : cell.colorValue, wave * 0.6 * downwind);
   }
 
   // Leaves stir a pixel or so and catch the light as gusts pass.
@@ -114,17 +117,18 @@ export function fillAmbient(ambient, { ground, haze, glow }, time, dayTime, rain
   }
 
   // Chimney smoke rises, drifts downwind and thins out; rain beats it down.
-  const rise = 1 - rain * 0.5;
+  const rise = (1 - rain * 0.5) * (1.1 - 0.6 * wind.strength);
+  const carry = downwind * (0.3 + 1.7 * wind.strength);
   for (const chimney of ambient.chimneys) {
     for (let i = 0; i < SMOKE_PUFFS; i += 1) {
       const age = (time + chimney.seed * 2.3 + (i * SMOKE_LIFE) / SMOKE_PUFFS) % SMOKE_LIFE;
       const u = age / SMOKE_LIFE;
-      const x = chimney.x + u * u * cellWidth * 9 + Math.sin(age * 1.3 + i) * cellWidth * 0.4 * u;
+      const x = chimney.x + u * u * cellWidth * 9 * carry + Math.sin(age * 1.3 + i) * cellWidth * 0.4 * u;
       const y = chimney.y - u * lineHeight * 7 * rise;
       const glyph = u < 0.25 ? "@" : u < 0.5 ? "o" : u < 0.75 ? "*" : "'";
       haze.push(x, y, glyph, mix(SMOKE[0], SMOKE[1], u));
       // A second, offset puff makes the plume read wider as it rises.
-      if (u > 0.3) haze.push(x + cellWidth * (0.6 + u), y + lineHeight * 0.3, u < 0.7 ? "o" : ".", mix(SMOKE[0], SMOKE[1], Math.min(1, u + 0.15)));
+      if (u > 0.3) haze.push(x + cellWidth * (0.6 + u) * downwind, y + lineHeight * 0.3, u < 0.7 ? "o" : ".", mix(SMOKE[0], SMOKE[1], Math.min(1, u + 0.15)));
     }
   }
 

@@ -120,7 +120,8 @@ export function sampleWater(point, time, config, verticalDepth, ripples = NO_RIP
   const density = clamp01(
     0.72 - depth * 0.025
       + streak
-      + broadWave * 0.105
+      // The wind ruffles the water: the wavelets stand out more.
+      + broadWave * 0.105 * (1 + (config.ruffle ?? 0) * 0.9)
       + shimmer * config.shimmer * 0.026
       + rippleHighlight * 0.75,
   );

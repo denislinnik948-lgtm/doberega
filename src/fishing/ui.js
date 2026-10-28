@@ -3,13 +3,13 @@ import {
   baitEntries, fishPrice, formatMoney, formatWeight, handbookEntries, spotEntries, trophyCost,
 } from "./data.js";
 import {
-  bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, groundbaitSprite, hookSprite, keepnetSprite, lineSprite, medalSprite, packSprite, questSprite, rodSprite,
+  bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, groundbaitSprite, hookSprite, keepnetSprite, lineSprite, medalSprite, packSprite, questSprite, rodSprite, windSprite,
 } from "./sprites.js";
 import { P } from "./palette.js";
 import { ACHIEVEMENTS, GROUPS, bump, evaluate } from "./achievements.js";
 import { questReward, questState, todaysQuest, untilNextQuest } from "./quests.js";
 import { frame, frameAll, repaint, setContent } from "./frames.js";
-import { SEASONS, season, setSeason } from "../theme.js";
+import { SEASONS, isWinter, season, setSeason } from "../theme.js";
 import { validNickname } from "../cloud.js";
 import { track } from "../analytics.js";
 import { baitCount, saveProgress } from "./store.js";
@@ -700,14 +700,17 @@ export class AnglerUI {
     if (!dialog.open) dialog.showModal();
   }
 
-  /** A rain cloud beside the clock while it's raining. */
-  setWeather(rain) {
+  /** A rain cloud beside the clock while it's raining (snow in winter), and gusts while the wind blows. */
+  setWeather(rain, wind = 0) {
     const raining = rain > 0.25;
-    if (raining === this.raining) return;
-    this.raining = raining;
+    const windy = wind > 0.45;
+    const look = `${raining}:${windy}:${isWinter()}`;
+    if (look === this.weatherLook) return;
+    this.weatherLook = look;
     document.querySelectorAll(".weather-icon").forEach((node) => {
-      if (!node.firstChild) node.append(rainSprite(3));
-      node.hidden = !raining;
+      node.replaceChildren(...(raining ? [rainSprite(3, isWinter())] : []), ...(windy ? [windSprite(3)] : []));
+      node.hidden = !raining && !windy;
+      node.title = [raining ? t(isWinter() ? "weather.snow" : "weather.rain") : "", windy ? t(wind > 0.7 ? "weather.strongWind" : "weather.wind") : ""].filter(Boolean).join(", ");
     });
   }
 
