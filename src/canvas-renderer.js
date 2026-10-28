@@ -25,6 +25,8 @@ const SPRAY_COLOR = hexToInt("#d3e2dc");
 // Winter ice, from the glassy open edge to snow lying on it; cracks darker.
 const ICE = ["#7d95a2", "#a8bcc6", "#d6e0e5"].map((color) => hexToInt(gradeHex(color)));
 const ICE_CRACK = hexToInt(gradeHex("#5c7482"));
+// Dense characters for the solid parts of buildings, mostly heavy, a few light.
+const STRUCTURE_GLYPHS = "#%&@$8MWQ#%&=:+*";
 const STEAM = [hexToInt("#b8c6d0"), hexToInt("#eef3f6")];
 const BIRD_COLOR = hexToInt("#1f272b");
 // Clouds and stars drift slowly enough to resample a few times per second;
@@ -355,7 +357,7 @@ export class CanvasWaterRenderer {
     this.floes = [];
     if (this.winterIce) {
       for (let i = 0; i < (scene.water.flowAway ? 9 : 6); i += 1) {
-        const floe = { seed: i * 0.37 + 0.11, size: this.frame.width * (0.018 + hash01(i * 31 + 7) ** 2 * 0.055), x: 0, y: 0, rx: 0, ry: 0 };
+        const floe = { seed: i * 0.37 + 0.11, size: this.frame.width * (0.035 + hash01(i * 31 + 7) ** 2 * 0.07), x: 0, y: 0, rx: 0, ry: 0 };
         this.placeFloe(floe, false);
         this.floes.push(floe);
       }
@@ -386,6 +388,7 @@ export class CanvasWaterRenderer {
     const structures = createStructures(width, height, cellWidth, lineHeight, DEPTH ? { cellWidth: farWidth, lineHeight: farLine, scale: far } : null);
     this.structureCells = regrid(structures.cells);
     this.structureShapes = structures.shapes;
+    this.structureMask = null;
     this.lightBatch.clear();
     this.fineLightBatch.clear();
     for (const cell of structures.lights) (cell.scale ? this.fineLightBatch : this.lightBatch).push(cell.x, cell.y, cell.glyph, hexToInt(cell.color));
@@ -580,8 +583,8 @@ export class CanvasWaterRenderer {
     ctx.fill();
     for (const ice of this.winterIce ? [false, true] : [false]) {
       // A coarse map of the shallows, smoothed as it is stretched over the water;
-      // in winter another of the shore ice, pale under its glyphs.
-      const [r, g, b] = [1, 3, 5].map((i) => parseInt((ice ? "#8a9ea8" : mixColor(deep, seasonWater(this.waterColor ?? "#3f7f86"), 0.3)).slice(i, i + 2), 16));
+      // in winter another of the shore ice, dark between its glyphs.
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt((ice ? "#25333b" : mixColor(deep, seasonWater(this.waterColor ?? "#3f7f86"), 0.3)).slice(i, i + 2), 16));
       const map = document.createElement("canvas");
       map.width = Math.ceil(width / (this.cellWidth * 2));
       map.height = Math.ceil(height / this.lineHeight);
@@ -633,7 +636,7 @@ export class CanvasWaterRenderer {
       ctx.lineTo(0, horizon + height * 0.03);
       ctx.closePath();
       if (ridge.alpine) {
-        // Flat palette blocks, one per glyph cell, clipped to the ridgeline.
+        // A dark ground under each glyph cell, clipped to the ridgeline.
         ctx.save();
         ctx.clip();
         for (const cell of this.ridgeCells) {
@@ -643,7 +646,7 @@ export class CanvasWaterRenderer {
         }
         ctx.restore();
       } else {
-        ctx.fillStyle = ridge.fill;
+        ctx.fillStyle = mixColor(ridge.fill, "#0a0e14", 0.3);
         ctx.fill();
       }
 
@@ -783,8 +786,8 @@ export class CanvasWaterRenderer {
     const { cx, half, keel, top, funnel, funnelFoot, funnelX, mast, mastFoot, mastX } = ship;
     const steps = 96;
     const xAt = (u) => cx - half + 2 * half * u;
-    // A touch colder under its rime in winter.
-    ctx.fillStyle = this.winterIce ? "#3a2c28" : "#3a2216";
+    // Dark, the gaps between its glyphs rather than a painted hull.
+    ctx.fillStyle = this.winterIce ? "#1a1412" : "#1c110b";
     ctx.beginPath();
     for (let i = 0; i <= steps; i += 1) {
       const u = i / steps;
@@ -814,14 +817,51 @@ export class CanvasWaterRenderer {
   }
 
   /** Structure silhouettes and glyphs: those behind the forest (`behind`), or the rest. */
+  /** The fine-grid cells under a structure's own detail glyphs (left clear of filler). */
+  maskStructureCells() {
+    const { width: cellWidth, height: lineHeight } = this.farCell;
+    const mask = new Set();
+    for (const cell of this.structureCells) {
+      // A glyph on the main grid covers several fine cells.
+      const halfW = (this.cellWidth * (cell.scale ?? 1)) / 2;
+      const halfH = (this.lineHeight * (cell.scale ?? 1)) / 2;
+      for (let column = Math.floor((cell.x - halfW) / cellWidth); column * cellWidth < cell.x + halfW - 0.5; column += 1) {
+        for (let row = Math.floor((cell.y - halfH) / lineHeight); row * lineHeight < cell.y + halfH - 0.5; row += 1) mask.add(column * 65536 + row);
+      }
+    }
+    return mask;
+  }
+
   paintStructures(ctx, behind) {
+    // Every solid part is built of glyphs too: a dark ground under a dense field of fine
+    // characters in its own colour, wherever its detail glyphs leave room.
+    const mask = this.structureMask ?? (this.structureMask = this.maskStructureCells());
+    const far = DEPTH ? DEPTH.far : 1;
+    const { width: cellWidth, height: lineHeight } = this.farCell;
     for (const shape of this.structureShapes) {
       if (Boolean(shape.behind) !== behind) continue;
-      ctx.beginPath();
-      shape.points.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
-      ctx.closePath();
-      ctx.fillStyle = shape.color;
-      ctx.fill();
+      const path = new Path2D();
+      shape.points.forEach(([x, y], i) => (i ? path.lineTo(x, y) : path.moveTo(x, y)));
+      path.closePath();
+      ctx.fillStyle = mixColor(shape.color, "#000000", 0.45);
+      ctx.fill(path);
+      const xs = shape.points.map(([x]) => x);
+      const ys = shape.points.map(([, y]) => y);
+      ctx.save();
+      ctx.clip(path);
+      // A touch lighter than the old flat fill, so with the dark ground between them the whole reads the same.
+      const tones = [mixColor(shape.color, "#ffffff", 0.45), mixColor(shape.color, "#ffffff", 0.3), mixColor(shape.color, "#ffffff", 0.15)];
+      for (let row = Math.floor(Math.min(...ys) / lineHeight); row * lineHeight < Math.max(...ys) + lineHeight; row += 1) {
+        const y = (row + 0.5) * lineHeight;
+        this.glyphFont(ctx, y, far);
+        for (let column = Math.floor(Math.min(...xs) / cellWidth); column * cellWidth < Math.max(...xs) + cellWidth; column += 1) {
+          if (mask.has(column * 65536 + row)) continue;
+          const noise = hash2(column, row, 3301);
+          ctx.fillStyle = tones[Math.floor(hash2(column, row, 3303) * 3)];
+          ctx.fillText(STRUCTURE_GLYPHS[Math.floor(noise * STRUCTURE_GLYPHS.length)], (column + 0.5) * cellWidth, y);
+        }
+      }
+      ctx.restore();
     }
     for (const cell of this.structureCells) {
       // Rustling leaves are drawn every frame by the ambient layer.
@@ -1088,13 +1128,13 @@ export class CanvasWaterRenderer {
     ctx.closePath();
     ctx.fillStyle = "#1c140b";
     ctx.fill();
-    // Dull ochre paint under the glyphs, inside the dark rim.
+    // Dark under the glyphs, inside the rim: the paint is all in the glyphs.
     ctx.beginPath();
     ctx.moveTo(0, apex + lineHeight * 0.2);
     ctx.lineTo(halfAt(foot) - cellWidth * 0.3, foot - lineHeight * 0.3);
     ctx.lineTo(-halfAt(foot) + cellWidth * 0.3, foot - lineHeight * 0.3);
     ctx.closePath();
-    ctx.fillStyle = "#7a5e1a";
+    ctx.fillStyle = "#2a200c";
     ctx.fill();
     const hubY = h * 0.08;
     const outer = side * 0.22;
@@ -1126,8 +1166,8 @@ export class CanvasWaterRenderer {
           glyph = ".:,;"[Math.floor(noise * 18) % 4];
           color = noise < 0.1 ? "#7a4320" : "#93582a";
         } else {
-          glyph = "#=:#"[Math.floor(noise * 4)];
-          color = noise > 0.7 ? "#d8b445" : "#b8922e";
+          glyph = "#%&#@%"[Math.floor(noise * 6)];
+          color = noise > 0.7 ? "#e0bc4c" : "#c49a32";
         }
         ctx.fillStyle = color;
         ctx.fillText(glyph, x, y);
@@ -1493,8 +1533,9 @@ export class CanvasWaterRenderer {
     // The edge is lacy: open water shows between the last pieces.
     if (ice <= 0 || (ice < 0.25 && noise < 0.4)) return null;
     if (noise > 0.94) return { glyph: noise > 0.97 ? "/" : "\\", color: ICE_CRACK };
-    if (ice > 0.6) return { glyph: "=-=_.="[Math.floor(noise * 6)], color: ICE[noise > 0.3 ? 2 : 1] };
-    if (ice > 0.25) return { glyph: "=-:="[Math.floor(noise * 4)], color: ICE[1] };
+    // Snow lying on the ice by the shore in dense strokes, the bare ice farther out lighter in weight.
+    if (ice > 0.6) return { glyph: "#%=&#="[Math.floor(noise * 6)], color: ICE[noise > 0.3 ? 2 : 1] };
+    if (ice > 0.25) return { glyph: "=%=+"[Math.floor(noise * 4)], color: ICE[1] };
     return { glyph: "-_~"[Math.floor(noise * 3)], color: ICE[0] };
   }
 
@@ -1536,7 +1577,7 @@ export class CanvasWaterRenderer {
       // Smaller and flatter in the distance.
       const distance = clamp((floe.y - shore) / (height - shore), 0, 1);
       floe.rx = floe.size * (0.25 + 0.75 * distance);
-      floe.ry = Math.max(this.lineHeight * 0.9, floe.rx * (0.3 + 0.2 * distance));
+      floe.ry = Math.max(this.gridAt(floe.y).lineHeight * 1.7, floe.rx * (0.32 + 0.22 * distance));
     }
     return this.floes;
   }
@@ -2596,45 +2637,27 @@ export class CanvasWaterRenderer {
       this.waterClip = clip;
     }
     ctx.clip(this.waterClip);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
     for (const floe of this.floes) {
-      // An outline of its own, ragged round the rim.
-      const outline = (lift) => {
-        ctx.beginPath();
-        for (let i = 0; i < 11; i += 1) {
-          const angle = (i / 11) * Math.PI * 2;
-          const r = 0.78 + 0.22 * hash01(floe.seed * 97 + i * 13);
-          const x = floe.x + Math.cos(angle) * floe.rx * r;
-          const y = floe.y + Math.sin(angle) * floe.ry * r - lift;
-          if (i) ctx.lineTo(x, y);
-          else ctx.moveTo(x, y);
-        }
-        ctx.closePath();
-      };
-      const edge = Math.max(1.5, floe.ry * 0.28);
-      outline(0);
-      ctx.fillStyle = "#4e6674";
-      ctx.fill();
-      outline(edge);
-      const top = ctx.createLinearGradient(floe.x - floe.rx, floe.y - floe.ry, floe.x + floe.rx, floe.y + floe.ry);
-      top.addColorStop(0, "#c2cfd6");
-      top.addColorStop(1, "#e4ebee");
-      ctx.fillStyle = top;
-      ctx.fill();
-      // Wind-packed snow on it in the game's own strokes.
-      ctx.save();
-      ctx.clip();
-      const size = Math.max(6, floe.ry * 0.9);
-      ctx.font = `600 ${size}px ${MONO_FONT}`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillStyle = "#9fb1bb";
-      for (let row = -1; row <= 1; row += 1) {
-        for (let column = -3; column <= 3; column += 1) {
-          if (hash01(floe.seed * 53 + row * 7 + column) < 0.45) continue;
-          ctx.fillText(hash01(floe.seed * 61 + column) > 0.5 ? "=" : "-", floe.x + column * size * 0.6 * (floe.rx / floe.ry) * 0.3, floe.y - edge + row * size * 0.6);
+      // A slab of glyphs on the water's own grid there: packed snow on top, its wet rim darker below.
+      const { cellWidth, lineHeight } = this.gridAt(floe.y);
+      ctx.font = `700 ${Math.max(7, lineHeight * 1.15)}px ${MONO_FONT}`;
+      for (let row = -Math.ceil(floe.ry / lineHeight); row <= Math.ceil(floe.ry / lineHeight); row += 1) {
+        for (let column = -Math.ceil(floe.rx / cellWidth); column <= Math.ceil(floe.rx / cellWidth); column += 1) {
+          const x = floe.x + column * cellWidth;
+          const y = floe.y + row * lineHeight;
+          const dx = (x - floe.x) / floe.rx;
+          const dy = (y - floe.y) / floe.ry;
+          const noise = hash01(floe.seed * 131 + column * 17 + row * 7);
+          const d = dx * dx + dy * dy;
+          // A ragged rim, different on every floe.
+          if (d > 0.8 + 0.25 * noise) continue;
+          const rim = dy > 0.35 && d > 0.3;
+          ctx.fillStyle = rim ? "#6f8794" : noise > 0.55 ? "#e8eff2" : noise > 0.2 ? "#c8d5dc" : "#a3b6c0";
+          ctx.fillText(rim ? "_" : "#%=&=#"[Math.floor(noise * 6)], x, y);
         }
       }
-      ctx.restore();
     }
     ctx.restore();
   }

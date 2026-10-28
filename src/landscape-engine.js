@@ -118,9 +118,10 @@ export function createRidgeGlyphs(width, height, cellWidth, lineHeight) {
           else if (top < ridgeTop(ridge, x - cellWidth, height) && top < ridgeTop(ridge, x + cellWidth, height)) glyph = "^";
           else glyph = noise > 0.5 ? "_" : "-";
         } else {
-          // Stipple thins out toward the misty base of each layer.
-          const fade = 1 - Math.min(1, (y - top) / (bottom - top + 1)) * 0.7;
-          if (noise < ridge.density * fade) {
+          // Stipple thins out toward the misty base of each layer, but always covers most of it:
+          // the hill is its glyphs, not the flat colour under them.
+          const fade = 1 - Math.min(1, (y - top) / (bottom - top + 1)) * 0.35;
+          if (noise < Math.max(ridge.density, 0.75) * fade) {
             glyph = ridge.texture[Math.floor(hash2(column, row, 13) * ridge.texture.length)];
           }
         }
@@ -132,15 +133,16 @@ export function createRidgeGlyphs(width, height, cellWidth, lineHeight) {
           const pick = (set) => set[Math.floor(noise * set.length)];
           let mark;
           if (sample.crest) mark = sample.material === "snow" ? "^" : glyph ?? "^";
-          else if (sample.material === "snow") mark = pick(sample.light > 0.5 ? "*'^:" : "-~:'");
-          else if (sample.material === "woods") mark = pick("o*&%");
-          else mark = Math.abs(sample.slope) < 0.012 ? pick("#%:") : sample.slope > 0 ? "/" : "\\";
+          // Dense glyphs carry the colour; the dark between them is only the gaps.
+          else if (sample.material === "snow") mark = pick(sample.light > 0.5 ? "#@%&*#" : "%=#:~%");
+          else if (sample.material === "woods") mark = pick("&%#@*&");
+          else mark = Math.abs(sample.slope) < 0.012 ? pick("#%&$") : sample.slope > 0 ? pick("/#/%") : pick("\\#\\%");
           cells.push({
             x, y, column, row,
             glyph: mark.trim() || null,
-            // Bright glyph on a darker block of the same hue, like the rest of the landscape.
-            color: toHexRgb(mixRgb(base, [255, 255, 255], 0.12)),
-            fill: toHexRgb(mixRgb(base, [44, 54, 72], sample.material === "snow" ? 0.22 : 0.5)),
+            // A bright glyph over a dark ground of the same hue, like the rest of the landscape.
+            color: toHexRgb(mixRgb(base, [255, 255, 255], 0.2)),
+            fill: toHexRgb(mixRgb(base, [24, 30, 42], 0.62)),
             ridge: ridgeIndex,
           });
           continue;
