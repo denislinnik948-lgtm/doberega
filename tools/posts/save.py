@@ -1,4 +1,4 @@
-"""Tiny local receiver for the post generator: POST /save?name=x.jpg writes posts/x.jpg (or tools/posts/shots/x.jpg with &dir=shots)."""
+"""Tiny local receiver for the post generator: POST /save?name=x.jpg writes posts/x.jpg (posts/en/ with &dir=en, tools/posts/shots/ with &dir=shots)."""
 
 import http.server
 import os
@@ -26,7 +26,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if not name.endswith((".png", ".jpg")):
             name += ".png"
         data = self.rfile.read(int(self.headers["Content-Length"]))
-        out = SHOTS if query.get("dir") == ["shots"] else OUT
+        folder = query.get("dir", [""])[0]
+        out = SHOTS if folder == "shots" else os.path.join(OUT, "en") if folder == "en" else OUT
         os.makedirs(out, exist_ok=True)
         with open(os.path.join(out, name), "wb") as file:
             file.write(data)

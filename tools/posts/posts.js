@@ -9,9 +9,81 @@ import { nameOf, setLanguage, traitLabel, traitValue } from "../../src/i18n.js";
  * The scenes are real frames from the game, saved in shots/ (see README there).
  *
  * "Зберегти" (or ?save) posts every one as a JPEG to tools/posts/save.py, which writes posts/.
+ * ?lang=en makes the English set, saved into posts/en/.
  */
 
-setLanguage("uk");
+const LANG = new URLSearchParams(location.search).get("lang") === "en" ? "en" : "uk";
+setLanguage(LANG);
+
+/** Every line of text on the posts, in both languages. */
+const TEXT = {
+  uk: {
+    title: "ДОБЕРЕГА",
+    tagline: "тиша та спокій",
+    pitch: "Риболовля з символів. Безкоштовно, просто в браузері.",
+    spots: "ВОДОЙМИ",
+    fishUpTo: (kg, list) => `Риба до ${kg} кг: ${list.join(", ").toLowerCase()}.`,
+    fish: "РИБА",
+    fishTitle: (n) => `${n} вид риби`,
+    fishLine: "від верховодки на кілька грамів до сома на 60 кг",
+    fishTitle2: "І ті, що важчі",
+    fishLine2: "для них знадобиться добра вудка і терпіння",
+    secret: "Секрет",
+    odds: "1 на 25 000",
+    redBook: "Червона книга",
+    upTo: (w) => `до ${w}`,
+    rods: "ВУДКИ",
+    rodsTitle: "Від лози до сомової",
+    rodsLine: "вісім вудок, і кожна тримає важчу рибу",
+    holds: (w) => `тримає до ${w}`,
+    free: "на старті",
+    sky: "НЕБО",
+    skyTitle: "Жодного однакового вечора",
+    strips: ["малиновий захід над ставком", "вогняний захід над Замковим озером", "рожевий світанок на Прип'яті"],
+    skyText: "Кожен захід і світанок має свої барви: золоті, багряні, малинові, вогняні, бузкові. І бачать їх усі рибалки одночасно.",
+    weather: "ПОГОДА",
+    storm: "Гроза",
+    stormText: "Дощ тут нечастий гість. Та коли над старим мостом гримить, риба клює вдвічі жвавіше. Тільки не забудь каптур.",
+    nightLabel: "НІЧ",
+    night: "Ніч на воді",
+    nightText: "Глибокої ночі на воді діється дивне: бліді вогники над тим берегом, човен без весел, очі біля самого берега. Що ще, побачиш сам.",
+    gram: "г",
+    kilo: "кг",
+  },
+  en: {
+    title: "DOBEREGA",
+    tagline: "quiet and calm",
+    pitch: "Fishing drawn in characters. Free, right in your browser.",
+    spots: "WATERS",
+    fishUpTo: (kg, list) => `Fish up to ${kg} kg: ${list.join(", ").toLowerCase()}.`,
+    fish: "FISH",
+    fishTitle: (n) => `${n} kinds of fish`,
+    fishLine: "from a bleak of a few grams to a 60 kg catfish",
+    fishTitle2: "And the heavy ones",
+    fishLine2: "for these you need a good rod and patience",
+    secret: "Secret",
+    odds: "1 in 25,000",
+    redBook: "Red Book",
+    upTo: (w) => `up to ${w}`,
+    rods: "RODS",
+    rodsTitle: "From a willow switch up",
+    rodsLine: "eight rods, each one holds a heavier fish",
+    holds: (w) => `holds up to ${w}`,
+    free: "starter",
+    sky: "SKY",
+    skyTitle: "No two evenings alike",
+    strips: ["a raspberry sunset over the pond", "a fiery sunset over the castle lake", "a rose dawn at Pripyat"],
+    skyText: "Every sunset and dawn has its own colours: golden, crimson, raspberry, fiery, lilac. And every angler sees the same sky at the same moment.",
+    weather: "WEATHER",
+    storm: "Storm",
+    stormText: "Rain is a rare guest here. But when thunder rolls over the old bridge, the fish bite twice as eagerly. Just bring a hood.",
+    nightLabel: "NIGHT",
+    night: "Night on the water",
+    nightText: "Deep in the night strange things happen: pale lights over the far shore, a boat with no oars, eyes by the bank. The rest, see for yourself.",
+    gram: "g",
+    kilo: "kg",
+  },
+}[LANG];
 
 const W = 1080;
 const H = 1350;
@@ -125,7 +197,7 @@ function paragraph(ctx, value, x, y, width, { size = 38, lineHeight = size * 1.2
 
 /** Top line of every post: the game's name and, in a carousel, the page. */
 function header(ctx, label, page = "") {
-  text(ctx, "ДОБЕРЕГА", 60, 72, { size: 34, weight: 600, color: P.gold, spacing: 6 });
+  text(ctx, TEXT.title, 60, 72, { size: 34, weight: 600, color: P.gold, spacing: 6 });
   text(ctx, label, W / 2, 72, { size: 34, weight: 500, color: P.soft, align: "center", spacing: 4 });
   if (page) text(ctx, page, W - 60, 72, { size: 34, weight: 500, color: P.soft, align: "right" });
 }
@@ -145,8 +217,8 @@ function sprite(ctx, source, x, y, w, h) {
   ctx.restore();
 }
 
-const weight = (kg) => (kg < 1 ? `${Math.round(kg * 1000)} г` : `${String(kg).replace(".", ",")} кг`);
-const money = (value) => (value ? `${value.toLocaleString("uk-UA").replace(/\s/g, " ")} ₴` : "на старті");
+const weight = (kg) => (kg < 1 ? `${Math.round(kg * 1000)} ${TEXT.gram}` : `${LANG === "uk" ? String(kg).replace(".", ",") : kg} ${TEXT.kilo}`);
+const money = (value) => (value ? `${value.toLocaleString(LANG === "uk" ? "uk-UA" : "en-US").replace(/\s/g, " ")} ₴` : TEXT.free);
 
 /* ---------- The posts ---------- */
 
@@ -154,9 +226,9 @@ async function intro() {
   const { node, ctx } = canvas();
   cover(ctx, await load("pond-sunset"), 0, 0, W, 1040, 0.5, 0.4);
   fade(ctx, 700, 1040);
-  text(ctx, "ДОБЕРЕГА", W / 2, 1110, { size: 168, weight: 700, color: P.gold, align: "center", spacing: 10, shadow: true });
-  text(ctx, "тиша та спокій", W / 2, 1180, { size: 60, weight: 500, color: P.bone, align: "center", spacing: 2 });
-  text(ctx, "Риболовля з символів. Безкоштовно, просто в браузері.", W / 2, 1238, { size: 36, color: P.light, align: "center" });
+  text(ctx, TEXT.title, W / 2, 1110, { size: 168, weight: 700, color: P.gold, align: "center", spacing: 10, shadow: true });
+  text(ctx, TEXT.tagline, W / 2, 1180, { size: 60, weight: 500, color: P.bone, align: "center", spacing: 2 });
+  text(ctx, TEXT.pitch, W / 2, 1238, { size: 36, color: P.light, align: "center" });
   footer(ctx, P.gold);
   return node;
 }
@@ -164,7 +236,7 @@ async function intro() {
 async function spot(index) {
   const place = LOCATIONS[index];
   const { node, ctx } = canvas();
-  header(ctx, "ВОДОЙМИ", `${index + 1} / ${LOCATIONS.length}`);
+  header(ctx, TEXT.spots, `${index + 1} / ${LOCATIONS.length}`);
   frame(ctx, 70, 120, 940, 705);
   cover(ctx, await load(SHOT[place.id]), 70, 120, 940, 705);
   text(ctx, nameOf("location", place.id), 70, 920, { size: 84, weight: 700, color: P.gold });
@@ -176,7 +248,7 @@ async function spot(index) {
     text(ctx, traitValue(key, value), x, y + 40, { size: 42, weight: 600, color: P.bone });
   });
   const fish = Object.keys(place.fish).filter((id) => !FISH[id].protected).map((id) => nameOf("fish", id));
-  paragraph(ctx, `Риба до ${place.maxKg} кг: ${fish.join(", ").toLowerCase()}.`, 70, 1175, 940, { size: 32, lineHeight: 38, color: P.light });
+  paragraph(ctx, TEXT.fishUpTo(place.maxKg, fish), 70, 1175, 940, { size: 32, lineHeight: 38, color: P.light });
   footer(ctx);
   return node;
 }
@@ -188,13 +260,13 @@ async function fishPage(page) {
   const { node, ctx } = canvas();
   const perPage = 12;
   const list = SPECIES.slice(page * perPage, page * perPage + perPage);
-  header(ctx, "РИБА", `${page + 1} / 2`);
+  header(ctx, TEXT.fish, `${page + 1} / 2`);
   if (page === 0) {
-    text(ctx, `${SPECIES.length} вид риби`, 60, 175, { size: 78, weight: 700, color: P.gold });
-    text(ctx, "від верховодки на кілька грамів до сома на 60 кг", 60, 225, { size: 36, color: P.light });
+    text(ctx, TEXT.fishTitle(SPECIES.length), 60, 175, { size: 78, weight: 700, color: P.gold });
+    text(ctx, TEXT.fishLine, 60, 225, { size: 36, color: P.light });
   } else {
-    text(ctx, "І ті, що важчі", 60, 175, { size: 78, weight: 700, color: P.gold });
-    text(ctx, "для них знадобиться добра вудка і терпіння", 60, 225, { size: 36, color: P.light });
+    text(ctx, TEXT.fishTitle2, 60, 175, { size: 78, weight: 700, color: P.gold });
+    text(ctx, TEXT.fishLine2, 60, 225, { size: 36, color: P.light });
   }
   // Two columns of tiles; the second page ends with the secrets, shown only as "?".
   const tiles = [...list.map((id) => ({ id })), ...Array.from({ length: perPage - list.length }, () => ({ secret: true }))];
@@ -208,13 +280,13 @@ async function fishPage(page) {
     ctx.strokeRect(x + 1, y + 1, 468, 150);
     if (tile.secret) {
       text(ctx, "?", x + 120, y + 112, { size: 120, weight: 700, color: P.mid, align: "center" });
-      text(ctx, "Секрет", x + 250, y + 70, { size: 40, weight: 600, color: P.bone });
-      text(ctx, "1 на 25 000", x + 250, y + 112, { size: 32, color: P.gold });
+      text(ctx, TEXT.secret, x + 250, y + 70, { size: 40, weight: 600, color: P.bone });
+      text(ctx, TEXT.odds, x + 250, y + 112, { size: 32, color: P.gold });
       return;
     }
     sprite(ctx, fishSprite(tile.id, 4), x + 14, y + 16, 220, 120);
     text(ctx, nameOf("fish", tile.id), x + 250, y + 70, { size: 40, weight: 600, color: P.bone });
-    const note = FISH[tile.id].protected ? "Червона книга" : `до ${weight(FISH[tile.id].max)}`;
+    const note = FISH[tile.id].protected ? TEXT.redBook : TEXT.upTo(weight(FISH[tile.id].max));
     text(ctx, note, x + 250, y + 112, { size: 32, color: FISH[tile.id].protected ? P.ember : P.gold });
   });
   footer(ctx);
@@ -223,16 +295,16 @@ async function fishPage(page) {
 
 async function rods() {
   const { node, ctx } = canvas();
-  header(ctx, "ВУДКИ");
-  text(ctx, "Від лози до сомової", 60, 175, { size: 78, weight: 700, color: P.gold });
-  text(ctx, "вісім вудок, і кожна тримає важчу рибу", 60, 225, { size: 36, color: P.light });
+  header(ctx, TEXT.rods);
+  text(ctx, TEXT.rodsTitle, 60, 175, { size: 78, weight: 700, color: P.gold });
+  text(ctx, TEXT.rodsLine, 60, 225, { size: 36, color: P.light });
   Object.entries(RODS).forEach(([id, rod], i) => {
     const y = 268 + i * 122;
     ctx.fillStyle = i % 2 ? BG : P.deep;
     ctx.fillRect(60, y, W - 120, 112);
     sprite(ctx, rodSprite(rod.tier, 4), 76, y + 6, 100, 100);
     text(ctx, nameOf("rod", id), 200, y + 54, { size: 44, weight: 600, color: P.bone });
-    text(ctx, `тримає до ${weight(rod.maxKg)}`, 200, y + 94, { size: 32, color: P.light });
+    text(ctx, TEXT.holds(weight(rod.maxKg)), 200, y + 94, { size: 32, color: P.light });
     text(ctx, money(rod.price), W - 84, y + 72, { size: 42, weight: 600, color: P.gold, align: "right" });
   });
   footer(ctx);
@@ -241,12 +313,12 @@ async function rods() {
 
 async function skies() {
   const { node, ctx } = canvas();
-  header(ctx, "НЕБО");
-  text(ctx, "Жодного однакового вечора", 60, 175, { size: 72, weight: 700, color: P.gold });
+  header(ctx, TEXT.sky);
+  text(ctx, TEXT.skyTitle, 60, 175, { size: 72, weight: 700, color: P.gold });
   const strips = [
-    ["pond-sunset", "малиновий захід над ставком", 0.6, 0.25],
-    ["castle-sunset", "вогняний захід над Замковим озером", 0.5, 0.2],
-    ["reservoir-dawn", "рожевий світанок на Прип'яті", 0.5, 0.25],
+    ["pond-sunset", TEXT.strips[0], 0.6, 0.25],
+    ["castle-sunset", TEXT.strips[1], 0.5, 0.2],
+    ["reservoir-dawn", TEXT.strips[2], 0.5, 0.25],
   ];
   for (const [i, [name, label, fx, fy]] of strips.entries()) {
     const y = 250 + i * 300;
@@ -254,7 +326,7 @@ async function skies() {
     cover(ctx, await load(name), 70, y, 940, 230, fx, fy);
     text(ctx, label, 90, y + 210, { size: 34, weight: 600, color: P.bone, shadow: true });
   }
-  paragraph(ctx, "Кожен захід і світанок має свої барви: золоті, багряні, малинові, вогняні, бузкові. І бачать їх усі рибалки одночасно.", 70, 1190, 940, { size: 36, color: P.light });
+  paragraph(ctx, TEXT.skyText, 70, 1190, 940, { size: 36, color: P.light });
   footer(ctx);
   return node;
 }
@@ -276,11 +348,9 @@ async function scenePost(name, fx, label, title, body) {
   return node;
 }
 
-const storm = () => scenePost("bridge-storm", 0.62, "ПОГОДА", "Гроза",
-  "Дощ тут нечастий гість. Та коли над старим мостом гримить, риба клює вдвічі жвавіше. Тільки не забудь каптур.");
+const storm = () => scenePost("bridge-storm", 0.62, TEXT.weather, TEXT.storm, TEXT.stormText);
 
-const night = () => scenePost("castle-night", 0.55, "НІЧ", "Ніч на воді",
-  "Глибокої ночі на воді діється дивне: бліді вогники над тим берегом, човен без весел, очі біля самого берега. Що ще, побачиш сам.");
+const night = () => scenePost("castle-night", 0.55, TEXT.nightLabel, TEXT.night, TEXT.nightText);
 
 const POSTS = [
   ["01-intro", intro],
@@ -310,7 +380,7 @@ async function main() {
   const save = async () => {
     for (const [name, node] of rendered) {
       const blob = await new Promise((resolve) => node.toBlob(resolve, "image/jpeg", 0.93));
-      await fetch(`http://127.0.0.1:8002/save?name=${name}.jpg`, { method: "POST", body: blob });
+      await fetch(`http://127.0.0.1:8002/save?name=${name}.jpg${LANG === "en" ? "&dir=en" : ""}`, { method: "POST", body: blob });
     }
     document.querySelector("#save").textContent = `Збережено: ${rendered.length}`;
   };
