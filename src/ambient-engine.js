@@ -1,4 +1,4 @@
-import { valueNoise } from "./noise.js";
+import { fastSin, valueNoise } from "./noise.js";
 import { ridgeTop } from "./landscape-engine.js";
 
 /**
@@ -63,7 +63,11 @@ export function createAmbient({ scene, structures, ridgeCells, bankCells, width,
   }
 
   // Leaves on the near wooded hill rustle in place.
-  const leaves = (structures.cells ?? []).filter((cell) => cell.rustle).map((cell) => ({ ...cell, colorValue: parseInt(cell.color.slice(1), 16) }));
+  // Each keeps its place in the stir and the gust, so a frame only adds the time.
+  const leaves = (structures.cells ?? []).filter((cell) => cell.rustle).map((cell) => ({
+    x: cell.x, y: cell.y, glyph: cell.glyph, colorValue: parseInt(cell.color.slice(1), 16),
+    stirPhase: cell.x * 0.031 + cell.y * 0.047, gustPhase: cell.x * 0.012,
+  }));
 
   return {
     breeze,
@@ -100,9 +104,12 @@ export function fillAmbient(ambient, { ground, haze, glow }, time, dayTime, rain
   }
 
   // Leaves stir a pixel or so and catch the light as gusts pass.
+  const stirTime = time * 1.1;
+  const gustTime = time * 0.6;
   for (const cell of ambient.leaves) {
-    const stir = Math.sin(time * 1.1 + cell.x * 0.031 + cell.y * 0.047);
-    const gust = Math.max(0, Math.sin(cell.x * 0.012 - time * 0.6)) ** 4;
+    const stir = fastSin(stirTime + cell.stirPhase);
+    const wave = fastSin(cell.gustPhase - gustTime);
+    const gust = wave > 0 ? wave * wave * wave * wave : 0;
     ground.push(cell.x + stir * 0.7 * (0.4 + gust), cell.y + stir * 0.25, cell.glyph, gust > 0.1 ? mix(cell.colorValue, 0xb8d07a, gust * 0.35) : cell.colorValue);
   }
 

@@ -308,14 +308,16 @@ export function createStructures(width, height, cellWidth, lineHeight, fine = nu
 
   const out = { cells, lights, shapes, chimneys, beacons };
   if (structures.tower) addFireTower(structures.tower, width, height, cellWidth, lineHeight, out);
-  if (structures.chnpp) {
+  // The plant at Pripyat, the castle hill and the arch bridge stand on the far
+  // shore with its woods, so they are laid on its finer grid and drawn at its size.
+  const onFineGrid = (add, spec) => {
     const [firstCell, firstLight] = [cells.length, lights.length];
-    addChnpp(structures.chnpp, width, height, fine?.cellWidth ?? cellWidth, fine?.lineHeight ?? lineHeight, out, 1 / (fine?.scale ?? 1));
-    // Its glyphs are drawn at the fine grid's size.
+    add(spec, width, height, fine?.cellWidth ?? cellWidth, fine?.lineHeight ?? lineHeight, out, 1 / (fine?.scale ?? 1));
     if (fine) for (const cell of [...cells.slice(firstCell), ...lights.slice(firstLight)]) cell.scale = fine.scale;
-  }
-  if (structures.crag) addCrag(structures.crag, width, height, cellWidth, lineHeight, out);
-  if (structures.archBridge) addArchBridge(structures.archBridge, width, height, cellWidth, lineHeight, out);
+  };
+  if (structures.chnpp) onFineGrid(addChnpp, structures.chnpp);
+  if (structures.crag) onFineGrid(addCrag, structures.crag);
+  if (structures.archBridge) onFineGrid(addArchBridge, structures.archBridge);
 
   return out;
 }
@@ -724,7 +726,7 @@ const mixHex = (a, b, t) => {
  * A wooded hill rising from the far shore to a sheer grey cliff, with a
  * castle of pale walls and red roofs perched on top.
  */
-function addCrag({ to, peak }, width, height, cellWidth, lineHeight, out) {
+function addCrag({ to, peak }, width, height, cellWidth, lineHeight, out, k = 1) {
   const horizon = activeScene().horizon * height;
   const plateau = horizon - height * peak;
   const lowSlope = height * peak * 0.66;
@@ -740,8 +742,9 @@ function addCrag({ to, peak }, width, height, cellWidth, lineHeight, out) {
   };
   // The woods are packed tree crowns on a jittered grid: each lit from the
   // upper left, shaded underneath, with dark gaps between them.
-  const crownW = cellWidth * 5;
-  const crownH = lineHeight * 2.8;
+  // Crowns keep their size on screen whatever the grid (`k` cells to a base cell).
+  const crownW = cellWidth * 5 * k;
+  const crownH = lineHeight * 2.8 * k;
   const crownAt = (i, j) => ({
     x: (i + 0.5 + (j % 2) * 0.5 + (hash2(i, j, 4201) - 0.5) * 0.5) * crownW,
     y: (j + 0.5 + (hash2(i, j, 4203) - 0.5) * 0.4) * crownH,
@@ -805,8 +808,10 @@ function addCrag({ to, peak }, width, height, cellWidth, lineHeight, out) {
       const body = crown.conifer
         ? [[crown.x - crown.rx * 0.8, crown.y + crown.ry], [crown.x, crown.y - crown.ry * 1.3], [crown.x + crown.rx * 0.8, crown.y + crown.ry]]
         : ellipse(crown.x, crown.y, crown.rx, crown.ry);
-      out.shapes.push({ points: body, color: "#15281b" });
-      out.shapes.push({ points: crown.conifer
+      // On the fine grid the glyphs are dense enough to shade each crown themselves:
+      // the body stays a dark backing and the lighter cap is left to them.
+      out.shapes.push({ points: body, color: k > 1 ? "#0f1d13" : "#15281b" });
+      if (k <= 1) out.shapes.push({ points: crown.conifer
         ? [[crown.x - crown.rx * 0.45, crown.y + crown.ry * 0.2], [crown.x, crown.y - crown.ry * 1.1], [crown.x + crown.rx * 0.05, crown.y + crown.ry * 0.2]]
         : ellipse(crown.x - crown.rx * 0.18, crown.y - crown.ry * 0.25, crown.rx * 0.62, crown.ry * 0.55), color: "#243f26" });
     }
@@ -825,7 +830,10 @@ function addCrag({ to, peak }, width, height, cellWidth, lineHeight, out) {
         const crack = hash2(column, 0, 4111) > 0.75;
         out.cells.push({ x, y, column, row, glyph: crack ? "|" : "#%:/\\.:"[Math.floor(noise * 7)], color: noise > 0.55 ? "#b4b4aa" : noise > 0.2 ? "#8e8f86" : "#6a6b64" });
       } else {
-        out.cells.push({ x, y, column, row, rustle: true, ...crownGlyph(x, y, noise) });
+        // On a finer grid only as many leaves stir as on the base one (the rest hold
+        // still in the painted layer): the hill looks as alive and costs no more a frame.
+        const rustle = k <= 1 || hash2(column, row, 4107) < 1 / (k * k);
+        out.cells.push({ x, y, column, row, rustle, ...crownGlyph(x, y, noise) });
       }
     }
   }
