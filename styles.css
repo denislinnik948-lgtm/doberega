@@ -437,6 +437,8 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
 
 .sheet {
   width: min(420px, calc(100% - 24px));
+  /* The browser's own cap (100% - 2em) would leave wide margins on a phone. */
+  max-width: calc(100% - 16px);
   max-height: calc(100% - 32px);
   padding: 30px 28px 28px;
   color: var(--bone);
@@ -626,10 +628,10 @@ html.keyboard-open .sheet[open] > .account-body {
 
 /* ---------- Settings ---------- */
 
-.setting-row { display: grid; gap: 10px; }
+.setting-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .setting-label { color: var(--light); }
 .segmented { display: flex; gap: 10px; }
-.segmented .pixel-btn { flex: 1; min-height: 46px; }
+.segmented .pixel-btn { flex: 1; min-width: 0; min-height: 46px; }
 
 /* ---------- Account ---------- */
 
@@ -667,7 +669,7 @@ html.keyboard-open .sheet[open] > .account-body {
 .volume-row input[type="range"] { width: 100%; accent-color: var(--gold); }
 .volume-row input:disabled { opacity: 0.4; }
 .volume-row:has(input:disabled) { color: var(--mid); }
-.account-hint { margin: 0; color: var(--mid); font-size: 17px; line-height: 1.3; }
+.account-hint { margin: 0; color: var(--soft); font-size: 17px; line-height: 1.3; }
 .account-name { margin: 0; color: var(--bone); font-size: 24px; line-height: 1.1; overflow-wrap: anywhere; }
 .account-email { margin: 0; color: var(--light); font-size: 18px; overflow-wrap: anywhere; }
 /* The profile: a lettered badge beside the name and email. */
@@ -755,34 +757,41 @@ html.keyboard-open .sheet[open] > .account-body {
   /* Menu: a compact top bar, content starting below it so nothing overlaps. */
   .menu {
     justify-content: flex-start;
-    gap: 14px;
+    gap: 12px;
     padding: calc(env(safe-area-inset-top, 0px) + 78px) 12px calc(env(safe-area-inset-bottom, 0px) + 16px);
   }
   .menu-top { top: calc(env(safe-area-inset-top, 0px) + 12px); right: 12px; left: 12px; }
-  .menu-top { gap: 6px; }
+  /* Clock, name and money with equal gaps between them, whatever the clock's width. */
+  .menu-top { grid-template-columns: auto auto auto; justify-content: space-between; gap: 6px; }
   .menu-top h1 { padding: 8px 10px; font-size: 24px; }
   .menu-top .clock { min-height: 46px; padding: 6px 10px 6px 8px; font-size: 22px; }
   .menu-top .chip { min-height: 46px; padding: 6px 10px 6px 8px; font-size: 20px; }
-  .spot-slider { gap: 8px; margin-top: 0; }
+  /* Painted boxes draw their line 4px in from the edge; plain buttons are inset to match. */
+  .spot-slider { gap: 8px; margin-top: 0; padding-inline: 4px; }
   .spot-arrow { width: 40px; min-height: 56px; }
   .spot-picture { height: clamp(140px, 24vh, 200px); }
   .spot-traits { padding: 12px 16px; }
-  .fish-button { width: 100%; min-height: 60px; }
-  .menu-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
+  .fish-button { width: calc(100% - 8px); min-height: 60px; }
+  .menu-nav { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; gap: 10px; width: 100%; }
   .menu-item {
     grid-template-columns: auto 1fr;
     justify-items: start;
     align-items: center;
     gap: 8px;
     min-width: 0;
-    min-height: 64px;
-    padding: 10px 10px;
+    min-height: 60px;
+    padding: 8px 10px;
     font-size: 19px;
     text-align: left;
   }
 
-  /* In game. */
-  .slot { width: 64px; height: 64px; }
+  /* In game: the same 12px from every screen edge, the bottom row one height. */
+  .hud-top { top: calc(env(safe-area-inset-top, 0px) + 12px); right: calc(env(safe-area-inset-right, 0px) + 12px); left: calc(env(safe-area-inset-left, 0px) + 12px); }
+  .loadout { bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); left: calc(env(safe-area-inset-left, 0px) + 12px); }
+  .pack-hud { right: calc(env(safe-area-inset-right, 0px) + 12px); bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); }
+  .slot { width: 60px; height: 60px; padding: 4px; }
+  /* The tension bar sits above the bottom row, not over the bait and the backpack. */
+  .fight-hud { bottom: calc(env(safe-area-inset-bottom, 0px) + 84px); }
   .icon-btn { width: 52px; height: 52px; }
   .chip { min-height: 48px; font-size: 22px; }
   .hud-top .clock { min-height: 52px; font-size: 26px; }
@@ -790,12 +799,12 @@ html.keyboard-open .sheet[open] > .account-body {
   .groundbait-bar { width: 52px; }
   .quest-chip { min-height: 52px; padding: 6px 10px 6px 8px; font-size: 22px; }
   .quest-strip { min-height: 48px; font-size: 18px; }
-  .bait-chip { min-height: 48px; font-size: 22px; }
+  .bait-chip { min-height: 60px; font-size: 22px; }
 
   /* Dialogs use almost the whole screen and scroll inside. */
-  .sheet, .sheet-wide { width: calc(100% - 16px); max-height: calc(100dvh - 16px); padding: 22px 14px 16px; }
+  .sheet, .sheet-wide { width: calc(100% - 16px); max-height: calc(100dvh - 16px); padding: 24px 20px 20px; }
   .sheet h2 { font-size: 26px; }
-  .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; max-height: calc(100dvh - 210px); }
+  .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; max-height: calc(100dvh - 210px); padding-inline: 0; }
   .card { min-width: 0; padding: 12px 8px 10px; }
   .card .pixel-btn { padding-inline: 6px; font-size: 18px; }
   .card strong { font-size: 22px; }
@@ -807,8 +816,13 @@ html.keyboard-open .sheet[open] > .account-body {
   .stepper .pixel-btn-square { width: 40px; min-height: 44px; }
   .stepper-value { min-width: 28px; font-size: 26px; }
   .tabs .pixel-btn { min-height: 44px; padding-inline: 6px; font-size: 18px; }
-  .pack-body { max-height: calc(100dvh - 150px); }
-  .pack-item { width: calc(33.3% - 7px); min-width: 92px; }
+  /* Five seasons fit one row. */
+  .segmented { gap: 6px; }
+  .segmented .pixel-btn { padding-inline: 4px; font-size: 19px; }
+  .pack-body { max-height: calc(100dvh - 150px); padding-right: 0; }
+  /* Three even tiles a row, edge to edge. */
+  .pack-body .item-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .pack-item { width: 100%; }
   .catch-actions .pixel-btn { min-height: 52px; font-size: 18px; }
   .handbook { max-height: calc(100dvh - 150px); }
   .handbook-page { grid-template-columns: 1fr; }
