@@ -24,22 +24,49 @@ function rng(seed) {
   };
 }
 
+/** "#rrggbb" as a pixel word for a little-endian RGBA buffer (opaque). */
+const words = new Map();
+function wordOf(color) {
+  let word = words.get(color);
+  if (word === undefined) {
+    const value = parseInt(color.slice(1), 16);
+    word = (0xff000000 | ((value & 0xff) << 16) | (value & 0xff00) | ((value >> 16) & 0xff)) >>> 0;
+    words.set(color, word);
+  }
+  return word;
+}
+
+/**
+ * The art pixels of one frame, written straight into a buffer and put on the
+ * canvas in one go (see `flush`): a dithered window is tens of thousands of
+ * pixels, far too many to draw one fillRect at a time.
+ */
 class Pixels {
   constructor(ctx, width, height) {
     this.ctx = ctx;
     this.width = width;
     this.height = height;
+    this.image = ctx.createImageData(width, height);
+    this.data = new Uint32Array(this.image.data.buffer);
   }
 
   set(x, y, color) {
     if (x < 0 || y < 0 || x >= this.width || y >= this.height) return;
-    this.ctx.fillStyle = color;
-    this.ctx.fillRect(x | 0, y | 0, 1, 1);
+    this.data[(y | 0) * this.width + (x | 0)] = wordOf(color);
   }
 
   rect(x, y, w, h, color) {
-    this.ctx.fillStyle = color;
-    this.ctx.fillRect(x, y, w, h);
+    const x0 = Math.max(0, Math.round(x));
+    const x1 = Math.min(this.width, Math.round(x + w));
+    const y0 = Math.max(0, Math.round(y));
+    const y1 = Math.min(this.height, Math.round(y + h));
+    if (x1 <= x0) return;
+    const word = wordOf(color);
+    for (let row = y0; row < y1; row += 1) this.data.fill(word, row * this.width + x0, row * this.width + x1);
+  }
+
+  flush() {
+    this.ctx.putImageData(this.image, 0, 0);
   }
 
   /** Vertical ordered-dither blend from `top` to `bottom` colour between rows y0..y1. */
@@ -425,7 +452,9 @@ function paint(element) {
   canvas.height = height;
   const ctx = canvas.getContext("2d");
   ctx.clearRect(0, 0, width, height);
-  PAINTERS[kind](new Pixels(ctx, width, height), width, height, rng(seed + width * 31 + height * 17), variant);
+  const pixels = new Pixels(ctx, width, height);
+  PAINTERS[kind](pixels, width, height, rng(seed + width * 31 + height * 17), variant);
+  pixels.flush();
   element.dataset.framePainted = "1";
 }
 

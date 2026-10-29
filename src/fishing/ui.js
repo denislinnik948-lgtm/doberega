@@ -702,8 +702,10 @@ export class AnglerUI {
 
   /** A rain cloud beside the clock while it's raining (snow in winter), and gusts while the wind blows. */
   setWeather(rain, wind = 0) {
-    const raining = rain > 0.25;
-    const windy = wind > 0.45;
+    // A little slack each way, so a value hovering at the line doesn't redraw the icons every frame.
+    const was = this.weatherLook?.split(":") ?? [];
+    const raining = rain > (was[0] === "true" ? 0.2 : 0.25);
+    const windy = wind > (was[1] === "true" ? 0.4 : 0.45);
     const look = `${raining}:${windy}:${isWinter()}`;
     if (look === this.weatherLook) return;
     this.weatherLook = look;

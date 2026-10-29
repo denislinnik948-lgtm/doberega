@@ -55,11 +55,27 @@ class Grid {
     canvas.width = this.width;
     canvas.height = this.height;
     const ctx = canvas.getContext("2d");
+    // Straight into the pixels: a fish portrait is a few thousand of them.
+    const image = ctx.createImageData(this.width, this.height);
+    const { data } = image;
+    const odd = [];
     this.cells.forEach((color, index) => {
       if (!color) return;
+      if (color.length !== 7 || color[0] !== "#") {
+        odd.push([index, color]);
+        return;
+      }
+      const value = parseInt(color.slice(1), 16);
+      data[index * 4] = value >> 16;
+      data[index * 4 + 1] = (value >> 8) & 255;
+      data[index * 4 + 2] = value & 255;
+      data[index * 4 + 3] = 255;
+    });
+    ctx.putImageData(image, 0, 0);
+    for (const [index, color] of odd) {
       ctx.fillStyle = color;
       ctx.fillRect(index % this.width, Math.floor(index / this.width), 1, 1);
-    });
+    }
     canvas.className = "sprite";
     canvas.style.width = `${this.width * scale}px`;
     canvas.style.height = `${this.height * scale}px`;
@@ -432,12 +448,29 @@ function artemGrid() {
  * fish's own colours, shown at the size the plain sprite used to take up.
  * The old boot and Artem the crayfish keep their own pixel sprites.
  */
+const portraits = new Map();
+
+/** Shade every species ahead of time, one per idle moment, so the first handbook or catch opens at once. */
+export function warmFishPortraits() {
+  const idle = window.requestIdleCallback ?? ((callback) => setTimeout(callback, 200));
+  const species = Object.keys(FISH_LOOKS).filter((id) => !portraits.has(id));
+  const next = () => {
+    const id = species.shift();
+    if (!id) return;
+    if (!portraits.has(id)) portraits.set(id, fishPortrait(FISH_LOOKS[id]));
+    idle(next);
+  };
+  idle(next);
+}
+
 export function fishSprite(species, scale = 4, label = "") {
   if (species === "boot") return bootGrid().toCanvas(scale, label);
   if (species === "artem") return artemGrid().toCanvas(scale * 1.2, label);
   if (species === "dvoholovyi") return twoHeadedGrid(scale, label);
   const look = FISH_LOOKS[species];
-  const portrait = fishPortrait(look);
+  // A portrait takes a few milliseconds to shade and never changes: shade each species once.
+  let portrait = portraits.get(species);
+  if (!portrait) portraits.set(species, portrait = fishPortrait(look));
   const grid = new Grid(portrait.width, portrait.height);
   grid.cells = portrait.cells;
   const shownWidth = (look.len + (look.whiskers ? 10 : 5)) * scale * 1.15;

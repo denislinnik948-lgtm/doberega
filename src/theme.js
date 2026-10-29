@@ -127,6 +127,17 @@ export function onSeasonChange(listener) {
  */
 const GRADE = { keep: 0.78, gain: 1.15, cast: [0.9, 0.99, 1.12] };
 
+/** The same grade as a 3×3 matrix (column-major, for a shader): out = M · rgb. */
+export const GRADE_MATRIX = (() => {
+  const { keep, gain, cast } = GRADE;
+  const weights = [0.3, 0.59, 0.11];
+  const matrix = [];
+  for (let column = 0; column < 3; column += 1) {
+    for (let row = 0; row < 3; row += 1) matrix.push(gain * ((row === column ? keep : 0) + (1 - keep) * cast[row] * weights[column]));
+  }
+  return new Float32Array(matrix);
+})();
+
 export function gradeRgb([r, g, b]) {
   const { keep, gain, cast } = GRADE;
   const lum = 0.3 * r + 0.59 * g + 0.11 * b;

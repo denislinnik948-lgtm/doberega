@@ -17,6 +17,7 @@ import { ambienceTick, jumpSound, musicTick, nightSound, sounds, thunderClap } f
 import { AnglerUI } from "./fishing/ui.js";
 import { breakStreak, bump, recordCatch } from "./fishing/achievements.js";
 import { recordQuest } from "./fishing/quests.js";
+import { warmFishPortraits } from "./fishing/sprites.js";
 
 // The water look is fixed: a still lake, gentle swell speed, soft glints.
 const config = {
@@ -232,6 +233,8 @@ cloud.init();
 // One anonymous "visit" per page open, for the stats page (see analytics.js),
 // counted once the page has been on screen for two seconds.
 track("visit", { after: 2000 });
+// Fish portraits take a moment each to shade: do them while nothing else is going on.
+setTimeout(warmFishPortraits, 3000);
 
 function toScreen(point) {
   return { x: point.x * width, y: point.y * height };

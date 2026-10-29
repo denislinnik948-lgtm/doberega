@@ -8,7 +8,7 @@ import { birdsAt, createSkyCells, discOffsets, lightSky, pushDisc, sampleSky, se
 import { createLilyPads, createReeds, createRocks, rockGlyphs } from "./foreground-engine.js";
 import { GlyphBatch, createBackend } from "./glyph-backend.js";
 import { createAmbient, fillAmbient } from "./ambient-engine.js";
-import { currentSeason, gradeHex, gradeImageData, gradeInt, gradeSky, isAutumn, isSpring, isWinter, seasonDeep, seasonWater, snowHex, snowImageData } from "./theme.js";
+import { currentSeason, GRADE_MATRIX, gradeHex, gradeInt, gradeSky, isAutumn, isSpring, isWinter, seasonDeep, seasonWater, snowHex, snowImageData } from "./theme.js";
 import { createGrass, fillGrass } from "./grass-engine.js";
 import { ROD_LOOKS } from "./fishing/sprites.js";
 
@@ -435,7 +435,8 @@ export class CanvasWaterRenderer {
     this.font = `${config.charSize}px ${MONO_FONT}`;
     this.reedSize = clamp(Number(config.charSize) * 2, 13, 28);
     this.backend.setFont(this.font, Number(config.charSize), DEPTH ? DEPTH.near : 1);
-    this.backend.setLayer("land", this.createLayer((ctx) => this.paintLand(ctx)));
+    // Graded as it is drawn (see the backend), not pixel by pixel here.
+    this.backend.setLayer("land", this.createLayer((ctx) => this.paintLand(ctx)), GRADE_MATRIX);
     this.lightKey = null;
     this.rockImages = this.rocks.map((rock) => this.createRockImage(rock));
     this.bridgeImage = scene.foreground.bridge ? this.createBridgeImage(scene.foreground.bridge) : null;
@@ -549,7 +550,7 @@ export class CanvasWaterRenderer {
     return layer;
   }
 
-  /** Rasterize a static, full-screen layer once per rebuild. */
+  /** Rasterize a static, full-screen layer once per rebuild (the backend grades it). */
   createLayer(paint) {
     const layer = document.createElement("canvas");
     layer.width = Math.round(this.width * this.pixelRatio);
@@ -561,12 +562,6 @@ export class CanvasWaterRenderer {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     paint(ctx);
-    {
-      // Grade the whole painted layer once: hills, banks, buildings, cliffs, water body.
-      const image = ctx.getImageData(0, 0, layer.width, layer.height);
-      gradeImageData(image.data);
-      ctx.putImageData(image, 0, 0);
-    }
     return layer;
   }
 
@@ -721,9 +716,16 @@ export class CanvasWaterRenderer {
     // Winter: snow over everything painted so far (hills, meadows, the far shore, roofs), not the water.
     const winter = isWinter();
     if (winter) {
-      const image = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
-      snowImageData(image.data, 0.72);
-      ctx.putImageData(image, 0, 0);
+      // Only the part ever on screen: a phone shows a slice of a wider scene, and nothing stands above landTop.
+      const ratio = this.pixelRatio;
+      const left = Math.max(0, Math.floor((this.frame.left - 4) * ratio));
+      const right = Math.min(ctx.canvas.width, Math.ceil((this.frame.left + this.frame.width + 4) * ratio));
+      const top = Math.max(0, Math.floor(this.landTop * ratio));
+      if (right > left && ctx.canvas.height > top) {
+        const image = ctx.getImageData(left, top, right - left, ctx.canvas.height - top);
+        snowImageData(image.data, 0.72);
+        ctx.putImageData(image, left, top);
+      }
     }
 
     this.paintWaterBody(ctx);
@@ -2485,7 +2487,13 @@ export class CanvasWaterRenderer {
     }
 
     // The railing stands between us and the reeds by the far abutments.
-    if (this.bridgeImage) ctx.drawImage(this.bridgeImage.image, 0, this.bridgeImage.top, this.width, this.height - this.bridgeImage.top);
+    if (this.bridgeImage) {
+      // Only the slice on screen: on a phone the railing image is far wider than the view.
+      const { image, top } = this.bridgeImage;
+      const { left, width } = this.frame;
+      const ratio = image.width / this.width;
+      ctx.drawImage(image, left * ratio, 0, width * ratio, image.height, left, top, width, this.height - top);
+    }
     if (angler && !angler.hidden) this.renderAngler(ctx, angler, "rod");
     if (this.critters?.finches.length) this.drawFinches(ctx, time, this.critters.finches);
     this.drawParticles(ctx, dt, false);

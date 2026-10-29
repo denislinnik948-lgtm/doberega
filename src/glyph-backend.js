@@ -5,6 +5,8 @@
  * almost nothing; Canvas 2D is a drop-in fallback.
  */
 
+import { gradeImageData } from "./theme.js";
+
 const FIRST_CODE = 32;
 const NEUTRAL = [1, 1, 1, 1];
 const ATLAS_COLUMNS = 16;
@@ -81,6 +83,9 @@ function createAtlasCanvas(font, fontSize, ratio) {
 }
 
 const FLAT = [0, 1, 1, 1];
+// Sets of buffers each batch takes turns with (see gpuBatch).
+const BUFFER_RING = 3;
+const IDENTITY = new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]);
 
 const GLYPH_VERTEX = `#version 300 es
 layout(location = 0) in vec2 corner;
@@ -130,12 +135,16 @@ const LAYER_FRAGMENT = `#version 300 es
 precision mediump float;
 uniform sampler2D layer;
 uniform vec4 light;
+// The colour grade (identity for a layer painted already graded). It is linear,
+// so it applies to premultiplied colour as it is.
+uniform mat3 grade;
 in vec2 uv;
 out vec4 outColor;
 void main() {
   vec4 color = texture(layer, uv);
+  vec3 graded = clamp(grade * color.rgb, 0.0, color.a);
   // Premultiplied: scale colour by the light, keep coverage.
-  outColor = vec4(min(color.rgb * light.rgb, vec3(color.a)), color.a);
+  outColor = vec4(min(graded * light.rgb, vec3(color.a)), color.a);
 }`;
 
 class WebGLBackend {
@@ -151,7 +160,9 @@ class WebGLBackend {
       perspective: gl.getUniformLocation(this.glyphProgram, "perspective"),
       glyphLight: gl.getUniformLocation(this.glyphProgram, "light"),
       layerLight: gl.getUniformLocation(this.layerProgram, "light"),
+      layerGrade: gl.getUniformLocation(this.layerProgram, "grade"),
     };
+    this.layerGrades = new Map();
 
     const corners = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, corners);
@@ -222,52 +233,73 @@ class WebGLBackend {
     }
   }
 
-  setLayer(name, canvas) {
+  /**
+   * A layer to draw whole; `grade` (a column-major 3×3 colour matrix) is applied
+   * on the GPU as it is drawn, so a big layer never has to be read back and
+   * graded pixel by pixel.
+   */
+  setLayer(name, canvas, grade = null) {
     this.layers.set(name, this.texture(canvas, this.layers.get(name)));
+    this.layerGrades.set(name, grade ?? IDENTITY);
   }
 
   /**
    * The batch's own GPU buffers, sized to its capacity. Sharing one buffer
    * between batches made the driver wait for the GPU to finish with the last
-   * upload, now and then stalling a frame for tens of milliseconds.
+   * upload, now and then stalling a frame for tens of milliseconds. Each batch
+   * also takes turns between a few sets of buffers, so a fresh upload never
+   * lands in one the GPU may still be drawing the previous frame from.
    */
   gpuBatch(batch) {
-    const gl = this.gl;
     let entry = this.batches.get(batch);
     if (!entry) {
-      entry = { vao: gl.createVertexArray(), positions: gl.createBuffer(), colors: gl.createBuffer(), capacity: 0, version: -1, count: -1 };
-      gl.bindVertexArray(entry.vao);
-      gl.bindBuffer(gl.ARRAY_BUFFER, this.corners);
-      gl.enableVertexAttribArray(0);
-      gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-      gl.bindBuffer(gl.ARRAY_BUFFER, entry.positions);
-      gl.enableVertexAttribArray(1);
-      gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 0, 0);
-      gl.vertexAttribDivisor(1, 1);
-      gl.bindBuffer(gl.ARRAY_BUFFER, entry.colors);
-      gl.enableVertexAttribArray(2);
-      gl.vertexAttribPointer(2, 4, gl.UNSIGNED_BYTE, true, 0, 0);
-      gl.vertexAttribDivisor(2, 1);
+      entry = { slots: [], next: 0, current: null };
       this.batches.set(batch, entry);
     }
-    gl.bindVertexArray(entry.vao);
-    if (entry.capacity < batch.capacity) {
-      entry.capacity = batch.capacity;
-      gl.bindBuffer(gl.ARRAY_BUFFER, entry.positions);
-      gl.bufferData(gl.ARRAY_BUFFER, batch.capacity * 16, gl.DYNAMIC_DRAW);
-      gl.bindBuffer(gl.ARRAY_BUFFER, entry.colors);
-      gl.bufferData(gl.ARRAY_BUFFER, batch.capacity * 4, gl.DYNAMIC_DRAW);
-      entry.version = -1;
-    }
     // Batches refilled only every other frame (water, grass) skip the upload in between.
-    if (entry.version !== batch.version || entry.count !== batch.count) {
-      gl.bindBuffer(gl.ARRAY_BUFFER, entry.positions);
-      gl.bufferSubData(gl.ARRAY_BUFFER, 0, batch.positions, 0, batch.count * 4);
-      gl.bindBuffer(gl.ARRAY_BUFFER, entry.colors);
-      gl.bufferSubData(gl.ARRAY_BUFFER, 0, batch.colors, 0, batch.count * 4);
-      entry.version = batch.version;
-      entry.count = batch.count;
+    const current = entry.current;
+    if (current && current.version === batch.version && current.count === batch.count && current.capacity >= batch.capacity) {
+      this.gl.bindVertexArray(current.vao);
+      return;
     }
+    if (entry.slots.length < BUFFER_RING) entry.slots.push(this.bufferSlot());
+    const slot = entry.slots[entry.next];
+    entry.next = (entry.next + 1) % BUFFER_RING;
+    const gl = this.gl;
+    gl.bindVertexArray(slot.vao);
+    if (slot.capacity < batch.capacity) {
+      slot.capacity = batch.capacity;
+      gl.bindBuffer(gl.ARRAY_BUFFER, slot.positions);
+      gl.bufferData(gl.ARRAY_BUFFER, batch.capacity * 16, gl.DYNAMIC_DRAW);
+      gl.bindBuffer(gl.ARRAY_BUFFER, slot.colors);
+      gl.bufferData(gl.ARRAY_BUFFER, batch.capacity * 4, gl.DYNAMIC_DRAW);
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, slot.positions);
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, batch.positions, 0, batch.count * 4);
+    gl.bindBuffer(gl.ARRAY_BUFFER, slot.colors);
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, batch.colors, 0, batch.count * 4);
+    slot.version = batch.version;
+    slot.count = batch.count;
+    entry.current = slot;
+  }
+
+  /** One set of instance buffers with its vertex array. */
+  bufferSlot() {
+    const gl = this.gl;
+    const slot = { vao: gl.createVertexArray(), positions: gl.createBuffer(), colors: gl.createBuffer(), capacity: 0, version: -1, count: -1 };
+    gl.bindVertexArray(slot.vao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.corners);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, slot.positions);
+    gl.enableVertexAttribArray(1);
+    gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribDivisor(1, 1);
+    gl.bindBuffer(gl.ARRAY_BUFFER, slot.colors);
+    gl.enableVertexAttribArray(2);
+    gl.vertexAttribPointer(2, 4, gl.UNSIGNED_BYTE, true, 0, 0);
+    gl.vertexAttribDivisor(2, 1);
+    return slot;
   }
 
   begin() {
@@ -295,6 +327,7 @@ class WebGLBackend {
     }
     gl.useProgram(this.layerProgram);
     gl.uniform4f(this.uniforms.layerLight, light[0], light[1], light[2], 1);
+    gl.uniformMatrix3fv(this.uniforms.layerGrade, false, this.layerGrades.get(name) ?? IDENTITY);
     gl.bindVertexArray(this.layerVao);
     gl.bindTexture(gl.TEXTURE_2D, this.layers.get(name));
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -337,7 +370,14 @@ class Canvas2DBackend {
     this.font = font;
   }
 
-  setLayer(name, canvas) {
+  /** No shader here: a graded layer is graded once, pixel by pixel. */
+  setLayer(name, canvas, grade = null) {
+    if (grade) {
+      const ctx = canvas.getContext("2d");
+      const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      gradeImageData(image.data);
+      ctx.putImageData(image, 0, 0);
+    }
     this.layers.set(name, canvas);
   }
 
