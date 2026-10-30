@@ -210,7 +210,7 @@ function render(stats) {
   $("#recent").replaceChildren(
     element("thead", {}, [element("tr", {}, [element("th", { textContent: "Гравець" }), element("th", { textContent: "Створено" }), element("th", { textContent: "Заходив" })])]),
     element("tbody", {}, stats.recentUsers.length
-      ? stats.recentUsers.map((user) => element("tr", {}, [element("td", { textContent: user.name }), element("td", { textContent: when(user.created_at) }), element("td", { textContent: when(user.last_sign_in_at) })]))
+      ? stats.recentUsers.map((user) => element("tr", {}, [element("td", { textContent: user.name }), element("td", { textContent: when(user.created_at) }), element("td", { textContent: when(user.last_seen ?? user.last_sign_in_at) })]))
       : [element("tr", {}, [element("td", { className: "empty", colSpan: 3, textContent: "Ще немає акаунтів" })])]),
   );
   $("#updated").textContent = `Оновлено о ${new Date().toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" })}`;
@@ -253,7 +253,7 @@ function demo() {
     daily,
     sources: [{ name: "direct", visitors: 610 }, { name: "t.me", visitors: 240 }, { name: "instagram.com", visitors: 180 }, { name: "google.com", visitors: 64 }],
     devices: [{ name: "mobile", visitors: 820 }, { name: "desktop", visitors: 260 }, { name: "tablet", visitors: 14 }],
-    recentUsers: [{ name: "Окунь", created_at: today.toISOString(), last_sign_in_at: today.toISOString() }, { name: "an***@gmail.com", created_at: today.toISOString(), last_sign_in_at: null }],
+    recentUsers: [{ name: "Окунь", created_at: today.toISOString(), last_seen: today.toISOString() }, { name: "an***@gmail.com", created_at: today.toISOString(), last_seen: null }],
   });
   $("#updated").textContent = "Демо-дані: це не справжня статистика.";
 }

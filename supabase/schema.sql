@@ -146,8 +146,12 @@ begin
     select * from events ev
     where not exists (select 1 from excluded_visitors x where x.visitor = ev.visitor)
   ),
+  -- last_seen: the later of the last sign-in and the last cloud save. A player
+  -- stays signed in for weeks, so the sign-in alone would say "never came back".
   players as (
-    select * from auth.users u
+    select u.*, greatest(u.last_sign_in_at, s.updated_at) as last_seen
+    from auth.users u
+    left join saves s on s.user_id = u.id
     where not exists (select 1 from admins a where a.user_id = u.id)
   )
   select json_build_object(
@@ -166,7 +170,7 @@ begin
     'allTime', json_build_object(
       'visitors', (select count(distinct visitor) from counted where type = 'visit'),
       'users', (select count(*) from players),
-      'active7', (select count(*) from players where last_sign_in_at > now() - interval '7 days'),
+      'active7', (select count(*) from players where last_seen > now() - interval '7 days'),
       'saves', (select count(*) from saves where user_id in (select id from players)),
       'fishCaught', (select coalesce(sum(case when progress->>'caught' ~ '^\d+$' then (progress->>'caught')::bigint end), 0) from saves where user_id in (select id from players)),
       'trophies', (select count(*) from trophies where user_id in (select id from players))
@@ -192,7 +196,7 @@ begin
     'recentUsers', (select coalesce(json_agg(r), '[]'::json) from (
       select coalesce(nullif(raw_user_meta_data->>'nickname', ''),
                       left(split_part(email, '@', 1), 2) || '***@' || split_part(email, '@', 2)) as name,
-             created_at, last_sign_in_at
+             created_at, last_seen
       from players order by created_at desc limit 10
     ) r)
   ) into result;
