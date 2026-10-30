@@ -218,6 +218,13 @@ const cloud = new Cloud({
     applySpot();
   },
   onChange: () => ui.renderAccount(),
+  // A gift for the admin account: the glass rod (14,000 ₴), once.
+  onAdmin: () => {
+    if (progress.rods.includes("glass")) return;
+    progress.rods.push("glass");
+    ui.commit();
+    ui.toast(t("toast.gift", { item: nameOf("rod", "glass") }), "good", 3000);
+  },
 });
 ui.setCloud(cloud);
 // A new season repaints the woods and the grass.
