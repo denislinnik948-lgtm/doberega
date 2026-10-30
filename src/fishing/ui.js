@@ -502,28 +502,6 @@ export class AnglerUI {
     message.classList.toggle("is-bad", Boolean(shown?.bad));
   }
 
-  /** Ask which of two different saves to keep; resolves "remote" or "local". */
-  chooseSave({ local, remote }) {
-    const dialog = $("#sync-dialog");
-    const summary = (state) => t("sync.summary", { money: state.money.toLocaleString(locale()), caught: state.caught ?? 0, trophies: state.trophies?.length ?? 0 });
-    $("#sync-remote-summary").textContent = summary(remote);
-    $("#sync-local-summary").textContent = summary(local);
-    return new Promise((resolve) => {
-      const finish = (choice) => {
-        dialog.close();
-        resolve(choice);
-      };
-      $("#sync-remote").onclick = () => finish("remote");
-      $("#sync-local").onclick = () => finish("local");
-      // Closing without a choice keeps this device's progress.
-      dialog.oncancel = (event) => {
-        event.preventDefault();
-        finish("local");
-      };
-      dialog.showModal();
-    });
-  }
-
   /** Save and redraw; any achievement newly earned is paid out and announced first. */
   commit() {
     const earned = evaluate(this.progress);

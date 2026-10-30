@@ -7,6 +7,11 @@ import { markOwnDevice } from "./analytics.js";
 const SUPABASE_JS = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm";
 // Saves are batched: a burst of changes goes up once things settle.
 const PUSH_DELAY_MS = 3000;
+// Per account: the savedAt of the last save this device and the cloud both had.
+const SYNCED_KEY = "doberega.synced.";
+// This device's progress as it was before the cloud's replaced it, just in case.
+const BACKUP_KEY = "doberega.backup";
+
 const NICK_PATTERN = /^[\p{L}\p{N}_ -]{3,16}$/u;
 
 /** A nickname is 3–16 letters (any alphabet), digits, spaces, _ or -. */
@@ -25,13 +30,11 @@ const returnUrl = () => `${location.origin}${location.pathname}`;
 export class Cloud {
   /**
    * `getProgress` returns the live progress, `applyProgress(save)` replaces it
-   * with a save from the cloud, `chooseSave({ local, remote })` asks which one
-   * to keep ("local" or "remote"), `onChange` redraws the account UI.
+   * with a save from the cloud, `onChange` redraws the account UI.
    */
-  constructor({ getProgress, applyProgress, chooseSave, onChange }) {
+  constructor({ getProgress, applyProgress, onChange }) {
     this.getProgress = getProgress;
     this.applyProgress = applyProgress;
-    this.chooseSave = chooseSave;
     this.onChange = onChange;
     this.client = null;
     this.user = null;
@@ -157,10 +160,12 @@ export class Cloud {
     this.pushTimer = null;
     if (!this.user) return;
     const progress = this.getProgress();
+    // The save can change while it goes up; remember the one that was sent.
+    const { savedAt } = progress;
     const { error } = await this.client.from("saves").upsert({
       user_id: this.user.id,
       progress,
-      updated_at: new Date(progress.savedAt ?? Date.now()).toISOString(),
+      updated_at: new Date(savedAt ?? Date.now()).toISOString(),
     });
     if (error) {
       this.fail(error);
@@ -168,6 +173,7 @@ export class Cloud {
     }
     this.error = "";
     this.lastSync = Date.now();
+    this.markSynced(savedAt);
     this.onChange();
     await this.publishTrophies(progress);
   }
@@ -200,7 +206,30 @@ export class Cloud {
     return error ? { error: error.message } : { trophies: data };
   }
 
-  /** On signing in: bring this device and the account to the same save. */
+  /** The savedAt of the last save this device and the cloud both had, for this account. */
+  syncedAt() {
+    try {
+      return Number(localStorage.getItem(SYNCED_KEY + this.user.id)) || null;
+    } catch {
+      return null;
+    }
+  }
+
+  markSynced(savedAt) {
+    try {
+      if (this.user && savedAt) localStorage.setItem(SYNCED_KEY + this.user.id, String(savedAt));
+    } catch {
+      // Without storage the next sign-in falls back to comparing the two saves.
+    }
+  }
+
+  /**
+   * On signing in or opening the game: bring this device and the account to
+   * the same save, without asking. If only one side moved on since they last
+   * matched, that side wins. If both did (or this device never synced), the
+   * one that has caught more fish wins, the newer on a tie. Progress replaced
+   * by the cloud's is kept aside under BACKUP_KEY.
+   */
   async reconcile() {
     if (!this.user) return;
     try {
@@ -212,14 +241,28 @@ export class Cloud {
         return;
       }
       const remote = normalizeProgress(data.progress);
+      const synced = this.syncedAt();
       let keep;
       if (remote.savedAt && remote.savedAt === local.savedAt) keep = "same";
       else if (!hasProgress(local)) keep = "remote";
       else if (!hasProgress(remote)) keep = "local";
-      else keep = await this.chooseSave({ local, remote });
-      if (keep === "remote") this.applyProgress(remote);
+      else if (synced && remote.savedAt === synced) keep = "local";
+      else if (synced && local.savedAt === synced) keep = "remote";
+      else if ((remote.caught ?? 0) !== (local.caught ?? 0)) keep = (remote.caught ?? 0) > (local.caught ?? 0) ? "remote" : "local";
+      else keep = (remote.savedAt ?? 0) > (local.savedAt ?? 0) ? "remote" : "local";
+      if (keep === "remote") {
+        if (hasProgress(local)) {
+          try {
+            localStorage.setItem(BACKUP_KEY, JSON.stringify(local));
+          } catch {
+            // No room for a backup: the cloud's save still goes on.
+          }
+        }
+        this.applyProgress(remote);
+      }
       if (keep === "local") await this.push();
       else {
+        this.markSynced(remote.savedAt);
         this.lastSync = Date.now();
         this.onChange();
       }

@@ -217,7 +217,6 @@ const cloud = new Cloud({
     ui.render();
     applySpot();
   },
-  chooseSave: (saves) => ui.chooseSave(saves),
   onChange: () => ui.renderAccount(),
 });
 ui.setCloud(cloud);
