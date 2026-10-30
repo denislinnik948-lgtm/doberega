@@ -266,12 +266,6 @@ function handleGameEvent(type, data) {
     sounds.snag();
   } else if (type === "liftout") {
     sounds.liftOut();
-  } else if (type === "leap") {
-    // A big fish breaks the surface: water pouring off it, then the slap as it falls back.
-    sounds.splash(Math.min(1.6, 0.6 + data.weight * 0.05));
-  } else if (type === "leapSplash") {
-    sounds.thrash(Math.max(2, data.weight));
-    if (data.weight >= 8) setTimeout(() => sounds.thrash(data.weight), 140);
   }
   if (type === "ripple") {
     const point = toScreen(data);
@@ -451,10 +445,9 @@ function anglerView(elapsed) {
     float: game.float,
     bob: target ? renderer.surfaceOffset(target.x, target.y, elapsed, config, ripples) : { x: 0, y: 0 },
     fish: game.phase === "fight" ? toScreen(game.fishPosition()) : null,
-    // How big the fish on the line is, whether it's running, and a leap in progress, for the show.
+    // How big the fish on the line is, and whether it's running, for the show.
     fishWeight: game.phase === "fight" && game.fish ? game.fish.weight : 0,
     running: game.phase === "fight" && !game.pulling && (game.behavior ?? 0) > 1,
-    leap: game.phase === "fight" && game.leap ? { ...game.leap, from: toScreen(game.leap.from), to: toScreen(game.leap.to) } : null,
     tension: game.tension,
     pulling: game.pulling,
     snag: game.snag,

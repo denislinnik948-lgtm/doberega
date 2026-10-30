@@ -241,9 +241,6 @@ export class FishingGame {
     this.behavior = 0;
     this.behaviorClock = 0;
     this.splashClock = 0;
-    // A big fish leaps clear of the water now and then (only for the show: the fight goes on the same).
-    this.leap = null;
-    this.leapClock = 2 + this.random() * 4;
     this.float.sink = 1;
     this.enter("fight");
     this.emit("hooked", { fish: this.fish, onDip });
@@ -538,37 +535,6 @@ export class FishingGame {
     }
   }
 
-  /**
-   * A big fish (2 kg and up, or one straining the rod) leaps out of the water
-   * every few seconds while it is still well out: an arc out and back in,
-   * announced as "leap" and "leapSplash" for the picture and the sound.
-   */
-  updateLeap(dt) {
-    const fish = this.fish;
-    if (!fish || fish.junk || this.snag) return;
-    if (this.leap) {
-      this.leap.t += dt / this.leap.duration;
-      if (this.leap.t >= 1) {
-        const end = this.leap.to;
-        this.emit("leapSplash", { x: end.x, y: end.y, weight: fish.weight });
-        this.ripple(end, 1, Math.min(1.2, 0.5 + fish.weight * 0.04));
-        this.leap = null;
-      }
-      return;
-    }
-    const big = fish.weight >= 2 || this.rates.strain > 0.7;
-    if (!big || this.distance < 0.18) return;
-    this.leapClock -= dt * (this.pulling ? 1.4 : 1) * (this.behavior > 1 ? 1.5 : 1);
-    if (this.leapClock > 0) return;
-    this.leapClock = 4 + this.random() * 6;
-    const from = this.fishPosition();
-    const side = this.random() < 0.5 ? -1 : 1;
-    const travel = 0.02 + Math.min(0.04, fish.weight * 0.0015);
-    this.leap = { t: 0, duration: 0.7 + Math.min(0.5, fish.weight * 0.015), from, to: { x: from.x + side * travel, y: from.y + 0.004 }, side };
-    this.ripple(from, 0.8, Math.min(1, 0.4 + fish.weight * 0.03));
-    this.emit("leap", { x: from.x, y: from.y, weight: fish.weight });
-  }
-
   updateFight(dt) {
     const { rates, random } = this;
 
@@ -618,8 +584,6 @@ export class FishingGame {
       this.escape("straightened", true, "straightened");
       return;
     }
-
-    this.updateLeap(dt);
 
     this.splashClock -= dt;
     if (this.splashClock <= 0) {

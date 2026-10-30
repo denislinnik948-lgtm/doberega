@@ -1437,43 +1437,6 @@ export class CanvasWaterRenderer {
     return landed;
   }
 
-  /**
-   * A big fish leaping clear of the water: its body in glyphs (longer the
-   * heavier it is) arcing out and back in, tilted along its path, shedding
-   * drops, with spray where it left the water and where it falls back.
-   */
-  drawLeap(ctx, angler, size) {
-    const { leap, fishWeight } = angler;
-    const u = Math.min(1, leap.t);
-    const rise = this.height * (0.025 + Math.min(0.05, fishWeight * 0.0022));
-    const x = leap.from.x + (leap.to.x - leap.from.x) * u;
-    const y = leap.from.y + (leap.to.y - leap.from.y) * u - rise * 4 * u * (1 - u);
-    // The body tilts nose up on the way out, nose down on the way back.
-    const climb = -rise * 4 * (1 - 2 * u);
-    const angle = Math.atan2(climb, Math.abs(leap.to.x - leap.from.x) * 1.5 + 1) * (leap.side > 0 ? 1 : -1);
-    const body = fishWeight >= 15 ? "><((((((°>" : fishWeight >= 6 ? "><(((((°>" : "><(((°>";
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(angle);
-    if (leap.side < 0) ctx.scale(-1, 1);
-    ctx.font = `700 ${Math.round(size * (1 + Math.min(0.8, fishWeight * 0.03)))}px ${MONO_FONT}`;
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = "#101a16";
-    ctx.strokeText(body, 0, 0);
-    ctx.fillStyle = "#d4dccb";
-    ctx.fillText(body, 0, 0);
-    ctx.restore();
-    ctx.font = `600 ${size}px ${MONO_FONT}`;
-    // Drops shed off the fish, and spray where it broke the surface and where it will fall back.
-    ctx.fillStyle = "#e6efe9";
-    for (let i = 0; i < 6; i += 1) {
-      const spread = (i - 2.5) * size * 0.5;
-      ctx.fillText(i % 2 ? "'" : ".", x + spread * 0.6, y + size * 0.5 + ((i * 7) % 5) * 2);
-    }
-    if (u < 0.35) for (let i = 0; i < 5; i += 1) ctx.fillText(i % 2 ? "*" : "'", leap.from.x + (i - 2) * size * 0.5, leap.from.y - size * (0.3 + (0.35 - u) * 2 * ((i % 3) + 1) * 0.4));
-    if (u > 0.85) for (let i = 0; i < 5; i += 1) ctx.fillText(i % 2 ? "*" : "^", leap.to.x + (i - 2) * size * 0.55, leap.to.y - size * (u - 0.85) * 4 * ((i % 3) + 1) * 0.3);
-  }
-
   /** The wooden railing of the bridge we fish from, pre-rendered once per layout. */
   createBridgeImage(railFraction) {
     const { width, height, cellWidth, lineHeight, pixelRatio } = this;
@@ -2305,7 +2268,6 @@ export class CanvasWaterRenderer {
             ctx.fillText(i % 2 ? "~" : "-", point.x + Math.sin(i * 2.1) * 3, point.y);
           });
         }
-        if (angler.leap) this.drawLeap(ctx, angler, size);
         if (angler.distance < 0.25) {
           ctx.fillStyle = "#c9d6c6";
           ctx.fillText("><(((°>", end.x, end.y + size * 0.6);
