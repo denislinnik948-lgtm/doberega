@@ -57,33 +57,8 @@ drop policy if exists "delete own trophies" on public.trophies;
 create policy "delete own trophies" on public.trophies
   for delete using (auth.uid() = user_id);
 
--- The daily quest: who has done it. One row per player per day (days are
--- counted in UTC from the Unix epoch, as in src/fishing/quests.js). Anyone
--- can see the list; each player can only add or change their own row.
-create table if not exists public.quest_done (
-  day int not null check (day > 19000 and day < 100000),
-  user_id uuid not null references auth.users (id) on delete cascade,
-  -- The player's nickname at the time; empty shows as "Angler". Never the email.
-  player text not null default '' check (char_length(player) <= 32),
-  done_at timestamptz not null default now(),
-  primary key (day, user_id)
-);
-
-create index if not exists quest_done_day_idx on public.quest_done (day, done_at);
-
-alter table public.quest_done enable row level security;
-
-drop policy if exists "anyone reads quest finishers" on public.quest_done;
-create policy "anyone reads quest finishers" on public.quest_done
-  for select using (true);
-
-drop policy if exists "insert own quest" on public.quest_done;
-create policy "insert own quest" on public.quest_done
-  for insert with check (auth.uid() = user_id);
-
-drop policy if exists "update own quest" on public.quest_done;
-create policy "update own quest" on public.quest_done
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+-- The daily quest no longer keeps a list of who has done it.
+drop table if exists public.quest_done;
 
 -- ---------------------------------------------------------------------------
 -- Usage stats for the stats page (stats/index.html).

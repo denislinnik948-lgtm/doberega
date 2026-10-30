@@ -80,7 +80,7 @@ export class AnglerUI {
     this.baitDialog = $("#bait-dialog");
     this.baitButton = $("#bait-chip");
     this.shopQuantities = {};
-    // The new shop and backpack, on trial: which ware is picked on each shelf, which item is looked at in the pack.
+    // Which ware is picked on each shelf of the shop, which item is looked at in the backpack.
     this.shopPicks = {};
     this.packPick = null;
 
@@ -107,7 +107,6 @@ export class AnglerUI {
     $("#settings-button").addEventListener("click", () => this.openSettings());
     $("#account-button").addEventListener("click", () => this.openAccount());
     $("#quest-strip").addEventListener("click", () => this.openQuest());
-    $("#quest-chip").addEventListener("click", () => this.openQuest());
     for (const tab of document.querySelectorAll("#shop-dialog .tab")) {
       tab.addEventListener("click", () => this.showShopTab(tab.dataset.tab));
     }
@@ -637,7 +636,7 @@ export class AnglerUI {
     return `${Math.min(state.value, quest.target)}/${quest.target}`;
   }
 
-  /** The quest line in the menu and the chip in game, kept to today's quest. */
+  /** The quest line in the menu, kept to today's quest. */
   renderQuest() {
     const quest = todaysQuest();
     const state = questState(this.progress, quest);
@@ -649,11 +648,7 @@ export class AnglerUI {
     $("#quest-strip-goal").textContent = this.questGoal(quest);
     $("#quest-strip-count").textContent = count;
     $("#quest-strip").classList.toggle("is-done", done);
-    $("#quest-chip-count").textContent = done ? "✓" : this.questCount(quest, state);
-    $("#quest-chip").classList.toggle("is-done", done);
-    $("#quest-chip").setAttribute("aria-label", `${t("quest.title")}: ${this.questGoal(quest)}, ${count}`);
     $("#quest-strip-icon").replaceChildren(questSprite(3, done));
-    $("#quest-chip-icon").replaceChildren(questSprite(3, done));
   }
 
   /** Today's quest done: the reward is already paid; say so once the catch card is closed. */
@@ -670,7 +665,7 @@ export class AnglerUI {
     show();
   }
 
-  /** The quest window: what it asks, how far along, the reward, and who has done it today. */
+  /** The quest window: what it asks, how far along, the reward, and when the next one comes. */
   openQuest() {
     const quest = todaysQuest();
     const state = questState(this.progress, quest);
@@ -682,30 +677,6 @@ export class AnglerUI {
       : t("quest.progress", { count: this.questCount(quest, state), reward: formatMoney(questReward(this.progress)) });
     const left = untilNextQuest();
     $("#quest-next").textContent = t("quest.next", { hours: Math.floor(left / 3600000), minutes: Math.floor((left % 3600000) / 60000) });
-    const list = $("#quest-list");
-    const note = $("#quest-list-note");
-    const say = (text) => {
-      note.textContent = text;
-      note.hidden = !text;
-    };
-    list.replaceChildren();
-    const cloud = this.cloud;
-    if (!cloud?.enabled) say(t("quest.listOff"));
-    else {
-      say(t("trophies.loading"));
-      const request = (this.questRequest = cloud.questFinishers(quest.day));
-      request.then((result) => {
-        if (request !== this.questRequest) return;
-        if (result.error) return say(t("quest.listError"));
-        const me = cloud.user?.id;
-        list.replaceChildren(...result.finishers.map((row) => element("li", { className: row.user_id === me ? "is-me" : "" }, [
-          row.player || t("trophies.anonymous"),
-          element("small", { textContent: new Date(row.done_at).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" }) }),
-        ])));
-        const hint = !cloud.user ? t("quest.signInHint") : "";
-        say(result.finishers.length ? hint : [t("quest.nobody"), hint].filter(Boolean).join(" "));
-      });
-    }
     if (!dialog.open) dialog.showModal();
   }
 
@@ -954,8 +925,8 @@ export class AnglerUI {
       tab.setAttribute("aria-selected", String(active));
       $(`#${tab.dataset.tab}`).hidden = !active;
     }
-    // On trial the slip under the shelves follows the tab.
-    if (this.shopDialog.classList.contains("is-trial")) this.openTrialShop();
+    // The slip under the shelves follows the tab.
+    if (this.shopDialog.open) this.openShop();
   }
 
   /** A − qty + stepper for buying bait by the piece. */
@@ -973,206 +944,7 @@ export class AnglerUI {
     ]);
   }
 
-  /** Features still on trial: shown to admin accounts, or anywhere with `?trial`. */
-  get trial() {
-    return Boolean(this.cloud?.admin) || new URLSearchParams(location.search).has("trial");
-  }
-
-  openShop() {
-    this.shopDialog.classList.toggle("is-trial", this.trial);
-    if (this.trial) {
-      this.openTrialShop();
-      return;
-    }
-    const { progress } = this;
-    const pay = (price, apply) => () => {
-      if (progress.money < price) return;
-      progress.money -= price;
-      // Rods and gear cost a lot more than a bag of bait: they sound like it.
-      if (price >= 1000) sounds.buyBig();
-      else sounds.coin();
-      apply();
-      this.commit();
-      this.openShop();
-    };
-
-    // Bread is free; the spoon is sold among the extras.
-    $("#bait-shop").replaceChildren(...Object.entries(BAITS).filter(([, bait]) => !bait.free && !bait.lure).map(([id, bait]) => {
-      const qty = this.shopQuantities[id] ?? 1;
-      const total = qty * bait.price;
-      return element("li", { className: "card" }, [
-        element("div", { className: "card-art" }, [baitSprite(id, 4)]),
-        element("strong", { textContent: nameOf("bait", id) }),
-        element("span", { className: "card-price", textContent: t("shop.each", { price: bait.price }) }),
-        element("span", { className: "card-stock", textContent: t("shop.inPack", { count: progress.baits[id] ?? 0 }) }),
-        this.stepper(id, bait.price),
-        element("button", {
-          className: "pixel-btn pixel-btn-buy",
-          type: "button",
-          disabled: progress.money < total,
-          onclick: pay(total, () => {
-            progress.baits[id] = (progress.baits[id] ?? 0) + qty;
-            this.shopQuantities[id] = 1;
-          }),
-        }, [t("shop.buy", { total: formatMoney(total) })]),
-      ]);
-    }));
-
-    $("#rod-shop").replaceChildren(...Object.entries(RODS).map(([id, rod]) => {
-      const owned = progress.rods.includes(id);
-      return element("li", { className: `card${owned ? " is-owned" : ""}` }, [
-        element("div", { className: "card-art" }, [rodArt(id, 3)]),
-        element("strong", { textContent: nameOf("rod", id) }),
-        element("small", { textContent: t("shop.upTo", { weight: formatWeight(rod.maxKg) }) }),
-        owned
-          ? element("span", { className: "card-owned", textContent: t("shop.owned") })
-          : element("button", {
-            className: "pixel-btn pixel-btn-buy",
-            type: "button",
-            disabled: progress.money < rod.price,
-            onclick: pay(rod.price, () => {
-              progress.rods.push(id);
-              progress.rod = id;
-            }),
-          }, [formatMoney(rod.price)]),
-      ]);
-    }));
-
-    // Consumables sold by the piece: groundbait, hooks and lures.
-    const pieceCard = (id, art, title, text, price, stock, add) => {
-      const qty = this.shopQuantities[id] ?? 1;
-      return element("li", { className: "card" }, [
-        element("div", { className: "card-art" }, [art]),
-        element("strong", { textContent: title }),
-        // One line per fact, so "who bites" and "holds" read apart.
-        ...[text].flat().map((line) => element("small", { className: "card-fact", textContent: line })),
-        element("span", { className: "card-price", textContent: t("shop.each", { price }) }),
-        element("span", { className: "card-stock", textContent: t("shop.inPack", { count: stock }) }),
-        this.stepper(id, price),
-        element("button", {
-          className: "pixel-btn pixel-btn-buy",
-          type: "button",
-          disabled: progress.money < qty * price,
-          onclick: pay(qty * price, () => {
-            add(qty);
-            this.shopQuantities[id] = 1;
-          }),
-        }, [t("shop.buy", { total: formatMoney(qty * price) })]),
-      ]);
-    };
-    const groundbaitCard = pieceCard("groundbait", groundbaitSprite(4), t("shop.groundbait"), t("shop.groundbaitText"), GROUNDBAIT.price, progress.groundbait, (qty) => {
-      progress.groundbait += qty;
-    });
-    $("#extra-shop").replaceChildren(groundbaitCard, ...Object.entries(EXTRAS).map(([id, extra]) => {
-      const owned = progress.extras.includes(id);
-      return element("li", { className: `card${owned ? " is-owned" : ""}` }, [
-        element("div", { className: "card-art" }, [extraSprite(id, 3)]),
-        element("strong", { textContent: nameOf("extra", id) }),
-        element("small", { textContent: nameOf("extraText", id) }),
-        owned
-          ? element("span", { className: "card-owned", textContent: t("shop.owned") })
-          : element("button", {
-            className: "pixel-btn pixel-btn-buy",
-            type: "button",
-            disabled: progress.money < extra.price,
-            onclick: pay(extra.price, () => {
-              progress.extras.push(id);
-            }),
-          }, [formatMoney(extra.price)]),
-      ]);
-    }));
-
-    // Tackle: what each hook or lure lets bite and what it holds, said plainly on the card.
-    const reach = (gear) => [
-      t("tackle.takes", { what: gear.minKg ? t("tackle.from", { weight: formatWeight(gear.minKg) }) : t("tackle.any") }),
-      t("tackle.holds", { what: Number.isFinite(gear.holdKg) ? t("tackle.upTo", { weight: formatWeight(gear.holdKg) }) : t("tackle.anyWeight") }),
-    ];
-    const hookCards = Object.entries(HOOKS).map(([id, hook]) => pieceCard(`hook-${id}`, hookSprite(HOOK_SCALE[id] + 1), nameOf("hook", id), reach(hook), hook.price, progress.hooks[id] ?? 0, (qty) => {
-      progress.hooks[id] = (progress.hooks[id] ?? 0) + qty;
-    }));
-    const reel = progress.extras.includes("spinreel");
-    const lureCards = Object.entries(BAITS).filter(([, bait]) => bait.lure).map(([id, lure]) => pieceCard(id, baitSprite(id, 4), nameOf("bait", id),
-      [...reach(lure), t(`tackle.style.${id}`), reel ? "" : t("tackle.needReel")].filter(Boolean), lure.price, progress.baits[id] ?? 0, (qty) => {
-        progress.baits[id] = (progress.baits[id] ?? 0) + qty;
-      }));
-    // Spare line: goes on by itself when the line on the reel wears through.
-    const lineCard = pieceCard("line", lineSprite(4), t("line.name"), t("line.shopText"), LINE.price, progress.lines, (qty) => {
-      progress.lines += qty;
-    });
-    $("#tackle-shop").replaceChildren(...hookCards, lineCard, ...lureCards);
-
-    document.querySelectorAll("#bait-shop .card, #rod-shop .card, #tackle-shop .card, #extra-shop .card").forEach((card, index) => frame(card, "well", 300 + index));
-    if (!this.shopDialog.open) this.shopDialog.showModal();
-  }
-
-  /* ---------- Backpack ---------- */
-
-  openPack() {
-    this.packDialog.classList.toggle("is-trial", this.trial);
-    $("#pack-trial").hidden = !this.trial;
-    this.packDialog.querySelector(".pack-body").hidden = this.trial;
-    if (this.trial) {
-      this.openTrialPack();
-      return;
-    }
-    const { progress } = this;
-    const choose = (apply) => () => {
-      apply();
-      this.commit();
-      this.openPack();
-    };
-    const tile = (selected, art, title, tag, onclick) => element("li", {}, [element("button", {
-      className: `pick pack-item${selected ? " is-selected" : ""}`,
-      type: "button",
-      title,
-      ariaPressed: String(selected),
-      onclick,
-    }, [art, element("span", { className: "pack-name", textContent: title }), element("span", { className: "pick-tag", textContent: tag })])]);
-
-    $("#pack-rods").replaceChildren(...progress.rods.map((id) => tile(
-      id === progress.rod, rodArt(id, 3), nameOf("rod", id), formatWeight(RODS[id].maxKg),
-      choose(() => { progress.rod = id; }),
-    )));
-    // Hooks by size: pick the one to fish with; a size you have none of can't be picked.
-    $("#pack-hooks").replaceChildren(...Object.keys(HOOKS).map((id) => {
-      const left = progress.hooks[id] ?? 0;
-      const item = tile(id === progress.hook, hookSprite(HOOK_SCALE[id]), nameOf("hook", id), `×${left}`, choose(() => { progress.hook = id; }));
-      item.querySelector("button").disabled = left <= 0 && id !== progress.hook;
-      return item;
-    }));
-    // The line on the reel, how much of it is left; with a spare, a tap puts a new one on.
-    const worn = progress.line < LINE.weakBelow;
-    const lineTile = tile(false, lineSprite(3, worn), t("line.name"), `${Math.round(progress.line * 100)}%`, () => this.renewLine(true));
-    lineTile.querySelector(".pick-tag").classList.toggle("is-worn", worn);
-    lineTile.querySelector("button").title = t("line.hint", { spare: progress.lines });
-    $("#pack-line").replaceChildren(lineTile, ...(progress.lines > 0
-      ? [tile(false, lineSprite(3), t("line.spare"), `×${progress.lines}`, () => this.renewLine(true))]
-      : []));
-    // Every bait you have, as in the bait picker: picking one puts it on the hook.
-    const reel = progress.extras.includes("spinreel");
-    $("#pack-baits").replaceChildren(...this.ownedBaits().map((id) => {
-      // Lures can't be fished without a spinning reel.
-      const locked = BAITS[id].lure && !reel;
-      const item = tile(id === progress.bait, baitSprite(id, 3), nameOf("bait", id), locked ? t("pack.needReel") : countLabel(baitCount(progress, id)), choose(() => { progress.bait = id; }));
-      const button = item.querySelector("button");
-      button.disabled = locked;
-      if (locked) button.title = t("toast.needReel");
-      return item;
-    }));
-    $("#pack-extras").replaceChildren(
-      // Groundbait goes into the water you're at, straight from the backpack.
-      ...(progress.groundbait > 0 ? [tile(false, groundbaitSprite(3), t("shop.groundbait"), `×${progress.groundbait}`, () => this.useGroundbait())] : []),
-      ...progress.extras.map((id) => tile(
-        false, extraSprite(id, 3), nameOf("extra", id), id === "handbook" ? t("pack.read") : "",
-        id === "handbook" ? () => this.openHandbook() : () => {},
-      )),
-    );
-    $("#pack-extras-empty").hidden = progress.extras.length > 0 || progress.groundbait > 0;
-    if (!this.packDialog.open) this.packDialog.showModal();
-  }
-
-
-  /* ---------- Shop and backpack on trial ---------- */
+  /* ---------- Shop and backpack ---------- */
 
   /** Everything the shop sells, tab by tab: sold by the piece (with a stock) or once (owned or not). */
   shopWares() {
@@ -1215,7 +987,7 @@ export class AnglerUI {
    * shelf, a price tag under each. Tapping a ware picks it; what it is, how
    * many to buy and the Buy button sit in one slip under the shelves.
    */
-  openTrialShop() {
+  openShop() {
     const { progress } = this;
     const wares = this.shopWares();
     let slip = $("#shop-slip");
@@ -1237,7 +1009,7 @@ export class AnglerUI {
             if (this.shopPicks[tab] === ware.id) return;
             this.shopPicks[tab] = ware.id;
             sounds.ui("select");
-            this.openTrialShop();
+            this.openShop();
           },
         }, [
           element("span", { className: "ware-art" }, [ware.art()]),
@@ -1270,11 +1042,11 @@ export class AnglerUI {
         else sounds.coin();
         apply();
         this.commit();
-        this.openTrialShop();
+        this.openShop();
       },
     }, [t("shop.buy", { total: formatMoney(total) })]);
     let action;
-    if (ware.owned) action = [element("span", { className: "card-owned", textContent: t("shop.owned") })];
+    if (ware.owned) action = [element("span", { className: "slip-owned", textContent: t("shop.owned") })];
     else if (ware.add) {
       const qty = this.shopQuantities[ware.id] ?? 1;
       action = [this.stepper(ware.id, ware.price), buy(qty * ware.price, () => { ware.add(qty); this.shopQuantities[ware.id] = 1; })];
@@ -1295,7 +1067,7 @@ export class AnglerUI {
    * it up at once; the slip at the bottom says what the last tapped thing is
    * and holds what else it can do (put on a new line, bait the water, read).
    */
-  openTrialPack() {
+  openPack() {
     const { progress } = this;
     const reel = progress.extras.includes("spinreel");
     const worn = progress.line < LINE.weakBelow;
@@ -1344,7 +1116,7 @@ export class AnglerUI {
         item.take();
         this.commit();
       } else sounds.ui("select");
-      this.openTrialPack();
+      this.openPack();
     };
     const tile = (item) => element("button", {
       className: `pack-cell${item.key === this.packPick ? " is-picked" : ""}${item.on ? " is-on" : ""}`,
@@ -1383,7 +1155,7 @@ export class AnglerUI {
         className: "pixel-btn pixel-btn-buy slip-buy", type: "button", textContent: picked.action[0], onclick: picked.action[1],
       })])] : []),
     ] : [];
-    const body = $("#pack-trial");
+    const body = $("#pack-pockets");
     body.replaceChildren(
       element("div", { className: "pack-sections" }, [
         section("rods", t("pack.rodCase"), "rod-case"),
@@ -1480,12 +1252,32 @@ export class AnglerUI {
     const wasHidden = chip.hidden;
     chip.hidden = step === 0;
     if (!step) return;
-    $("#groundbait-fill").style.width = `${Math.min(100, (hours / GROUNDBAIT.hours) * 100)}%`;
+    this.paintGroundbaitRing(Math.min(1, hours / GROUNDBAIT.hours));
     const label = t("hud.groundbait", { hours: Math.ceil(hours) });
     chip.setAttribute("aria-label", label);
     chip.title = label;
     // A frame painted while hidden has no size; paint it now.
     if (wasHidden) repaint(chip);
+  }
+
+  /** The ring round the groundbait icon: lit clockwise from the top for the share of time left, in whole pixels. */
+  paintGroundbaitRing(share) {
+    const canvas = $("#groundbait-ring");
+    const ctx = canvas.getContext("2d");
+    const size = canvas.width;
+    const middle = size / 2;
+    ctx.clearRect(0, 0, size, size);
+    for (let y = 0; y < size; y += 1) {
+      for (let x = 0; x < size; x += 1) {
+        const dx = x + 0.5 - middle;
+        const dy = y + 0.5 - middle;
+        const distance = Math.hypot(dx, dy);
+        if (distance < middle - 2.4 || distance > middle - 0.4) continue;
+        const turn = (Math.atan2(dx, -dy) / (Math.PI * 2) + 1) % 1;
+        ctx.fillStyle = turn < share ? P.gold : P.dark;
+        ctx.fillRect(x, y, 1, 1);
+      }
+    }
   }
 
   openHandbook(tab = "fish") {

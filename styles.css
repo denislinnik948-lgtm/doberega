@@ -186,7 +186,7 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
 .pixel-btn-primary { border-color: #d8d6bc; color: var(--ink); background: #d8d6bc; }
 .pixel-btn-primary b { color: var(--ink); }
 .pixel-btn-primary:hover:not(:disabled) { border-color: var(--bone); background: var(--bone); }
-/* Buying in a shop card: a calm button with the price in gold, so a grid of cards isn't a wall of white. */
+/* Buying in the shop: a calm button, so the slip isn't a wall of white. */
 .pixel-btn-buy { color: var(--bone); background: var(--deep); }
 .pixel-btn-buy b { color: var(--gold); }
 .pixel-btn-quiet { color: var(--light); }
@@ -212,22 +212,21 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
 }
 .hud-top > * { pointer-events: auto; }
 .hud-left { display: flex; align-items: flex-start; gap: 10px; }
-/* Groundbait in the water: an icon and a bar of the time it has left. */
-.groundbait-chip { display: flex; align-items: center; gap: 10px; min-height: 60px; padding: 8px 14px 8px 10px; }
+/* Groundbait in the water: a square chip as tall as the clock, the time it has left a ring round the icon. */
+.groundbait-chip { display: grid; place-items: center; width: 60px; height: 60px; padding: 0; }
+.groundbait-chip > :not(.frame-art) { grid-area: 1 / 1; }
 .groundbait-chip[hidden] { display: none; }
 .groundbait-icon .sprite { display: block; }
-.groundbait-bar { display: block; width: 80px; height: 12px; background: var(--ink); box-shadow: 0 0 0 2px var(--mid); }
-.groundbait-fill { display: block; height: 100%; background: var(--gold); transition: width 400ms steps(4); }
+.groundbait-ring { width: 40px; height: 40px; image-rendering: pixelated; }
 .hud-top .clock { min-height: 60px; }
-/* Today's quest: a chip under the clock in game, a line above the menu buttons. */
+/* Today's quest: a line above the menu buttons. */
 .quest-icon .sprite { display: block; }
-.quest-chip { display: flex; align-items: center; gap: 8px; min-height: 60px; padding: 8px 14px 8px 10px; color: var(--gold); font: inherit; font-size: 26px; font-variant-numeric: tabular-nums; cursor: pointer; }
-.quest-chip.is-done, .quest-strip.is-done .quest-strip-count { color: var(--light); }
+.quest-strip.is-done .quest-strip-count { color: var(--light); }
 .quest-strip { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; width: min(620px, 100%); min-height: 52px; padding: 6px 14px 6px 10px; color: var(--bone); font: inherit; font-size: 20px; line-height: 1.15; text-align: left; cursor: pointer; }
 .quest-strip-text { display: grid; min-width: 0; }
 .quest-strip-text small { color: var(--light); font-size: 16px; }
 .quest-strip-count { color: var(--gold); font-size: 24px; font-variant-numeric: tabular-nums; }
-.quest-strip:active, .quest-chip:active { transform: translateY(2px); }
+.quest-strip:active { transform: translateY(2px); }
 .quest-sheet { width: min(480px, calc(100% - 24px)); }
 .quest-body { display: grid; gap: 10px; }
 .quest-body h3 { margin: 6px 0 0; }
@@ -236,10 +235,6 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
 .quest-bar span { display: block; height: 100%; background: var(--gold); }
 .quest-status { margin: 0; color: var(--gold); font-size: 22px; }
 .quest-next { margin: 0; color: var(--light); font-size: 18px; }
-.quest-list { display: grid; gap: 4px; max-height: 40vh; margin: 0; padding: 0 0 0 34px; overflow-y: auto; color: var(--bone); font-size: 20px; }
-.quest-list li::marker { color: var(--light); }
-.quest-list small { margin-left: 8px; color: var(--light); }
-.quest-list .is-me { color: var(--gold); }
 
 .chip {
   display: inline-flex;
@@ -482,7 +477,6 @@ html.keyboard-open .sheet[open] > .account-body {
 .tab { color: var(--light); border-color: transparent; background: rgba(10, 20, 18, 0.5); }
 .tab.is-active { color: var(--bone); border-color: var(--line-hover); background: var(--dark); }
 
-.card-grid,
 .trophy-wall,
 .achievement-list {
   min-height: 0;
@@ -493,28 +487,6 @@ html.keyboard-open .sheet[open] > .account-body {
   list-style: none;
   scrollbar-color: var(--mid) transparent;
 }
-.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
-.card-grid[hidden] { display: none; }
-.card {
-  display: grid;
-  justify-items: center;
-  gap: 6px;
-  padding: 14px 12px 12px;
-  text-align: center;
-}
-.card-art { display: grid; height: 64px; place-items: center; }
-.card strong { font-size: 30px; font-weight: 500; }
-.card small { min-height: 21px; color: var(--light); font-size: 18px; line-height: 1.4; }
-/* Tackle facts: a few short lines, tight together. */
-.card .card-fact { min-height: 0; font-size: 17px; line-height: 1.25; }
-.card .card-fact + .card-fact { margin-top: -4px; }
-/* Price and stock sit on separate lines so neither gets lost. */
-.card-price { color: var(--gold); font-size: 26px; line-height: 1.1; }
-/* An owned rod or extra: a plain label where the buy button was, same height. */
-.card-owned { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 44px; color: var(--light); font-size: 22px; opacity: 0.8; }
-.card-stock { margin-top: -6px; color: var(--light); font-size: 20px; letter-spacing: 0.02em; opacity: 0.85; }
-.card .pixel-btn { width: 100%; }
-
 .trophy-wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 18px; }
 .trophy { display: grid; gap: 10px; }
 .trophy .picture { min-height: 120px; }
@@ -795,23 +767,13 @@ html.keyboard-open .sheet[open] > .account-body {
   .icon-btn { width: 52px; height: 52px; }
   .chip { min-height: 48px; font-size: 22px; }
   .hud-top .clock { min-height: 52px; font-size: 26px; }
-  .groundbait-chip { min-height: 52px; padding: 6px 10px 6px 8px; }
-  .groundbait-bar { width: 52px; }
-  .quest-chip { min-height: 52px; padding: 6px 10px 6px 8px; font-size: 22px; }
+  .groundbait-chip { width: 52px; height: 52px; }
   .quest-strip { min-height: 48px; font-size: 18px; }
   .bait-chip { min-height: 60px; font-size: 22px; }
 
   /* Dialogs use almost the whole screen and scroll inside. */
   .sheet, .sheet-wide { width: calc(100% - 16px); max-height: calc(100dvh - 16px); padding: 24px 20px 20px; }
   .sheet h2 { font-size: 26px; }
-  .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; max-height: calc(100dvh - 210px); padding-inline: 0; }
-  .card { min-width: 0; padding: 12px 8px 10px; }
-  .card .pixel-btn { padding-inline: 6px; font-size: 18px; }
-  .card strong { font-size: 22px; }
-  .card small { font-size: 16px; }
-  .card-price { font-size: 22px; }
-  .card-stock { font-size: 17px; }
-  .card-owned { font-size: 19px; }
   .stepper { gap: 4px; }
   .stepper .pixel-btn-square { width: 40px; min-height: 44px; }
   .stepper-value { min-width: 28px; font-size: 26px; }
@@ -876,7 +838,7 @@ html.keyboard-open .sheet[open] > .account-body {
 .achievement-toast-reward { color: var(--gold); font-size: 19px; white-space: nowrap; }
 @keyframes achievement-in { from { opacity: 0; transform: translate(-50%, -60%); } }
 
-/* ---------- Shop and backpack on trial (ui.trial) ---------- */
+/* ---------- Shop and backpack ---------- */
 
 /* The picked thing: gold corner brackets that breathe, the item lifted a little. */
 .ware.is-picked::after,
@@ -904,7 +866,8 @@ html.keyboard-open .sheet[open] > .account-body {
 @media (prefers-reduced-motion: reduce) { :is(.ware, .pack-cell, .rod-row).is-picked::after { animation: none; } }
 
 /* Shop: the wares on wooden shelves, three to a shelf, a price tag hanging under each. */
-.sheet.is-trial .card-grid:not([hidden]) { display: block; flex: 1 1 auto; max-height: none; padding: 8px 4px 0; }
+.shelves { flex: 1 1 auto; min-height: 0; margin: 0; padding: 8px 4px 0; overflow-y: auto; list-style: none; scrollbar-color: var(--mid) transparent; }
+.shelves[hidden] { display: none; }
 .shelf {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -938,18 +901,17 @@ html.keyboard-open .sheet[open] > .account-body {
 .ware.is-owned .price-tag { background: var(--light); }
 
 /* The slip under the shelves (and in the backpack): what it is, and what to do with it. */
-.shop-slip { display: none; }
-.sheet.is-trial .shop-slip { display: grid; flex: none; gap: 6px; padding: 16px 18px; }
+.shop-slip { display: grid; flex: none; gap: 6px; padding: 16px 18px; }
 .slip-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .slip-head strong { color: var(--bone); font-size: 24px; font-weight: 500; }
 .slip-stock { color: var(--gold); font-size: 18px; white-space: nowrap; }
 .slip-fact { color: var(--light); font-size: 18px; line-height: 1.15; }
 .slip-action { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
 .slip-buy { flex: 1; min-height: 44px; }
-.slip-action .card-owned { min-height: 44px; }
+.slip-owned { display: flex; flex: 1; align-items: center; justify-content: center; min-height: 44px; color: var(--light); font-size: 22px; }
 
 /* Backpack: a rod case, a tackle box, the bait and a pocket. */
-.pack-trial { min-height: 0; overflow-y: auto; padding: 4px 2px; scrollbar-color: var(--mid) transparent; }
+.pack-pockets { min-height: 0; overflow-y: auto; padding: 4px 2px; scrollbar-color: var(--mid) transparent; }
 .pack-sections { display: grid; gap: 12px; }
 .pack-pair { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 12px; }
 .pack-pocket { padding: 12px; }
@@ -993,5 +955,5 @@ html.keyboard-open .sheet[open] > .account-body {
   .shelf { padding: 0; }
   .ware { min-height: 108px; font-size: 18px; }
   .pack-pair { grid-template-columns: minmax(0, 1fr); }
-  .sheet.is-trial .shop-slip { padding: 14px 14px; }
+  .shop-slip { padding: 14px; }
 }

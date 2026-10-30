@@ -79,13 +79,8 @@
           <!-- This water is baited: how much of the 24 game hours is left. -->
           <div class="groundbait-chip" id="groundbait-chip" data-frame="box" role="img" hidden>
             <span class="groundbait-icon" id="groundbait-icon" aria-hidden="true"></span>
-            <span class="groundbait-bar" aria-hidden="true"><span class="groundbait-fill" id="groundbait-fill"></span></span>
+            <canvas class="groundbait-ring" id="groundbait-ring" width="20" height="20" aria-hidden="true"></canvas>
           </div>
-          <!-- Today's quest: how far along; tap for the details. -->
-          <button class="quest-chip" id="quest-chip" data-frame="box" type="button" aria-haspopup="dialog">
-            <span class="quest-icon" id="quest-chip-icon" aria-hidden="true"></span>
-            <span id="quest-chip-count"></span>
-          </button>
         </div>
         <button id="exit-button" class="icon-btn" data-frame="box" type="button" data-i18n-aria="a11y.exit" data-i18n-title="a11y.exitTitle"></button>
       </div>
@@ -159,9 +154,6 @@
         <span class="quest-bar" aria-hidden="true"><span id="quest-fill"></span></span>
         <p class="quest-status" id="quest-status"></p>
         <p class="quest-next" id="quest-next"></p>
-        <h3 id="quest-done-title" data-i18n="quest.doneToday">Done today</h3>
-        <ol class="quest-list" id="quest-list"></ol>
-        <p class="empty-note" id="quest-list-note" hidden></p>
       </div>
     </dialog>
 
@@ -177,10 +169,10 @@
         <button class="pixel-btn tab" type="button" role="tab" aria-selected="false" data-tab="tackle-shop" data-i18n="shop.tackle">Tackle</button>
         <button class="pixel-btn tab" type="button" role="tab" aria-selected="false" data-tab="extra-shop" data-i18n="shop.extras">Extras</button>
       </div>
-      <ul class="card-grid" id="bait-shop" role="tabpanel"></ul>
-      <ul class="card-grid" id="rod-shop" role="tabpanel" hidden></ul>
-      <ul class="card-grid" id="tackle-shop" role="tabpanel" hidden></ul>
-      <ul class="card-grid" id="extra-shop" role="tabpanel" hidden></ul>
+      <ul class="shelves" id="bait-shop" role="tabpanel"></ul>
+      <ul class="shelves" id="rod-shop" role="tabpanel" hidden></ul>
+      <ul class="shelves" id="tackle-shop" role="tabpanel" hidden></ul>
+      <ul class="shelves" id="extra-shop" role="tabpanel" hidden></ul>
     </dialog>
 
     <dialog class="sheet sheet-wide" id="pack-dialog" data-frame="ornate" aria-labelledby="pack-title">
@@ -189,20 +181,7 @@
         <div class="chip chip-small pack-hooks" data-frame="box" data-i18n-aria="a11y.hooks"><span class="chip-icon" id="pack-hook-sprite"></span><span id="pack-hook-count">×5</span></div>
         <form method="dialog"><button class="pixel-btn pixel-btn-square" type="submit" data-i18n-aria="a11y.close">✕</button></form>
       </header>
-      <div class="pack-body">
-        <h3 data-i18n="pack.rods">Rods</h3>
-        <ul class="item-row" id="pack-rods"></ul>
-        <h3 data-i18n="pack.hooks">Hooks</h3>
-        <ul class="item-row" id="pack-hooks"></ul>
-        <h3 data-i18n="line.name">Line</h3>
-        <ul class="item-row" id="pack-line"></ul>
-        <h3 data-i18n="pack.bait">Bait</h3>
-        <ul class="item-row" id="pack-baits"></ul>
-        <h3 data-i18n="pack.extras">Extras</h3>
-        <ul class="item-row" id="pack-extras"></ul>
-        <p class="empty-note" id="pack-extras-empty" data-i18n="pack.empty">Nothing yet</p>
-      </div>
-      <div class="pack-trial" id="pack-trial" hidden></div>
+      <div class="pack-pockets" id="pack-pockets"></div>
     </dialog>
 
     <dialog class="sheet sheet-wide" id="bait-dialog" data-frame="ornate" aria-labelledby="bait-title">
