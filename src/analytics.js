@@ -116,14 +116,16 @@ function send(type) {
  * the owner's: its events so far drop out of the stats (the server keeps a
  * list) and it stops sending new ones. Every home-screen install and browser
  * has its own device id, so this runs wherever an admin signs in.
+ * Resolves to whether the account is an admin (false on a local copy).
  */
 export async function markOwnDevice(client) {
-  if (!client || local) return;
+  if (!client || local) return false;
   const { data, error } = await client.rpc("exclude_my_device", { device_visitor: visitor });
-  if (error || data !== true) return;
+  if (error || data !== true) return false;
   try {
     localStorage.setItem(OWN_KEY, "1");
   } catch {
     // Without storage the server-side list still keeps this device out of the stats.
   }
+  return true;
 }

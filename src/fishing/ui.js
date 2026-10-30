@@ -48,6 +48,12 @@ function friendlyError(message) {
   if (text.includes("email") && text.includes("invalid")) return t("account.needEmail");
   return t("account.error", { message });
 }
+// What a hook or lure lets bite and what it holds, said plainly.
+const reachLines = (gear) => [
+  t("tackle.takes", { what: gear.minKg ? t("tackle.from", { weight: formatWeight(gear.minKg) }) : t("tackle.any") }),
+  t("tackle.holds", { what: Number.isFinite(gear.holdKg) ? t("tackle.upTo", { weight: formatWeight(gear.holdKg) }) : t("tackle.anyWeight") }),
+];
+
 const countLabel = (count) => (count === Infinity ? "∞" : `×${count}`);
 /** "lake (medium, sand, weed)" — a fishing spot's type, depth and bottom in words. */
 
@@ -74,6 +80,9 @@ export class AnglerUI {
     this.baitDialog = $("#bait-dialog");
     this.baitButton = $("#bait-chip");
     this.shopQuantities = {};
+    // The new shop and backpack, on trial: which ware is picked on each shelf, which item is looked at in the pack.
+    this.shopPicks = {};
+    this.packPick = null;
 
     frameAll();
     this.paintIcons();
@@ -945,6 +954,8 @@ export class AnglerUI {
       tab.setAttribute("aria-selected", String(active));
       $(`#${tab.dataset.tab}`).hidden = !active;
     }
+    // On trial the slip under the shelves follows the tab.
+    if (this.shopDialog.classList.contains("is-trial")) this.openTrialShop();
   }
 
   /** A − qty + stepper for buying bait by the piece. */
@@ -962,7 +973,17 @@ export class AnglerUI {
     ]);
   }
 
+  /** Features still on trial: shown to admin accounts, or anywhere with `?trial`. */
+  get trial() {
+    return Boolean(this.cloud?.admin) || new URLSearchParams(location.search).has("trial");
+  }
+
   openShop() {
+    this.shopDialog.classList.toggle("is-trial", this.trial);
+    if (this.trial) {
+      this.openTrialShop();
+      return;
+    }
     const { progress } = this;
     const pay = (price, apply) => () => {
       if (progress.money < price) return;
@@ -1087,6 +1108,13 @@ export class AnglerUI {
   /* ---------- Backpack ---------- */
 
   openPack() {
+    this.packDialog.classList.toggle("is-trial", this.trial);
+    $("#pack-trial").hidden = !this.trial;
+    this.packDialog.querySelector(".pack-body").hidden = this.trial;
+    if (this.trial) {
+      this.openTrialPack();
+      return;
+    }
     const { progress } = this;
     const choose = (apply) => () => {
       apply();
@@ -1140,6 +1168,240 @@ export class AnglerUI {
       )),
     );
     $("#pack-extras-empty").hidden = progress.extras.length > 0 || progress.groundbait > 0;
+    if (!this.packDialog.open) this.packDialog.showModal();
+  }
+
+
+  /* ---------- Shop and backpack on trial ---------- */
+
+  /** Everything the shop sells, tab by tab: sold by the piece (with a stock) or once (owned or not). */
+  shopWares() {
+    const { progress } = this;
+    const piece = (id, art, title, facts, price, stock, add) => ({ id, art, title, facts: [facts].flat(), price, stock, add });
+    const once = (id, art, title, facts, price, owned, buy) => ({ id, art, title, facts: [facts].flat(), price, owned, buy });
+    const reel = progress.extras.includes("spinreel");
+    return {
+      "bait-shop": Object.entries(BAITS).filter(([, bait]) => !bait.free && !bait.lure).map(([id, bait]) => piece(
+        id, () => baitSprite(id, 4), nameOf("bait", id), [], bait.price, progress.baits[id] ?? 0,
+        (qty) => { progress.baits[id] = (progress.baits[id] ?? 0) + qty; },
+      )),
+      "rod-shop": Object.entries(RODS).map(([id, rod]) => once(
+        id, () => rodArt(id, 3), nameOf("rod", id), t("shop.upTo", { weight: formatWeight(rod.maxKg) }), rod.price, progress.rods.includes(id),
+        () => { progress.rods.push(id); progress.rod = id; },
+      )),
+      "tackle-shop": [
+        ...Object.entries(HOOKS).map(([id, hook]) => piece(
+          `hook-${id}`, () => hookSprite(HOOK_SCALE[id] + 1), nameOf("hook", id), reachLines(hook), hook.price, progress.hooks[id] ?? 0,
+          (qty) => { progress.hooks[id] = (progress.hooks[id] ?? 0) + qty; },
+        )),
+        piece("line", () => lineSprite(4), t("line.name"), t("line.shopText"), LINE.price, progress.lines, (qty) => { progress.lines += qty; }),
+        ...Object.entries(BAITS).filter(([, bait]) => bait.lure).map(([id, lure]) => piece(
+          id, () => baitSprite(id, 4), nameOf("bait", id), [...reachLines(lure), t(`tackle.style.${id}`), reel ? "" : t("tackle.needReel")].filter(Boolean),
+          lure.price, progress.baits[id] ?? 0, (qty) => { progress.baits[id] = (progress.baits[id] ?? 0) + qty; },
+        )),
+      ],
+      "extra-shop": [
+        piece("groundbait", () => groundbaitSprite(4), t("shop.groundbait"), t("shop.groundbaitText"), GROUNDBAIT.price, progress.groundbait, (qty) => { progress.groundbait += qty; }),
+        ...Object.entries(EXTRAS).map(([id, extra]) => once(
+          id, () => extraSprite(id, 3), nameOf("extra", id), nameOf("extraText", id), extra.price, progress.extras.includes(id),
+          () => { progress.extras.push(id); },
+        )),
+      ],
+    };
+  }
+
+  /**
+   * The shop as a counter: each tab's wares on wooden shelves, three to a
+   * shelf, a price tag under each. Tapping a ware picks it; what it is, how
+   * many to buy and the Buy button sit in one slip under the shelves.
+   */
+  openTrialShop() {
+    const { progress } = this;
+    const wares = this.shopWares();
+    let slip = $("#shop-slip");
+    if (!slip) {
+      slip = element("div", { className: "shop-slip", id: "shop-slip" });
+      this.shopDialog.append(slip);
+      frame(slip, "box", 431);
+    }
+    const activeTab = this.shopDialog.querySelector(".tab.is-active")?.dataset.tab ?? "bait-shop";
+    for (const [tab, list] of Object.entries(wares)) {
+      if (!list.some((ware) => ware.id === this.shopPicks[tab])) this.shopPicks[tab] = list[0]?.id;
+      const shelves = [];
+      for (let i = 0; i < list.length; i += 3) {
+        shelves.push(element("li", { className: "shelf" }, list.slice(i, i + 3).map((ware) => element("button", {
+          className: `ware${ware.id === this.shopPicks[tab] ? " is-picked" : ""}${ware.owned ? " is-owned" : ""}`,
+          type: "button",
+          ariaPressed: String(ware.id === this.shopPicks[tab]),
+          onclick: () => {
+            if (this.shopPicks[tab] === ware.id) return;
+            this.shopPicks[tab] = ware.id;
+            sounds.ui("select");
+            this.openTrialShop();
+          },
+        }, [
+          element("span", { className: "ware-art" }, [ware.art()]),
+          element("span", { className: "ware-name", textContent: ware.title }),
+          element("span", { className: "price-tag", textContent: ware.owned ? "✓" : formatMoney(ware.price) }),
+        ]))));
+      }
+      $(`#${tab}`).replaceChildren(...shelves);
+    }
+    this.renderSlip(wares[activeTab].find((ware) => ware.id === this.shopPicks[activeTab]));
+    if (!this.shopDialog.open) this.shopDialog.showModal();
+  }
+
+  /** The slip under the shelves: the picked ware, and buying it. */
+  renderSlip(ware) {
+    const { progress } = this;
+    const slip = $("#shop-slip");
+    if (!ware) {
+      setContent(slip);
+      return;
+    }
+    const buy = (total, apply) => element("button", {
+      className: "pixel-btn pixel-btn-buy slip-buy",
+      type: "button",
+      disabled: progress.money < total,
+      onclick: () => {
+        if (progress.money < total) return;
+        progress.money -= total;
+        if (total >= 1000) sounds.buyBig();
+        else sounds.coin();
+        apply();
+        this.commit();
+        this.openTrialShop();
+      },
+    }, [t("shop.buy", { total: formatMoney(total) })]);
+    let action;
+    if (ware.owned) action = [element("span", { className: "card-owned", textContent: t("shop.owned") })];
+    else if (ware.add) {
+      const qty = this.shopQuantities[ware.id] ?? 1;
+      action = [this.stepper(ware.id, ware.price), buy(qty * ware.price, () => { ware.add(qty); this.shopQuantities[ware.id] = 1; })];
+    } else action = [buy(ware.price, ware.buy)];
+    setContent(slip,
+      element("div", { className: "slip-head" }, [
+        element("strong", { textContent: ware.title }),
+        element("span", { className: "slip-stock", textContent: ware.add ? t("shop.inPack", { count: ware.stock }) : "" }),
+      ]),
+      ...ware.facts.map((line) => element("small", { className: "slip-fact", textContent: line })),
+      element("div", { className: "slip-action" }, action),
+    );
+  }
+
+  /**
+   * The backpack laid open: a rod case, a tackle box (hooks, line, lures),
+   * the bait, and a pocket for the rest. Tapping a rod, hook or bait takes
+   * it up at once; the slip at the bottom says what the last tapped thing is
+   * and holds what else it can do (put on a new line, bait the water, read).
+   */
+  openTrialPack() {
+    const { progress } = this;
+    const reel = progress.extras.includes("spinreel");
+    const worn = progress.line < LINE.weakBelow;
+    const items = [];
+    const add = (section, item) => items.push({ section, ...item });
+    for (const id of progress.rods) add("rods", {
+      key: `rod:${id}`, art: () => rodArt(id, 2), title: nameOf("rod", id), tag: formatWeight(RODS[id].maxKg),
+      facts: [t("shop.upTo", { weight: formatWeight(RODS[id].maxKg) })], on: id === progress.rod, status: t("pack.inHand"),
+      take: () => { progress.rod = id; },
+    });
+    for (const [id, hook] of Object.entries(HOOKS)) {
+      const left = progress.hooks[id] ?? 0;
+      add("box", {
+        key: `hook:${id}`, art: () => hookSprite(HOOK_SCALE[id]), title: nameOf("hook", id), tag: `×${left}`,
+        facts: reachLines(hook), on: id === progress.hook, status: t("pack.tied"),
+        take: left > 0 || id === progress.hook ? () => { progress.hook = id; } : null,
+      });
+    }
+    add("box", {
+      key: "line", art: () => lineSprite(3, worn), title: t("line.name"), tag: `${Math.round(progress.line * 100)}%`, worn,
+      facts: [`${t("line.spare")}: ${progress.lines}`], action: [t("pack.newLine"), () => this.renewLine(true)],
+    });
+    for (const id of this.ownedBaits()) {
+      const locked = BAITS[id].lure && !reel;
+      add(BAITS[id].lure ? "box" : "bait", {
+        key: `bait:${id}`, art: () => baitSprite(id, 3), title: nameOf("bait", id),
+        tag: locked ? t("pack.needReel") : countLabel(baitCount(progress, id)),
+        facts: BAITS[id].lure ? [...reachLines(BAITS[id]), t(`tackle.style.${id}`), locked ? t("tackle.needReel") : ""].filter(Boolean) : [],
+        on: id === progress.bait, status: t("pack.onHook"),
+        take: locked ? null : () => { progress.bait = id; },
+      });
+    }
+    if (progress.groundbait > 0) add("pocket", {
+      key: "groundbait", art: () => groundbaitSprite(3), title: t("shop.groundbait"), tag: `×${progress.groundbait}`,
+      facts: [t("shop.groundbaitText")], action: [t("pack.feed"), () => this.useGroundbait()],
+    });
+    for (const id of progress.extras) add("pocket", {
+      key: `extra:${id}`, art: () => extraSprite(id, 3), title: nameOf("extra", id), tag: "",
+      facts: [nameOf("extraText", id)], action: id === "handbook" ? [t("pack.readIt"), () => this.openHandbook()] : null,
+    });
+
+    if (!items.some((item) => item.key === this.packPick)) this.packPick = items.find((item) => item.on)?.key ?? items[0]?.key;
+    const pick = (item) => () => {
+      this.packPick = item.key;
+      if (item.take && !item.on) {
+        item.take();
+        this.commit();
+      } else sounds.ui("select");
+      this.openTrialPack();
+    };
+    const tile = (item) => element("button", {
+      className: `pack-cell${item.key === this.packPick ? " is-picked" : ""}${item.on ? " is-on" : ""}`,
+      type: "button",
+      title: item.title,
+      ariaPressed: String(item.key === this.packPick),
+      onclick: pick(item),
+    }, [
+      element("span", { className: "ware-art" }, [item.art()]),
+      element("span", { className: `pick-tag${item.worn ? " is-worn" : ""}`, textContent: item.tag }),
+    ]);
+    const section = (id, label, className) => {
+      const own = items.filter((item) => item.section === id);
+      return element("section", { className: `pack-pocket pack-${id}` }, [
+        element("h3", { textContent: label }),
+        own.length
+          ? element("div", { className }, own.map((item) => (id === "rods"
+            ? element("button", {
+              className: `rod-row${item.key === this.packPick ? " is-picked" : ""}${item.on ? " is-on" : ""}`,
+              type: "button",
+              ariaPressed: String(item.key === this.packPick),
+              onclick: pick(item),
+            }, [element("span", { className: "ware-art" }, [item.art()]), element("span", { className: "ware-name", textContent: item.title }), element("span", { className: "pick-tag", textContent: item.tag })])
+            : tile(item))))
+          : element("p", { className: "empty-note", textContent: t("pack.empty") }),
+      ]);
+    };
+    const picked = items.find((item) => item.key === this.packPick);
+    const slipBody = picked ? [
+      element("div", { className: "slip-head" }, [
+        element("strong", { textContent: picked.title }),
+        element("span", { className: "slip-stock", textContent: picked.on ? picked.status : "" }),
+      ]),
+      ...picked.facts.map((line) => element("small", { className: "slip-fact", textContent: line })),
+      ...(picked.action ? [element("div", { className: "slip-action" }, [element("button", {
+        className: "pixel-btn pixel-btn-buy slip-buy", type: "button", textContent: picked.action[0], onclick: picked.action[1],
+      })])] : []),
+    ] : [];
+    const body = $("#pack-trial");
+    body.replaceChildren(
+      element("div", { className: "pack-sections" }, [
+        section("rods", t("pack.rodCase"), "rod-case"),
+        element("div", { className: "pack-pair" }, [
+          section("box", t("pack.box"), "pack-grid"),
+          section("bait", t("pack.bait"), "pack-grid"),
+        ]),
+        section("pocket", t("pack.pocket"), "pack-grid"),
+      ]),
+    );
+    body.querySelectorAll(".pack-pocket").forEach((pocket, index) => frame(pocket, "well", 520 + index));
+    let slip = $("#pack-slip");
+    if (!slip) {
+      slip = element("div", { className: "shop-slip", id: "pack-slip" });
+      this.packDialog.append(slip);
+      frame(slip, "box", 433);
+    }
+    setContent(slip, ...slipBody);
     if (!this.packDialog.open) this.packDialog.showModal();
   }
 
