@@ -1,8 +1,8 @@
-import { FISH, LOCATIONS, RODS } from "./data.js";
+import { FISH, LEGENDS, LOCATIONS, RODS } from "./data.js";
 
 /**
  * Achievements: a badge, a note on screen and a little money each. The money
- * is modest (50–1000 ₴, about 13,000 ₴ for all of them, under 3% of what the
+ * is modest (50–1500 ₴, about 15,500 ₴ for all of them, under 3% of what the
  * rods and gear cost), so they reward without upsetting the economy.
  *
  * What they need is counted in `progress.stats` (see `recordCatch` below and the
@@ -81,6 +81,8 @@ export const ACHIEVEMENTS = [
   { id: "kindHeart", group: "special", reward: 100, ...counted(10, (p) => stat(p, "releasedFromNet")) },
   { id: "oldBoot", group: "special", reward: 50, ...flag((p) => stat(p, "boots") >= 1) },
   { id: "duckThief", group: "special", reward: 100, ...counted(5, (p) => stat(p, "duckSteals")) },
+  { id: "legend", group: "special", reward: 1000, ...flag((p) => Object.values(LEGENDS).some((legend) => hasTrophy(p, legend.id))) },
+  { id: "allLegends", group: "special", reward: 1500, ...counted(Object.keys(LEGENDS).length, (p) => Object.values(LEGENDS).filter((legend) => hasTrophy(p, legend.id)).length) },
   { id: "valerka", group: "special", reward: 500, secret: true, ...flag((p) => hasTrophy(p, "valerka")) },
   { id: "artem", group: "special", reward: 500, secret: true, ...flag((p) => hasTrophy(p, "artem")) },
   { id: "mutant", group: "special", reward: 500, secret: true, ...flag((p) => hasTrophy(p, "dvoholovyi")) },

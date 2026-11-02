@@ -53,6 +53,16 @@ export const FISH = {
   valerka: { min: 0.12, max: 0.28, pricePerKg: 0, unique: true, active: { base: 1, peaks: [] } },
   // Another joke: Artem, a crayfish in sunglasses who simply grabbed the hook. Priceless, trophy only.
   artem: { min: 0.05, max: 0.14, pricePerKg: 0, unique: true, active: { base: 1, peaks: [] } },
+  /*
+   * The legends: one giant per water, each a fish of a kind already there
+   * but far past its usual size, with a name of its own. Priceless, trophy
+   * only (`unique`), and caught only on a bait its kind takes (see LEGENDS).
+   */
+  zolotyi: { min: 2.2, max: 3, pricePerKg: 0, unique: true, legend: true, active: { base: 1, peaks: [] } },
+  syva: { min: 11, max: 14, pricePerKg: 0, unique: true, legend: true, active: { base: 1, peaks: [] } },
+  knyazha: { min: 6, max: 8, pricePerKg: 0, unique: true, legend: true, active: { base: 1, peaks: [] } },
+  myron: { min: 28, max: 35, pricePerKg: 0, unique: true, legend: true, active: { base: 1, peaks: [] } },
+  panas: { min: 70, max: 85, pricePerKg: 0, unique: true, legend: true, active: { base: 1, peaks: [] } },
   // Not a fish: sometimes reeled in instead of an empty hook.
   boot: { min: 0.6, max: 1.4, pricePerKg: 0, junk: true, active: { base: 0, peaks: [] } },
 };
@@ -92,6 +102,10 @@ export const NIBBLE = {
   artem: { tempers: [1, 4, 4, 1], pace: 1.3, twitches: 1.2, strength: 0.6, window: 1.8 },
   boot: { tempers: [1, 0, 0, 0], pace: 1, twitches: 0, strength: 0.5, window: 1 },
 };
+// A legend bites like its kind, only harder.
+for (const [id, kind] of Object.entries({ zolotyi: "karas", syva: "shchuka", knyazha: "forel", myron: "korop", panas: "som" })) {
+  NIBBLE[id] = { ...NIBBLE[kind], strength: NIBBLE[kind].strength * 1.3 };
+}
 
 /** How much less a lure predator (pike, zander) wants a float bait than the spoon. */
 export const FLOAT_PREDATOR = 0.02;
@@ -102,6 +116,21 @@ export const VALERKA_CHANCE = 1 / 25000;
 export const ARTEM_CHANCE = 1 / 25000;
 /** The two-headed perch: as unlikely, but only at Pripyat. */
 export const TWO_HEADED_CHANCE = 1 / 25000;
+
+/**
+ * Each water's legend: who it is, the kind it's a giant of, and the baits it
+ * takes (what its kind likes, never bread or dough, which only tempt small
+ * fry). A bite on one of them at that water is the legend once in
+ * LEGEND_CHANCE: many hours of fishing the right way.
+ */
+export const LEGENDS = {
+  pond: { id: "zolotyi", kind: "karas", baits: ["worm", "maggot", "barley", "bloodworm", "corn"] },
+  lake: { id: "syva", kind: "shchuka", baits: ["spinner", "spoon", "wobbler"] },
+  castle: { id: "knyazha", kind: "forel", baits: ["spinner", "worm"] },
+  reservoir: { id: "myron", kind: "korop", baits: ["boilie", "corn", "peas", "barley"] },
+  bridge: { id: "panas", kind: "som", baits: ["frog", "livebait", "crayfish"] },
+};
+export const LEGEND_CHANCE = 1 / 2000;
 
 /** Chance that reeling in an empty line hooks an old boot. */
 export const BOOT_CHANCE = 0.012;
@@ -419,6 +448,12 @@ export function rollFish(baitId, locationIndex, random = Math.random, reach = 0.
   if (unique) {
     const { min, max } = FISH[unique];
     return { species: unique, weight: Math.round((min + random() * (max - min)) * 1000) / 1000, big: false, unique: true };
+  }
+  // The water's legend, on a bait it takes.
+  const legend = LEGENDS[location.id];
+  if (legend?.baits.includes(baitId) && random() < LEGEND_CHANCE) {
+    const { min, max } = FISH[legend.id];
+    return { species: legend.id, weight: Math.round((min + random() * (max - min)) * 1000) / 1000, big: true, unique: true, legend: true };
   }
   const species = pickWeighted(entries, random);
   const fish = FISH[species];

@@ -1,5 +1,5 @@
 import {
-  BAITS, EXTRAS, FISH, GROUNDBAIT, HOOKS, LINE, LOCATIONS, RODS, gameHoursMs,
+  BAITS, EXTRAS, FISH, GROUNDBAIT, HOOKS, LEGENDS, LINE, LOCATIONS, RODS, gameHoursMs,
   baitEntries, fishPrice, formatMoney, formatWeight, handbookEntries, peakPeriod, spotEntries, trophyCost,
 } from "./data.js";
 import {
@@ -880,7 +880,7 @@ export class AnglerUI {
     // The fish of the day sells dearer, and keeps that price in the keepnet.
     const dayFish = !unique && !junk && !guarded && fish.species === fishOfDay();
     const price = formatMoney(fishPrice({ ...fish, dayFish }));
-    $("#catch-note").textContent = unique ? t("catch.toTrophies") : junk ? t("catch.junk") : guarded ? t("catch.protected") : t(dayFish ? "catch.dayFish" : "catch.toKeepnet", { price });
+    $("#catch-note").textContent = fish.legend ? t("catch.legend") : unique ? t("catch.toTrophies") : junk ? t("catch.junk") : guarded ? t("catch.protected") : t(dayFish ? "catch.dayFish" : "catch.toKeepnet", { price });
     const date = new Date().toISOString();
     const record = { ...fish, id: `${date}-${fish.species}-${fish.weight}`, date, spot: progress.location, bait, ...(dayFish ? { dayFish } : {}) };
     if (unique) progress.trophies.unshift(record);
@@ -1477,7 +1477,8 @@ export class AnglerUI {
     $("#achievement-list").hidden = id !== "achievements";
     if (id === "atlas") this.fillAtlas();
     else this.fillAchievements();
-    this.collectionDialog.scrollTop = 0;
+    $("#atlas").scrollTop = 0;
+    $("#achievement-list").scrollTop = 0;
   }
 
   /**
@@ -1511,9 +1512,19 @@ export class AnglerUI {
       const when = entry.season === "autumn" ? t("atlas.autumn") : periodName(peakPeriod(entry.id));
       return cell(entry.id, false, [where, when], 1100 + index);
     });
+    // The legends: a rumour each until landed, then the heaviest one on the wall.
+    const legends = Object.values(LEGENDS).map((legend, index) => {
+      const best = progress.trophies.filter((trophy) => trophy.species === legend.id).sort((a, b) => b.weight - a.weight)[0];
+      if (best) return cell(legend.id, true, [t("atlas.record", { weight: formatWeight(best.weight) })], 1200 + index);
+      return cell(legend.id, false, [t(`legend.${legend.id}`)], 1200 + index);
+    });
     const found = entries.filter((entry) => count(entry.id) > 0).length;
-    $("#collection-summary").textContent = t("atlas.summary", { count: found, total: entries.length });
-    $("#atlas").replaceChildren(element("ul", { className: "atlas-grid" }, fish));
+    const landed = legends.filter((node) => node.classList.contains("is-found")).length;
+    $("#collection-summary").textContent = t("atlas.summaryLegends", { count: found, total: entries.length, legends: landed, legendTotal: legends.length });
+    $("#atlas").replaceChildren(
+      element("ul", { className: "atlas-grid" }, fish),
+      element("section", {}, [element("h3", { textContent: t("atlas.legends") }), element("ul", { className: "atlas-grid atlas-legends" }, legends)]),
+    );
   }
 
   /**

@@ -500,7 +500,8 @@ html.keyboard-open .sheet[open] > .account-body {
 .tab.is-active { color: var(--bone); border-color: var(--line-hover); background: var(--dark); }
 
 .trophy-wall,
-.achievement-list {
+.achievement-list,
+.atlas {
   min-height: 0;
   max-height: min(60vh, 560px);
   overflow-y: auto;
@@ -828,7 +829,7 @@ html.keyboard-open .sheet[open] > .account-body {
 .trophy-wall[hidden], .achievement-list[hidden], .achievement-summary[hidden], .atlas[hidden] { display: none; }
 
 /* The atlas: every fish as a card, found ones in colour, the rest a shadow with a hint. */
-.atlas { display: grid; gap: 18px; }
+.atlas { display: grid; align-content: start; gap: 18px; }
 .atlas h3 { margin: 0 0 8px; color: var(--light); font-size: 20px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
 .atlas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
 .atlas-cell { display: grid; grid-template-rows: 76px auto; justify-items: center; align-content: start; gap: 2px; padding: 12px 10px 12px; text-align: center; }
@@ -999,3 +1000,5 @@ html.keyboard-open .sheet[open] > .account-body {
   .pack-pair { grid-template-columns: minmax(0, 1fr); }
   .shop-slip { padding: 14px; }
 }
+/* A legend's rumour is a sentence: wider cards. */
+.atlas-legends { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }

@@ -132,9 +132,13 @@ Nobody else's progress is listed: the quest is between the angler and the water 
 
 **Колекція** in the main menu has two tabs. **Атлас** shows every fish in the game as a card (built from `handbookEntries`, so a new species appears by itself): a caught one in colour with how many and the heaviest, the rest a dark silhouette with a hint, the water where it is most common and the part of the day it feeds best (burbot: autumn nights). **Ачівки** lists the achievements below. Trophies keep their own window.
 
+## Legends
+
+Each water has a legend (`LEGENDS` in `data.js`): the golden crucian at the pond (2.2–3 kg), the grey pike at the quiet lake (11–14 kg, lures only), the princely trout at the castle lake (6–8 kg), Myron the carp at Pripyat (28–35 kg) and Grandpa Panas the catfish at the old bridge (70–85 kg). Each is a giant of a kind that lives there, drawn from its kind's look in colours of its own, and bites like it, harder. A bite at its water on a bait its kind takes (never bread or dough) is the legend once in 2,000 (`LEGEND_CHANCE`), which is many hours of fishing the right way; being far past its kind's size, it needs a strong rod and a big hook. Hooked, a toast says something huge is on the line; lost, it names the legend that got away. Landed, it goes straight to the trophies, priceless (it is `unique`, like the joke fish), and so onto the public trophy wall. The atlas lists them under **Легенди**, a rumour each until landed; two achievements go with them (one legend, all five).
+
 ## Achievements
 
-Collection has an Achievements tab: 43 of them in seven groups (first steps, collecting every fish of a water, weight, skill, time and weather, numbers and money, and specials, five of them secret until earned). Each earned one is a medal, a quiet note at the top of the screen and a little money, 50 to 1000 ₴, about 13 000 ₴ in all, under 3% of what the rods and gear cost. Definitions and the counters behind them are in `src/fishing/achievements.js`; the counters live in `progress.stats`, and every save checks for newly earned ones, so older saves get what they already deserve.
+Collection has an Achievements tab: 45 of them in seven groups (first steps, collecting every fish of a water, weight, skill, time and weather, numbers and money, and specials, five of them secret until earned). Each earned one is a medal, a quiet note at the top of the screen and a little money, 50 to 1500 ₴, about 15 500 ₴ in all, under 3% of what the rods and gear cost. Definitions and the counters behind them are in `src/fishing/achievements.js`; the counters live in `progress.stats`, and every save checks for newly earned ones, so older saves get what they already deserve.
 
 ## Accounts and cloud saves
 

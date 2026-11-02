@@ -376,6 +376,20 @@ function fishGrid(species) {
 }
 
 /** An old rubber boot, dripping with weed. */
+/* The legends: each a giant of its kind, in colours of its own. */
+Object.assign(FISH_LOOKS, {
+  // The golden crucian: bright gold all over.
+  zolotyi: { ...FISH_LOOKS.karas, back: "#7a5a12", side: "#f0c23e", belly: "#fbeaa8", fin: "#c88e22", lowFin: "#e0a02c", tailFin: "#c88e22", eye: "#fff0a0" },
+  // The grey pike: an old pike gone silver-grey.
+  syva: { ...FISH_LOOKS.shchuka, back: "#3c4642", side: "#8c968e", belly: "#ecece2", fin: "#6e6c5c", lowFin: "#847e68", tailFin: "#6e6c5c", spotColor: "#d4d8cc", eye: "#e8e0b0" },
+  // The princely trout: rosy flanks and a dark back.
+  knyazha: { ...FISH_LOOKS.forel, back: "#2c3c3a", side: "#d0a0a8", belly: "#f0e4dc", lowFin: "#e08a80", spotColor: "#1a1814", eye: "#f0d8a0" },
+  // Myron the carp: old, dark bronze, mossy.
+  myron: { ...FISH_LOOKS.korop, back: "#2e2a14", side: "#8a7a34", belly: "#d8c890", fin: "#3e3a1c", lowFin: "#8a4a2a", tailFin: "#5a4220" },
+  // Grandpa Panas the catfish: near black, pale-eyed.
+  panas: { ...FISH_LOOKS.som, back: "#1a1c16", side: "#4a4a3a", belly: "#b8b49a", eye: "#e8e0c0" },
+});
+
 function bootGrid() {
   return fromRows([
     "..........oooooo....",

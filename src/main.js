@@ -261,6 +261,8 @@ function handleGameEvent(type, data) {
       renderer.splash(point.x, point.y, Math.min(1.5, 0.6 + (data.fish?.weight ?? 0) * 0.1));
     }
     if (data.onDip) bump(progress, "dipHooks");
+    // A legend on the line: the angler feels it at once.
+    if (data.fish?.legend) ui.toast(t("toast.legendOn"), "", 2200);
   } else if (type === "snag") {
     sounds.snag();
   } else if (type === "liftout") {
@@ -321,7 +323,7 @@ function handleGameEvent(type, data) {
         BAITS[data.bait].free || (lure && !data.hookLost) ? "" : t("toast.lostBait", { bait: nameOf("bait", data.bait).toLowerCase() }),
         data.hookLost && !lure ? t("toast.lostHook") : "",
       ].filter(Boolean);
-      const headline = t(`toast.${data.headline ?? "escape"}`);
+      const headline = data.fish?.legend ? t("toast.legendGone", { fish: nameOf("fish", data.fish.species) }) : t(`toast.${data.headline ?? "escape"}`);
       ui.toast(`${headline}${losses.length ? ` · ${losses.join(", ")}` : ""}`, "bad", 2400);
     } else {
       progress.caught += 1;

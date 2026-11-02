@@ -251,7 +251,8 @@ export class FishingGame {
     const fighting = this.phase === "fight";
     const at = fighting ? this.fishPosition() : this.target;
     this.ripple(at, 0.5, 0.4);
-    this.emit("outcome", { type: "escape", reason, bait: this.bait, hook: this.hookSize, hookLost, headline });
+    // The fish goes with the news if it was on the line (a legend that got away is worth a word).
+    this.emit("outcome", { type: "escape", reason, bait: this.bait, hook: this.hookSize, hookLost, headline, fish: fighting ? this.fish : null });
     // A snapped line has nothing to bring back; otherwise the empty rig comes in.
     if (fighting || !this.target) this.reset();
     else this.startReelIn();
