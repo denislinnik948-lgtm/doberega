@@ -65,19 +65,24 @@
           </span>
         </button>
 
-        <!-- Wide screens, tiled menu (for now only the admins'): today's things on tiles of their own. -->
+        <!-- Wide screens, tiled menu (for now only the admins'): today's things and the account on tiles of their own. -->
         <button class="tile tile-only" id="tile-quest" data-frame="box" type="button" aria-haspopup="dialog"><small data-i18n="quest.title">Daily quest</small><strong id="tile-quest-count"></strong><span id="tile-quest-goal"></span></button>
         <button class="tile tile-only" id="tile-day" data-frame="box" type="button" aria-haspopup="dialog"><small data-i18n="dayFish.title">Fish of the day</small><span class="tile-art" id="tile-day-art" aria-hidden="true"></span><span id="tile-day-text"></span></button>
         <button class="tile tile-only" id="tile-tourney" data-frame="box" type="button" aria-haspopup="dialog"><small id="tile-tourney-title"></small><ol class="tile-board" id="tile-tourney-board"></ol><span class="tile-note" id="tile-tourney-note"></span></button>
         <button class="tile tile-only" id="tile-streak" data-frame="box" type="button" aria-haspopup="dialog"><small data-i18n="streak.title">Days in a row</small><strong id="tile-streak-count"></strong><span class="tile-days" id="tile-streak-days" aria-hidden="true"></span></button>
-        <button class="tile tile-only" id="tile-level" data-frame="box" type="button" aria-haspopup="dialog"><small data-i18n="level.title">Level</small><strong id="tile-level-name"></strong><span class="achievement-bar"><span id="tile-level-fill"></span></span><span class="tile-note" id="tile-level-next"></span></button>
+
+        <!-- Who is playing and how far they have come: the account and the level share one wide tile. -->
+        <div class="tile tile-only tile-pair" id="tile-profile" data-frame="box">
+          <button class="tile-part" id="tile-account" type="button" aria-haspopup="dialog"><small data-i18n="account.title">Account</small><strong class="tile-name" id="tile-account-name"></strong><span class="tile-note" id="tile-account-note"></span></button>
+          <button class="tile-part" id="tile-level" type="button" aria-haspopup="dialog"><small data-i18n="level.title">Level</small><strong id="tile-level-name"></strong><span class="achievement-bar"><span id="tile-level-fill"></span></span><span class="tile-note" id="tile-level-next"></span></button>
+        </div>
 
         <nav class="menu-nav" data-i18n-aria="a11y.menu">
-          <button class="menu-item" id="shop-button" data-frame="box" type="button"><span class="menu-icon" id="shop-icon"></span><span data-i18n="menu.shop">Shop</span><small class="tile-note tile-only" id="shop-note"></small></button>
-          <button class="menu-item" id="pack-button" data-frame="box" type="button"><span class="menu-icon" id="pack-icon"></span><span data-i18n="menu.pack">Backpack</span><small class="tile-note tile-only" id="pack-note"></small></button>
-          <button class="menu-item" id="trophy-button" data-frame="box" type="button"><span class="menu-icon" id="trophy-icon"></span><span data-i18n="menu.trophies">Trophies</span> <span id="trophy-count" class="badge" hidden>0</span><small class="tile-note tile-only" id="trophy-note"></small></button>
-          <button class="menu-item" id="collection-button" data-frame="box" type="button"><span class="menu-icon" id="collection-icon"></span><span data-i18n="menu.collection">Collection</span> <span id="rank-badge" class="badge" hidden>1</span><small class="tile-note tile-only" id="collection-note"></small></button>
-          <button class="menu-item" id="settings-button" data-frame="box" type="button"><span class="menu-icon" id="settings-icon"></span><span data-i18n="menu.settings">Settings</span><small class="tile-note tile-only" id="settings-note"></small></button>
+          <button class="menu-item" id="shop-button" data-frame="box" type="button"><span class="menu-icon" id="shop-icon"></span><span data-i18n="menu.shop">Shop</span></button>
+          <button class="menu-item" id="pack-button" data-frame="box" type="button"><span class="menu-icon" id="pack-icon"></span><span data-i18n="menu.pack">Backpack</span></button>
+          <button class="menu-item" id="trophy-button" data-frame="box" type="button"><span class="menu-icon" id="trophy-icon"></span><span data-i18n="menu.trophies">Trophies</span> <span id="trophy-count" class="badge" hidden>0</span></button>
+          <button class="menu-item" id="collection-button" data-frame="box" type="button"><span class="menu-icon" id="collection-icon"></span><span data-i18n="menu.collection">Collection</span> <span id="rank-badge" class="badge" hidden>1</span></button>
+          <button class="menu-item" id="settings-button" data-frame="box" type="button"><span class="menu-icon" id="settings-icon"></span><span data-i18n="menu.settings">Settings</span></button>
         </nav>
 
         <!-- A quiet line: where progress is kept, and the way into the account. -->

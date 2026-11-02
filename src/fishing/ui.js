@@ -128,6 +128,7 @@ export class AnglerUI {
     // The tiled menu: each of today's tiles opens the window it sums up.
     for (const id of ["#tile-quest", "#tile-day", "#tile-streak"]) $(id).addEventListener("click", () => this.openQuest());
     $("#tile-tourney").addEventListener("click", () => this.openTrophies("tourney"));
+    $("#tile-account").addEventListener("click", () => this.openAccount());
     $("#tile-level").addEventListener("click", () => {
       this.showCollectionTab("ranks");
       if (!this.collectionDialog.open) this.collectionDialog.showModal();
@@ -273,6 +274,10 @@ export class AnglerUI {
     // Without a configured backend there's nothing to sign in to; the warning still stands.
     button.hidden = !cloud?.enabled;
     button.textContent = t(signedIn ? "account.open" : "account.login");
+    // The same on the tiled menu's account tile.
+    $("#tile-account-name").textContent = signedIn ? cloud.displayName : t(cloud?.enabled ? "account.login" : "account.title");
+    $("#tile-account-note").textContent = signedIn ? t("account.cloud") : t("account.local");
+    $("#tile-account").classList.toggle("is-safe", signedIn);
   }
 
   /** After the very first fish, offer once to sign in, warning what skipping means. */
@@ -656,19 +661,17 @@ export class AnglerUI {
     this.renderTiles();
   }
 
-  /** What each tile says: today's things, the level, and a line on every section. */
+  /** What each tile says: today's things and the level (the sections along the bottom are only their names). */
   renderTiles() {
     if (!document.body.classList.contains("tiles")) return;
     const { progress } = this;
-    const stats = progress.stats ?? {};
     const quest = todaysQuest();
     const state = questState(progress, quest);
     const week = tourneyWeek();
     const species = tourneyFish(week);
     const best = tourneyState(progress, week).best;
     const xp = Math.floor(progress.xp ?? 0);
-    const key = [quest.day, state.value, state.done, streakNow(progress), streakToday(progress), week, best, xp, progress.money,
-      progress.rod, progress.bait, this.baitCount, progress.trophies.length, stats.caught, language()].join(":");
+    const key = [quest.day, state.value, state.done, streakNow(progress), streakToday(progress), week, best, xp, language()].join(":");
     if (key === this.tilesKey) return;
     this.tilesKey = key;
 
@@ -691,18 +694,6 @@ export class AnglerUI {
     $("#tile-level-name").textContent = this.rankName(rank);
     $("#tile-level-fill").style.width = `${(next ? (xp - from) / (next.xp - from) : 1) * 100}%`;
     $("#tile-level-next").textContent = next ? t("level.toNext", { xp: (next.xp - xp).toLocaleString(locale()) }) : t("level.top");
-
-    // The sections: the next rod to save up for, what is in hand, the best trophy, the atlas so far.
-    const nextRod = Object.entries(RODS).find(([id]) => !progress.rods.includes(id));
-    $("#shop-note").textContent = nextRod ? t("level.nextRod", { rod: nameOf("rod", nextRod[0]), price: formatMoney(nextRod[1].price) }) : t("level.allRods");
-    $("#pack-note").textContent = `${nameOf("rod", progress.rod)} · ${nameOf("bait", progress.bait)} ${countLabel(this.baitCount)}`;
-    const top = [...progress.trophies].sort((a, b) => b.weight - a.weight)[0];
-    $("#trophy-note").textContent = top ? `${nameOf("fish", top.species)} ${formatWeight(top.weight)}` : t("level.noTrophies");
-    const entries = handbookEntries();
-    const found = entries.filter((entry) => Math.max(stats.bySpecies?.[entry.id] ?? 0, progress.released?.[entry.id] ?? 0) > 0).length;
-    const earned = ACHIEVEMENTS.filter((achievement) => progress.achievements?.[achievement.id]).length;
-    $("#collection-note").textContent = t("level.collection", { found, total: entries.length, earned, all: ACHIEVEMENTS.length });
-    $("#settings-note").textContent = t("level.settings");
 
     this.renderTourneyTile(week, species, best);
   }

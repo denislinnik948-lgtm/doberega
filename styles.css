@@ -1050,85 +1050,108 @@ html.keyboard-open .sheet[open] > .account-body {
 .spot-tile > .frame-art, .tile-only { display: none; }
 
 @media (min-width: 900px) {
-  /* Clock and money up top, the water to fish on a big tile, today's things and the rest round it. */
+  /* Clock and money up top, the water to fish on a big tile, today's things and the account beside it,
+     the sections along the bottom. The whole grid fills the screen, the tiles growing and shrinking with it. */
   .tiles .menu {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-rows: auto repeat(3, minmax(0, 1fr)) minmax(0, 0.7fr);
     grid-template-areas:
-      "top top top top"
-      "spot spot quest day"
-      "spot spot tourney streak"
-      "spot spot level settings"
-      "shop pack trophy collection"
-      "account account account account";
-    align-content: safe center;
+      "top top top top top"
+      "spot spot spot quest day"
+      "spot spot spot tourney streak"
+      "spot spot spot profile profile"
+      "shop pack trophy collection settings";
     align-items: stretch;
-    gap: 14px;
-    padding: clamp(12px, 3vh, 24px) max(28px, calc((100% - 1120px) / 2));
-  }
-  /* No water behind the tiles: plain dark ground with faint glyphs, like a page of the scene's own letters. */
-  .tiles .menu {
+    gap: clamp(10px, 1.6vh, 18px);
+    padding: clamp(12px, 3vh, 28px) clamp(16px, 3vw, 48px);
+    overflow: hidden;
+    /* No water behind the tiles: plain dark ground with faint glyphs, like a page of the scene's own letters. */
     background:
       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='72' font-family='monospace' font-size='14' fill='%231e3833'%3E%3Ctext x='6' y='18'%3E·%3C/text%3E%3Ctext x='54' y='18'%3E~%3C/text%3E%3Ctext x='30' y='54'%3E~%3C/text%3E%3Ctext x='78' y='54'%3E·%3C/text%3E%3C/svg%3E"),
       radial-gradient(ellipse at 50% 40%, var(--deep), var(--ink) 75%);
   }
   .tiles .menu-top { position: static; grid-area: top; }
-  .tiles .quest-strip { display: none; }
+  .tiles :is(.quest-strip, .account-strip) { display: none; }
   .tiles .tile-only { display: revert; }
 
-  .tiles .spot-tile { display: flex; grid-area: spot; flex-direction: column; gap: 14px; padding: 16px; }
+  /* The big tile: the picture takes whatever height is left over the traits and the button. */
+  .tiles .spot-tile { display: flex; grid-area: spot; flex-direction: column; gap: clamp(8px, 1.4vh, 14px); min-height: 0; padding: clamp(10px, 1.6vh, 18px); }
   .tiles .spot-tile > .frame-art { display: block; }
-  .tiles .spot-slider { width: 100%; }
-  .tiles .spot-picture { height: clamp(150px, 24vh, 280px); }
-  .tiles .fish-button { width: 100%; margin-top: auto; }
+  .tiles .spot-slider { flex: 1; width: 100%; min-height: 0; }
+  .tiles .spot-card { display: flex; flex-direction: column; align-self: stretch; gap: clamp(6px, 1.2vh, 12px); }
+  .tiles .card-scene { display: flex; flex: 1; flex-direction: column; min-height: 0; }
+  .tiles .spot-picture { flex: 1; height: auto; min-height: 80px; }
+  .tiles .spot-traits { grid-template-columns: repeat(4, auto 1fr); padding: 8px 18px; }
+  /* Narrower screens: the four traits in two rows. */
+  @media (max-width: 1280px) { .tiles .spot-traits { grid-template-columns: repeat(2, auto 1fr); } }
+  .tiles .fish-button { width: 100%; min-height: clamp(48px, 7vh, 72px); }
 
   .tiles .menu-nav { display: contents; }
   #tile-quest { grid-area: quest; }
   #tile-day { grid-area: day; }
   #tile-tourney { grid-area: tourney; }
   #tile-streak { grid-area: streak; }
-  #tile-level { grid-area: level; }
-  #settings-button { grid-area: settings; }
+  #tile-profile { grid-area: profile; }
   #shop-button { grid-area: shop; }
   #pack-button { grid-area: pack; }
   #trophy-button { grid-area: trophy; }
   #collection-button { grid-area: collection; }
-  .tiles .account-strip { grid-area: account; justify-self: center; }
+  #settings-button { grid-area: settings; }
 
   /* A tile: what it is in small letters, the figure that matters big, a line under it. */
-  .tiles :is(.tile, .menu-item) {
+  .tiles .tile {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    justify-content: flex-start;
-    gap: 4px;
+    justify-content: center;
+    gap: clamp(2px, 0.6vh, 6px);
     min-width: 0;
     min-height: 0;
-    padding: 14px 18px;
+    overflow: hidden;
+    padding: clamp(8px, 1.6vh, 18px) clamp(12px, 1.4vw, 22px);
     color: var(--bone);
     font: inherit;
-    font-size: 20px;
+    font-size: clamp(17px, 2.1vh, 22px);
     line-height: 1.2;
     text-align: left;
     cursor: pointer;
   }
-  .tiles .tile:active { transform: translateY(2px); }
-  .tiles .tile small { color: var(--light); font-size: 17px; }
-  .tiles .tile strong { color: var(--gold); font-size: 32px; font-weight: 500; line-height: 1; font-variant-numeric: tabular-nums; }
-  .tiles .tile-note { overflow: hidden; max-width: 100%; color: var(--light); font-size: 17px; white-space: nowrap; text-overflow: ellipsis; }
+  .tiles .tile:not(.tile-pair):active, .tiles .tile-part:active { transform: translateY(2px); }
+  /* The wide tile of two halves, each a button of its own, a faint line between them. */
+  .tiles .tile-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0; padding: 0; cursor: default; }
+  .tiles .tile-part {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: clamp(2px, 0.6vh, 6px);
+    min-width: 0;
+    padding: clamp(8px, 1.6vh, 18px) clamp(12px, 1.4vw, 22px);
+    border: 0;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    background: none;
+    cursor: pointer;
+  }
+  .tiles .tile-part + .tile-part { box-shadow: inset 2px 0 0 rgb(60 104 96 / 0.45); }
+  .tiles .tile small { color: var(--light); font-size: clamp(15px, 1.8vh, 18px); }
+  .tiles .tile strong { color: var(--gold); font-size: clamp(24px, 4vh, 40px); font-weight: 500; line-height: 1; font-variant-numeric: tabular-nums; }
+  .tiles .tile .tile-name { overflow: hidden; max-width: 100%; font-size: clamp(20px, 3vh, 30px); white-space: nowrap; text-overflow: ellipsis; }
+  .tiles #tile-account:not(.is-safe) .tile-name { color: var(--bone); }
+  .tiles .tile-note { overflow: hidden; max-width: 100%; color: var(--light); font-size: clamp(15px, 1.8vh, 18px); white-space: nowrap; text-overflow: ellipsis; }
   .tiles .tile .achievement-bar { width: 100%; height: 8px; }
   .tiles .tile .achievement-bar span { background: var(--gold); }
   .tiles .tile-art canvas { display: block; }
-  .tiles .tile-days { color: var(--gold); font-size: 22px; letter-spacing: 0.12em; }
+  .tiles .tile-days { color: var(--gold); font-size: clamp(18px, 2.6vh, 26px); letter-spacing: 0.12em; }
   .tiles .tile-days .is-off { color: var(--mid); }
-  .tiles .tile-board { display: grid; gap: 1px; width: 100%; margin: 0; padding: 0; list-style: none; font-size: 18px; }
+  .tiles .tile-board { display: grid; gap: 1px; width: 100%; margin: 0; padding: 0; list-style: none; }
   .tiles .tile-board li { display: grid; grid-template-columns: 1.4em 1fr auto; gap: 6px; }
   .tiles .tile-board li span:nth-child(2) { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .tiles .tile-board .is-me { color: var(--gold); }
 
-  /* The sections along the bottom: the icon beside the name, the note under both. */
-  .tiles .menu-item { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; align-content: center; column-gap: 12px; row-gap: 2px; }
-  .tiles .menu-item .menu-icon { grid-row: 1 / span 2; }
-  .tiles .menu-item .tile-note { display: block; grid-column: 2; }
+  /* The sections along the bottom: only the icon and the name, side by side. */
+  .tiles .menu-item { grid-template-columns: auto auto; justify-content: center; min-width: 0; min-height: 0; padding: 8px 12px; font-size: clamp(18px, 2.2vh, 24px); }
   .tiles #rank-badge { display: none; }
 }
