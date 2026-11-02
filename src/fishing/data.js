@@ -324,20 +324,24 @@ export const START_STATE = {
   location: 0,
 };
 
+/** The fish of the day (see quests.js) sells for this much more, if it was caught that day. */
+export const DAY_FISH_BONUS = 1.5;
+
 /**
  * Market price: the price per kilo times the weight, tapering for heavy fish
  * (a 40 kg catfish is worth a lot, but not forty crucians' worth per kilo).
+ * A fish caught as the fish of the day (`dayFish`) fetches DAY_FISH_BONUS times as much.
  */
 export function fishPrice(fish) {
   // A one-of-a-kind or a protected fish isn't for sale.
   if (FISH[fish.species].unique || FISH[fish.species].protected) return 0;
-  return Math.round(fish.weight ** 0.88 * FISH[fish.species].pricePerKg + 2);
+  return Math.round((fish.weight ** 0.88 * FISH[fish.species].pricePerKg + 2) * (fish.dayFish ? DAY_FISH_BONUS : 1));
 }
 
-/** A unique fish is mounted for free. */
+/** A unique fish is mounted for free; the fish of the day costs no more to mount than any other. */
 export function trophyCost(fish) {
   if (FISH[fish.species].unique) return 0;
-  return Math.round(fishPrice(fish) * 0.6 + 40);
+  return Math.round(fishPrice({ ...fish, dayFish: false }) * 0.6 + 40);
 }
 
 export function formatWeight(kg) {

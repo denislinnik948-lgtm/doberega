@@ -1,5 +1,5 @@
 import { hash2 } from "../noise.js";
-import { FISH, LOCATIONS, RODS } from "./data.js";
+import { FISH, HOOKS, LOCATIONS, RODS } from "./data.js";
 
 /*
  * The daily quest: one for everyone, the same all day. Days are counted in
@@ -11,6 +11,9 @@ import { FISH, LOCATIONS, RODS } from "./data.js";
  * shortening the rod ladder by much.
  *
  * `progress.quest` holds today's run at it: { day, value, kinds, done }.
+ *
+ * Also here, on the same days: the fish of the day, which sells dearer, and
+ * the run of days in a row with a catch, each day of it bringing a gift.
  */
 
 const DAY_MS = 86400000;
@@ -96,4 +99,71 @@ export function recordQuest(progress, fish, spotIndex, now = Date.now()) {
   progress.stats ??= {};
   progress.stats.quests = (progress.stats.quests ?? 0) + 1;
   return { quest, reward };
+}
+
+/*
+ * The fish of the day: one species, the same for everyone, that sells for
+ * DAY_FISH_BONUS times its price when caught that day. Any fish sold at the
+ * market can be it, but not the burbot (only in autumn) or the silver carp
+ * (hardly ever bites), so it is always worth trying for.
+ */
+const DAY_FISH = Object.keys(FISH).filter((id) => FISH[id].pricePerKg > 0 && !FISH[id].unique && !FISH[id].junk && !FISH[id].season && id !== "tovstolob");
+
+export function fishOfDay(day = questDay()) {
+  return DAY_FISH[Math.floor(hash2(day, 7, 9127) * DAY_FISH.length) % DAY_FISH.length];
+}
+
+/*
+ * Days in a row: a day counts once the angler lands a fish on it (days run
+ * in UTC, like the quest). Each counted day brings a gift, round a week:
+ * bait, hooks, groundbait, a spare line, and money on the fourth and the
+ * seventh (a share of the quest reward, so it keeps up with the angler).
+ * Miss a day and the run starts again from the first.
+ *
+ * `progress.streak` holds { day, count, best }.
+ */
+export const STREAK_GIFTS = [
+  { bait: "worm", count: 10 },
+  { hook: "medium", count: 5 },
+  { groundbait: 1 },
+  { money: 0.25 },
+  { lines: 1 },
+  { groundbait: 2 },
+  { money: 1 },
+];
+
+/** The gift for a day of the run (1, 2, …), round the week. */
+export const streakGift = (count) => STREAK_GIFTS[(count - 1) % STREAK_GIFTS.length];
+
+/** How many days in a row so far: still alive if the last counted day was today or yesterday. */
+export function streakNow(progress, now = Date.now()) {
+  const streak = progress.streak;
+  if (!streak) return 0;
+  return questDay(now) - streak.day <= 1 ? streak.count : 0;
+}
+
+/** Whether today is already counted. */
+export const streakToday = (progress, now = Date.now()) => progress.streak?.day === questDay(now);
+
+/**
+ * Count today towards the run, on a landed fish. Returns { count, gift } the
+ * first time on a day (the gift is given here; money paid is in `gift.paid`),
+ * otherwise null.
+ */
+export function recordDay(progress, now = Date.now()) {
+  const day = questDay(now);
+  const streak = progress.streak;
+  if (streak?.day === day) return null;
+  const count = streak?.day === day - 1 ? streak.count + 1 : 1;
+  progress.streak = { day, count, best: Math.max(streak?.best ?? 0, count) };
+  const gift = { ...streakGift(count) };
+  if (gift.bait) progress.baits[gift.bait] = (progress.baits[gift.bait] ?? 0) + gift.count;
+  if (gift.hook && HOOKS[gift.hook]) progress.hooks[gift.hook] = (progress.hooks[gift.hook] ?? 0) + gift.count;
+  if (gift.groundbait) progress.groundbait = (progress.groundbait ?? 0) + gift.groundbait;
+  if (gift.lines) progress.lines = (progress.lines ?? 0) + gift.lines;
+  if (gift.money) {
+    gift.paid = Math.round(questReward(progress) * gift.money);
+    progress.money += gift.paid;
+  }
+  return { count, gift };
 }

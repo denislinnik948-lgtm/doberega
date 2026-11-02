@@ -118,6 +118,10 @@ Thirteen baits: bread, dough, worm, maggot, pearl barley, bloodworm, peas, corn,
 
 One quest a day, the same for every angler (`src/fishing/quests.js`): days are counted in UTC, and a hash of the day's number picks a template and its numbers: catch so many of a common fish, one fish of at least a given weight, so many fish at one water, so many kilos in all, or so many kinds. Each can be done with the starting kit at the first waters. It shows as a line above the menu buttons (a notice that gets a green tick once done; the game screen stays bare), and a window with the goal, a progress bar, the reward and the time until the next quest. Done, it pays at once, by the best rod owned: 200 ₴ with the willow switch up to 5,500 ₴ with the catfish rod, about a quarter of an hour of fishing at that stage. `progress.quest` keeps today's run at it.
 
+**Fish of the day:** a hash of the same day's number also picks one species (any fish sold at the market but the burbot and the silver carp), shown on a second line of the quest notice. Caught that day it is marked `dayFish` and sells for 1.5 times its price (`DAY_FISH_BONUS` in `data.js`), keeping that price in the keepnet; mounting it as a trophy costs the usual.
+
+**Days in a row:** the first fish (not junk) landed on a day counts it (`progress.streak`: `{ day, count, best }`); a day missed starts the run again. Each counted day brings a gift, round a week (`STREAK_GIFTS`): 10 worms, 5 medium hooks, a groundbait, a quarter of the quest reward, a spare line, two groundbaits, and on the seventh day the whole quest reward. The quest notice shows the run (gold once today counts); its window, now **Сьогодні**, shows the quest, the fish of the day and the week's seven gifts. Two achievements follow it: 7 and 30 days in a row.
+
 Nobody else's progress is listed: the quest is between the angler and the water (the old `quest_done` table is dropped by [`supabase/schema.sql`](supabase/schema.sql)).
 
 ## Balance check
@@ -130,7 +134,7 @@ Nobody else's progress is listed: the quest is between the angler and the water 
 
 ## Achievements
 
-Collection has an Achievements tab: 41 of them in seven groups (first steps, collecting every fish of a water, weight, skill, time and weather, numbers and money, and specials, five of them secret until earned). Each earned one is a medal, a quiet note at the top of the screen and a little money, 50 to 1000 ₴, about 12 000 ₴ in all, under 3% of what the rods and gear cost. Definitions and the counters behind them are in `src/fishing/achievements.js`; the counters live in `progress.stats`, and every save checks for newly earned ones, so older saves get what they already deserve.
+Collection has an Achievements tab: 43 of them in seven groups (first steps, collecting every fish of a water, weight, skill, time and weather, numbers and money, and specials, five of them secret until earned). Each earned one is a medal, a quiet note at the top of the screen and a little money, 50 to 1000 ₴, about 13 000 ₴ in all, under 3% of what the rods and gear cost. Definitions and the counters behind them are in `src/fishing/achievements.js`; the counters live in `progress.stats`, and every save checks for newly earned ones, so older saves get what they already deserve.
 
 ## Accounts and cloud saves
 

@@ -16,7 +16,7 @@ import { track } from "./analytics.js";
 import { ambienceTick, jumpSound, musicTick, nightSound, sounds, thunderClap } from "./sound.js";
 import { AnglerUI } from "./fishing/ui.js";
 import { breakStreak, bump, recordCatch } from "./fishing/achievements.js";
-import { recordQuest } from "./fishing/quests.js";
+import { recordDay, recordQuest } from "./fishing/quests.js";
 import { warmFishPortraits } from "./fishing/sprites.js";
 
 // The water look is fixed: a still lake, gentle swell speed, soft glints.
@@ -302,6 +302,11 @@ function handleGameEvent(type, data) {
       // Today's quest, the same for everyone: paid the moment it's done.
       const quest = recordQuest(progress, data.fish, progress.location);
       if (quest) ui.questDone(quest);
+      // The first fish of a day counts towards the run of days in a row, with its gift.
+      if (!FISH[data.fish.species]?.junk) {
+        const day = recordDay(progress);
+        if (day) ui.dayCounted(day);
+      }
     }
     ui.commit();
     if (data.type === "escape") {

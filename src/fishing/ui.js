@@ -7,7 +7,7 @@ import {
 } from "./sprites.js";
 import { P } from "./palette.js";
 import { ACHIEVEMENTS, GROUPS, bump, evaluate } from "./achievements.js";
-import { questReward, questState, todaysQuest, untilNextQuest } from "./quests.js";
+import { STREAK_GIFTS, fishOfDay, questReward, questState, streakNow, streakToday, todaysQuest, untilNextQuest } from "./quests.js";
 import { frame, frameAll, repaint, setContent } from "./frames.js";
 import { SEASONS, isWinter, season, setSeason } from "../theme.js";
 import { validNickname } from "../cloud.js";
@@ -634,9 +634,17 @@ export class AnglerUI {
     const quest = todaysQuest();
     const state = questState(this.progress, quest);
     const done = Boolean(state.done);
-    const key = `${quest.day}:${state.value}:${done}:${language()}`;
+    const run = streakNow(this.progress);
+    const counted = streakToday(this.progress);
+    const key = `${quest.day}:${state.value}:${done}:${run}:${counted}:${language()}`;
     if (key === this.questKey) return;
     this.questKey = key;
+    // Under the quest: the fish of the day and the run of days in a row (lit once today counts).
+    const dayFish = fishOfDay(quest.day);
+    $("#day-fish-art").replaceChildren(fishSprite(dayFish, 1));
+    $("#day-fish-text").textContent = t("dayFish.short", { fish: nameOf("fish", dayFish).toLocaleLowerCase(locale()) });
+    $("#day-streak").textContent = t("streak.short", { count: run });
+    $("#day-streak").classList.toggle("is-today", counted);
     const count = done ? t("quest.doneShort") : this.questCount(quest, state);
     $("#quest-strip-goal").textContent = this.questGoal(quest);
     $("#quest-strip-count").textContent = count;
@@ -647,15 +655,52 @@ export class AnglerUI {
   /** Today's quest done: the reward is already paid; say so once the catch card is closed. */
   questDone({ reward }) {
     this.renderQuest();
-    const show = () => {
+    this.notify(t("quest.toast", { reward: formatMoney(reward) }));
+  }
+
+  /** The first fish of the day: it counts towards the run, and its gift is already given. */
+  dayCounted({ count, gift }) {
+    this.renderQuest();
+    this.notify(t("streak.toast", { count, gift: this.giftText(gift) }));
+  }
+
+  /** Good news with a coin's ring, once no dialog is open, one after another. */
+  notify(text) {
+    this.notes = [...(this.notes ?? []), text];
+    if (this.notesBusy) return;
+    this.notesBusy = true;
+    const next = () => {
+      if (!this.notes.length) {
+        this.notesBusy = false;
+        return;
+      }
       if (document.querySelector("dialog[open]")) {
-        setTimeout(show, 400);
+        setTimeout(next, 400);
         return;
       }
       sounds.coin();
-      this.toast(t("quest.toast", { reward: formatMoney(reward) }), "good", 3200);
+      this.toast(this.notes.shift(), "good", 3200);
+      setTimeout(next, 3400);
     };
-    show();
+    // The catch card opens right after the news comes in: wait for it.
+    setTimeout(next, 50);
+  }
+
+  /** A day's gift in words ("Worm ×10", "250 ₴"); money is a share of the quest reward until paid. */
+  giftText(gift) {
+    if (gift.money) return formatMoney(gift.paid ?? Math.round(questReward(this.progress) * gift.money));
+    if (gift.bait) return `${nameOf("bait", gift.bait)} ×${gift.count}`;
+    if (gift.hook) return `${nameOf("hook", gift.hook)} ×${gift.count}`;
+    if (gift.groundbait) return `${t("shop.groundbait")} ×${gift.groundbait}`;
+    return `${t("line.spare")} ×${gift.lines}`;
+  }
+
+  giftSprite(gift) {
+    if (gift.money) return coinSprite(2);
+    if (gift.bait) return baitSprite(gift.bait, 2);
+    if (gift.hook) return hookSprite(2);
+    if (gift.groundbait) return groundbaitSprite(2);
+    return lineSprite(2);
   }
 
   /** The quest window: what it asks, how far along, the reward, and when the next one comes. */
@@ -668,6 +713,23 @@ export class AnglerUI {
     $("#quest-status").textContent = state.done
       ? t("quest.done", { time: new Date(state.done).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" }) })
       : t("quest.progress", { count: this.questCount(quest, state), reward: formatMoney(questReward(this.progress)) });
+    const dayFish = fishOfDay(quest.day);
+    $("#day-fish-big").replaceChildren(fishSprite(dayFish, 2, nameOf("fish", dayFish)));
+    $("#day-fish-about").textContent = t("dayFish.about", { fish: nameOf("fish", dayFish).toLocaleLowerCase(locale()) });
+    // The run: this week's round of gifts, the days done ticked and the next one marked.
+    const run = streakNow(this.progress);
+    const counted = streakToday(this.progress);
+    $("#streak-about").textContent = counted ? t("streak.counted", { count: run }) : run ? t("streak.keep", { count: run }) : t("streak.start");
+    const from = Math.floor(((counted ? run : run + 1) - 1) / STREAK_GIFTS.length) * STREAK_GIFTS.length;
+    $("#streak-days").replaceChildren(...STREAK_GIFTS.map((gift, index) => {
+      const day = from + index + 1;
+      const state = day <= run ? " is-done" : day === run + 1 ? " is-next" : "";
+      return element("li", { className: `streak-day${state}` }, [
+        element("small", { textContent: t("streak.day", { day }) }),
+        element("span", { className: "streak-art" }, [this.giftSprite(gift)]),
+        element("span", { textContent: gift.money ? this.giftText(gift) : `×${gift.count ?? gift.groundbait ?? gift.lines}` }),
+      ]);
+    }));
     const left = untilNextQuest();
     $("#quest-next").textContent = t("quest.next", { hours: Math.floor(left / 3600000), minutes: Math.floor((left % 3600000) / 60000) });
     if (!dialog.open) dialog.showModal();
@@ -815,9 +877,12 @@ export class AnglerUI {
     // A Red Book fish (the sterlet) is let go at once; that counts towards its badge.
     const guarded = Boolean(FISH[fish.species]?.protected);
     $("#catch-note").hidden = false;
-    $("#catch-note").textContent = unique ? t("catch.toTrophies") : junk ? t("catch.junk") : guarded ? t("catch.protected") : t("catch.toKeepnet", { price: formatMoney(fishPrice(fish)) });
+    // The fish of the day sells dearer, and keeps that price in the keepnet.
+    const dayFish = !unique && !junk && !guarded && fish.species === fishOfDay();
+    const price = formatMoney(fishPrice({ ...fish, dayFish }));
+    $("#catch-note").textContent = unique ? t("catch.toTrophies") : junk ? t("catch.junk") : guarded ? t("catch.protected") : t(dayFish ? "catch.dayFish" : "catch.toKeepnet", { price });
     const date = new Date().toISOString();
-    const record = { ...fish, id: `${date}-${fish.species}-${fish.weight}`, date, spot: progress.location, bait };
+    const record = { ...fish, id: `${date}-${fish.species}-${fish.weight}`, date, spot: progress.location, bait, ...(dayFish ? { dayFish } : {}) };
     if (unique) progress.trophies.unshift(record);
     else if (guarded) progress.released[fish.species] = (progress.released[fish.species] ?? 0) + 1;
     else if (!junk) progress.keepnet.push(record);
@@ -885,7 +950,7 @@ export class AnglerUI {
         element("div", { className: "keepnet-art" }, [fishSprite(fish.species, 2)]),
         element("div", { className: "keepnet-info" }, [
           element("strong", { textContent: nameOf("fish", fish.species) }),
-          element("span", { textContent: `${formatWeight(fish.weight)} · ${formatMoney(fishPrice(fish))}` }),
+          element("span", { textContent: `${formatWeight(fish.weight)} · ${formatMoney(fishPrice(fish))}${fish.dayFish ? ` · ${t("dayFish.tag")}` : ""}` }),
         ]),
         element("div", { className: "keepnet-actions" }, [trophy, release]),
       ]);

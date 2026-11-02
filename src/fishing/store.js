@@ -77,6 +77,10 @@ export function normalizeProgress(saved) {
         done: typeof saved.quest.done === "string" ? saved.quest.done : null,
       };
     }
+    // Days in a row with a catch (see quests.js).
+    if (saved.streak && Number.isFinite(saved.streak.day) && Number.isFinite(saved.streak.count)) {
+      state.streak = { day: saved.streak.day, count: Math.max(0, saved.streak.count), best: Math.max(saved.streak.count, Number(saved.streak.best) || 0) };
+    }
     if (Number.isFinite(saved.savedAt)) state.savedAt = saved.savedAt;
   }
   return state;

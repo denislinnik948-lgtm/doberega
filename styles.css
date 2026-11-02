@@ -235,6 +235,28 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
 .quest-bar span { display: block; height: 100%; background: var(--gold); }
 .quest-status { margin: 0; color: var(--gold); font-size: 22px; }
 .quest-next { margin: 0; color: var(--light); font-size: 18px; }
+/* Under the quest in the menu: the fish of the day and the run of days in a row. */
+.day-line { display: flex; grid-column: 1 / -1; align-items: center; gap: 8px; min-width: 0; margin-top: -2px; padding-top: 4px; border-top: 2px solid rgb(60 104 96 / 0.45); color: var(--light); font-size: 17px; }
+.day-fish-art { display: grid; place-items: center; width: 34px; }
+.day-fish-art canvas { display: block; max-width: 34px; max-height: 18px; width: auto !important; height: auto !important; }
+.day-fish-text { overflow: hidden; min-width: 0; white-space: nowrap; text-overflow: ellipsis; }
+.day-streak { flex: none; margin-left: auto; color: var(--soft); }
+.day-streak.is-today { color: var(--gold); }
+/* The Today window: quest, fish of the day and the week's round of gifts. */
+.today-heading { margin: 8px 0 0; color: var(--light); font-size: 18px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
+.quest-body .today-heading:first-child { margin-top: 0; }
+.day-fish-card { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 12px; }
+.day-fish-big canvas { display: block; max-width: 110px; width: auto !important; height: auto !important; }
+.day-fish-card .quest-status { color: var(--bone); font-size: 19px; line-height: 1.2; }
+#streak-about { color: var(--bone); font-size: 19px; line-height: 1.2; }
+.streak-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin: 0; padding: 0; list-style: none; }
+.streak-day { display: grid; justify-items: center; gap: 2px; padding: 4px 2px 5px; background: rgb(10 20 18 / 0.45); box-shadow: inset 0 0 0 2px var(--dark); color: var(--soft); font-size: 15px; text-align: center; }
+.streak-day small { font-size: 13px; white-space: nowrap; }
+.streak-art { display: grid; place-items: center; height: 26px; }
+.streak-art canvas { display: block; }
+.streak-day.is-done { box-shadow: inset 0 0 0 2px var(--gold-dark); color: var(--gold); }
+.streak-day.is-next { box-shadow: inset 0 0 0 2px var(--light); color: var(--bone); }
+.streak-day:not(.is-done):not(.is-next) .streak-art { opacity: 0.6; }
 
 .chip {
   display: inline-flex;
@@ -521,6 +543,8 @@ html.keyboard-open .sheet[open] > .account-body {
   /* The live scene only glimmers through: dark in the middle, near black at the edges. */
   background: radial-gradient(ellipse at 50% 50%, rgba(6, 10, 12, 0.82), rgba(4, 6, 8, 0.95) 75%);
 }
+/* Nothing in the menu is squeezed: on a short screen it scrolls instead. */
+.menu > * { flex-shrink: 0; }
 .menu-top {
   position: absolute;
   top: clamp(12px, 3vh, 24px);
@@ -729,8 +753,8 @@ html.keyboard-open .sheet[open] > .account-body {
   /* Menu: a compact top bar, content starting below it so nothing overlaps. */
   .menu {
     justify-content: flex-start;
-    gap: 12px;
-    padding: calc(env(safe-area-inset-top, 0px) + 78px) 12px calc(env(safe-area-inset-bottom, 0px) + 16px);
+    gap: 9px;
+    padding: calc(env(safe-area-inset-top, 0px) + 78px) 12px calc(env(safe-area-inset-bottom, 0px) + 12px);
   }
   .menu-top { top: calc(env(safe-area-inset-top, 0px) + 12px); right: 12px; left: 12px; }
   /* Clock, name and money with equal gaps between them, whatever the clock's width. */
@@ -741,7 +765,7 @@ html.keyboard-open .sheet[open] > .account-body {
   /* Painted boxes draw their line 4px in from the edge; plain buttons are inset to match. */
   .spot-slider { gap: 8px; margin-top: 0; padding-inline: 4px; }
   .spot-arrow { width: 40px; min-height: 56px; }
-  .spot-picture { height: clamp(140px, 24vh, 200px); }
+  .spot-picture { height: clamp(130px, 19vh, 200px); }
   .spot-traits { padding: 12px 16px; }
   .fish-button { width: calc(100% - 8px); min-height: 60px; }
   /* Three a row, the icon over its label, so all five fit in two rows. */

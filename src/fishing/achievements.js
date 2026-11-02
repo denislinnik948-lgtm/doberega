@@ -2,7 +2,7 @@ import { FISH, LOCATIONS, RODS } from "./data.js";
 
 /**
  * Achievements: a badge, a note on screen and a little money each. The money
- * is modest (50–1000 ₴, about 12,000 ₴ for all of them, under 3% of what the
+ * is modest (50–1000 ₴, about 13,000 ₴ for all of them, under 3% of what the
  * rods and gear cost), so they reward without upsetting the economy.
  *
  * What they need is counted in `progress.stats` (see `recordCatch` below and the
@@ -73,6 +73,8 @@ export const ACHIEVEMENTS = [
   { id: "thousand", group: "count", reward: 500, ...counted(1000, (p) => p.caught) },
   { id: "fullNet", group: "count", reward: 300, ...flag((p) => stat(p, "bigSale") >= 1) },
   { id: "wealthy", group: "count", reward: 500, ...flag((p) => p.money >= 100000) },
+  { id: "week", group: "count", reward: 300, ...counted(7, (p) => p.streak?.best ?? 0) },
+  { id: "month", group: "count", reward: 1000, ...counted(30, (p) => p.streak?.best ?? 0) },
   { id: "allRods", group: "count", reward: 500, ...counted(Object.keys(RODS).length, (p) => p.rods.length) },
   // Special and secret.
   { id: "guardian", group: "special", reward: 500, ...flag((p) => (p.released?.sterliad ?? 0) >= 1) },
