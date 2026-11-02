@@ -196,12 +196,12 @@ export class Cloud {
       bait: trophy.bait ?? null,
       caught_at: trophy.date,
       // The angler's rank, shown by their name (ranks.js).
-      rank: progress.rank ?? 0,
+      angler_rank: progress.rank ?? 0,
     }));
     // A missing trophies table must not get in the way of saving progress;
     // nor a table from before ranks (schema.sql not yet run again): then without the rank.
     let { error } = await this.client.from("trophies").upsert(rows, { onConflict: "user_id,trophy_id" });
-    if (error && /rank/.test(error.message)) ({ error } = await this.client.from("trophies").upsert(rows.map(({ rank, ...row }) => row), { onConflict: "user_id,trophy_id" }));
+    if (error && /angler_rank/.test(error.message)) ({ error } = await this.client.from("trophies").upsert(rows.map(({ angler_rank: rank, ...row }) => row), { onConflict: "user_id,trophy_id" }));
     if (error) console.warn("Trophies were not published:", error.message);
   }
 

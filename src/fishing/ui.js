@@ -1546,7 +1546,7 @@ export class AnglerUI {
         bait: row.bait,
         date: row.caught_at,
         player: row.player || t("trophies.anonymous"),
-        rank: row.rank,
+        rank: row.angler_rank,
       })).filter((trophy) => FISH[trophy.species]);
       this.fillTrophyWall(trophies, trophies.length ? "" : t("trophies.othersEmpty"), !cloud.user ? t("trophies.shareHint") : "");
     });
@@ -1698,7 +1698,7 @@ export class AnglerUI {
       const rows = result.rows.map((entry, index) => {
         if (entry.weight !== last) place = index + 1;
         last = entry.weight;
-        return row(place, entry.player, entry.weight, entry.user_id === me, entry.rank);
+        return row(place, entry.player, entry.weight, entry.user_id === me, entry.angler_rank);
       });
       if (mine?.place && !result.rows.some((entry) => entry.user_id === me)) {
         rows.push(element("li", { className: "tourney-gap", textContent: "…" }), row(mine.place, cloud.user.user_metadata?.nickname, mine.weight, true, this.progress.rank ?? 0));
