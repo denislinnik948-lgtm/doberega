@@ -30,13 +30,11 @@ const returnUrl = () => `${location.origin}${location.pathname}`;
 export class Cloud {
   /**
    * `getProgress` returns the live progress, `applyProgress(save)` replaces it
-   * with a save from the cloud, `onChange` redraws the account UI, `onAdmin`
-   * runs once an admin account is signed in and synced.
+   * with a save from the cloud, `onChange` redraws the account UI.
    */
-  constructor({ getProgress, applyProgress, onChange, onAdmin }) {
+  constructor({ getProgress, applyProgress, onChange }) {
     this.getProgress = getProgress;
     this.applyProgress = applyProgress;
-    this.onAdmin = onAdmin;
     this.onChange = onChange;
     this.client = null;
     this.user = null;
@@ -63,10 +61,16 @@ export class Cloud {
         if (event === "PASSWORD_RECOVERY") this.recovering = true;
         this.onChange();
         // Supabase calls back from inside its own lock; sync after it returns.
-        if (event === "SIGNED_IN") setTimeout(() => this.settle(), 0);
+        if (event === "SIGNED_IN") setTimeout(() => {
+          this.reconcile();
+          markOwnDevice(this.client);
+        }, 0);
       });
       this.onChange();
-      if (this.user) await this.settle();
+      if (this.user) {
+        markOwnDevice(this.client);
+        await this.reconcile();
+      }
     } catch (error) {
       this.fail(error);
     }
@@ -200,12 +204,6 @@ export class Cloud {
     if (this.user) query = query.neq("user_id", this.user.id);
     const { data, error } = await query;
     return error ? { error: error.message } : { trophies: data };
-  }
-
-  /** Bring the saves together, then check for an admin (after, so a gift isn't undone by the cloud's save). */
-  async settle() {
-    await this.reconcile();
-    if (await markOwnDevice(this.client)) this.onAdmin?.();
   }
 
   /** The savedAt of the last save this device and the cloud both had, for this account. */
