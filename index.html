@@ -34,20 +34,23 @@
           </div>
         </header>
 
-        <div class="spot-slider" data-i18n-roledescription="a11y.slider" data-i18n-aria="a11y.spot">
-          <button class="pixel-btn pixel-btn-square spot-arrow" id="spot-prev" type="button" data-i18n-aria="a11y.prevSpot">◀</button>
-          <article class="spot-card">
-            <div class="card-scene">
-              <h2 class="title-tab" id="spot-name" data-frame="tab"></h2>
-              <div class="spot-picture" id="spot-picture" data-frame="location" data-variant="pond"></div>
-            </div>
-            <dl class="caption spot-traits" id="spot-traits" data-frame="box"></dl>
-            <div class="spot-dots" id="spot-dots" aria-hidden="true"></div>
-          </article>
-          <button class="pixel-btn pixel-btn-square spot-arrow" id="spot-next" type="button" data-i18n-aria="a11y.nextSpot">▶</button>
-        </div>
+        <!-- The water to fish and the button: one tile of its own in the tiled menu. -->
+        <div class="spot-tile" id="spot-tile" data-frame="box">
+          <div class="spot-slider" data-i18n-roledescription="a11y.slider" data-i18n-aria="a11y.spot">
+            <button class="pixel-btn pixel-btn-square spot-arrow" id="spot-prev" type="button" data-i18n-aria="a11y.prevSpot">◀</button>
+            <article class="spot-card">
+              <div class="card-scene">
+                <h2 class="title-tab" id="spot-name" data-frame="tab"></h2>
+                <div class="spot-picture" id="spot-picture" data-frame="location" data-variant="pond"></div>
+              </div>
+              <dl class="caption spot-traits" id="spot-traits" data-frame="box"></dl>
+              <div class="spot-dots" id="spot-dots" aria-hidden="true"></div>
+            </article>
+            <button class="pixel-btn pixel-btn-square spot-arrow" id="spot-next" type="button" data-i18n-aria="a11y.nextSpot">▶</button>
+          </div>
 
-        <button class="pixel-btn pixel-btn-primary fish-button" id="fish-button" type="button" data-i18n="menu.fish">Go fishing</button>
+          <button class="pixel-btn pixel-btn-primary fish-button" id="fish-button" type="button" data-i18n="menu.fish">Go fishing</button>
+        </div>
 
         <!-- Today's quest, the same for everyone: what it asks and how far along you are. -->
         <button class="quest-strip" id="quest-strip" data-frame="box" type="button" aria-haspopup="dialog">
@@ -62,12 +65,19 @@
           </span>
         </button>
 
+        <!-- Wide screens, tiled menu (for now only the admins'): today's things on tiles of their own. -->
+        <button class="tile tile-only" id="tile-quest" data-frame="box" type="button" aria-haspopup="dialog"><small data-i18n="quest.title">Daily quest</small><strong id="tile-quest-count"></strong><span id="tile-quest-goal"></span></button>
+        <button class="tile tile-only" id="tile-day" data-frame="box" type="button" aria-haspopup="dialog"><small data-i18n="dayFish.title">Fish of the day</small><span class="tile-art" id="tile-day-art" aria-hidden="true"></span><span id="tile-day-text"></span></button>
+        <button class="tile tile-only" id="tile-tourney" data-frame="box" type="button" aria-haspopup="dialog"><small id="tile-tourney-title"></small><ol class="tile-board" id="tile-tourney-board"></ol><span class="tile-note" id="tile-tourney-note"></span></button>
+        <button class="tile tile-only" id="tile-streak" data-frame="box" type="button" aria-haspopup="dialog"><small data-i18n="streak.title">Days in a row</small><strong id="tile-streak-count"></strong><span class="tile-days" id="tile-streak-days" aria-hidden="true"></span></button>
+        <button class="tile tile-only" id="tile-level" data-frame="box" type="button" aria-haspopup="dialog"><small data-i18n="level.title">Level</small><strong id="tile-level-name"></strong><span class="achievement-bar"><span id="tile-level-fill"></span></span><span class="tile-note" id="tile-level-next"></span></button>
+
         <nav class="menu-nav" data-i18n-aria="a11y.menu">
-          <button class="menu-item" id="shop-button" data-frame="box" type="button"><span class="menu-icon" id="shop-icon"></span><span data-i18n="menu.shop">Shop</span></button>
-          <button class="menu-item" id="pack-button" data-frame="box" type="button"><span class="menu-icon" id="pack-icon"></span><span data-i18n="menu.pack">Backpack</span></button>
-          <button class="menu-item" id="trophy-button" data-frame="box" type="button"><span class="menu-icon" id="trophy-icon"></span><span data-i18n="menu.trophies">Trophies</span> <span id="trophy-count" class="badge" hidden>0</span></button>
-          <button class="menu-item" id="collection-button" data-frame="box" type="button"><span class="menu-icon" id="collection-icon"></span><span data-i18n="menu.collection">Collection</span> <span id="rank-badge" class="badge" hidden>1</span></button>
-          <button class="menu-item" id="settings-button" data-frame="box" type="button"><span class="menu-icon" id="settings-icon"></span><span data-i18n="menu.settings">Settings</span></button>
+          <button class="menu-item" id="shop-button" data-frame="box" type="button"><span class="menu-icon" id="shop-icon"></span><span data-i18n="menu.shop">Shop</span><small class="tile-note tile-only" id="shop-note"></small></button>
+          <button class="menu-item" id="pack-button" data-frame="box" type="button"><span class="menu-icon" id="pack-icon"></span><span data-i18n="menu.pack">Backpack</span><small class="tile-note tile-only" id="pack-note"></small></button>
+          <button class="menu-item" id="trophy-button" data-frame="box" type="button"><span class="menu-icon" id="trophy-icon"></span><span data-i18n="menu.trophies">Trophies</span> <span id="trophy-count" class="badge" hidden>0</span><small class="tile-note tile-only" id="trophy-note"></small></button>
+          <button class="menu-item" id="collection-button" data-frame="box" type="button"><span class="menu-icon" id="collection-icon"></span><span data-i18n="menu.collection">Collection</span> <span id="rank-badge" class="badge" hidden>1</span><small class="tile-note tile-only" id="collection-note"></small></button>
+          <button class="menu-item" id="settings-button" data-frame="box" type="button"><span class="menu-icon" id="settings-icon"></span><span data-i18n="menu.settings">Settings</span><small class="tile-note tile-only" id="settings-note"></small></button>
         </nav>
 
         <!-- A quiet line: where progress is kept, and the way into the account. -->

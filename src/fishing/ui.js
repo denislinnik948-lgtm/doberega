@@ -125,6 +125,13 @@ export class AnglerUI {
     $("#settings-button").addEventListener("click", () => this.openSettings());
     $("#account-button").addEventListener("click", () => this.openAccount());
     $("#quest-strip").addEventListener("click", () => this.openQuest());
+    // The tiled menu: each of today's tiles opens the window it sums up.
+    for (const id of ["#tile-quest", "#tile-day", "#tile-streak"]) $(id).addEventListener("click", () => this.openQuest());
+    $("#tile-tourney").addEventListener("click", () => this.openTrophies("tourney"));
+    $("#tile-level").addEventListener("click", () => {
+      this.showCollectionTab("ranks");
+      if (!this.collectionDialog.open) this.collectionDialog.showModal();
+    });
     for (const tab of document.querySelectorAll("#shop-dialog .tab")) {
       tab.addEventListener("click", () => this.showShopTab(tab.dataset.tab));
     }
@@ -244,6 +251,8 @@ export class AnglerUI {
   setCloud(cloud) {
     this.cloud = cloud;
     this.renderAccount();
+    this.tilesKey = null;
+    this.renderTiles();
   }
 
   openAccount() {
@@ -627,12 +636,97 @@ export class AnglerUI {
     $("#keepnet-chip").setAttribute("aria-label", `${t("a11y.keepnet")}: ${netCount}`);
 
     this.renderQuest();
+    this.renderTiles();
 
     // The hook size in use and how many are left.
     const hooksLeft = progress.hooks[progress.hook] ?? 0;
     $("#pack-hook-sprite").replaceChildren(hookSprite(2));
     $("#pack-hook-count").textContent = `×${hooksLeft}`;
     $("#pack-hook-count").closest(".chip").classList.toggle("is-empty", hooksLeft <= 0);
+  }
+
+  /* ---------- Tiled menu ---------- */
+
+  /** Wide screens, the tiled menu: switched on for the admins' accounts while it is tried out. */
+  setTiles(on) {
+    // Signing in or out changes the tournament tile too: draw them all again.
+    document.body.classList.toggle("tiles", on);
+    this.tileBoard = null;
+    this.tilesKey = null;
+    this.renderTiles();
+  }
+
+  /** What each tile says: today's things, the level, and a line on every section. */
+  renderTiles() {
+    if (!document.body.classList.contains("tiles")) return;
+    const { progress } = this;
+    const stats = progress.stats ?? {};
+    const quest = todaysQuest();
+    const state = questState(progress, quest);
+    const week = tourneyWeek();
+    const species = tourneyFish(week);
+    const best = tourneyState(progress, week).best;
+    const xp = Math.floor(progress.xp ?? 0);
+    const key = [quest.day, state.value, state.done, streakNow(progress), streakToday(progress), week, best, xp, progress.money,
+      progress.rod, progress.bait, this.baitCount, progress.trophies.length, stats.caught, language()].join(":");
+    if (key === this.tilesKey) return;
+    this.tilesKey = key;
+
+    $("#tile-quest-count").textContent = state.done ? t("quest.doneShort") : this.questCount(quest, state);
+    $("#tile-quest-goal").textContent = this.questGoal(quest);
+
+    const dayFish = fishOfDay(quest.day);
+    $("#tile-day-art").replaceChildren(fishSprite(dayFish, 2));
+    $("#tile-day-text").textContent = t("level.dayFish", { fish: nameOf("fish", dayFish) });
+
+    // Days in a row: the run, and where it stands in the week's round of gifts.
+    const run = streakNow(progress);
+    const lit = run ? ((run - 1) % STREAK_GIFTS.length) + 1 : 0;
+    $("#tile-streak-count").textContent = t("level.days", { count: run });
+    $("#tile-streak-days").replaceChildren(...STREAK_GIFTS.map((_, index) => element("span", { className: index < lit ? "" : "is-off", textContent: index < lit ? "■" : "□" })));
+
+    const rank = rankAt(xp);
+    const next = RANKS[rank + 1];
+    const from = RANKS[rank].xp;
+    $("#tile-level-name").textContent = this.rankName(rank);
+    $("#tile-level-fill").style.width = `${(next ? (xp - from) / (next.xp - from) : 1) * 100}%`;
+    $("#tile-level-next").textContent = next ? t("level.toNext", { xp: (next.xp - xp).toLocaleString(locale()) }) : t("level.top");
+
+    // The sections: the next rod to save up for, what is in hand, the best trophy, the atlas so far.
+    const nextRod = Object.entries(RODS).find(([id]) => !progress.rods.includes(id));
+    $("#shop-note").textContent = nextRod ? t("level.nextRod", { rod: nameOf("rod", nextRod[0]), price: formatMoney(nextRod[1].price) }) : t("level.allRods");
+    $("#pack-note").textContent = `${nameOf("rod", progress.rod)} · ${nameOf("bait", progress.bait)} ${countLabel(this.baitCount)}`;
+    const top = [...progress.trophies].sort((a, b) => b.weight - a.weight)[0];
+    $("#trophy-note").textContent = top ? `${nameOf("fish", top.species)} ${formatWeight(top.weight)}` : t("level.noTrophies");
+    const entries = handbookEntries();
+    const found = entries.filter((entry) => Math.max(stats.bySpecies?.[entry.id] ?? 0, progress.released?.[entry.id] ?? 0) > 0).length;
+    const earned = ACHIEVEMENTS.filter((achievement) => progress.achievements?.[achievement.id]).length;
+    $("#collection-note").textContent = t("level.collection", { found, total: entries.length, earned, all: ACHIEVEMENTS.length });
+    $("#settings-note").textContent = t("level.settings");
+
+    this.renderTourneyTile(week, species, best);
+  }
+
+  /** The tournament tile: the week's fish, the top three, and this angler's best. */
+  renderTourneyTile(week, species, best) {
+    $("#tile-tourney-title").textContent = `${t("tourney.tab")} · ${nameOf("fish", species).toLocaleLowerCase(locale())}`;
+    const mine = best > 0 ? t("level.yourBest", { weight: formatWeight(best) }) : t("level.noBest");
+    $("#tile-tourney-note").textContent = `${mine} · ${this.weekLeft()}`;
+    const board = $("#tile-tourney-board");
+    const cloud = this.cloud;
+    if (!cloud?.enabled) return board.replaceChildren();
+    // The board is asked again at most once a minute.
+    if (this.tileBoard?.week === week && Date.now() - this.tileBoard.at < 60000) return;
+    this.tileBoard = { week, at: Date.now() };
+    cloud.tournamentBoard(week, species, 3).then((result) => {
+      if (result.error || this.tileBoard?.week !== week) return;
+      const me = cloud.user?.id;
+      board.replaceChildren(...result.rows.map((entry, index) => element("li", { className: entry.user_id === me ? "is-me" : "" }, [
+        element("span", { textContent: String(index + 1) }),
+        element("span", { textContent: entry.player || t("trophies.anonymous") }),
+        element("span", { textContent: formatWeight(entry.weight) }),
+      ])));
+    });
   }
 
   /* ---------- Daily quest ---------- */

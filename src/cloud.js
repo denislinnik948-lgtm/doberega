@@ -40,6 +40,7 @@ export class Cloud {
     this.onSynced = onSynced;
     this.client = null;
     this.user = null;
+    this.admin = false;
     this.lastSync = null;
     this.busy = false;
     this.error = "";
@@ -59,25 +60,32 @@ export class Cloud {
       this.user = data.session?.user ?? null;
       this.client.auth.onAuthStateChange((event, session) => {
         this.user = session?.user ?? null;
+        if (!this.user) this.admin = false;
         // Arrived from a password reset email: ask for a new password.
         if (event === "PASSWORD_RECOVERY") this.recovering = true;
         this.onChange();
         // Supabase calls back from inside its own lock; sync after it returns.
         if (event === "SIGNED_IN") setTimeout(async () => {
-          markOwnDevice(this.client);
+          this.checkAdmin();
           await this.reconcile();
           this.onSynced?.();
         }, 0);
       });
       this.onChange();
       if (this.user) {
-        markOwnDevice(this.client);
+        this.checkAdmin();
         await this.reconcile();
         this.onSynced?.();
       }
     } catch (error) {
       this.fail(error);
     }
+  }
+
+  /** Whether the signed-in account is an admin's (their device then stays out of the stats). */
+  async checkAdmin() {
+    this.admin = await markOwnDevice(this.client).catch(() => false);
+    this.onChange();
   }
 
   async signUp(email, password) {

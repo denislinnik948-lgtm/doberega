@@ -1042,3 +1042,87 @@ html.keyboard-open .sheet[open] > .account-body {
 .rank-row.is-now { box-shadow: inset 0 0 0 2px var(--gold-dark); color: var(--bone); }
 .rank-row.is-now .rank-name strong { color: var(--gold); }
 .tourney-player small { color: var(--soft); font-size: 16px; }
+
+/* ---------- Tiled menu (wide screens; for now only the admins') ---------- */
+
+/* Elsewhere the spot's tile is no box at all and the tiles stay hidden. */
+.spot-tile { display: contents; }
+.spot-tile > .frame-art, .tile-only { display: none; }
+
+@media (min-width: 900px) {
+  /* Clock and money up top, the water to fish on a big tile, today's things and the rest round it. */
+  .tiles .menu {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-areas:
+      "top top top top"
+      "spot spot quest day"
+      "spot spot tourney streak"
+      "spot spot level settings"
+      "shop pack trophy collection"
+      "account account account account";
+    align-content: safe center;
+    align-items: stretch;
+    gap: 14px;
+    padding: clamp(12px, 3vh, 24px) max(28px, calc((100% - 1120px) / 2));
+  }
+  .tiles .menu-top { position: static; grid-area: top; }
+  .tiles .quest-strip { display: none; }
+  .tiles .tile-only { display: revert; }
+
+  .tiles .spot-tile { display: flex; grid-area: spot; flex-direction: column; gap: 14px; padding: 16px; }
+  .tiles .spot-tile > .frame-art { display: block; }
+  .tiles .spot-slider { width: 100%; }
+  .tiles .spot-picture { height: clamp(150px, 24vh, 280px); }
+  .tiles .fish-button { width: 100%; margin-top: auto; }
+
+  .tiles .menu-nav { display: contents; }
+  #tile-quest { grid-area: quest; }
+  #tile-day { grid-area: day; }
+  #tile-tourney { grid-area: tourney; }
+  #tile-streak { grid-area: streak; }
+  #tile-level { grid-area: level; }
+  #settings-button { grid-area: settings; }
+  #shop-button { grid-area: shop; }
+  #pack-button { grid-area: pack; }
+  #trophy-button { grid-area: trophy; }
+  #collection-button { grid-area: collection; }
+  .tiles .account-strip { grid-area: account; justify-self: center; }
+
+  /* A tile: what it is in small letters, the figure that matters big, a line under it. */
+  .tiles :is(.tile, .menu-item) {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 4px;
+    min-width: 0;
+    min-height: 0;
+    padding: 14px 18px;
+    color: var(--bone);
+    font: inherit;
+    font-size: 20px;
+    line-height: 1.2;
+    text-align: left;
+    cursor: pointer;
+  }
+  .tiles .tile:active { transform: translateY(2px); }
+  .tiles .tile small { color: var(--light); font-size: 17px; }
+  .tiles .tile strong { color: var(--gold); font-size: 32px; font-weight: 500; line-height: 1; font-variant-numeric: tabular-nums; }
+  .tiles .tile-note { overflow: hidden; max-width: 100%; color: var(--light); font-size: 17px; white-space: nowrap; text-overflow: ellipsis; }
+  .tiles .tile .achievement-bar { width: 100%; height: 8px; }
+  .tiles .tile .achievement-bar span { background: var(--gold); }
+  .tiles .tile-art canvas { display: block; }
+  .tiles .tile-days { color: var(--gold); font-size: 22px; letter-spacing: 0.12em; }
+  .tiles .tile-days .is-off { color: var(--mid); }
+  .tiles .tile-board { display: grid; gap: 1px; width: 100%; margin: 0; padding: 0; list-style: none; font-size: 18px; }
+  .tiles .tile-board li { display: grid; grid-template-columns: 1.4em 1fr auto; gap: 6px; }
+  .tiles .tile-board li span:nth-child(2) { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .tiles .tile-board .is-me { color: var(--gold); }
+
+  /* The sections along the bottom: the icon beside the name, the note under both. */
+  .tiles .menu-item { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; align-content: center; column-gap: 12px; row-gap: 2px; }
+  .tiles .menu-item .menu-icon { grid-row: 1 / span 2; }
+  .tiles .menu-item .tile-note { display: block; grid-column: 2; }
+  .tiles #rank-badge { display: none; }
+}
