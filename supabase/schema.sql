@@ -204,6 +204,9 @@ set search_path = public
 as $$
 declare
   since timestamptz := date_trunc('day', now()) - (greatest(period_days, 1) - 1) * interval '1 day';
+  -- Days for coming back are counted in Kyiv time, like the game's.
+  today date := (now() at time zone 'Europe/Kiev')::date;
+  since_day date := today - (greatest(period_days, 1) - 1);
   result json;
 begin
   if not exists (select 1 from public.admins where user_id = auth.uid()) then
@@ -222,6 +225,18 @@ begin
     from auth.users u
     left join saves s on s.user_id = u.id
     where not exists (select 1 from admins a where a.user_id = u.id)
+  ),
+  -- Coming back: each visitor's first day, the days they visited, and whether
+  -- they came again the next day (d1) or within the next seven (d7).
+  visit_days as (
+    select distinct visitor, (created_at at time zone 'Europe/Kiev')::date as day
+    from counted where type = 'visit'
+  ),
+  cohort as (
+    select f.visitor, f.first_day,
+      exists (select 1 from visit_days v where v.visitor = f.visitor and v.day = f.first_day + 1) as d1,
+      exists (select 1 from visit_days v where v.visitor = f.visitor and v.day between f.first_day + 1 and f.first_day + 7) as d7
+    from (select visitor, min(day) as first_day from visit_days group by visitor) f
   )
   select json_build_object(
     'days', period_days,
@@ -234,8 +249,24 @@ begin
       'appVisitors', (select count(distinct visitor) from counted where type = 'visit' and app and created_at >= since),
       'returning', (select count(*) from (
         select visitor from counted where type = 'visit' and created_at >= since
-        group by visitor having count(distinct created_at::date) > 1) r)
+        group by visitor having count(distinct created_at::date) > 1) r),
+      -- New visitors in the period whose next day (or next week) is already over, and how many came back.
+      'd1Base', (select count(*) from cohort where first_day between since_day and today - 1),
+      'd1', (select count(*) from cohort where first_day between since_day and today - 1 and d1),
+      'd7Base', (select count(*) from cohort where first_day between since_day and today - 7),
+      'd7', (select count(*) from cohort where first_day between since_day and today - 7 and d7)
     ),
+    -- The same by the week of the first visit, the last eight weeks: before and after a change.
+    'cohorts', (select coalesce(json_agg(c order by c.week), '[]'::json) from (
+      select date_trunc('week', first_day)::date as week, count(*) as visitors,
+        count(*) filter (where first_day <= today - 1) as d1_base,
+        count(*) filter (where first_day <= today - 1 and d1) as d1,
+        count(*) filter (where first_day <= today - 7) as d7_base,
+        count(*) filter (where first_day <= today - 7 and d7) as d7
+      from cohort
+      where first_day >= date_trunc('week', today)::date - 49
+      group by 1
+    ) c),
     'allTime', json_build_object(
       'visitors', (select count(distinct visitor) from counted where type = 'visit'),
       'users', (select count(*) from players),

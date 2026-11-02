@@ -98,3 +98,7 @@ main > .card { margin-top: 16px; }
 .notice code { color: var(--series); }
 .is-bad { color: var(--bad); }
 .foot { margin-top: 16px; }
+
+/* Coming back by week: the week of a game update is marked. */
+.cohorts td small { display: block; color: var(--series); font-size: 15px; white-space: normal; }
+.cohorts tr.release td { border-top-color: var(--series); }

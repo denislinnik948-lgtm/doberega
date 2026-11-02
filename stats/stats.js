@@ -12,6 +12,8 @@ const $ = (selector) => document.querySelector(selector);
 const number = new Intl.NumberFormat("uk-UA");
 const percent = (part, whole) => (whole ? `${Math.round((part / whole) * 100)}%` : "–");
 const DEVICES = { mobile: "Телефон", tablet: "Планшет", desktop: "Комп'ютер", unknown: "Невідомо" };
+// Game updates worth comparing before and after, by the Monday of their week.
+const RELEASES = { "2026-11-02": "оновлення: колекція, турнір, звання" };
 
 let client = null;
 let days = 30;
@@ -42,9 +44,10 @@ function notice(html) {
 
 /* ---------- pieces ---------- */
 
+/** A headline figure: a count, or text as it is (a percentage). */
 function tile(value, label, sub = "") {
   return element("div", { className: "tile" }, [
-    element("strong", { textContent: number.format(value ?? 0) }),
+    element("strong", { textContent: typeof value === "string" ? value : number.format(value ?? 0) }),
     element("span", { textContent: label }),
     sub ? element("small", { textContent: sub }) : "",
   ]);
@@ -185,6 +188,22 @@ function render(stats) {
     tile(p.signups, "Зареєструвались", percent(p.signups, p.visitors)),
     tile(p.appVisitors, "Відкривали з іконки", percent(p.appVisitors, p.visitors)),
     tile(p.returning, "Повертались", "у різні дні"),
+    tile(percent(p.d1, p.d1Base), "Повернулись наступного дня", `${number.format(p.d1 ?? 0)} з ${number.format(p.d1Base ?? 0)} нових`),
+    tile(percent(p.d7, p.d7Base), "Повернулись протягом тижня", `${number.format(p.d7 ?? 0)} з ${number.format(p.d7Base ?? 0)} нових`),
+  );
+  // Coming back by the week of the first visit, the newest at the top.
+  const share = (part, base) => (base ? `${percent(part, base)} (${number.format(part)})` : "–");
+  const cohorts = [...(stats.cohorts ?? [])].reverse();
+  $("#cohorts").replaceChildren(
+    element("thead", {}, [element("tr", {}, ["Тиждень", "Нових", "Наступного дня", "Протягом тижня"].map((text) => element("th", { textContent: text })))]),
+    element("tbody", {}, cohorts.length
+      ? cohorts.map((week) => element("tr", { className: RELEASES[week.week] ? "release" : "" }, [
+        element("td", {}, [`з ${dayLabel(week.week)}`, RELEASES[week.week] ? element("small", { textContent: RELEASES[week.week] }) : ""]),
+        element("td", { textContent: number.format(week.visitors) }),
+        element("td", { textContent: share(week.d1, week.d1_base) }),
+        element("td", { textContent: share(week.d7, week.d7_base) }),
+      ]))
+      : [element("tr", {}, [element("td", { className: "empty", colSpan: 4, textContent: "Ще немає даних" })])]),
   );
   $("#all-tiles").replaceChildren(
     tile(a.users, "Акаунтів"),
@@ -248,7 +267,10 @@ function demo() {
   const sum = (key) => daily.reduce((total, d) => total + d[key], 0);
   render({
     days,
-    period: { visitors: sum("visitors"), visits: Math.round(sum("visitors") * 1.6), fishers: Math.round(sum("visitors") * 0.7), catchers: sum("catchers"), signups: sum("signups"), appVisitors: Math.round(sum("visitors") * 0.2), returning: Math.round(sum("visitors") * 0.3) },
+    period: { visitors: sum("visitors"), visits: Math.round(sum("visitors") * 1.6), fishers: Math.round(sum("visitors") * 0.7), catchers: sum("catchers"), signups: sum("signups"), appVisitors: Math.round(sum("visitors") * 0.2), returning: Math.round(sum("visitors") * 0.3), d1Base: 410, d1: 92, d7Base: 300, d7: 87 },
+    cohorts: [["2026-09-21", 120, 22, 30], ["2026-09-28", 140, 25, 33], ["2026-10-05", 110, 19, 28], ["2026-10-12", 150, 27, 41], ["2026-10-19", 130, 24, 36], ["2026-10-26", 160, 30, 45], ["2026-11-02", 90, 31, null]].map(([week, visitors, d1, d7]) => ({
+      week, visitors, d1_base: visitors, d1: Math.round((visitors * d1) / 100), d7_base: d7 === null ? 0 : visitors, d7: d7 === null ? 0 : Math.round((visitors * d7) / 100),
+    })),
     allTime: { visitors: 2140, users: 186, active7: 42, saves: 180, fishCaught: 9312, trophies: 57 },
     daily,
     sources: [{ name: "direct", visitors: 610 }, { name: "t.me", visitors: 240 }, { name: "instagram.com", visitors: 180 }, { name: "google.com", visitors: 64 }],
