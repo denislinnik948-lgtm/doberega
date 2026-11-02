@@ -1,4 +1,5 @@
 import { ACHIEVEMENTS } from "./achievements.js";
+import { RANKS, pastXp } from "./ranks.js";
 import { BAITS, EXTRAS, FISH, HOOKS, LOCATIONS, RETIRED_BAITS, RODS, START_STATE, gameHoursMs } from "./data.js";
 
 // The storage key keeps the game's old working name so existing saves carry over.
@@ -85,6 +86,10 @@ export function normalizeProgress(saved) {
     if (saved.tourney && Number.isFinite(saved.tourney.week)) {
       state.tourney = { week: saved.tourney.week, best: Math.max(0, Number(saved.tourney.best) || 0), claimed: Number.isFinite(saved.tourney.claimed) ? saved.tourney.claimed : saved.tourney.week - 1 };
     }
+    // Experience and the last rank whose gift was given (see ranks.js); a save
+    // from before ranks gets its experience worked out from its stats.
+    state.xp = Number.isFinite(saved.xp) ? Math.max(0, saved.xp) : pastXp(state);
+    if (Number.isFinite(saved.rank)) state.rank = Math.max(0, Math.min(RANKS.length - 1, Math.floor(saved.rank)));
     if (Number.isFinite(saved.savedAt)) state.savedAt = saved.savedAt;
   }
   return state;

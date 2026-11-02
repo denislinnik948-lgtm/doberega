@@ -16,6 +16,7 @@ import { track } from "./analytics.js";
 import { ambienceTick, jumpSound, musicTick, nightSound, sounds, thunderClap } from "./sound.js";
 import { AnglerUI } from "./fishing/ui.js";
 import { breakStreak, bump, recordCatch } from "./fishing/achievements.js";
+import { XP, fishXp, gainXp, rankPending } from "./fishing/ranks.js";
 import { recordDay, recordQuest, recordTourney, settleTourney, tourneyFish, tourneyState, tourneyWeek } from "./fishing/quests.js";
 import { warmFishPortraits } from "./fishing/sprites.js";
 
@@ -216,6 +217,8 @@ const cloud = new Cloud({
     ui.renderSpot();
     ui.render();
     applySpot();
+    // A save from before ranks: give the gifts of the ranks it has earned.
+    if (rankPending(progress)) ui.commit();
   },
   onChange: () => ui.renderAccount(),
   // Signed in and in step: this week's best goes up (it may have been caught
@@ -229,6 +232,7 @@ const cloud = new Cloud({
       const result = await cloud.tournamentPlace(week - 1, tourneyFish(week - 1));
       if (!result) return;
       const prize = settleTourney(progress, week - 1, result.place);
+      if (prize) gainXp(progress, XP.podium[prize.place - 1] ?? 0);
       ui.commit();
       if (prize) ui.tourneyPrize(prize);
     } catch (error) {
@@ -245,7 +249,11 @@ onSeasonChange(() => {
 });
 onProgressSaved(() => cloud.schedulePush());
 window.addEventListener("pagehide", () => cloud.flush());
-cloud.init();
+// Once the saves are in step (so the cloud's isn't mistaken for the older one),
+// a save from before ranks gets the gifts of the ranks it has earned.
+cloud.init().then(() => {
+  if (rankPending(progress)) ui.commit();
+});
 // One anonymous "visit" per page open, for the stats page (see analytics.js),
 // counted once the page has been on screen for two seconds.
 track("visit", { after: 2000 });
@@ -310,6 +318,8 @@ function handleGameEvent(type, data) {
     if (data.type === "escape" && data.reason === "duck") bump(progress, "duckSteals");
     if (data.type === "escape" && (data.hookLost || data.reason === "straightened")) breakStreak(progress);
     if (data.type === "landed") {
+      // A species never caught before is worth extra experience (for the atlas).
+      const fresh = !FISH[data.fish.species]?.junk && !data.fish.unique && !(progress.stats?.bySpecies?.[data.fish.species] > 0);
       recordCatch(progress, data.fish, {
         spot: progress.location,
         bait: data.bait,
@@ -321,6 +331,7 @@ function handleGameEvent(type, data) {
       // Today's quest, the same for everyone: paid the moment it's done.
       const quest = recordQuest(progress, data.fish, progress.location);
       if (quest) ui.questDone(quest);
+      gainXp(progress, fishXp(data.fish) + (fresh ? XP.newSpecies : 0) + (quest ? XP.quest : 0));
       // A new best for the week's tournament goes up to the board (signed in).
       const best = recordTourney(progress, data.fish);
       if (best) {
@@ -330,7 +341,10 @@ function handleGameEvent(type, data) {
       // The first fish of a day counts towards the run of days in a row, with its gift.
       if (!FISH[data.fish.species]?.junk) {
         const day = recordDay(progress);
-        if (day) ui.dayCounted(day);
+        if (day) {
+          gainXp(progress, XP.day);
+          ui.dayCounted(day);
+        }
       }
     }
     ui.commit();

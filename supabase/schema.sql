@@ -39,6 +39,9 @@ create table if not exists public.trophies (
 
 create index if not exists trophies_caught_at_idx on public.trophies (caught_at desc);
 
+-- The angler's rank (0 Novice .. 9 Legend of the water), shown by their name.
+alter table public.trophies add column if not exists rank smallint not null default 0;
+
 alter table public.trophies enable row level security;
 
 drop policy if exists "anyone reads trophies" on public.trophies;
@@ -72,6 +75,8 @@ create table if not exists public.tournament (
   primary key (user_id, week, species)
 );
 
+alter table public.tournament add column if not exists rank smallint not null default 0;
+
 create index if not exists tournament_board_idx on public.tournament (week, species, weight desc);
 
 alter table public.tournament enable row level security;
@@ -90,7 +95,9 @@ as $$
 $$;
 
 -- A new best for the signed-in angler; the heaviest each fish can grow is the limit.
-create or replace function public.submit_tournament(fish text, kg real)
+-- `lvl` is the angler's rank, shown by their name.
+drop function if exists public.submit_tournament(text, real);
+create or replace function public.submit_tournament(fish text, kg real, lvl int default 0)
 returns void
 language plpgsql
 security definer
@@ -107,16 +114,16 @@ begin
     return;
   end if;
   select left(coalesce(raw_user_meta_data ->> 'nickname', ''), 16) into nickname from auth.users where id = auth.uid();
-  insert into public.tournament (user_id, week, species, player, weight, caught_at)
-  values (auth.uid(), public.tournament_week(), fish, nickname, kg, now())
+  insert into public.tournament (user_id, week, species, player, weight, caught_at, rank)
+  values (auth.uid(), public.tournament_week(), fish, nickname, kg, now(), greatest(0, least(9, coalesce(lvl, 0))))
   on conflict (user_id, week, species) do update
-    set weight = excluded.weight, player = excluded.player, caught_at = excluded.caught_at
+    set weight = excluded.weight, player = excluded.player, caught_at = excluded.caught_at, rank = excluded.rank
     where public.tournament.weight < excluded.weight;
 end;
 $$;
 
-revoke all on function public.submit_tournament(text, real) from public;
-grant execute on function public.submit_tournament(text, real) to authenticated;
+revoke all on function public.submit_tournament(text, real, int) from public;
+grant execute on function public.submit_tournament(text, real, int) to authenticated;
 
 -- The daily quest no longer keeps a list of who has done it.
 drop table if exists public.quest_done;

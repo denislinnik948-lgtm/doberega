@@ -66,7 +66,7 @@
           <button class="menu-item" id="shop-button" data-frame="box" type="button"><span class="menu-icon" id="shop-icon"></span><span data-i18n="menu.shop">Shop</span></button>
           <button class="menu-item" id="pack-button" data-frame="box" type="button"><span class="menu-icon" id="pack-icon"></span><span data-i18n="menu.pack">Backpack</span></button>
           <button class="menu-item" id="trophy-button" data-frame="box" type="button"><span class="menu-icon" id="trophy-icon"></span><span data-i18n="menu.trophies">Trophies</span> <span id="trophy-count" class="badge" hidden>0</span></button>
-          <button class="menu-item" id="collection-button" data-frame="box" type="button"><span class="menu-icon" id="collection-icon"></span><span data-i18n="menu.collection">Collection</span></button>
+          <button class="menu-item" id="collection-button" data-frame="box" type="button"><span class="menu-icon" id="collection-icon"></span><span data-i18n="menu.collection">Collection</span> <span id="rank-badge" class="badge" hidden>1</span></button>
           <button class="menu-item" id="settings-button" data-frame="box" type="button"><span class="menu-icon" id="settings-icon"></span><span data-i18n="menu.settings">Settings</span></button>
         </nav>
 
@@ -257,10 +257,12 @@
       <div class="tabs" role="tablist">
         <button class="pixel-btn tab is-active" type="button" role="tab" aria-selected="true" data-tab="atlas" data-i18n="atlas.tab">Atlas</button>
         <button class="pixel-btn tab" type="button" role="tab" aria-selected="false" data-tab="achievements" data-i18n="achievements.tab">Achievements</button>
+        <button class="pixel-btn tab" type="button" role="tab" aria-selected="false" data-tab="ranks" data-i18n="rank.tab">Rank</button>
       </div>
       <p class="achievement-summary" id="collection-summary"></p>
       <div class="atlas" id="atlas"></div>
       <div class="achievement-list" id="achievement-list" hidden></div>
+      <div class="ranks" id="ranks" hidden></div>
     </dialog>
 
     <dialog class="sheet settings-sheet" id="settings-dialog" data-frame="ornate" aria-labelledby="settings-title">

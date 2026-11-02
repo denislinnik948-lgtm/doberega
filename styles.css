@@ -1019,3 +1019,26 @@ html.keyboard-open .sheet[open] > .account-body {
 .tourney-row.is-top-3 .tourney-place { color: var(--ember); }
 .tourney-row.is-me { box-shadow: inset 0 0 0 2px var(--gold-dark); }
 .tourney-gap { color: var(--soft); text-align: center; }
+
+/* Ranks: where the angler stands, then every rank with its gift. */
+.ranks[hidden] { display: none; }
+.ranks { display: grid; align-content: start; gap: 12px; min-height: 0; max-height: min(60vh, 560px); overflow-y: auto; padding-right: 6px; scrollbar-color: var(--mid) transparent; }
+.rank-head { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 14px; padding: 14px 16px; }
+.rank-art canvas { display: block; }
+.rank-now { display: grid; gap: 4px; min-width: 0; }
+.rank-now strong { color: var(--gold); font-size: 26px; font-weight: 500; }
+.rank-now small { color: var(--light); font-size: 17px; }
+.rank-now .achievement-bar { height: 8px; }
+.rank-how { margin: 0; color: var(--light); font-size: 17px; line-height: 1.25; }
+.rank-list { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.rank-row { display: grid; grid-template-columns: 28px 1fr auto; align-items: center; gap: 10px; padding: 6px 10px; background: rgb(10 20 18 / 0.45); box-shadow: inset 0 0 0 2px var(--dark); color: var(--soft); }
+.rank-number { text-align: right; font-variant-numeric: tabular-nums; }
+.rank-name { display: grid; min-width: 0; }
+.rank-name strong { font-size: 20px; font-weight: 500; }
+.rank-name small { font-size: 15px; }
+.rank-xp { font-size: 17px; font-variant-numeric: tabular-nums; }
+.rank-row.is-done { color: var(--light); }
+.rank-row.is-done .rank-name strong { color: var(--bone); }
+.rank-row.is-now { box-shadow: inset 0 0 0 2px var(--gold-dark); color: var(--bone); }
+.rank-row.is-now .rank-name strong { color: var(--gold); }
+.tourney-player small { color: var(--soft); font-size: 16px; }

@@ -21,6 +21,7 @@
 import { setSeason } from "../../src/theme.js";
 import { FishingGame, TUNING } from "../../src/fishing/game.js";
 import { BAITS, EXTRAS, HOOKS, LINE, LOCATIONS, RODS, START_STATE, fishPrice } from "../../src/fishing/data.js";
+import { fishXp } from "../../src/fishing/ranks.js";
 import { dayTimeAt } from "../../src/daycycle.js";
 import { rainAt } from "../../src/weather.js";
 import { moonBite } from "../../src/moon.js";
@@ -63,7 +64,7 @@ function seeded(seed) {
 /** Fish one setup for `hours`: what it earns and what it costs. */
 function session({ rod, spot, bait, hook, hours, seed, extras = [] }) {
   const random = seeded(seed);
-  const tally = { income: 0, spend: 0, landed: 0, bites: 0, lost: 0, lines: 0 };
+  const tally = { income: 0, spend: 0, landed: 0, bites: 0, lost: 0, lines: 0, xp: 0 };
   let line = 1;
   const game = new FishingGame({
     random,
@@ -80,6 +81,7 @@ function session({ rod, spot, bait, hook, hours, seed, extras = [] }) {
       if (data.type === "landed") {
         tally.landed += 1;
         tally.income += fishPrice(data.fish);
+        tally.xp += fishXp(data.fish);
       } else if (data.hookLost) tally.lost += 1;
     },
   });
@@ -178,16 +180,19 @@ for (let i = 0; i < rods.length - 1; i += 1) {
   const need = Math.max(0, RODS[rods[i + 1]].price + extra - money);
   const hours = need / Math.max(1, best.rate);
   money = Math.max(0, money - RODS[rods[i + 1]].price - extra + best.rate * hours);
-  stages.push({ rod: rods[i], next: rods[i + 1], setup: label(best.setup), rate: best.rate, hours, rodHours: RODS[rods[i + 1]].price / Math.max(1, best.rate), landed: best.landed / MEASURE_HOURS, lost: best.lost / MEASURE_HOURS, lines: best.lines / MEASURE_HOURS });
+  stages.push({ rod: rods[i], next: rods[i + 1], setup: label(best.setup), rate: best.rate, hours, rodHours: RODS[rods[i + 1]].price / Math.max(1, best.rate), landed: best.landed / MEASURE_HOURS, lost: best.lost / MEASURE_HOURS, lines: best.lines / MEASURE_HOURS, xp: best.xp / MEASURE_HOURS });
 }
 const total = stages.reduce((sum, stage) => sum + stage.hours, 0);
 const result = { stages, total };
 
 const pad = (text, size) => String(text).padEnd(size);
-console.log(pad("rod", 11) + pad("next", 11) + pad("best setup", 26) + pad("₴/h", 8) + pad("fish/h", 8) + pad("lost/h", 8) + pad("lines/h", 9) + "hours");
+console.log(pad("rod", 11) + pad("next", 11) + pad("best setup", 26) + pad("₴/h", 8) + pad("fish/h", 8) + pad("lost/h", 8) + pad("lines/h", 9) + pad("xp/h", 8) + "hours");
 for (const stage of stages) {
-  console.log(pad(stage.rod, 11) + pad(stage.next, 11) + pad(stage.setup, 26) + pad(Math.round(stage.rate), 8) + pad(stage.landed.toFixed(0), 8) + pad(stage.lost.toFixed(1), 8) + pad(stage.lines.toFixed(2), 9) + stage.hours.toFixed(2));
+  console.log(pad(stage.rod, 11) + pad(stage.next, 11) + pad(stage.setup, 26) + pad(Math.round(stage.rate), 8) + pad(stage.landed.toFixed(0), 8) + pad(stage.lost.toFixed(1), 8) + pad(stage.lines.toFixed(2), 9) + pad(Math.round(stage.xp), 8) + stage.hours.toFixed(2));
 }
+// Experience along the ladder, for the rank thresholds (ranks.js).
+let xpSoFar = 0;
+console.log(`\nexperience at each new rod: ${stages.map((stage) => Math.round((xpSoFar += stage.xp * stage.hours))).join(", ")}; then ${Math.round(stages.at(-1).xp)} an hour`);
 console.log(`\nfull ladder: ${total.toFixed(1)} h (simulated in ${((Date.now() - started) / 1000).toFixed(0)} s${quick ? ", quick" : ""})\n`);
 
 let failed = 0;

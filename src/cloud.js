@@ -195,16 +195,20 @@ export class Cloud {
       spot: LOCATIONS[trophy.spot]?.id ?? null,
       bait: trophy.bait ?? null,
       caught_at: trophy.date,
+      // The angler's rank, shown by their name (ranks.js).
+      rank: progress.rank ?? 0,
     }));
-    // A missing trophies table must not get in the way of saving progress.
-    const { error } = await this.client.from("trophies").upsert(rows, { onConflict: "user_id,trophy_id" });
+    // A missing trophies table must not get in the way of saving progress;
+    // nor a table from before ranks (schema.sql not yet run again): then without the rank.
+    let { error } = await this.client.from("trophies").upsert(rows, { onConflict: "user_id,trophy_id" });
+    if (error && /rank/.test(error.message)) ({ error } = await this.client.from("trophies").upsert(rows.map(({ rank, ...row }) => row), { onConflict: "user_id,trophy_id" }));
     if (error) console.warn("Trophies were not published:", error.message);
   }
 
   /** The biggest trophies of other anglers, heaviest first (anyone can look, signed in or not). */
   async otherTrophies(limit = 60) {
     if (!this.client) return { error: "unavailable" };
-    let query = this.client.from("trophies").select("user_id, trophy_id, player, species, weight, spot, bait, caught_at").order("weight", { ascending: false }).order("caught_at", { ascending: false }).limit(limit);
+    let query = this.client.from("trophies").select("*").order("weight", { ascending: false }).order("caught_at", { ascending: false }).limit(limit);
     if (this.user) query = query.neq("user_id", this.user.id);
     const { data, error } = await query;
     return error ? { error: error.message } : { trophies: data };
@@ -215,14 +219,14 @@ export class Cloud {
   /** Send a new best of the week; the server checks the week and the weight. */
   async submitTournament(species, weight) {
     if (!this.user) return;
-    const { error } = await this.client.rpc("submit_tournament", { fish: species, kg: weight });
+    const { error } = await this.client.rpc("submit_tournament", { fish: species, kg: weight, lvl: this.getProgress().rank ?? 0 });
     if (error) console.warn("Tournament result was not sent:", error.message);
   }
 
   /** The week's top results, heaviest first (the earlier catch first on a tie). */
   async tournamentBoard(week, species, limit = 20) {
     if (!this.client) return { error: "unavailable" };
-    const { data, error } = await this.client.from("tournament").select("user_id, player, weight, caught_at")
+    const { data, error } = await this.client.from("tournament").select("*")
       .eq("week", week).eq("species", species).order("weight", { ascending: false }).order("caught_at", { ascending: true }).limit(limit);
     return error ? { error: error.message } : { rows: data };
   }

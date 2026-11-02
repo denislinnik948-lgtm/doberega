@@ -7,6 +7,7 @@ import {
 } from "./sprites.js";
 import { P } from "./palette.js";
 import { ACHIEVEMENTS, GROUPS, bump, evaluate } from "./achievements.js";
+import { RANKS, XP, claimRanks, rankAt } from "./ranks.js";
 import {
   STREAK_GIFTS, TOURNEY_PRIZES, fishOfDay, questReward, questState, streakNow, streakToday, todaysQuest, tourneyFish, tourneyState, tourneyWeek, untilNextQuest, untilWeekEnd,
 } from "./quests.js";
@@ -257,7 +258,7 @@ export class AnglerUI {
     const signedIn = Boolean(cloud?.user);
     const strip = $("#account-strip");
     strip.classList.toggle("is-safe", signedIn);
-    $("#account-strip-text").textContent = signedIn ? t("account.cloudAs", { name: cloud.displayName }) : t("account.local");
+    $("#account-strip-text").textContent = signedIn ? t("account.cloudAs", { name: `${cloud.displayName} · ${this.rankName(rankAt(this.progress.xp ?? 0))}` }) : t("account.local");
     strip.title = signedIn ? t("account.cloud") : t("savePrompt.warning");
     const button = $("#account-button");
     // Without a configured backend there's nothing to sign in to; the warning still stands.
@@ -526,9 +527,22 @@ export class AnglerUI {
   /** Save and redraw; any achievement newly earned is paid out and announced first. */
   commit() {
     const earned = evaluate(this.progress);
+    const promoted = claimRanks(this.progress);
     saveProgress(this.progress);
     this.render();
     if (earned.length) this.announceAchievements(earned);
+    if (promoted) this.rankUp(promoted);
+  }
+
+  /** A new rank (or several at once): its name and the gifts, already given. */
+  rankUp({ rank, money, groundbait }) {
+    const gifts = [money ? `+${formatMoney(money)}` : "", groundbait ? `${t("shop.groundbait")} ×${groundbait}` : ""].filter(Boolean).join(" · ");
+    this.notify(`${t("rank.up", { rank: this.rankName(rank) })}${gifts ? ` · ${gifts}` : ""}`);
+    this.renderAccountStrip();
+  }
+
+  rankName(rank) {
+    return t(`rank.${RANKS[rank]?.id ?? "novice"}`);
   }
 
   /**
@@ -590,6 +604,10 @@ export class AnglerUI {
     document.querySelectorAll(".money-value").forEach((node) => {
       node.textContent = progress.money.toLocaleString(locale());
     });
+    // The rank's number on the Collection button.
+    const rankBadge = $("#rank-badge");
+    rankBadge.textContent = String(rankAt(progress.xp ?? 0) + 1);
+    rankBadge.hidden = false;
     const trophyCount = $("#trophy-count");
     trophyCount.textContent = String(progress.trophies.length);
     trophyCount.hidden = progress.trophies.length === 0;
@@ -1528,6 +1546,7 @@ export class AnglerUI {
         bait: row.bait,
         date: row.caught_at,
         player: row.player || t("trophies.anonymous"),
+        rank: row.rank,
       })).filter((trophy) => FISH[trophy.species]);
       this.fillTrophyWall(trophies, trophies.length ? "" : t("trophies.othersEmpty"), !cloud.user ? t("trophies.shareHint") : "");
     });
@@ -1548,10 +1567,46 @@ export class AnglerUI {
     }
     $("#atlas").hidden = id !== "atlas";
     $("#achievement-list").hidden = id !== "achievements";
+    $("#ranks").hidden = id !== "ranks";
     if (id === "atlas") this.fillAtlas();
+    else if (id === "ranks") this.fillRanks();
     else this.fillAchievements();
     $("#atlas").scrollTop = 0;
     $("#achievement-list").scrollTop = 0;
+  }
+
+  /**
+   * The ranks: where the angler stands, how far to the next, how experience
+   * is earned, and every rank with what it takes and the gift it brings.
+   */
+  fillRanks() {
+    const xp = Math.floor(this.progress.xp ?? 0);
+    const rank = rankAt(xp);
+    const next = RANKS[rank + 1];
+    const reward = questReward(this.progress);
+    $("#collection-summary").textContent = t("rank.summary", { rank: this.rankName(rank), number: rank + 1, total: RANKS.length });
+    const from = RANKS[rank].xp;
+    const share = next ? (xp - from) / (next.xp - from) : 1;
+    const giftText = (gift) => [formatMoney(Math.round(reward * gift.money)), gift.groundbait ? `${t("shop.groundbait")} ×${gift.groundbait}` : ""].filter(Boolean).join(" · ");
+    const head = element("div", { className: "rank-head" }, [
+      element("span", { className: "rank-art" }, [medalSprite(4, P.gold)]),
+      element("span", { className: "rank-now" }, [
+        element("strong", { textContent: this.rankName(rank) }),
+        element("span", { className: "achievement-bar" }, [element("span", { style: `width: ${share * 100}%` })]),
+        element("small", { textContent: next ? t("rank.toNext", { xp: xp.toLocaleString(locale()), need: next.xp.toLocaleString(locale()), rank: this.rankName(rank + 1) }) : t("rank.top", { xp: xp.toLocaleString(locale()) }) }),
+      ]),
+    ]);
+    frame(head, "box", 1301);
+    const how = element("p", { className: "rank-how", textContent: t("rank.how", { species: XP.newSpecies, quest: XP.quest, day: XP.day }) });
+    const list = element("ol", { className: "rank-list" }, RANKS.map((item, index) => element("li", { className: `rank-row${index < rank ? " is-done" : index === rank ? " is-now" : ""}` }, [
+      element("span", { className: "rank-number", textContent: String(index + 1) }),
+      element("span", { className: "rank-name" }, [
+        element("strong", { textContent: this.rankName(index) }),
+        element("small", { textContent: item.gift ? giftText(item.gift) : t("rank.start") }),
+      ]),
+      element("span", { className: "rank-xp", textContent: item.xp.toLocaleString(locale()) }),
+    ])));
+    $("#ranks").replaceChildren(head, how, list);
   }
 
   /**
@@ -1629,9 +1684,12 @@ export class AnglerUI {
       if (request !== this.tourneyRequest || $("#tourney").hidden) return;
       if (result.error) return say(t("trophies.othersError"));
       const me = cloud.user?.id;
-      const row = (place, player, weight, isMe) => element("li", { className: `tourney-row${isMe ? " is-me" : ""}${place <= 3 ? ` is-top is-top-${place}` : ""}` }, [
+      const row = (place, player, weight, isMe, rank) => element("li", { className: `tourney-row${isMe ? " is-me" : ""}${place <= 3 ? ` is-top is-top-${place}` : ""}` }, [
         element("span", { className: "tourney-place", textContent: String(place) }),
-        element("span", { className: "tourney-player", textContent: player || t("trophies.anonymous") }),
+        element("span", { className: "tourney-player" }, [
+          player || t("trophies.anonymous"),
+          Number.isFinite(rank) ? element("small", { textContent: ` · ${this.rankName(rank)}` }) : "",
+        ]),
         element("span", { className: "tourney-weight", textContent: formatWeight(weight) }),
       ]);
       // Ties share a place.
@@ -1640,10 +1698,10 @@ export class AnglerUI {
       const rows = result.rows.map((entry, index) => {
         if (entry.weight !== last) place = index + 1;
         last = entry.weight;
-        return row(place, entry.player, entry.weight, entry.user_id === me);
+        return row(place, entry.player, entry.weight, entry.user_id === me, entry.rank);
       });
       if (mine?.place && !result.rows.some((entry) => entry.user_id === me)) {
-        rows.push(element("li", { className: "tourney-gap", textContent: "…" }), row(mine.place, cloud.user.user_metadata?.nickname, mine.weight, true));
+        rows.push(element("li", { className: "tourney-gap", textContent: "…" }), row(mine.place, cloud.user.user_metadata?.nickname, mine.weight, true, this.progress.rank ?? 0));
       }
       board.replaceChildren(...rows);
       const note = !rows.length ? t("tourney.empty") : !cloud.user ? t("tourney.signIn") : !mine?.place ? t("tourney.notYet") : "";
@@ -1709,7 +1767,7 @@ export class AnglerUI {
       const date = fish.date ? new Date(fish.date).toLocaleDateString(locale(), { day: "numeric", month: "short", year: "numeric" }) : null;
       const caption = element("div", { className: "caption" }, [
         element("strong", { textContent: formatWeight(fish.weight) }),
-        fish.player ? element("span", { className: "trophy-player", textContent: fish.player }) : "",
+        fish.player ? element("span", { className: "trophy-player", textContent: Number.isFinite(fish.rank) ? `${fish.player} · ${this.rankName(fish.rank)}` : fish.player }) : "",
         element("small", { textContent: [spot, date].filter(Boolean).join(" · ") }),
         fish.bait && BAITS[fish.bait] ? element("small", { textContent: t("trophies.bait", { bait: nameOf("bait", fish.bait) }) }) : "",
       ]);
