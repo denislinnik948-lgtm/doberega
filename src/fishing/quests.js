@@ -167,3 +167,84 @@ export function recordDay(progress, now = Date.now()) {
   }
   return { count, gift };
 }
+
+/*
+ * The weekly tournament: the heaviest single fish of one species, the same
+ * for everyone, from Monday 00:00 to Sunday 23:59 Kyiv time. Only middling
+ * fish are picked, ones the early rods can land too, so a record comes down
+ * to luck and skill rather than the best rod. Results of signed-in anglers
+ * go to the cloud (cloud.js); the server checks the week and the weight.
+ * Prizes, paid the next time the angler comes in after the week: 3×, 2× and
+ * 1× the quest reward for the top three, and two groundbaits for everyone
+ * who took part.
+ *
+ * `progress.tourney` holds { week, best, claimed }: this week's best weight,
+ * and the last week whose prize has been settled.
+ */
+export const TOURNEY_FISH = ["karas", "okun", "lyn", "lyasch", "plitka", "krasnopirka"];
+export const TOURNEY_PRIZES = [3, 2, 1];
+export const TOURNEY_GIFT = { groundbait: 2 };
+
+// "Europe/Kiev" rather than "Europe/Kyiv": older browsers and databases know only the old name.
+const KYIV = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Kiev", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+
+/** Kyiv wall-clock time as if it were UTC, in milliseconds. */
+function kyivWall(now) {
+  const parts = Object.fromEntries(KYIV.formatToParts(now).map((part) => [part.type, Number(part.value)]));
+  return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute);
+}
+
+/** The week's number: weeks start on Monday (1 Jan 1970 was a Thursday). */
+export function tourneyWeek(now = Date.now()) {
+  return Math.floor((Math.floor(kyivWall(now) / DAY_MS) + 3) / 7);
+}
+
+/** Milliseconds until the week ends. */
+export function untilWeekEnd(now = Date.now()) {
+  return ((tourneyWeek(now) + 1) * 7 - 3) * DAY_MS - kyivWall(now);
+}
+
+/** The week's fish, never the same two weeks running. */
+export function tourneyFish(week = tourneyWeek()) {
+  const pick = (w) => Math.floor(hash2(w, 11, 7717) * TOURNEY_FISH.length) % TOURNEY_FISH.length;
+  const index = pick(week);
+  return TOURNEY_FISH[index === pick(week - 1) ? (index + 1) % TOURNEY_FISH.length : index];
+}
+
+/** This week's run at the tournament, started afresh on a new week. */
+export function tourneyState(progress, week = tourneyWeek()) {
+  const state = progress.tourney ?? { week, best: 0, claimed: week - 1 };
+  if (state.week !== week) Object.assign(state, { week, best: 0 });
+  progress.tourney = state;
+  return state;
+}
+
+/** A landed fish: a new best for the week returns { week, species, weight }, otherwise null. */
+export function recordTourney(progress, fish, now = Date.now()) {
+  const week = tourneyWeek(now);
+  if (fish.unique || fish.species !== tourneyFish(week)) return null;
+  const state = tourneyState(progress, week);
+  if (fish.weight <= state.best) return null;
+  state.best = fish.weight;
+  return { week, species: fish.species, weight: fish.weight };
+}
+
+/**
+ * Pay out a finished week once its place is known: `place` is null when the
+ * angler had no result. Returns what was given ({ place, money, gift }) or
+ * null when there was nothing.
+ */
+export function settleTourney(progress, week, place) {
+  const state = tourneyState(progress);
+  if ((state.claimed ?? -1) >= week) return null;
+  state.claimed = week;
+  if (!place) return null;
+  const share = TOURNEY_PRIZES[place - 1] ?? 0;
+  const money = Math.round(questReward(progress) * share);
+  progress.money += money;
+  progress.groundbait = (progress.groundbait ?? 0) + TOURNEY_GIFT.groundbait;
+  progress.stats ??= {};
+  if (share) progress.stats.podiums = (progress.stats.podiums ?? 0) + 1;
+  if (place === 1) progress.stats.wins = (progress.stats.wins ?? 0) + 1;
+  return { place, money, gift: TOURNEY_GIFT };
+}

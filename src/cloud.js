@@ -30,12 +30,14 @@ const returnUrl = () => `${location.origin}${location.pathname}`;
 export class Cloud {
   /**
    * `getProgress` returns the live progress, `applyProgress(save)` replaces it
-   * with a save from the cloud, `onChange` redraws the account UI.
+   * with a save from the cloud, `onChange` redraws the account UI, `onSynced`
+   * runs each time a signed-in angler's saves are brought in step.
    */
-  constructor({ getProgress, applyProgress, onChange }) {
+  constructor({ getProgress, applyProgress, onChange, onSynced }) {
     this.getProgress = getProgress;
     this.applyProgress = applyProgress;
     this.onChange = onChange;
+    this.onSynced = onSynced;
     this.client = null;
     this.user = null;
     this.lastSync = null;
@@ -61,15 +63,17 @@ export class Cloud {
         if (event === "PASSWORD_RECOVERY") this.recovering = true;
         this.onChange();
         // Supabase calls back from inside its own lock; sync after it returns.
-        if (event === "SIGNED_IN") setTimeout(() => {
-          this.reconcile();
+        if (event === "SIGNED_IN") setTimeout(async () => {
           markOwnDevice(this.client);
+          await this.reconcile();
+          this.onSynced?.();
         }, 0);
       });
       this.onChange();
       if (this.user) {
         markOwnDevice(this.client);
         await this.reconcile();
+        this.onSynced?.();
       }
     } catch (error) {
       this.fail(error);
@@ -204,6 +208,34 @@ export class Cloud {
     if (this.user) query = query.neq("user_id", this.user.id);
     const { data, error } = await query;
     return error ? { error: error.message } : { trophies: data };
+  }
+
+  /* ---------- The weekly tournament (see quests.js) ---------- */
+
+  /** Send a new best of the week; the server checks the week and the weight. */
+  async submitTournament(species, weight) {
+    if (!this.user) return;
+    const { error } = await this.client.rpc("submit_tournament", { fish: species, kg: weight });
+    if (error) console.warn("Tournament result was not sent:", error.message);
+  }
+
+  /** The week's top results, heaviest first (the earlier catch first on a tie). */
+  async tournamentBoard(week, species, limit = 20) {
+    if (!this.client) return { error: "unavailable" };
+    const { data, error } = await this.client.from("tournament").select("user_id, player, weight, caught_at")
+      .eq("week", week).eq("species", species).order("weight", { ascending: false }).order("caught_at", { ascending: true }).limit(limit);
+    return error ? { error: error.message } : { rows: data };
+  }
+
+  /** This angler's result for a week and their place (ties share it); place is null without a result. */
+  async tournamentPlace(week, species) {
+    if (!this.user) return null;
+    const mine = await this.client.from("tournament").select("weight").eq("week", week).eq("species", species).eq("user_id", this.user.id).maybeSingle();
+    if (mine.error) throw mine.error;
+    if (!mine.data) return { weight: 0, place: null };
+    const ahead = await this.client.from("tournament").select("user_id", { count: "exact", head: true }).eq("week", week).eq("species", species).gt("weight", mine.data.weight);
+    if (ahead.error) throw ahead.error;
+    return { weight: mine.data.weight, place: ahead.count + 1 };
   }
 
   /** The savedAt of the last save this device and the cloud both had, for this account. */

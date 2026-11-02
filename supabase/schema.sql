@@ -57,6 +57,67 @@ drop policy if exists "delete own trophies" on public.trophies;
 create policy "delete own trophies" on public.trophies
   for delete using (auth.uid() = user_id);
 
+-- The weekly tournament: each angler's heaviest fish of the week's species.
+-- Anyone can read the table; results only go in through submit_tournament(),
+-- which takes the week from the server's clock and turns away weights the
+-- fish can't reach. A bad entry can be removed here by hand:
+--   delete from public.tournament where player = 'NICKNAME' and week = WEEK;
+create table if not exists public.tournament (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  week int not null,
+  species text not null,
+  player text not null default '',
+  weight real not null check (weight > 0 and weight < 10),
+  caught_at timestamptz not null default now(),
+  primary key (user_id, week, species)
+);
+
+create index if not exists tournament_board_idx on public.tournament (week, species, weight desc);
+
+alter table public.tournament enable row level security;
+
+drop policy if exists "anyone reads the tournament" on public.tournament;
+create policy "anyone reads the tournament" on public.tournament
+  for select using (true);
+
+-- Weeks start on Monday 00:00 Kyiv time, numbered as in the game (src/fishing/quests.js).
+create or replace function public.tournament_week()
+returns int
+language sql
+stable
+as $$
+  select floor(((now() at time zone 'Europe/Kiev')::date - date '1970-01-01' + 3) / 7.0)::int;
+$$;
+
+-- A new best for the signed-in angler; the heaviest each fish can grow is the limit.
+create or replace function public.submit_tournament(fish text, kg real)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  cap real := case fish
+    when 'karas' then 1.5 when 'okun' then 1.8 when 'lyn' then 3.5
+    when 'lyasch' then 5 when 'plitka' then 0.6 when 'krasnopirka' then 0.7
+  end;
+  nickname text;
+begin
+  if auth.uid() is null or cap is null or kg is null or kg <= 0 or kg > cap then
+    return;
+  end if;
+  select left(coalesce(raw_user_meta_data ->> 'nickname', ''), 16) into nickname from auth.users where id = auth.uid();
+  insert into public.tournament (user_id, week, species, player, weight, caught_at)
+  values (auth.uid(), public.tournament_week(), fish, nickname, kg, now())
+  on conflict (user_id, week, species) do update
+    set weight = excluded.weight, player = excluded.player, caught_at = excluded.caught_at
+    where public.tournament.weight < excluded.weight;
+end;
+$$;
+
+revoke all on function public.submit_tournament(text, real) from public;
+grant execute on function public.submit_tournament(text, real) to authenticated;
+
 -- The daily quest no longer keeps a list of who has done it.
 drop table if exists public.quest_done;
 

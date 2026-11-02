@@ -81,6 +81,10 @@ export function normalizeProgress(saved) {
     if (saved.streak && Number.isFinite(saved.streak.day) && Number.isFinite(saved.streak.count)) {
       state.streak = { day: saved.streak.day, count: Math.max(0, saved.streak.count), best: Math.max(saved.streak.count, Number(saved.streak.best) || 0) };
     }
+    // The weekly tournament (see quests.js): this week's best and the last week settled.
+    if (saved.tourney && Number.isFinite(saved.tourney.week)) {
+      state.tourney = { week: saved.tourney.week, best: Math.max(0, Number(saved.tourney.best) || 0), claimed: Number.isFinite(saved.tourney.claimed) ? saved.tourney.claimed : saved.tourney.week - 1 };
+    }
     if (Number.isFinite(saved.savedAt)) state.savedAt = saved.savedAt;
   }
   return state;

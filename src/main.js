@@ -16,7 +16,7 @@ import { track } from "./analytics.js";
 import { ambienceTick, jumpSound, musicTick, nightSound, sounds, thunderClap } from "./sound.js";
 import { AnglerUI } from "./fishing/ui.js";
 import { breakStreak, bump, recordCatch } from "./fishing/achievements.js";
-import { recordDay, recordQuest } from "./fishing/quests.js";
+import { recordDay, recordQuest, recordTourney, settleTourney, tourneyFish, tourneyState, tourneyWeek } from "./fishing/quests.js";
 import { warmFishPortraits } from "./fishing/sprites.js";
 
 // The water look is fixed: a still lake, gentle swell speed, soft glints.
@@ -218,6 +218,23 @@ const cloud = new Cloud({
     applySpot();
   },
   onChange: () => ui.renderAccount(),
+  // Signed in and in step: this week's best goes up (it may have been caught
+  // before signing in), and last week's tournament is settled, once.
+  onSynced: async () => {
+    const week = tourneyWeek();
+    const state = tourneyState(progress, week);
+    if (state.best > 0) cloud.submitTournament(tourneyFish(week), state.best);
+    if ((state.claimed ?? -1) >= week - 1) return;
+    try {
+      const result = await cloud.tournamentPlace(week - 1, tourneyFish(week - 1));
+      if (!result) return;
+      const prize = settleTourney(progress, week - 1, result.place);
+      ui.commit();
+      if (prize) ui.tourneyPrize(prize);
+    } catch (error) {
+      console.warn("Last week's tournament could not be checked:", error.message);
+    }
+  },
 });
 ui.setCloud(cloud);
 // A new season repaints the woods and the grass.
@@ -304,6 +321,12 @@ function handleGameEvent(type, data) {
       // Today's quest, the same for everyone: paid the moment it's done.
       const quest = recordQuest(progress, data.fish, progress.location);
       if (quest) ui.questDone(quest);
+      // A new best for the week's tournament goes up to the board (signed in).
+      const best = recordTourney(progress, data.fish);
+      if (best) {
+        ui.tourneyBest(best, Boolean(cloud.user));
+        cloud.submitTournament(best.species, best.weight);
+      }
       // The first fish of a day counts towards the run of days in a row, with its gift.
       if (!FISH[data.fish.species]?.junk) {
         const day = recordDay(progress);

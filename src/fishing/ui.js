@@ -7,7 +7,9 @@ import {
 } from "./sprites.js";
 import { P } from "./palette.js";
 import { ACHIEVEMENTS, GROUPS, bump, evaluate } from "./achievements.js";
-import { STREAK_GIFTS, fishOfDay, questReward, questState, streakNow, streakToday, todaysQuest, untilNextQuest } from "./quests.js";
+import {
+  STREAK_GIFTS, TOURNEY_PRIZES, fishOfDay, questReward, questState, streakNow, streakToday, todaysQuest, tourneyFish, tourneyState, tourneyWeek, untilNextQuest, untilWeekEnd,
+} from "./quests.js";
 import { frame, frameAll, repaint, setContent } from "./frames.js";
 import { SEASONS, isWinter, season, setSeason } from "../theme.js";
 import { validNickname } from "../cloud.js";
@@ -114,6 +116,10 @@ export class AnglerUI {
     $("#pack-button").addEventListener("click", () => this.openPack());
     $("#trophy-button").addEventListener("click", () => this.openTrophies());
     $("#collection-button").addEventListener("click", () => this.openCollection());
+    $("#tourney-open").addEventListener("click", () => {
+      $("#quest-dialog").close();
+      this.openTrophies("tourney");
+    });
     $("#keepnet-chip").addEventListener("click", () => this.openKeepnet());
     $("#settings-button").addEventListener("click", () => this.openSettings());
     $("#account-button").addEventListener("click", () => this.openAccount());
@@ -664,6 +670,28 @@ export class AnglerUI {
     this.notify(t("streak.toast", { count, gift: this.giftText(gift) }));
   }
 
+  /** A new best of the week's tournament; without an account it stays off the board. */
+  tourneyBest({ weight }, signedIn) {
+    this.notify(`${t("tourney.newBest", { weight: formatWeight(weight) })}${signedIn ? "" : ` · ${t("tourney.signIn")}`}`);
+  }
+
+  /** Last week's tournament settled: a prize for the top three, a gift for taking part. */
+  tourneyPrize({ place, money, gift }) {
+    const present = this.giftText(gift);
+    this.notify(money ? t("tourney.prize", { place, money: formatMoney(money), gift: present }) : t("tourney.thanks", { place, gift: present }));
+  }
+
+  /** What the tournament asks for: "the heaviest tench" (in Ukrainian its form follows the fish). */
+  tourneyGoal(id) {
+    return t(`tourney.fish.${id}`);
+  }
+
+  /** "3 d 4 h" until the tournament week ends. */
+  weekLeft() {
+    const left = untilWeekEnd();
+    return t("tourney.left", { days: Math.floor(left / 86400000), hours: Math.floor((left % 86400000) / 3600000) });
+  }
+
   /** Good news with a coin's ring, once no dialog is open, one after another. */
   notify(text) {
     this.notes = [...(this.notes ?? []), text];
@@ -730,6 +758,13 @@ export class AnglerUI {
         element("span", { textContent: gift.money ? this.giftText(gift) : `×${gift.count ?? gift.groundbait ?? gift.lines}` }),
       ]);
     }));
+    const week = tourneyWeek();
+    const best = tourneyState(this.progress, week).best;
+    $("#tourney-about").textContent = t("tourney.about", {
+      fish: this.tourneyGoal(tourneyFish(week)),
+      best: best ? formatWeight(best) : t("tourney.none"),
+      left: this.weekLeft(),
+    });
     const left = untilNextQuest();
     $("#quest-next").textContent = t("quest.next", { hours: Math.floor(left / 3600000), minutes: Math.floor((left % 3600000) / 60000) });
     if (!dialog.open) dialog.showModal();
@@ -1443,8 +1478,8 @@ export class AnglerUI {
 
   /* ---------- Trophies ---------- */
 
-  openTrophies() {
-    this.showTrophyTab("mine");
+  openTrophies(tab = "mine") {
+    this.showTrophyTab(tab);
     if (!this.trophyDialog.open) this.trophyDialog.showModal();
   }
 
@@ -1454,6 +1489,16 @@ export class AnglerUI {
       const active = tab.dataset.tab === id;
       tab.classList.toggle("is-active", active);
       tab.setAttribute("aria-selected", String(active));
+    }
+    // The tournament has its own board in place of the wall.
+    const tourney = id === "tourney";
+    $("#tourney").hidden = !tourney;
+    $("#trophy-wall").hidden = tourney;
+    if (tourney) {
+      $("#trophy-badges").hidden = true;
+      $("#trophy-hint").hidden = true;
+      this.fillTourney();
+      return;
     }
     // Badges for protected fish let go, above the player's own wall.
     const badges = $("#trophy-badges");
@@ -1553,6 +1598,58 @@ export class AnglerUI {
       element("ul", { className: "atlas-grid" }, fish),
       element("section", {}, [element("h3", { textContent: t("atlas.legends") }), element("ul", { className: "atlas-grid atlas-legends" }, legends)]),
     );
+  }
+
+  /**
+   * The tournament board: the week's fish and prizes, then the top twenty,
+   * this angler marked (and added below with their place if further down).
+   */
+  fillTourney() {
+    const week = tourneyWeek();
+    const species = tourneyFish(week);
+    const reward = questReward(this.progress);
+    $("#tourney-head").textContent = t("tourney.head", {
+      fish: this.tourneyGoal(species),
+      left: this.weekLeft(),
+      prizes: TOURNEY_PRIZES.map((share) => formatMoney(Math.round(reward * share))).join(" / "),
+      gift: t("tourney.gift"),
+    });
+    const board = $("#tourney-board");
+    const empty = $("#trophy-empty");
+    const say = (text) => {
+      board.replaceChildren();
+      empty.textContent = text;
+      empty.hidden = !text;
+    };
+    const cloud = this.cloud;
+    if (!cloud?.enabled) return say(t("trophies.othersOff"));
+    say(t("trophies.loading"));
+    const request = (this.tourneyRequest = Promise.all([cloud.tournamentBoard(week, species), cloud.tournamentPlace(week, species).catch(() => null)]));
+    request.then(([result, mine]) => {
+      if (request !== this.tourneyRequest || $("#tourney").hidden) return;
+      if (result.error) return say(t("trophies.othersError"));
+      const me = cloud.user?.id;
+      const row = (place, player, weight, isMe) => element("li", { className: `tourney-row${isMe ? " is-me" : ""}${place <= 3 ? ` is-top is-top-${place}` : ""}` }, [
+        element("span", { className: "tourney-place", textContent: String(place) }),
+        element("span", { className: "tourney-player", textContent: player || t("trophies.anonymous") }),
+        element("span", { className: "tourney-weight", textContent: formatWeight(weight) }),
+      ]);
+      // Ties share a place.
+      let place = 0;
+      let last = null;
+      const rows = result.rows.map((entry, index) => {
+        if (entry.weight !== last) place = index + 1;
+        last = entry.weight;
+        return row(place, entry.player, entry.weight, entry.user_id === me);
+      });
+      if (mine?.place && !result.rows.some((entry) => entry.user_id === me)) {
+        rows.push(element("li", { className: "tourney-gap", textContent: "…" }), row(mine.place, cloud.user.user_metadata?.nickname, mine.weight, true));
+      }
+      board.replaceChildren(...rows);
+      const note = !rows.length ? t("tourney.empty") : !cloud.user ? t("tourney.signIn") : !mine?.place ? t("tourney.notYet") : "";
+      empty.textContent = note;
+      empty.hidden = !note;
+    });
   }
 
   /**

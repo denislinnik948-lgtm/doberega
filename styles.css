@@ -228,7 +228,7 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
 .quest-strip-count { color: var(--gold); font-size: 24px; font-variant-numeric: tabular-nums; }
 .quest-strip:active { transform: translateY(2px); }
 .quest-sheet { width: min(480px, calc(100% - 24px)); }
-.quest-body { display: grid; gap: 10px; }
+.quest-body { display: grid; gap: 10px; min-height: 0; overflow-y: auto; scrollbar-color: var(--mid) transparent; }
 .quest-body h3 { margin: 6px 0 0; }
 .quest-goal { margin: 0; color: var(--bone); font-size: 26px; line-height: 1.2; }
 .quest-bar { display: block; height: 12px; background: var(--ink); box-shadow: 0 0 0 2px var(--mid); }
@@ -1002,3 +1002,20 @@ html.keyboard-open .sheet[open] > .account-body {
 }
 /* A legend's rumour is a sentence: wider cards. */
 .atlas-legends { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+
+/* The weekly tournament: its line in Today and the board in Trophies. */
+#tourney-about { color: var(--bone); font-size: 19px; line-height: 1.2; }
+#tourney-open { justify-self: start; }
+.tourney[hidden] { display: none; }
+.tourney { display: grid; gap: 12px; min-height: 0; max-height: min(60vh, 560px); overflow-y: auto; padding-right: 6px; scrollbar-color: var(--mid) transparent; }
+.tourney-head { margin: 0; color: var(--light); font-size: 18px; line-height: 1.25; }
+.tourney-board { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.tourney-row { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px; padding: 6px 10px; background: rgb(10 20 18 / 0.45); box-shadow: inset 0 0 0 2px var(--dark); color: var(--bone); font-size: 20px; }
+.tourney-place { color: var(--soft); text-align: right; font-variant-numeric: tabular-nums; }
+.tourney-player { overflow: hidden; min-width: 0; white-space: nowrap; text-overflow: ellipsis; }
+.tourney-weight { color: var(--gold); font-variant-numeric: tabular-nums; }
+.tourney-row.is-top-1 .tourney-place { color: var(--gold); }
+.tourney-row.is-top-2 .tourney-place { color: var(--bone); }
+.tourney-row.is-top-3 .tourney-place { color: var(--ember); }
+.tourney-row.is-me { box-shadow: inset 0 0 0 2px var(--gold-dark); }
+.tourney-gap { color: var(--soft); text-align: center; }

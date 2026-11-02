@@ -132,6 +132,10 @@ Nobody else's progress is listed: the quest is between the angler and the water 
 
 **Колекція** in the main menu has two tabs. **Атлас** shows every fish in the game as a card (built from `handbookEntries`, so a new species appears by itself): a caught one in colour with how many and the heaviest, the rest a dark silhouette with a hint, the water where it is most common and the part of the day it feeds best (burbot: autumn nights). **Ачівки** lists the achievements below. Trophies keep their own window.
 
+## Weekly tournament
+
+From Monday 00:00 to Sunday 23:59 Kyiv time (`tourneyWeek` in `src/fishing/quests.js`) every angler fishes for the heaviest single fish of the week's species: crucian carp, perch, tench, bream, roach or rudd, picked by a hash of the week's number and never the same two weeks running. Only middling fish are picked, so the early rods can land a winner and a record comes down to luck and skill. Every fish of that kind landed counts, sold or kept; `progress.tourney` keeps this week's best and the last week settled. A signed-in angler's new best goes to the `tournament` table through `submit_tournament()` ([`supabase/schema.sql`](supabase/schema.sql)), which takes the week from the server's clock, the nickname from the account and turns away a weight past the species' maximum; anyone can read the table, nobody can write it directly. A best caught before signing in is sent on signing in. The Today window has a line on it with a **Таблиця** button; **Трофеї → Турнір** shows the fish, the time left, the prizes, the top twenty (ties share a place) and the angler's own place below if further down. The next time a signed-in angler comes in after a week, it is settled once: places 1–3 get 3×, 2× and 1× the quest reward, and everyone with a result two groundbaits; two achievements (top three, a win). The results are trusted from the game, so a determined cheat can still post a fake weight within the limit; such a row can be deleted by hand in the SQL Editor.
+
 ## Finds and gulls
 
 Reeling in an empty float line now and then brings something up (`press` in `game.js`): an old boot (1.2%), a bottle (0.6%) or someone's lost lure (0.4%: a spinner, now and then a spoon or, rarely, a wobbler, added to the bait). A bottle holds a note, a legend's rumour or an angler's word, or about one in three times 20–200 ₴ rolled up (`BOTTLE_MONEY`). By day (6:00–20:00 game time) a gull may snatch a fish under 250 g as it comes off the hook, one in 60 (`GULL`): it never reaches the keepnet. Three achievements: five bottles, a lost lure, and a secret one for the gull.
@@ -142,7 +146,7 @@ Each water has a legend (`LEGENDS` in `data.js`): the golden crucian at the pond
 
 ## Achievements
 
-Collection has an Achievements tab: 48 of them in seven groups (first steps, collecting every fish of a water, weight, skill, time and weather, numbers and money, and specials, six of them secret until earned). Each earned one is a medal, a quiet note at the top of the screen and a little money, 50 to 1500 ₴, about 16 000 ₴ in all, under 3% of what the rods and gear cost. Definitions and the counters behind them are in `src/fishing/achievements.js`; the counters live in `progress.stats`, and every save checks for newly earned ones, so older saves get what they already deserve.
+Collection has an Achievements tab: 50 of them in seven groups (first steps, collecting every fish of a water, weight, skill, time and weather, numbers and money, and specials, six of them secret until earned). Each earned one is a medal, a quiet note at the top of the screen and a little money, 50 to 1500 ₴, about 17 500 ₴ in all, under 3% of what the rods and gear cost. Definitions and the counters behind them are in `src/fishing/achievements.js`; the counters live in `progress.stats`, and every save checks for newly earned ones, so older saves get what they already deserve.
 
 ## Accounts and cloud saves
 

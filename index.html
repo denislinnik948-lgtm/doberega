@@ -169,6 +169,9 @@
         <h3 class="today-heading" data-i18n="streak.title">Days in a row</h3>
         <p class="quest-status" id="streak-about"></p>
         <ol class="streak-days" id="streak-days"></ol>
+        <h3 class="today-heading" data-i18n="tourney.title">Tournament of the week</h3>
+        <p class="quest-status" id="tourney-about"></p>
+        <button class="pixel-btn" id="tourney-open" type="button" data-i18n="tourney.open">Leaderboard</button>
         <p class="quest-next" id="quest-next"></p>
       </div>
     </dialog>
@@ -232,6 +235,12 @@
       <div class="tabs" role="tablist">
         <button class="pixel-btn tab is-active" type="button" role="tab" aria-selected="true" data-tab="mine" data-i18n="trophies.mine">Mine</button>
         <button class="pixel-btn tab" type="button" role="tab" aria-selected="false" data-tab="others" data-i18n="trophies.others">Other anglers</button>
+        <button class="pixel-btn tab" type="button" role="tab" aria-selected="false" data-tab="tourney" data-i18n="tourney.tab">Tournament</button>
+      </div>
+      <!-- The week's tournament: the fish, the prizes and the board. -->
+      <div class="tourney" id="tourney" hidden>
+        <p class="tourney-head" id="tourney-head"></p>
+        <ol class="tourney-board" id="tourney-board"></ol>
       </div>
       <p class="trophy-badges" id="trophy-badges" hidden></p>
       <ul class="trophy-wall" id="trophy-wall"></ul>
