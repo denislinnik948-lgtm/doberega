@@ -125,6 +125,12 @@ const PERIODS = [
   { id: "dusk", hours: [20, 21, 22] },
 ];
 
+/** The one part of the day when a fish feeds best (for the atlas hint). */
+export function peakPeriod(species) {
+  const scores = PERIODS.map((period) => period.hours.reduce((sum, hour) => sum + activity(species, hour), 0));
+  return PERIODS[scores.indexOf(Math.max(...scores))].id;
+}
+
 /** The parts of the day when a fish feeds best, for the handbook. */
 export function activePeriods(species) {
   const scores = PERIODS.map((period) => period.hours.reduce((sum, hour) => sum + activity(species, hour), 0) / period.hours.length);

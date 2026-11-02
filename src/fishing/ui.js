@@ -1,6 +1,6 @@
 import {
   BAITS, EXTRAS, FISH, GROUNDBAIT, HOOKS, LINE, LOCATIONS, RODS, gameHoursMs,
-  baitEntries, fishPrice, formatMoney, formatWeight, handbookEntries, spotEntries, trophyCost,
+  baitEntries, fishPrice, formatMoney, formatWeight, handbookEntries, peakPeriod, spotEntries, trophyCost,
 } from "./data.js";
 import {
   bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, groundbaitSprite, hookSprite, keepnetSprite, lineSprite, medalSprite, packSprite, questSprite, rodSprite, windSprite,
@@ -55,6 +55,15 @@ const reachLines = (gear) => [
 ];
 
 const countLabel = (count) => (count === Infinity ? "∞" : `×${count}`);
+
+/** A fish not found yet: only its shape, in shadow. */
+function silhouette(sprite) {
+  const ctx = sprite.getContext("2d");
+  ctx.globalCompositeOperation = "source-in";
+  ctx.fillStyle = P.mid;
+  ctx.fillRect(0, 0, sprite.width, sprite.height);
+  return sprite;
+}
 /** "lake (medium, sand, weed)" — a fishing spot's type, depth and bottom in words. */
 
 /** DOM side of the game: main menu, HUD, loadout, toasts and dialogs. */
@@ -72,6 +81,7 @@ export class AnglerUI {
     this.catchDialog = $("#catch-dialog");
     this.shopDialog = $("#shop-dialog");
     this.trophyDialog = $("#trophy-dialog");
+    this.collectionDialog = $("#collection-dialog");
     this.keepnetDialog = $("#keepnet-dialog");
     this.packDialog = $("#pack-dialog");
     this.handbookDialog = $("#handbook-dialog");
@@ -103,6 +113,7 @@ export class AnglerUI {
     $("#shop-button").addEventListener("click", () => this.openShop());
     $("#pack-button").addEventListener("click", () => this.openPack());
     $("#trophy-button").addEventListener("click", () => this.openTrophies());
+    $("#collection-button").addEventListener("click", () => this.openCollection());
     $("#keepnet-chip").addEventListener("click", () => this.openKeepnet());
     $("#settings-button").addEventListener("click", () => this.openSettings());
     $("#account-button").addEventListener("click", () => this.openAccount());
@@ -112,6 +123,9 @@ export class AnglerUI {
     }
     for (const tab of document.querySelectorAll("#trophy-dialog .tab")) {
       tab.addEventListener("click", () => this.showTrophyTab(tab.dataset.tab));
+    }
+    for (const tab of document.querySelectorAll("#collection-dialog .tab")) {
+      tab.addEventListener("click", () => this.showCollectionTab(tab.dataset.tab));
     }
     for (const tab of document.querySelectorAll("#handbook-dialog .tab")) {
       tab.addEventListener("click", () => this.showHandbookTab(tab.dataset.tab));
@@ -132,6 +146,7 @@ export class AnglerUI {
     $("#shop-icon").replaceChildren(bagSprite(3));
     $("#pack-icon").replaceChildren(packSprite(3));
     $("#trophy-icon").replaceChildren(cupSprite(3));
+    $("#collection-icon").replaceChildren(medalSprite(3, P.ember));
     icon("#exit-button", exitSprite(3));
     $("#keepnet-chip-sprite").replaceChildren(keepnetSprite(3));
     $("#settings-icon").replaceChildren(gearSprite(3));
@@ -1347,17 +1362,6 @@ export class AnglerUI {
       tab.classList.toggle("is-active", active);
       tab.setAttribute("aria-selected", String(active));
     }
-    const achievements = id === "achievements";
-    $("#achievement-list").hidden = !achievements;
-    $("#achievement-summary").hidden = !achievements;
-    $("#trophy-wall").hidden = achievements;
-    if (achievements) {
-      $("#trophy-badges").hidden = true;
-      $("#trophy-empty").hidden = true;
-      $("#trophy-hint").hidden = true;
-      this.fillAchievements();
-      return;
-    }
     // Badges for protected fish let go, above the player's own wall.
     const badges = $("#trophy-badges");
     const released = Object.entries(this.progress.released ?? {});
@@ -1391,6 +1395,62 @@ export class AnglerUI {
     });
   }
 
+  /* ---------- Collection: the atlas and the achievements ---------- */
+
+  openCollection() {
+    this.showCollectionTab("atlas");
+    if (!this.collectionDialog.open) this.collectionDialog.showModal();
+  }
+
+  showCollectionTab(id) {
+    for (const tab of document.querySelectorAll("#collection-dialog .tab")) {
+      const active = tab.dataset.tab === id;
+      tab.classList.toggle("is-active", active);
+      tab.setAttribute("aria-selected", String(active));
+    }
+    $("#atlas").hidden = id !== "atlas";
+    $("#achievement-list").hidden = id !== "achievements";
+    if (id === "atlas") this.fillAtlas();
+    else this.fillAchievements();
+    this.collectionDialog.scrollTop = 0;
+  }
+
+  /**
+   * The atlas: every fish there is. Found ones in colour, with how many and
+   * the heaviest; the rest only a dark shape, with a hint of where and when
+   * to look for them.
+   */
+  fillAtlas() {
+    const { progress } = this;
+    const stats = progress.stats ?? {};
+    // A sterlet is let go at once, and older saves only counted it that way.
+    const count = (id) => Math.max(stats.bySpecies?.[id] ?? 0, progress.released?.[id] ?? 0);
+    const cell = (id, found, lines, seed) => {
+      const art = fishSprite(id, 2, found ? nameOf("fish", id) : "");
+      const node = element("li", { className: `atlas-cell${found ? " is-found" : ""}` }, [
+        element("div", { className: "atlas-art" }, [found ? art : silhouette(art)]),
+        element("strong", { textContent: nameOf("fish", id) }),
+        ...lines.filter(Boolean).map((line) => element("small", { textContent: line })),
+      ]);
+      frame(node, "box", seed);
+      return node;
+    };
+    const entries = handbookEntries();
+    const fish = entries.map((entry, index) => {
+      const caught = count(entry.id);
+      if (caught) {
+        const record = stats.heaviest?.[entry.id];
+        return cell(entry.id, true, [t("atlas.caught", { count: caught }), record ? t("atlas.record", { weight: formatWeight(record) }) : ""], 1100 + index);
+      }
+      const where = entry.spots[0] ? nameOf("location", entry.spots[0].id) : "";
+      const when = entry.season === "autumn" ? t("atlas.autumn") : periodName(peakPeriod(entry.id));
+      return cell(entry.id, false, [where, when], 1100 + index);
+    });
+    const found = entries.filter((entry) => count(entry.id) > 0).length;
+    $("#collection-summary").textContent = t("atlas.summary", { count: found, total: entries.length });
+    $("#atlas").replaceChildren(element("ul", { className: "atlas-grid" }, fish));
+  }
+
   /**
    * The achievements, by group: earned ones bright with their date, the rest
    * dim with how far along they are, secret ones only a "?" until earned.
@@ -1399,7 +1459,7 @@ export class AnglerUI {
     const { progress } = this;
     const done = (achievement) => Boolean(progress.achievements?.[achievement.id]);
     const earned = ACHIEVEMENTS.filter(done);
-    $("#achievement-summary").textContent = t("achievements.summary", {
+    $("#collection-summary").textContent = t("achievements.summary", {
       count: earned.length,
       total: ACHIEVEMENTS.length,
       money: formatMoney(earned.reduce((sum, achievement) => sum + achievement.reward, 0)),

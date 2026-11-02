@@ -124,9 +124,13 @@ Nobody else's progress is listed: the quest is between the angler and the water 
 
 `node tools/balance/sim.mjs` (or `--quick` for a rougher run in under a minute) climbs the rod ladder with the game's own fishing code: a simulated angler that misses about one bite in five, reacts late, pumps the rod in the fight and fishes lures in jerks and pauses, with the real clock, rain and moon. At each rod it screens every water, bait and hook, measures the five best and fishes the best until the next rod is paid for, paying for bait, lost hooks and lures, worn-out lines and the spinning reel. It prints the best setup, earnings per hour, fish, losses and lines per hour and the hours per rod, then checks that the whole ladder takes 22–34 hours, the second rod under an hour and each rod longer than the last, exiting with code 1 if not. This angler is a little better than the earlier estimate's: about 26 hours for the full ladder before line wear and the moon, 27–28 after.
 
+## Collection
+
+**Колекція** in the main menu has two tabs. **Атлас** shows every fish in the game as a card (built from `handbookEntries`, so a new species appears by itself): a caught one in colour with how many and the heaviest, the rest a dark silhouette with a hint, the water where it is most common and the part of the day it feeds best (burbot: autumn nights). **Ачівки** lists the achievements below. Trophies keep their own window.
+
 ## Achievements
 
-Trophies has an Achievements tab: 41 of them in seven groups (first steps, collecting every fish of a water, weight, skill, time and weather, numbers and money, and specials, five of them secret until earned). Each earned one is a medal, a quiet note at the top of the screen and a little money, 50 to 1000 ₴, about 12 000 ₴ in all, under 3% of what the rods and gear cost. Definitions and the counters behind them are in `src/fishing/achievements.js`; the counters live in `progress.stats`, and every save checks for newly earned ones, so older saves get what they already deserve.
+Collection has an Achievements tab: 41 of them in seven groups (first steps, collecting every fish of a water, weight, skill, time and weather, numbers and money, and specials, five of them secret until earned). Each earned one is a medal, a quiet note at the top of the screen and a little money, 50 to 1000 ₴, about 12 000 ₴ in all, under 3% of what the rods and gear cost. Definitions and the counters behind them are in `src/fishing/achievements.js`; the counters live in `progress.stats`, and every save checks for newly earned ones, so older saves get what they already deserve.
 
 ## Accounts and cloud saves
 
