@@ -63,8 +63,10 @@ export const FISH = {
   knyazha: { min: 6, max: 8, pricePerKg: 0, unique: true, legend: true, active: { base: 1, peaks: [] } },
   myron: { min: 28, max: 35, pricePerKg: 0, unique: true, legend: true, active: { base: 1, peaks: [] } },
   panas: { min: 70, max: 85, pricePerKg: 0, unique: true, legend: true, active: { base: 1, peaks: [] } },
-  // Not a fish: sometimes reeled in instead of an empty hook.
+  // Not fish: now and then reeled in instead of an empty hook (see FINDS).
   boot: { min: 0.6, max: 1.4, pricePerKg: 0, junk: true, active: { base: 0, peaks: [] } },
+  bottle: { min: 0.4, max: 0.7, pricePerKg: 0, junk: true, active: { base: 0, peaks: [] } },
+  lostlure: { min: 0.02, max: 0.05, pricePerKg: 0, junk: true, active: { base: 0, peaks: [] } },
 };
 
 /**
@@ -101,6 +103,8 @@ export const NIBBLE = {
   // A crayfish drags the bait off slowly along the bottom.
   artem: { tempers: [1, 4, 4, 1], pace: 1.3, twitches: 1.2, strength: 0.6, window: 1.8 },
   boot: { tempers: [1, 0, 0, 0], pace: 1, twitches: 0, strength: 0.5, window: 1 },
+  bottle: { tempers: [1, 0, 0, 0], pace: 1, twitches: 0, strength: 0.5, window: 1 },
+  lostlure: { tempers: [1, 0, 0, 0], pace: 1, twitches: 0, strength: 0.5, window: 1 },
 };
 // A legend bites like its kind, only harder.
 for (const [id, kind] of Object.entries({ zolotyi: "karas", syva: "shchuka", knyazha: "forel", myron: "korop", panas: "som" })) {
@@ -130,10 +134,21 @@ export const LEGENDS = {
   reservoir: { id: "myron", kind: "korop", baits: ["boilie", "corn", "peas", "barley"] },
   bridge: { id: "panas", kind: "som", baits: ["frog", "livebait", "crayfish"] },
 };
-export const LEGEND_CHANCE = 1 / 2000;
+export const LEGEND_CHANCE = 1 / 1500;
 
 /** Chance that reeling in an empty line hooks an old boot. */
 export const BOOT_CHANCE = 0.012;
+
+/**
+ * Other finds on an empty line: a bottle with a note in it (now and then a
+ * little money instead), or someone's lost lure, mostly a spinner.
+ */
+export const FINDS = { bottle: 0.006, lostlure: 0.004 };
+export const LOST_LURES = [["spinner", 0.7], ["spoon", 0.25], ["wobbler", 0.05]];
+/** The odds a bottle holds money rather than a note, and how much. */
+export const BOTTLE_MONEY = { chance: 0.35, min: 20, max: 200 };
+/** By day a gull may snatch a small fish (under `maxKg`) as it comes off the hook. */
+export const GULL = { chance: 1 / 60, maxKg: 0.25 };
 
 /** How hungry a fish is at `hour` (0..24): roughly 0.1 (asleep) to 1.3 (feeding). */
 export function activity(species, hour) {

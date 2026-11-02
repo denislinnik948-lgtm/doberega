@@ -1,5 +1,5 @@
 import {
-  BAITS, EXTRAS, FISH, GROUNDBAIT, HOOKS, LEGENDS, LINE, LOCATIONS, RODS, gameHoursMs,
+  BAITS, BOTTLE_MONEY, EXTRAS, FISH, GROUNDBAIT, GULL, HOOKS, LEGENDS, LINE, LOCATIONS, RODS, gameHoursMs,
   baitEntries, fishPrice, formatMoney, formatWeight, handbookEntries, peakPeriod, spotEntries, trophyCost,
 } from "./data.js";
 import {
@@ -866,26 +866,43 @@ export class AnglerUI {
    * water); a one-of-a-kind one goes straight to the trophies; junk is left on
    * the bank.
    */
-  showCatch(fish, { bait } = {}) {
+  showCatch(fish, { bait, daylight = false } = {}) {
     const dialog = this.catchDialog;
     const { progress } = this;
-    $("#catch-title").textContent = nameOf("fish", fish.species);
-    setContent($("#catch-art"), fishSprite(fish.species, 4, nameOf("fish", fish.species)));
+    // Someone's lost lure is shown as the lure it is.
+    const lure = fish.species === "lostlure" ? fish.lure ?? "spinner" : null;
+    $("#catch-title").textContent = lure ? nameOf("bait", lure) : nameOf("fish", fish.species);
+    setContent($("#catch-art"), lure ? baitSprite(lure, 6) : fishSprite(fish.species, 4, nameOf("fish", fish.species)));
     $("#catch-weight").textContent = formatWeight(fish.weight);
     const unique = Boolean(fish.unique);
     const junk = Boolean(FISH[fish.species]?.junk);
     // A Red Book fish (the sterlet) is let go at once; that counts towards its badge.
     const guarded = Boolean(FISH[fish.species]?.protected);
-    $("#catch-note").hidden = false;
+    const ordinary = !unique && !junk && !guarded;
+    // By day a gull may snatch a small fish before it reaches the keepnet.
+    const gull = ordinary && daylight && fish.weight < GULL.maxKg && Math.random() < GULL.chance;
     // The fish of the day sells dearer, and keeps that price in the keepnet.
-    const dayFish = !unique && !junk && !guarded && fish.species === fishOfDay();
-    const price = formatMoney(fishPrice({ ...fish, dayFish }));
-    $("#catch-note").textContent = fish.legend ? t("catch.legend") : unique ? t("catch.toTrophies") : junk ? t("catch.junk") : guarded ? t("catch.protected") : t(dayFish ? "catch.dayFish" : "catch.toKeepnet", { price });
+    const dayFish = ordinary && !gull && fish.species === fishOfDay();
+    let note;
+    if (fish.legend) note = t("catch.legend");
+    else if (unique) note = t("catch.toTrophies");
+    else if (fish.species === "bottle") note = this.openBottle();
+    else if (lure) {
+      progress.baits[lure] = (progress.baits[lure] ?? 0) + 1;
+      note = t("catch.foundLure");
+    } else if (junk) note = t("catch.junk");
+    else if (guarded) note = t("catch.protected");
+    else if (gull) {
+      bump(progress, "gullSteals");
+      note = t("catch.gull");
+    } else note = t(dayFish ? "catch.dayFish" : "catch.toKeepnet", { price: formatMoney(fishPrice({ ...fish, dayFish })) });
+    $("#catch-note").hidden = false;
+    $("#catch-note").textContent = note;
     const date = new Date().toISOString();
     const record = { ...fish, id: `${date}-${fish.species}-${fish.weight}`, date, spot: progress.location, bait, ...(dayFish ? { dayFish } : {}) };
     if (unique) progress.trophies.unshift(record);
     else if (guarded) progress.released[fish.species] = (progress.released[fish.species] ?? 0) + 1;
-    else if (!junk) progress.keepnet.push(record);
+    else if (ordinary && !gull) progress.keepnet.push(record);
     this.commit();
 
     return new Promise((resolve) => {
@@ -900,6 +917,17 @@ export class AnglerUI {
       };
       this.openGuarded(dialog);
     });
+  }
+
+  /** What's in a bottle: now and then a little money, otherwise a note (a rumour of a legend, or an angler's word). */
+  openBottle() {
+    if (Math.random() < BOTTLE_MONEY.chance) {
+      const money = Math.round(BOTTLE_MONEY.min + Math.random() * (BOTTLE_MONEY.max - BOTTLE_MONEY.min));
+      this.progress.money += money;
+      return t("catch.bottleMoney", { money: formatMoney(money) });
+    }
+    const notes = [...Object.values(LEGENDS).map((legend) => t(`legend.${legend.id}`)), ...[1, 2, 3, 4, 5].map((n) => t(`bottle.note${n}`))];
+    return t("catch.bottleNote", { text: notes[Math.floor(Math.random() * notes.length)] });
   }
 
   /* ---------- Keepnet ---------- */

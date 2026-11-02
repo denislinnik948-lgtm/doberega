@@ -409,6 +409,21 @@ function bootGrid() {
   ], { o: P.ink, B: "#6a7862", b: "#93a284", S: "#45463c", g: "#8fc06a" });
 }
 
+/** A green glass bottle lying on its side, corked, a rolled note inside. */
+function bottleGrid() {
+  return fromRows([
+    "..oooooooooooooo........",
+    ".oGGGGGGGGGGGGGGo.......",
+    "oGhhhhhhhhhhhhGGGoooo...",
+    "oGPPPPPPPPPGGGGGGGGGGoo.",
+    "oGPpPpPPpPPGGGGGGGGGGCCo",
+    "oGPPPPPPPPPGGGGGGGGGGoo.",
+    "oGGGGGGGGGGGGGGGGoooo...",
+    ".oGGGGGGGGGGGGGGo.......",
+    "..oooooooooooooo........",
+  ], { o: P.ink, G: "#3f7a5a", h: "#8fc0a0", P: "#e2dcc0", p: "#7a6a50", C: "#a8743c" });
+}
+
 /**
  * The two-headed perch: the perch's own portrait with a second head growing
  * up out of its shoulders.
@@ -479,6 +494,9 @@ export function warmFishPortraits() {
 
 export function fishSprite(species, scale = 4, label = "") {
   if (species === "boot") return bootGrid().toCanvas(scale, label);
+  if (species === "bottle") return bottleGrid().toCanvas(scale * 1.2, label);
+  // A lost lure is drawn as the lure it is (showCatch passes which); a spinner if unknown.
+  if (species === "lostlure") return BAIT_SPRITES.spinner().toCanvas(scale * 1.5, label);
   if (species === "artem") return artemGrid().toCanvas(scale * 1.2, label);
   if (species === "dvoholovyi") return twoHeadedGrid(scale, label);
   const look = FISH_LOOKS[species];

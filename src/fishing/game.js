@@ -1,4 +1,4 @@
-import { BAITS, BOOT_CHANCE, GROUNDBAIT, HOOKS, LINE, LOCATIONS, NIBBLE, RODS, biteActivity, lineWeakness, rollFish, straightenChance } from "./data.js";
+import { BAITS, BOOT_CHANCE, FINDS, FISH, GROUNDBAIT, HOOKS, LINE, LOCATIONS, LOST_LURES, NIBBLE, RODS, biteActivity, lineWeakness, rollFish, straightenChance } from "./data.js";
 
 /**
  * Fishing state machine. Positions are normalized to the viewport (0..1) so the
@@ -177,12 +177,21 @@ export class FishingGame {
         this.jerkAge = 0;
         break;
       case "waiting": {
-        // Reeling in an empty line: usually just a recast, rarely a snag or a boot.
+        // Reeling in an empty line: usually just a recast, rarely a snag, a boot, a bottle or a lost lure.
         const roll = this.random();
         const snagChance = LOCATIONS[this.location]?.snagChance ?? 0.02;
-        if (roll < snagChance) this.startSnag();
-        else if (roll < snagChance + BOOT_CHANCE) {
-          this.fish = { species: "boot", weight: Math.round((0.6 + this.random() * 0.8) * 1000) / 1000, junk: true };
+        let edge = snagChance;
+        const find = roll < snagChance ? "snag"
+          : [["boot", BOOT_CHANCE], ["bottle", FINDS.bottle], ["lostlure", FINDS.lostlure]].find(([, chance]) => roll < (edge += chance))?.[0];
+        if (find === "snag") this.startSnag();
+        else if (find) {
+          const { min, max } = FISH[find];
+          this.fish = { species: find, weight: Math.round((min + this.random() * (max - min)) * 1000) / 1000, junk: true };
+          // Whose lure it was: mostly a spinner, now and then something dearer.
+          if (find === "lostlure") {
+            let pick = this.random();
+            this.fish.lure = LOST_LURES.find(([, share]) => (pick -= share) < 0)?.[0] ?? "spinner";
+          }
           this.hook();
         } else this.startReelIn();
         break;

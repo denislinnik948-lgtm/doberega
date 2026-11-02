@@ -333,7 +333,9 @@ function handleGameEvent(type, data) {
       else sounds.landed(data.fish.weight);
       game.release();
       // Into the keepnet (or the trophies); it's all sold on leaving the water.
-      ui.showCatch(data.fish, { bait: data.bait }).then(() => {
+      // Gulls are about by day only.
+      const hour = game.hour % 24;
+      ui.showCatch(data.fish, { bait: data.bait, daylight: hour >= 6 && hour < 20 }).then(() => {
         game.reset();
         // The first fish ever is the moment to suggest keeping progress safe.
         if (progress.caught === 1) ui.offerSignIn();

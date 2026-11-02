@@ -2,7 +2,7 @@ import { FISH, LEGENDS, LOCATIONS, RODS } from "./data.js";
 
 /**
  * Achievements: a badge, a note on screen and a little money each. The money
- * is modest (50–1500 ₴, about 15,500 ₴ for all of them, under 3% of what the
+ * is modest (50–1500 ₴, about 16,000 ₴ for all of them, under 3% of what the
  * rods and gear cost), so they reward without upsetting the economy.
  *
  * What they need is counted in `progress.stats` (see `recordCatch` below and the
@@ -80,6 +80,9 @@ export const ACHIEVEMENTS = [
   { id: "guardian", group: "special", reward: 500, ...flag((p) => (p.released?.sterliad ?? 0) >= 1) },
   { id: "kindHeart", group: "special", reward: 100, ...counted(10, (p) => stat(p, "releasedFromNet")) },
   { id: "oldBoot", group: "special", reward: 50, ...flag((p) => stat(p, "boots") >= 1) },
+  { id: "bottleMail", group: "special", reward: 100, ...counted(5, (p) => stat(p, "bottles")) },
+  { id: "finder", group: "special", reward: 100, ...flag((p) => stat(p, "foundLures") >= 1) },
+  { id: "robbed", group: "special", reward: 50, secret: true, ...flag((p) => stat(p, "gullSteals") >= 1) },
   { id: "duckThief", group: "special", reward: 100, ...counted(5, (p) => stat(p, "duckSteals")) },
   { id: "legend", group: "special", reward: 1000, ...flag((p) => Object.values(LEGENDS).some((legend) => hasTrophy(p, legend.id))) },
   { id: "allLegends", group: "special", reward: 1500, ...counted(Object.keys(LEGENDS).length, (p) => Object.values(LEGENDS).filter((legend) => hasTrophy(p, legend.id)).length) },
@@ -113,7 +116,7 @@ export function recordCatch(progress, fish, { spot, bait, lure, hour, rain, rodM
   progress.stats ??= {};
   const stats = progress.stats;
   if (FISH[fish.species]?.junk) {
-    bump(progress, "boots");
+    bump(progress, { bottle: "bottles", lostlure: "foundLures" }[fish.species] ?? "boots");
     return;
   }
   if (fish.unique) return;
