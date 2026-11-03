@@ -1068,11 +1068,162 @@ html.keyboard-open .sheet[open] > .account-body {
 .rank-row.is-now .rank-name strong { color: var(--gold); }
 .tourney-player small { color: var(--soft); font-size: 16px; }
 
-/* ---------- Tiled menu (wide screens; for now only the admins') ---------- */
+/* ---------- Tiled menu (for now only the admins'): a grid on wide screens, a column with a bar of sections on phones ---------- */
 
 /* Elsewhere the spot's tile is no box at all and the tiles stay hidden. */
 .spot-tile { display: contents; }
 .spot-tile > .frame-art, .tile-only { display: none; }
+
+.tiles.in-menu .menu {
+  /* No water behind the tiles: plain dark ground with faint glyphs, like a page of the scene's own letters. */
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='72' font-family='monospace' font-size='14' fill='%231e3833'%3E%3Ctext x='6' y='18'%3E·%3C/text%3E%3Ctext x='54' y='18'%3E~%3C/text%3E%3Ctext x='30' y='54'%3E~%3C/text%3E%3Ctext x='78' y='54'%3E·%3C/text%3E%3C/svg%3E"),
+    radial-gradient(ellipse at 50% 40%, var(--deep), var(--ink) 75%);
+}
+.tiles .menu-top { position: static; }
+.tiles :is(.quest-strip, .account-strip) { display: none; }
+.tiles .tile-only { display: revert; }
+
+/* The big tile: the picture takes whatever height is left; the traits one short line, the button as wide as the picture. */
+.tiles .spot-tile { display: flex; flex-direction: column; gap: clamp(8px, 1.4vh, 14px); min-height: 0; padding: clamp(12px, 1.8vh, 20px); }
+.tiles .spot-tile > .frame-art { display: block; }
+.tiles .spot-slider { flex: 1; width: 100%; min-height: 0; }
+.tiles .spot-card { display: flex; flex-direction: column; align-self: stretch; gap: clamp(6px, 1.2vh, 12px); }
+.tiles .card-scene { display: flex; flex: 1; flex-direction: column; min-height: 0; }
+.tiles .spot-picture { flex: 1; height: auto; min-height: 80px; }
+.tiles .spot-traits { display: flex; flex-wrap: wrap; justify-content: center; align-self: center; gap: 2px 8px; padding: 6px 16px; font-size: clamp(16px, 1.9vh, 20px); }
+.tiles .spot-traits dd + dt::before { margin-right: 8px; color: var(--mid); content: "·"; }
+
+
+/* A tile: its name small at the top, the figure that matters big, one line under it. Lit a little on hover. */
+.tiles .tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: clamp(4px, 0.8vh, 8px);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  padding: clamp(12px, 2vh, 22px) clamp(14px, 1.5vw, 24px);
+  color: var(--bone);
+  font: inherit;
+  font-size: clamp(17px, 2.1vh, 22px);
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer;
+}
+.tiles :is(.tile, .menu-item) > .frame-art { transition: filter 120ms; }
+.tiles :is(.tile, .menu-item):hover > .frame-art { filter: brightness(1.35); }
+.tiles :is(.tile, .menu-item):active { transform: translateY(2px); }
+.tiles .tile small { color: var(--soft); font-size: clamp(14px, 1.7vh, 17px); letter-spacing: 0.06em; text-transform: uppercase; }
+.tiles .tile strong { color: var(--gold); font-size: clamp(28px, 4.6vh, 46px); font-weight: 500; line-height: 1; font-variant-numeric: tabular-nums; }
+.tiles .tile-note { overflow: hidden; max-width: 100%; color: var(--light); font-size: clamp(15px, 1.9vh, 19px); white-space: nowrap; text-overflow: ellipsis; }
+.tiles .tile .achievement-bar { width: 100%; height: 8px; margin: 0; background: var(--dark); }
+.tiles .tile .achievement-bar span { background: var(--gold); }
+.tiles .tile-art { display: flex; flex: 1; align-items: center; }
+.tiles .tile-art canvas { display: block; }
+.tiles .tile-days { color: var(--gold); font-size: clamp(18px, 2.6vh, 26px); letter-spacing: 0.12em; }
+.tiles .tile-days .is-off { color: var(--mid); }
+/* The tournament tile: the week's fish in one cell, the top three each in a cell of their own. */
+.tiles .tile-tourney { justify-content: flex-start; }
+.tiles .tourney-cells { display: grid; flex: 1; grid-template-columns: minmax(0, 1.25fr) minmax(0, 3fr); gap: 8px; width: 100%; min-height: 0; }
+.tiles .tile-podium { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+.tiles .tourney-cell { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 0; padding: 6px 8px; text-align: center; background: rgb(10 20 18 / 0.55); box-shadow: inset 0 0 0 2px var(--dark); }
+.tiles .tourney-cell-fish { align-items: flex-start; text-align: left; }
+.tiles .tourney-cell-fish strong { font-size: clamp(18px, 2.4vh, 24px); }
+.tiles .tourney-cell-art canvas, .tiles .podium-avatar canvas { display: block; }
+.tiles .podium-place { position: absolute; top: 4px; left: 8px; color: var(--soft); font-size: clamp(16px, 2vh, 20px); }
+.tiles .is-place-1 .podium-place { color: var(--gold); }
+.tiles .is-place-2 .podium-place { color: var(--bone); }
+.tiles .is-place-3 .podium-place { color: var(--ember); }
+.tiles .is-place-1 { box-shadow: inset 0 0 0 2px var(--gold-dark); }
+.tiles .podium-name { overflow: hidden; max-width: 100%; color: var(--bone); white-space: nowrap; text-overflow: ellipsis; }
+.tiles .podium-weight { color: var(--gold); font-variant-numeric: tabular-nums; }
+.tiles .tourney-cell.is-me .podium-name { color: var(--gold); }
+.tiles .tourney-cell.is-free { opacity: 0.6; }
+.tiles .tourney-cell .tile-note { white-space: normal; line-height: 1.1; }
+
+/* The player: the angler's picture, then name, rank and level, and the bar to the next. */
+.tiles .tile-profile { flex-direction: row; align-items: center; justify-content: flex-start; gap: clamp(14px, 1.6vw, 24px); }
+.tiles .tile-avatar { display: grid; flex: none; place-items: center; padding: 10px; background: rgb(10 20 18 / 0.6); box-shadow: inset 0 0 0 2px var(--dark); }
+.tiles .tile-avatar canvas { display: block; }
+.tiles .tile-who { display: grid; flex: 1; gap: clamp(4px, 0.8vh, 8px); min-width: 0; }
+.tiles .tile-profile small.tile-note { color: var(--soft); letter-spacing: 0; text-transform: none; }
+.tiles .tile-profile .tile-name { overflow: hidden; color: var(--bone); font-size: clamp(24px, 3.6vh, 36px); white-space: nowrap; text-overflow: ellipsis; }
+.tiles .tile-profile:not(.is-safe) .tile-name { color: var(--gold); }
+
+/* The quest, the day's fish and the run share one wide tile, a faint line between the parts. */
+.tiles .tile-today { flex-direction: row; align-items: stretch; gap: 0; padding: 0; }
+.tiles .tile-half { display: flex; flex: 1 1 0; flex-direction: column; justify-content: space-between; gap: clamp(4px, 0.8vh, 8px); min-width: 0; padding: clamp(12px, 2vh, 22px) clamp(14px, 1.5vw, 24px); }
+.tiles #tile-quest-goal { display: -webkit-box; white-space: normal; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.tiles .tile-half + .tile-half { box-shadow: inset 2px 0 0 rgb(60 104 96 / 0.45); }
+
+.tiles #rank-badge { display: none; }
+.menu-short { display: none; }
+
+/* The menu's windows are pages here: the whole screen, "Back" top left, no frame round them. */
+.tiles dialog.page {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding: clamp(16px, 3vh, 32px) max(24px, calc((100% - 980px) / 2));
+  overflow-y: auto;
+  scrollbar-color: var(--mid) transparent;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='72' font-family='monospace' font-size='14' fill='%231e3833'%3E%3Ctext x='6' y='18'%3E·%3C/text%3E%3Ctext x='54' y='18'%3E~%3C/text%3E%3Ctext x='30' y='54'%3E~%3C/text%3E%3Ctext x='78' y='54'%3E·%3C/text%3E%3C/svg%3E"),
+    radial-gradient(ellipse at 50% 40%, var(--deep), var(--ink) 75%) fixed;
+}
+.tiles dialog.page[open] { animation: page-in 160ms steps(3); }
+.tiles dialog.page > .frame-art { display: none; }
+.tiles dialog.page::backdrop { background: var(--ink); }
+.tiles dialog.page .sheet-heading { gap: 16px; }
+.tiles dialog.page .sheet-heading form { order: -1; }
+.tiles dialog.page .sheet-heading .title-tab { margin-right: auto; }
+.tiles .back-btn { min-height: 48px; padding-inline: 16px; font-size: 22px; }
+/* Long lists scroll with the page itself, not in a box of their own. */
+.tiles dialog.page :is(.atlas, .achievement-list, .quest-body, .handbook, .trophy-wall, .ranks, .tourney, .pack-body, .shelves) { max-height: none; overflow: visible; }
+
+/* Each thing in one place: the tournament and the ranks have pages of their own here. */
+.tiles :is(#trophy-dialog .tab[data-tab="tourney"], #collection-dialog .tab[data-tab="ranks"], .today-tourney) { display: none; }
+/* Today as a page: the quest and the fish of the day side by side, the run of days under them. */
+.tiles #quest-dialog .quest-body { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.tiles .today-part { display: grid; align-content: start; gap: 12px; padding: 20px 24px; background: rgb(10 20 18 / 0.55); box-shadow: inset 0 0 0 2px var(--dark); }
+.tiles .today-streak, .tiles #quest-next { grid-column: 1 / -1; }
+.tiles .today-part .today-heading { margin: 0; }
+.tiles .today-part .quest-goal { font-size: 30px; }
+.tiles .today-part .quest-status, .tiles #streak-about { font-size: 21px; }
+.tiles .day-fish-big canvas { max-width: 180px; }
+.tiles .streak-day { padding: 10px 4px; font-size: 18px; }
+.tiles .streak-day small { font-size: 15px; }
+.tiles .streak-art { height: 40px; }
+
+.tiles .tourney-card { display: flex; align-items: center; gap: 28px; padding: 20px 26px; }
+.tiles .tourney-fish { display: grid; place-items: center; }
+.tiles .tourney-fish canvas { display: block; }
+.tiles .tourney-goal { display: grid; gap: 10px; }
+.tiles .tourney-goal small { color: var(--soft); font-size: 16px; letter-spacing: 0.06em; text-transform: uppercase; }
+.tiles .tourney-goal strong { color: var(--gold); font-size: 30px; font-weight: 500; }
+.tiles .tourney-goal dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 28px; margin: 0; }
+.tiles .tourney-goal dt { color: var(--soft); font-size: 16px; }
+.tiles .tourney-goal dd { margin: 0; color: var(--bone); font-size: 20px; }
+.tiles .profile-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); grid-template-rows: auto 1fr; grid-template-areas: "avatar level" "account level"; align-items: start; gap: 28px; }
+.tiles .profile-avatar { grid-area: avatar; }
+.tiles .profile-account { grid-area: account; }
+.tiles .profile-level { grid-area: level; }
+/* The anglers to pick from, the picked one in gold corners. */
+.avatar-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.avatar-pick { position: relative; display: grid; place-items: center; aspect-ratio: 1; padding: 4px; border: 0; background: rgb(10 20 18 / 0.6); box-shadow: inset 0 0 0 2px var(--dark); cursor: pointer; }
+.avatar-pick canvas { display: block; width: 100% !important; height: auto !important; image-rendering: pixelated; }
+.avatar-pick:hover { box-shadow: inset 0 0 0 2px var(--mid); }
+.avatar-pick.is-picked { box-shadow: inset 0 0 0 2px var(--gold); }
+/* On the author's account their own picture leads, twice the size, and the twelve fill two rows beside it. */
+.avatar-grid.has-own { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+.avatar-pick.is-own { grid-column: span 2; grid-row: span 2; padding: 0; }
+.tiles .profile-body section { display: grid; gap: 12px; }
+.tiles .profile-body .today-heading { margin: 0; }
 
 @media (min-width: 900px) {
   /* Clock and money up top; the water to fish on a big tile; the player, today's quest, the tournament and
@@ -1091,27 +1242,11 @@ html.keyboard-open .sheet[open] > .account-body {
     gap: clamp(10px, 1.6vh, 18px);
     padding: clamp(12px, 3vh, 28px) clamp(16px, 3vw, 48px);
     overflow: hidden;
-    /* No water behind the tiles: plain dark ground with faint glyphs, like a page of the scene's own letters. */
-    background:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='72' font-family='monospace' font-size='14' fill='%231e3833'%3E%3Ctext x='6' y='18'%3E·%3C/text%3E%3Ctext x='54' y='18'%3E~%3C/text%3E%3Ctext x='30' y='54'%3E~%3C/text%3E%3Ctext x='78' y='54'%3E·%3C/text%3E%3C/svg%3E"),
-      radial-gradient(ellipse at 50% 40%, var(--deep), var(--ink) 75%);
   }
   .tiles .menu-top { position: static; grid-area: top; }
-  .tiles :is(.quest-strip, .account-strip) { display: none; }
-  .tiles .tile-only { display: revert; }
-
-  /* The big tile: the picture takes whatever height is left; the traits one short line, the button as wide as the picture. */
-  .tiles .spot-tile { display: flex; grid-area: spot; flex-direction: column; gap: clamp(8px, 1.4vh, 14px); min-height: 0; padding: clamp(12px, 1.8vh, 20px); }
-  .tiles .spot-tile > .frame-art { display: block; }
-  .tiles .spot-slider { flex: 1; width: 100%; min-height: 0; }
-  .tiles .spot-card { display: flex; flex-direction: column; align-self: stretch; gap: clamp(6px, 1.2vh, 12px); }
-  .tiles .card-scene { display: flex; flex: 1; flex-direction: column; min-height: 0; }
-  .tiles .spot-picture { flex: 1; height: auto; min-height: 80px; }
-  .tiles .spot-traits { display: flex; flex-wrap: wrap; justify-content: center; align-self: center; gap: 2px 8px; padding: 6px 16px; font-size: clamp(16px, 1.9vh, 20px); }
-  .tiles .spot-traits dd + dt::before { margin-right: 8px; color: var(--mid); content: "·"; }
+  .tiles .spot-tile { grid-area: spot; }
   /* Arrows are 48px with a 14px gap: the button keeps to the picture's width between them. */
   .tiles .fish-button { align-self: stretch; min-width: 0; margin-inline: 62px; min-height: clamp(48px, 7vh, 72px); }
-
   .tiles .menu-nav { display: contents; }
   #tile-profile { grid-area: profile; }
   #tile-tourney { grid-area: tourney; }
@@ -1121,137 +1256,93 @@ html.keyboard-open .sheet[open] > .account-body {
   #trophy-button { grid-area: trophy; }
   #collection-button { grid-area: collection; }
   #settings-button { grid-area: settings; }
-
-  /* A tile: its name small at the top, the figure that matters big, one line under it. Lit a little on hover. */
-  .tiles .tile {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: clamp(4px, 0.8vh, 8px);
-    min-width: 0;
-    min-height: 0;
-    overflow: hidden;
-    padding: clamp(12px, 2vh, 22px) clamp(14px, 1.5vw, 24px);
-    color: var(--bone);
-    font: inherit;
-    font-size: clamp(17px, 2.1vh, 22px);
-    line-height: 1.2;
-    text-align: left;
-    cursor: pointer;
-  }
-  .tiles :is(.tile, .menu-item) > .frame-art { transition: filter 120ms; }
-  .tiles :is(.tile, .menu-item):hover > .frame-art { filter: brightness(1.35); }
-  .tiles :is(.tile, .menu-item):active { transform: translateY(2px); }
-  .tiles .tile small { color: var(--soft); font-size: clamp(14px, 1.7vh, 17px); letter-spacing: 0.06em; text-transform: uppercase; }
-  .tiles .tile strong { color: var(--gold); font-size: clamp(28px, 4.6vh, 46px); font-weight: 500; line-height: 1; font-variant-numeric: tabular-nums; }
-  .tiles .tile-note { overflow: hidden; max-width: 100%; color: var(--light); font-size: clamp(15px, 1.9vh, 19px); white-space: nowrap; text-overflow: ellipsis; }
-  .tiles .tile .achievement-bar { width: 100%; height: 8px; margin: 0; background: var(--dark); }
-  .tiles .tile .achievement-bar span { background: var(--gold); }
-  .tiles .tile-art { display: flex; flex: 1; align-items: center; }
-  .tiles .tile-art canvas { display: block; }
-  .tiles .tile-days { color: var(--gold); font-size: clamp(18px, 2.6vh, 26px); letter-spacing: 0.12em; }
-  .tiles .tile-days .is-off { color: var(--mid); }
-  /* The tournament tile: the week's fish in one cell, the top three each in a cell of their own. */
-  .tiles .tile-tourney { justify-content: flex-start; }
-  .tiles .tourney-cells { display: grid; flex: 1; grid-template-columns: minmax(0, 1.25fr) minmax(0, 3fr); gap: 8px; width: 100%; min-height: 0; }
-  .tiles .tile-podium { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
-  .tiles .tourney-cell { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 0; padding: 6px 8px; text-align: center; background: rgb(10 20 18 / 0.55); box-shadow: inset 0 0 0 2px var(--dark); }
-  .tiles .tourney-cell-fish { align-items: flex-start; text-align: left; }
-  .tiles .tourney-cell-fish strong { font-size: clamp(18px, 2.4vh, 24px); }
-  .tiles .tourney-cell-art canvas, .tiles .podium-avatar canvas { display: block; }
-  .tiles .podium-place { position: absolute; top: 4px; left: 8px; color: var(--soft); font-size: clamp(16px, 2vh, 20px); }
-  .tiles .is-place-1 .podium-place { color: var(--gold); }
-  .tiles .is-place-2 .podium-place { color: var(--bone); }
-  .tiles .is-place-3 .podium-place { color: var(--ember); }
-  .tiles .is-place-1 { box-shadow: inset 0 0 0 2px var(--gold-dark); }
-  .tiles .podium-name { overflow: hidden; max-width: 100%; color: var(--bone); white-space: nowrap; text-overflow: ellipsis; }
-  .tiles .podium-weight { color: var(--gold); font-variant-numeric: tabular-nums; }
-  .tiles .tourney-cell.is-me .podium-name { color: var(--gold); }
-  .tiles .tourney-cell.is-free { opacity: 0.6; }
-  .tiles .tourney-cell .tile-note { white-space: normal; line-height: 1.1; }
-
-  /* The player: the angler's picture, then name, rank and level, and the bar to the next. */
-  .tiles .tile-profile { flex-direction: row; align-items: center; justify-content: flex-start; gap: clamp(14px, 1.6vw, 24px); }
-  .tiles .tile-avatar { display: grid; flex: none; place-items: center; padding: 10px; background: rgb(10 20 18 / 0.6); box-shadow: inset 0 0 0 2px var(--dark); }
-  .tiles .tile-avatar canvas { display: block; }
-  .tiles .tile-who { display: grid; flex: 1; gap: clamp(4px, 0.8vh, 8px); min-width: 0; }
-  .tiles .tile-profile small.tile-note { color: var(--soft); letter-spacing: 0; text-transform: none; }
-  .tiles .tile-profile .tile-name { overflow: hidden; color: var(--bone); font-size: clamp(24px, 3.6vh, 36px); white-space: nowrap; text-overflow: ellipsis; }
-  .tiles .tile-profile:not(.is-safe) .tile-name { color: var(--gold); }
-
-  /* The quest, the day's fish and the run share one wide tile, a faint line between the parts. */
-  .tiles .tile-today { flex-direction: row; align-items: stretch; gap: 0; padding: 0; }
-  .tiles .tile-half { display: flex; flex: 1 1 0; flex-direction: column; justify-content: space-between; gap: clamp(4px, 0.8vh, 8px); min-width: 0; padding: clamp(12px, 2vh, 22px) clamp(14px, 1.5vw, 24px); }
-  .tiles #tile-quest-goal { display: -webkit-box; white-space: normal; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-  .tiles .tile-half + .tile-half { box-shadow: inset 2px 0 0 rgb(60 104 96 / 0.45); }
-
   /* The sections along the bottom: only the icon and the name, side by side. */
   .tiles .menu-item { grid-template-columns: auto auto; justify-content: center; min-width: 0; min-height: 0; padding: 8px 12px; font-size: clamp(18px, 2.3vh, 24px); }
-  .tiles #rank-badge { display: none; }
+  .tiles .menu-short { display: none; }
+}
 
-  /* The menu's windows are pages here: the whole screen, "Back" top left, no frame round them. */
-  .tiles dialog.page {
-    width: 100%;
-    max-width: none;
-    height: 100%;
-    max-height: none;
-    margin: 0;
-    padding: clamp(16px, 3vh, 32px) max(24px, calc((100% - 980px) / 2));
+@media (max-width: 899px) {
+  /*
+   * Phones: the tiles in one column that scrolls (the player, the water and its button, today, the tournament),
+   * the sections in a bar along the bottom, always under the thumb.
+   */
+  .tiles.in-menu .menu {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: calc(env(safe-area-inset-top, 0px) + 12px) 12px calc(env(safe-area-inset-bottom, 0px) + 100px);
     overflow-y: auto;
-    scrollbar-color: var(--mid) transparent;
-    background:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='72' font-family='monospace' font-size='14' fill='%231e3833'%3E%3Ctext x='6' y='18'%3E·%3C/text%3E%3Ctext x='54' y='18'%3E~%3C/text%3E%3Ctext x='30' y='54'%3E~%3C/text%3E%3Ctext x='78' y='54'%3E·%3C/text%3E%3C/svg%3E"),
-      radial-gradient(ellipse at 50% 40%, var(--deep), var(--ink) 75%) fixed;
   }
-  .tiles dialog.page[open] { animation: page-in 160ms steps(3); }
-  .tiles dialog.page > .frame-art { display: none; }
-  .tiles dialog.page::backdrop { background: var(--ink); }
-  .tiles dialog.page .sheet-heading { gap: 16px; }
-  .tiles dialog.page .sheet-heading form { order: -1; }
-  .tiles dialog.page .sheet-heading .title-tab { margin-right: auto; }
-  .tiles .back-btn { min-height: 48px; padding-inline: 16px; font-size: 22px; }
-  /* Long lists scroll with the page itself, not in a box of their own. */
-  .tiles dialog.page :is(.atlas, .achievement-list, .quest-body, .handbook, .trophy-wall, .ranks, .tourney, .pack-body, .shelves) { max-height: none; overflow: visible; }
+  .tiles .menu-top { order: 0; display: grid; grid-template-columns: auto auto auto; justify-content: space-between; gap: 6px; inset: auto; }
+  #tile-profile { order: 1; }
+  .tiles .spot-tile { order: 2; }
+  #tile-today { order: 3; }
+  #tile-tourney { order: 4; }
+  .tiles .spot-picture { flex: none; height: clamp(150px, 26vh, 240px); }
+  /* The phone's arrows are 40px with an 8px gap, inside 4px: the button keeps to the picture's width. */
+  .tiles .fish-button { align-self: stretch; width: auto; min-width: 0; margin-inline: 52px; min-height: 56px; }
+  .tiles .tile { padding: 12px 14px; font-size: 17px; }
+  .tiles .tile strong { font-size: 28px; }
+  .tiles .tile small, .tiles .tile-note { font-size: 15px; }
+  .tiles .tile-avatar { padding: 6px; }
+  .tiles .tile-avatar canvas { width: 72px !important; height: 72px !important; image-rendering: pixelated; }
+  .tiles .tile-profile .tile-name { font-size: 24px; }
+  .tiles .tile-half { padding: 12px 10px; }
+  .tiles .tile-days { font-size: 15px; letter-spacing: 0.04em; }
+  .tiles .tourney-cells { grid-template-columns: minmax(0, 1fr); }
+  .tiles .tourney-cell-fish { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 2px 10px; }
+  .tiles .tourney-cell-fish .tourney-cell-art { flex: none; }
+  .tiles .tourney-cell { min-height: 92px; }
+  .tiles .tourney-cell-fish { min-height: 0; }
 
-  /* Each thing in one place: the tournament and the ranks have pages of their own here. */
-  .tiles :is(#trophy-dialog .tab[data-tab="tourney"], #collection-dialog .tab[data-tab="ranks"], .today-tourney) { display: none; }
-  /* Today as a page: the quest and the fish of the day side by side, the run of days under them. */
-  .tiles #quest-dialog .quest-body { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
-  .tiles .today-part { display: grid; align-content: start; gap: 12px; padding: 20px 24px; background: rgb(10 20 18 / 0.55); box-shadow: inset 0 0 0 2px var(--dark); }
-  .tiles .today-streak, .tiles #quest-next { grid-column: 1 / -1; }
-  .tiles .today-part .today-heading { margin: 0; }
-  .tiles .today-part .quest-goal { font-size: 30px; }
-  .tiles .today-part .quest-status, .tiles #streak-about { font-size: 21px; }
-  .tiles .day-fish-big canvas { max-width: 180px; }
-  .tiles .streak-day { padding: 10px 4px; font-size: 18px; }
-  .tiles .streak-day small { font-size: 15px; }
-  .tiles .streak-art { height: 40px; }
+  /* The bar of sections: five, an icon over a short name, fixed to the bottom of the screen. */
+  .tiles.in-menu .menu-nav {
+    position: fixed;
+    z-index: 4;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+    width: auto;
+    padding: 8px 10px calc(env(safe-area-inset-bottom, 0px) + 8px);
+    background: var(--ink);
+    box-shadow: 0 -2px 0 var(--dark), 0 -14px 14px -6px rgb(10 20 18 / 0.9);
+  }
+  .tiles .menu-item, .tiles .menu-item:nth-child(n + 4) {
+    grid-column: auto;
+    grid-template-columns: 1fr;
+    grid-template-rows: 40px auto;
+    justify-items: center;
+    align-content: center;
+    gap: 0;
+    min-width: 0;
+    min-height: 68px;
+    padding: 6px 2px;
+    font-size: 14px;
+    text-align: center;
+    background: var(--deep);
+  }
+  .tiles .menu-item .menu-icon canvas { width: 36px !important; height: auto !important; image-rendering: pixelated; }
+  .tiles .menu-item > span:not(.menu-icon, .badge) { overflow: hidden; max-width: 100%; white-space: nowrap; text-overflow: ellipsis; }
+  .tiles .menu-long { display: none; }
+  .tiles .menu-short { display: block; }
 
-  .tiles .tourney-card { display: flex; align-items: center; gap: 28px; padding: 20px 26px; }
-  .tiles .tourney-fish { display: grid; place-items: center; }
-  .tiles .tourney-fish canvas { display: block; }
-  .tiles .tourney-goal { display: grid; gap: 10px; }
-  .tiles .tourney-goal small { color: var(--soft); font-size: 16px; letter-spacing: 0.06em; text-transform: uppercase; }
-  .tiles .tourney-goal strong { color: var(--gold); font-size: 30px; font-weight: 500; }
-  .tiles .tourney-goal dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 28px; margin: 0; }
-  .tiles .tourney-goal dt { color: var(--soft); font-size: 16px; }
-  .tiles .tourney-goal dd { margin: 0; color: var(--bone); font-size: 20px; }
-  .tiles .profile-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); grid-template-rows: auto 1fr; grid-template-areas: "avatar level" "account level"; align-items: start; gap: 28px; }
-  .tiles .profile-avatar { grid-area: avatar; }
-  .tiles .profile-account { grid-area: account; }
-  .tiles .profile-level { grid-area: level; }
-  /* The anglers to pick from, the picked one in gold corners. */
-  .avatar-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
-  .avatar-pick { position: relative; display: grid; place-items: center; aspect-ratio: 1; padding: 4px; border: 0; background: rgb(10 20 18 / 0.6); box-shadow: inset 0 0 0 2px var(--dark); cursor: pointer; }
-  .avatar-pick canvas { display: block; width: 100% !important; height: auto !important; image-rendering: pixelated; }
-  .avatar-pick:hover { box-shadow: inset 0 0 0 2px var(--mid); }
-  .avatar-pick.is-picked { box-shadow: inset 0 0 0 2px var(--gold); }
-  /* On the author's account their own picture leads, twice the size, and the twelve fill two rows beside it. */
-  .avatar-grid.has-own { grid-template-columns: repeat(8, minmax(0, 1fr)); }
-  .avatar-pick.is-own { grid-column: span 2; grid-row: span 2; padding: 0; }
-  .tiles .profile-body section { display: grid; gap: 12px; }
-  .tiles .profile-body .today-heading { margin: 0; }
+  /* Pages on a phone: edge to edge, clear of the notch, one column. */
+  .tiles dialog.page { padding: calc(env(safe-area-inset-top, 0px) + 12px) 14px calc(env(safe-area-inset-bottom, 0px) + 16px); }
+  .tiles #quest-dialog .quest-body { grid-template-columns: minmax(0, 1fr); }
+  .tiles .today-part { padding: 14px 16px; }
+  .tiles .today-part .quest-goal { font-size: 24px; }
+  .tiles .today-part .quest-status, .tiles #streak-about { font-size: 18px; }
+  .tiles .streak-day { padding: 6px 2px; font-size: 14px; }
+  .tiles .streak-day small { font-size: 12px; }
+  .tiles .tourney-card { flex-wrap: wrap; gap: 14px; padding: 14px 16px; }
+  .tiles .tourney-goal dl { gap: 6px 16px; }
+  .tiles .profile-body { grid-template-columns: minmax(0, 1fr); grid-template-areas: "avatar" "account" "level"; grid-template-rows: auto; gap: 22px; }
+  .avatar-grid, .avatar-grid.has-own { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 @keyframes page-in { from { opacity: 0; } }
