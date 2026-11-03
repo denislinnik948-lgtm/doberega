@@ -38,6 +38,22 @@ class Grid {
     return this.cells[y * this.width + x];
   }
 
+  /** The same picture without its empty margins, so it centres where it is shown. */
+  trim() {
+    let x0 = this.width, y0 = this.height, x1 = -1, y1 = -1;
+    for (let y = 0; y < this.height; y += 1) {
+      for (let x = 0; x < this.width; x += 1) {
+        if (!this.get(x, y)) continue;
+        x0 = Math.min(x0, x); x1 = Math.max(x1, x);
+        y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+      }
+    }
+    if (x1 < 0) return this;
+    const out = new Grid(x1 - x0 + 1, y1 - y0 + 1);
+    for (let y = y0; y <= y1; y += 1) for (let x = x0; x <= x1; x += 1) out.set(x - x0, y - y0, this.get(x, y));
+    return out;
+  }
+
   /** One-pixel dark outline around everything drawn so far. */
   outline(color) {
     const add = [];
@@ -1167,115 +1183,147 @@ export function exitSprite(scale = 3) {
   ], { o: P.ink, B: P.soft, L: P.bone }).toCanvas(scale);
 }
 
+/*
+ * The extras, on one 16-pixel square each, lit from the top left like the
+ * rest: a light edge on the left and top, a shade on the right and bottom.
+ */
 const EXTRA_SPRITES = {
+  // A float with a glowing tip for fishing at night.
   glowfloat: () => fromRows([
-    "......gg......",
-    ".....gYYg.....",
-    ".....oYYo.....",
-    ".....oYYo.....",
-    "....oRRRRo....",
-    "...oRRRRRRo...",
-    "...oWWWWWWo...",
-    "...oWWWWWWo...",
-    "....oWWWWo....",
-    ".....oLLo.....",
-    "......oo......",
-    "......o.......",
-    "......o.......",
-  ], { o: P.ink, g: "#9fe08a", Y: "#d8ff9a", R: P.ember, W: P.bone, L: P.light }),
+    "......gYg.......",
+    ".....gYYYg......",
+    "......oYo.......",
+    "......oYo.......",
+    ".....oRRRo......",
+    "....oRrRRRo.....",
+    "...oRrRRRRdo....",
+    "...oRRRRRRdo....",
+    "...oWwWWWWso....",
+    "...oWwWWWWso....",
+    "....oWWWWso.....",
+    ".....oWWso......",
+    "......oso.......",
+    "......oDo.......",
+    "......oDo.......",
+    ".......o........",
+  ], { o: P.ink, g: "#7ec86e", Y: "#d8ff9a", R: P.ember, r: "#e08a5e", d: "#9a4a2e", W: P.bone, w: "#f4f2e0", s: "#b8b6a2", D: P.mid }),
+  // The angler's handbook: a red cloth cover with a gold fish on it, the pages showing below.
   handbook: () => fromRows([
     "................",
-    "..oooooooooooo..",
-    "..oRRRRRRRRRRWo.",
-    "..oRggggggggRWo.",
-    "..oRgRRRRRRgRWo.",
-    "..oRggggggggRWo.",
-    "..oRRRRRRRRRRWo.",
-    "..oRRRRggRRRRWo.",
-    "..oRRRRggRRRRWo.",
-    "..oRRRRRRRRRRWo.",
-    "..oRRRRRRRRRRWo.",
-    "..oddddddddddWo.",
+    "..ooooooooooooo.",
+    ".oSRRRRRRRRRRRo.",
+    ".oSRrrrrrrrrRRo.",
+    ".oSRgggggggRRdo.",
+    ".oSRgRYYRYgRRdo.",
+    ".oSRgYYYYRgRRdo.",
+    ".oSRgRYYRYgRRdo.",
+    ".oSRgggggggRRdo.",
+    ".oSRRRRRRRRRRdo.",
+    ".oSRRRRRRRRRRdo.",
+    ".oSdddddddddddo.",
+    ".oSWWWWWWWWWWWo.",
+    ".ooWwwwwwwwwwWo.",
     "...oooooooooooo.",
     "................",
-  ], { o: P.ink, R: "#7a3a2a", g: P.gold, W: P.bone, d: "#4a2418" }),
+  ], { o: P.ink, S: "#4a2418", R: "#8a3e2c", r: "#a8563a", d: "#64281c", g: P.goldDark, Y: P.gold, W: P.bone, w: "#c8c4b0" }),
+  // A landing net: a round hoop of mesh, the bag hanging under it, on a wooden handle.
   net: () => {
-    const grid = new Grid(18, 18);
-    for (let i = 0; i < 9; i += 1) grid.set(1 + i, 16 - i, P.goldDark);
-    for (let a = 0; a < 32; a += 1) {
-      const angle = (a / 32) * Math.PI * 2;
-      grid.set(12 + Math.round(Math.cos(angle) * 4.5), 5 + Math.round(Math.sin(angle) * 4.5), P.soft);
-    }
-    for (let x = 8; x <= 16; x += 1) {
-      for (let y = 5; y <= 13; y += 1) {
-        const inside = (x - 12) ** 2 + (y - 7) ** 2 < 26 && y > 6;
-        if (inside && (x + y) % 2 === 0) grid.set(x, y, P.light);
-      }
-    }
-    return grid.outline(P.ink);
-  },
-  braid: () => {
     const grid = new Grid(16, 16);
-    for (let y = 2; y <= 13; y += 1) {
-      for (let x = 3; x <= 12; x += 1) {
-        const edge = y === 2 || y === 13;
-        grid.set(x, y, edge ? P.mid : (x + y) % 3 === 0 ? P.gold : P.goldDark);
+    const cx = 10;
+    const cy = 5.5;
+    for (let y = 0; y < 16; y += 1) {
+      for (let x = 0; x < 16; x += 1) {
+        const d = Math.hypot(x - cx, (y - cy) * 1.05);
+        if (d >= 4 && d < 5.2) grid.set(x, y, d < 4.6 && x + y < 16 ? P.light : P.soft);
+        else if (d < 4 && (x + y) % 2 === 0) grid.set(x, y, P.light);
+        else if (y > 9 && y < 13 && Math.abs(x - cx - (y - 9) * 0.3) < 4 - (y - 9) && (x + y) % 2 === 0) grid.set(x, y, P.soft);
       }
     }
-    for (let k = 0; k < 4; k += 1) grid.set(13 + (k % 2), 8 + k, P.gold);
+    for (let i = 0; i < 7; i += 1) {
+      grid.set(6 - i, 9 + i, "#a0703e");
+      grid.set(5 - i, 9 + i, "#7a5230");
+    }
     return grid.outline(P.ink);
   },
+  // A spool of braided line: the braid in two crossing colours, a loose end.
+  braid: () => fromRows([
+    "................",
+    "..oooooooooooo..",
+    ".oDDDDDDDDDDDDo.",
+    ".oddddddddddddo.",
+    "..oGgGgGgGgGgo..",
+    "..ogGgGgGgGgGo..",
+    "..oGgGgGgGgGgo..",
+    "..ogGgGgGgGgGo..",
+    "..oGgGgGgGgGgo..",
+    "..ogGgGgGgGgGo..",
+    ".oDDDDDDDDDDDDo.",
+    ".oddddddddddddoo",
+    "..oooooooooooogo",
+    "..............og",
+    "...............o",
+    "................",
+  ], { o: P.ink, D: P.mid, d: P.dark, G: P.gold, g: "#5e9a4a" }),
+  // A spinning reel seen from the side: the foot that holds it to the rod, the spool wound with line, the crank and its knob.
   spinreel: () => fromRows([
     "................",
-    ".....oooooo.....",
-    "....oMMMMMMo....",
-    "...oMGGGGGGMo...",
-    "...oMGoooGGMo.oo",
-    "...oMGoLoGGMooHo",
-    "...oMGoooGGMo.oo",
-    "...oMGGGGGGMo...",
-    "....oMMMMMMo....",
-    ".....oooooo.....",
-    ".......oMo......",
-    "...ooooMMMoooo..",
-    "...oddddddddddo.",
-    "....oooooooooo..",
-  ], { o: P.ink, M: P.mid, G: P.soft, L: P.light, H: P.gold, d: P.dark }),
+    "..oooooooooooo..",
+    "..oddddddddddo..",
+    "......oMMo......",
+    "...ooooMMoooo...",
+    "..oLLLLLLLLMMo..",
+    ".oLGGGGGGGGGMMo.",
+    ".oLgggggggggMMoo",
+    ".oLGGGGGGGGGMMMo",
+    ".oLgggggggggMMoH",
+    "..oMMMMMMMMMMo.o",
+    "...oooooooooo...",
+    "................",
+    "................",
+    "................",
+    "................",
+  ], { o: P.ink, M: P.mid, L: P.light, G: P.soft, g: P.bone, H: P.gold, d: P.dark }),
+  // An echo sounder: fish as arcs over the bottom's line on its screen.
   sonar: () => fromRows([
     "................",
     ".oooooooooooooo.",
-    ".oMMMMMMMMMMMMo.",
-    ".oMkkkkkkkkkkMo.",
-    ".oMkkkkkkGkkkMo.",
-    ".oMkGkkkkkkkkMo.",
-    ".oMkkkkkGGkkkMo.",
-    ".oMkLLLLLLLLkMo.",
-    ".oMkLdLLdLLLkMo.",
-    ".oMkkkkkkkkkkMo.",
-    ".oMMMMMMMMMMMMo.",
-    ".oMMoMMoMMoMMMo.",
+    ".oMLLLLLLLLLLMo.",
+    ".oLkkkkkkkkkkdo.",
+    ".oLkkkkkkkGGkdo.",
+    ".oLkkkkkkkkkkdo.",
+    ".oLkkGGGkkkkkdo.",
+    ".oLkkkkkkkkkkdo.",
+    ".oLsskkkkkkssdo.",
+    ".oLssssskssssdo.",
+    ".oMddddddddddMo.",
+    ".oMHMMMMMMMMMMo.",
     ".oooooooooooooo.",
+    ".....oMMMMo.....",
+    "...oooooooooo...",
     "................",
-  ], { o: P.ink, M: P.mid, k: P.deep, G: P.gold, L: P.soft, d: P.dark }),
+  ], { o: P.ink, M: P.mid, L: P.light, d: P.dark, k: P.deep, G: P.gold, s: P.soft, H: P.ember }),
 };
 
 /** A tied sack of groundbait, crumbs spilling from the top. */
 export function groundbaitSprite(scale = 3) {
   return fromRows([
-    "......y.y.......",
-    ".....y.yy.y.....",
-    "......oooo......",
-    ".....oTTTTo.....",
-    "......oRRo......",
-    ".....oBBBBo.....",
-    "....oBBbBBBo....",
-    "...oBBBBBbBBo...",
-    "...oBbBBBBBBo...",
-    "...oBBBBbBBBo...",
-    "...oBBBBBBbBo...",
-    "....oBbBBBBo....",
-    ".....oooooo.....",
-  ], { o: P.ink, y: "#e0c068", T: "#c9a35a", R: P.ember, B: "#9a7a46", b: "#7a5e34" }).toCanvas(scale);
+    "................",
+    ".......y..y.....",
+    ".....y..yy..y...",
+    "......oooooo....",
+    ".....oTTTTTTo...",
+    "......oRRRRo....",
+    ".....oBBBBBBo...",
+    "....oBLBBBBBbo..",
+    "...oBLBBBbBBBbo.",
+    "...oBLBBBBBBBbo.",
+    "...oBBBbBBBBBbo.",
+    "...oBBBBBBbBBbo.",
+    "...oBBBBBBBBBbo.",
+    "....obbbbbbbbo..",
+    ".....oooooooo...",
+    "................",
+  ], { o: P.ink, y: "#e0c068", T: "#c9a35a", R: P.ember, B: "#9a7a46", L: "#b8955a", b: "#6e5430" }).toCanvas(scale);
 }
 
 /** Today's quest: a little notice pinned up, written on, or with a green tick once done. */
@@ -1323,7 +1371,7 @@ export function lineSprite(scale = 3, worn = false) {
 }
 
 export function extraSprite(id, scale = 3) {
-  return EXTRA_SPRITES[id]().toCanvas(scale);
+  return EXTRA_SPRITES[id]().trim().toCanvas(scale);
 }
 
 /** The keepnet: a ring and a long mesh bag tapering down. */

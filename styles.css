@@ -112,6 +112,13 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
     linear-gradient(0deg, rgba(3, 12, 10, 0.2), transparent 22%, transparent 84%, rgba(4, 14, 12, 0.2));
 }
 
+/*
+ * Spacing rule for the whole interface: what is inside a box sits no farther
+ * from its edge than the box sits from its neighbours (inner ≤ outer), so
+ * things read as belonging together. Gaps between boxes are never smaller
+ * than the padding inside them.
+ */
+
 /* ---------- Painted frames ---------- */
 
 :where(.framed:not(dialog)) { position: relative; }
@@ -589,9 +596,11 @@ html.keyboard-open .sheet[open] > .account-body {
 }
 .spot-traits dt { color: var(--light); }
 .spot-traits dd { margin: 0; color: var(--bone); }
-.spot-dots { display: flex; justify-content: center; gap: 8px; }
-.spot-dots span { width: 10px; height: 10px; background: var(--dark); box-shadow: 0 0 0 2px var(--ink); }
-.spot-dots .is-active { background: var(--bone); }
+.spot-dots { display: flex; justify-content: center; gap: 0; }
+.spot-dots button { display: grid; place-items: center; padding: 4px; border: 0; background: none; cursor: pointer; }
+.spot-dots span { display: block; width: 10px; height: 10px; background: var(--dark); box-shadow: 0 0 0 2px var(--ink); }
+.spot-dots button:hover span { background: var(--mid); }
+.spot-dots .is-active span { background: var(--bone); }
 
 .fish-button { min-width: min(320px, 80%); min-height: 56px; font-size: 30px; }
 
@@ -846,8 +855,8 @@ html.keyboard-open .sheet[open] > .account-body {
 /* The atlas: every fish as a card, found ones in colour, the rest a shadow with a hint. */
 .atlas { display: grid; align-content: start; gap: 18px; }
 .atlas h3 { margin: 0 0 8px; color: var(--light); font-size: 20px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
-.atlas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
-.atlas-cell { display: grid; grid-template-rows: 76px auto; justify-items: center; align-content: start; gap: 2px; padding: 12px 10px 12px; text-align: center; }
+.atlas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
+.atlas-cell { display: grid; grid-template-rows: 76px auto; justify-items: center; align-content: start; gap: 2px; padding: 10px 8px; text-align: center; }
 .atlas-art { display: grid; place-items: center; width: 100%; min-width: 0; }
 .atlas-art canvas { display: block; max-width: 100%; max-height: 76px; width: auto !important; height: auto !important; }
 .atlas-cell strong { color: var(--soft); font-size: 19px; font-weight: 500; line-height: 1.1; }
@@ -857,7 +866,7 @@ html.keyboard-open .sheet[open] > .account-body {
 .achievement-summary { margin: 0; color: var(--gold); font-size: 20px; text-align: center; }
 .achievement-list { display: grid; gap: 18px; }
 .achievement-group h3 { margin: 0 0 8px; color: var(--light); font-size: 20px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
-.achievement-group ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+.achievement-group ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
 .achievement { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 8px 10px; border: 2px solid var(--mid); background: rgb(10 20 18 / 0.35); }
 .achievement-art canvas { display: block; }
 .achievement-info { display: grid; gap: 2px; min-width: 0; }
@@ -979,10 +988,10 @@ html.keyboard-open .sheet[open] > .account-body {
 
 /* Backpack: a rod case, a tackle box, the bait and a pocket. */
 .pack-pockets { min-height: 0; overflow-y: auto; padding: 4px 2px; scrollbar-color: var(--mid) transparent; }
-.pack-sections { display: grid; gap: 12px; }
-.pack-pair { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 12px; }
-.pack-pocket { padding: 12px; }
-.pack-pocket h3 { margin: 0 0 8px; color: var(--soft); font-size: 17px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; }
+.pack-sections { display: grid; gap: 18px; }
+.pack-pair { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 18px; }
+.pack-pocket { padding: 14px; }
+.pack-pocket h3 { margin: 0 0 10px; color: var(--soft); font-size: 17px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; }
 .pack-pocket .empty-note { font-size: 18px; text-align: left; }
 .rod-case { display: grid; gap: 4px; }
 .rod-row {
@@ -1003,19 +1012,24 @@ html.keyboard-open .sheet[open] > .account-body {
 }
 .rod-row .ware-art { min-height: 0; }
 .rod-row .pick-tag { position: static; font-size: 18px; }
-.pack-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 6px; }
+.pack-grid { display: grid; grid-template-columns: repeat(auto-fill, 68px); gap: 8px; }
+/* Every cell one size: the icon centred in the top, a row kept for the count under it (empty or not). */
 .pack-cell {
   position: relative;
   display: grid;
-  place-items: center;
-  height: 64px;
-  padding: 2px 2px 16px;
+  grid-template-rows: minmax(0, 1fr) 16px;
+  justify-items: center;
+  align-items: center;
+  width: 68px;
+  height: 68px;
+  padding: 4px 2px 4px;
   border: 2px solid var(--dark);
   background: var(--ink);
   cursor: pointer;
 }
 .pack-cell .ware-art { min-height: 0; }
-.pack-cell .pick-tag { bottom: 3px; font-size: 16px; }
+.pack-cell .ware-art canvas { display: block; max-height: 44px; }
+.pack-cell .pick-tag { position: static; font-size: 16px; }
 /* What is in use: a dark gold edge. */
 :is(.pack-cell, .rod-row).is-on { box-shadow: inset 0 0 0 2px var(--gold-dark); }
 @media (max-width: 520px) {
@@ -1033,7 +1047,7 @@ html.keyboard-open .sheet[open] > .account-body {
 .tourney[hidden] { display: none; }
 .tourney { display: grid; gap: 12px; min-height: 0; max-height: min(60vh, 560px); overflow-y: auto; padding-right: 6px; scrollbar-color: var(--mid) transparent; }
 .tourney-head { margin: 0; color: var(--light); font-size: 18px; line-height: 1.25; }
-.tourney-board { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.tourney-board { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .tourney-row { display: grid; grid-template-columns: 34px auto 1fr auto; align-items: center; gap: 10px; padding: 6px 10px; background: rgb(10 20 18 / 0.45); box-shadow: inset 0 0 0 2px var(--dark); color: var(--bone); font-size: 20px; }
 .tourney-avatar canvas { display: block; }
 .tourney-place { color: var(--soft); text-align: right; font-variant-numeric: tabular-nums; }
@@ -1055,7 +1069,7 @@ html.keyboard-open .sheet[open] > .account-body {
 .rank-now small { color: var(--light); font-size: 17px; }
 .rank-now .achievement-bar { height: 8px; }
 .rank-how { margin: 0; color: var(--light); font-size: 17px; line-height: 1.25; }
-.rank-list { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.rank-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .rank-row { display: grid; grid-template-columns: 28px 1fr auto; align-items: center; gap: 10px; padding: 6px 10px; background: rgb(10 20 18 / 0.45); box-shadow: inset 0 0 0 2px var(--dark); color: var(--soft); }
 .rank-number { text-align: right; font-variant-numeric: tabular-nums; }
 .rank-name { display: grid; min-width: 0; }
@@ -1085,7 +1099,7 @@ html.keyboard-open .sheet[open] > .account-body {
 .tiles .tile-only { display: revert; }
 
 /* The big tile: the picture takes whatever height is left; the traits one short line, the button as wide as the picture. */
-.tiles .spot-tile { display: flex; flex-direction: column; gap: clamp(8px, 1.4vh, 14px); min-height: 0; padding: clamp(12px, 1.8vh, 20px); }
+.tiles .spot-tile { display: flex; flex-direction: column; gap: clamp(6px, 1.2vh, 12px); min-height: 0; padding: clamp(10px, 1.6vh, 18px); }
 .tiles .spot-tile > .frame-art { display: block; }
 .tiles .spot-slider { flex: 1; width: 100%; min-height: 0; }
 .tiles .spot-card { display: flex; flex-direction: column; align-self: stretch; gap: clamp(6px, 1.2vh, 12px); }
@@ -1107,7 +1121,7 @@ html.keyboard-open .sheet[open] > .account-body {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  padding: clamp(12px, 2vh, 22px) clamp(14px, 1.5vw, 24px);
+  padding: clamp(10px, 1.6vh, 18px) clamp(12px, 1.3vw, 18px);
   color: var(--bone);
   font: inherit;
   font-size: clamp(17px, 2.1vh, 22px);
@@ -1157,7 +1171,7 @@ html.keyboard-open .sheet[open] > .account-body {
 
 /* The quest, the day's fish and the run share one wide tile, a faint line between the parts. */
 .tiles .tile-today { flex-direction: row; align-items: stretch; gap: 0; padding: 0; }
-.tiles .tile-half { display: flex; flex: 1 1 0; flex-direction: column; justify-content: space-between; gap: clamp(4px, 0.8vh, 8px); min-width: 0; padding: clamp(12px, 2vh, 22px) clamp(14px, 1.5vw, 24px); }
+.tiles .tile-half { display: flex; flex: 1 1 0; flex-direction: column; justify-content: space-between; gap: clamp(4px, 0.8vh, 8px); min-width: 0; padding: clamp(10px, 1.6vh, 18px) clamp(12px, 1.3vw, 18px); }
 .tiles #tile-quest-goal { display: -webkit-box; white-space: normal; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .tiles .tile-half + .tile-half { box-shadow: inset 2px 0 0 rgb(60 104 96 / 0.45); }
 
@@ -1191,8 +1205,8 @@ html.keyboard-open .sheet[open] > .account-body {
 /* Each thing in one place: the tournament and the ranks have pages of their own here. */
 .tiles :is(#trophy-dialog .tab[data-tab="tourney"], #collection-dialog .tab[data-tab="ranks"], .today-tourney) { display: none; }
 /* Today as a page: the quest and the fish of the day side by side, the run of days under them. */
-.tiles #quest-dialog .quest-body { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
-.tiles .today-part { display: grid; align-content: start; gap: 12px; padding: 20px 24px; background: rgb(10 20 18 / 0.55); box-shadow: inset 0 0 0 2px var(--dark); }
+.tiles #quest-dialog .quest-body { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.tiles .today-part { display: grid; align-content: start; gap: 12px; padding: 16px 20px; background: rgb(10 20 18 / 0.55); box-shadow: inset 0 0 0 2px var(--dark); }
 .tiles .today-streak, .tiles #quest-next { grid-column: 1 / -1; }
 .tiles .today-part .today-heading { margin: 0; }
 .tiles .today-part .quest-goal { font-size: 30px; }
@@ -1202,7 +1216,8 @@ html.keyboard-open .sheet[open] > .account-body {
 .tiles .streak-day small { font-size: 15px; }
 .tiles .streak-art { height: 40px; }
 
-.tiles .tourney-card { display: flex; align-items: center; gap: 28px; padding: 20px 26px; }
+.tiles .tourney-card { display: flex; align-items: center; gap: 28px; padding: 18px 20px; }
+.tiles dialog.page .tourney { gap: 20px; }
 .tiles .tourney-fish { display: grid; place-items: center; }
 .tiles .tourney-fish canvas { display: block; }
 .tiles .tourney-goal { display: grid; gap: 10px; }
@@ -1241,8 +1256,8 @@ html.keyboard-open .sheet[open] > .account-body {
       "spot spot spot today today"
       "shop pack trophy collection settings";
     align-items: stretch;
-    gap: clamp(10px, 1.6vh, 18px);
-    padding: clamp(12px, 3vh, 28px) clamp(16px, 3vw, 48px);
+    gap: clamp(14px, 2.2vh, 24px);
+    padding: clamp(14px, 3vh, 28px) clamp(16px, 3vw, 48px);
     overflow: hidden;
   }
   .tiles .menu-top { position: static; grid-area: top; }
@@ -1273,7 +1288,7 @@ html.keyboard-open .sheet[open] > .account-body {
     flex-direction: column;
     align-items: stretch;
     justify-content: flex-start;
-    gap: 8px;
+    gap: 10px;
     padding: calc(env(safe-area-inset-top, 0px) + 10px) 10px calc(env(safe-area-inset-bottom, 0px) + 84px);
     overflow-y: auto;
   }
@@ -1292,7 +1307,6 @@ html.keyboard-open .sheet[open] > .account-body {
   .tiles .spot-arrow { width: 34px; min-height: 48px; font-size: 18px; }
   .tiles .spot-picture { flex: none; height: clamp(110px, 18vh, 170px); }
   .tiles .spot-traits { padding: 4px 10px; font-size: 14px; }
-  .tiles .spot-dots { display: none; }
   /* The arrows are 34px with an 8px gap, inside 4px: the button keeps to the picture's width. */
   .tiles .fish-button { align-self: stretch; width: auto; min-width: 0; margin-inline: 46px; min-height: 46px; font-size: 24px; }
   .tiles .tile { gap: 3px; padding: 8px 10px; font-size: 15px; }

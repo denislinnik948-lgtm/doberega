@@ -1018,7 +1018,14 @@ export class AnglerUI {
       element("dt", { textContent: traitLabel(key) }),
       element("dd", { textContent: traitValue(key, value) }),
     ]));
-    $("#spot-dots").replaceChildren(...LOCATIONS.map((_, index) => element("span", { className: index === this.progress.location ? "is-active" : "" })));
+    // The pages of the waters: one mark for each, the shown one lit; a mark takes you straight to its water.
+    $("#spot-dots").replaceChildren(...LOCATIONS.map((spot, index) => element("button", {
+      type: "button",
+      tabIndex: -1,
+      className: index === this.progress.location ? "is-active" : "",
+      title: nameOf("location", spot.id),
+      onclick: () => this.shiftSpot(index - this.progress.location),
+    }, [element("span")])));
   }
 
   /* ---------- Gear ---------- */
