@@ -619,9 +619,6 @@ export class AnglerUI {
     const rankBadge = $("#rank-badge");
     rankBadge.textContent = String(rankAt(progress.xp ?? 0) + 1);
     rankBadge.hidden = false;
-    const trophyCount = $("#trophy-count");
-    trophyCount.textContent = String(progress.trophies.length);
-    trophyCount.hidden = progress.trophies.length === 0;
 
     // The bait in use, bottom left; tapping it opens the bait picker.
     const chip = this.baitButton;

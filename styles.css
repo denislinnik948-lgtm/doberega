@@ -1271,8 +1271,8 @@ html.keyboard-open .sheet[open] > .account-body {
     flex-direction: column;
     align-items: stretch;
     justify-content: flex-start;
-    gap: 10px;
-    padding: calc(env(safe-area-inset-top, 0px) + 12px) 12px calc(env(safe-area-inset-bottom, 0px) + 100px);
+    gap: 8px;
+    padding: calc(env(safe-area-inset-top, 0px) + 10px) 10px calc(env(safe-area-inset-bottom, 0px) + 84px);
     overflow-y: auto;
   }
   .tiles .menu-top { order: 0; display: grid; grid-template-columns: auto auto auto; justify-content: space-between; gap: 6px; inset: auto; }
@@ -1280,22 +1280,39 @@ html.keyboard-open .sheet[open] > .account-body {
   .tiles .spot-tile { order: 2; }
   #tile-today { order: 3; }
   #tile-tourney { order: 4; }
-  .tiles .spot-picture { flex: none; height: clamp(150px, 26vh, 240px); }
-  /* The phone's arrows are 40px with an 8px gap, inside 4px: the button keeps to the picture's width. */
-  .tiles .fish-button { align-self: stretch; width: auto; min-width: 0; margin-inline: 52px; min-height: 56px; }
-  .tiles .tile { padding: 12px 14px; font-size: 17px; }
-  .tiles .tile strong { font-size: 28px; }
-  .tiles .tile small, .tiles .tile-note { font-size: 15px; }
-  .tiles .tile-avatar { padding: 6px; }
-  .tiles .tile-avatar canvas { width: 72px !important; height: 72px !important; image-rendering: pixelated; }
-  .tiles .tile-profile .tile-name { font-size: 24px; }
-  .tiles .tile-half { padding: 12px 10px; }
-  .tiles .tile-days { font-size: 15px; letter-spacing: 0.04em; }
-  .tiles .tourney-cells { grid-template-columns: minmax(0, 1fr); }
-  .tiles .tourney-cell-fish { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 2px 10px; }
-  .tiles .tourney-cell-fish .tourney-cell-art { flex: none; }
-  .tiles .tourney-cell { min-height: 92px; }
-  .tiles .tourney-cell-fish { min-height: 0; }
+  /* Compact: small paddings, the picture a fifth of the screen, the traits in one quiet line. */
+  .tiles .menu-top .clock, .tiles .menu-top .chip { min-height: 40px; padding: 4px 8px 4px 6px; font-size: 19px; }
+  .tiles .menu-top h1 { padding: 6px 10px; font-size: 21px; }
+  .tiles .spot-tile { gap: 6px; padding: 8px; }
+  .tiles .spot-card { gap: 4px; }
+  .tiles .card-scene { padding-top: 18px; }
+  .tiles .spot-card .title-tab { padding: 4px 10px; font-size: 19px; }
+  .tiles .spot-arrow { width: 34px; min-height: 48px; font-size: 18px; }
+  .tiles .spot-picture { flex: none; height: clamp(110px, 18vh, 170px); }
+  .tiles .spot-traits { padding: 4px 10px; font-size: 14px; }
+  .tiles .spot-dots { display: none; }
+  /* The arrows are 34px with an 8px gap, inside 4px: the button keeps to the picture's width. */
+  .tiles .fish-button { align-self: stretch; width: auto; min-width: 0; margin-inline: 46px; min-height: 46px; font-size: 24px; }
+  .tiles .tile { gap: 3px; padding: 8px 10px; font-size: 15px; }
+  .tiles .tile strong { font-size: 22px; }
+  .tiles .tile small, .tiles .tile-note { font-size: 13px; }
+  .tiles .tile-profile { gap: 10px; }
+  .tiles .tile-avatar { padding: 3px; }
+  .tiles .tile-avatar canvas { width: 48px !important; height: 48px !important; image-rendering: pixelated; }
+  .tiles .tile-who { gap: 3px; }
+  .tiles .tile-profile .tile-name { font-size: 19px; }
+  .tiles .tile .achievement-bar { height: 6px; }
+  .tiles .tile-half { gap: 3px; padding: 8px; }
+  .tiles .tile-art canvas { width: 72px !important; height: auto !important; image-rendering: pixelated; }
+  .tiles .tile-days { font-size: 12px; letter-spacing: 0.02em; }
+  .tiles .tourney-cells { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .tiles .tile-podium { gap: 6px; }
+  .tiles .tourney-cell { padding: 4px 6px; font-size: 14px; }
+  .tiles .tourney-cell-fish { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 0 10px; }
+  .tiles .tourney-cell-fish strong { font-size: 17px; }
+  .tiles .tourney-cell-art canvas { width: 54px !important; height: auto !important; image-rendering: pixelated; }
+  .tiles .podium-avatar canvas { width: 32px !important; height: 32px !important; image-rendering: pixelated; }
+  .tiles .podium-place { top: 2px; left: 6px; font-size: 14px; }
 
   /* The bar of sections: five, an icon over a short name, fixed to the bottom of the screen. */
   .tiles.in-menu .menu-nav {
@@ -1306,27 +1323,27 @@ html.keyboard-open .sheet[open] > .account-body {
     left: 0;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 6px;
+    gap: 5px;
     width: auto;
-    padding: 8px 10px calc(env(safe-area-inset-bottom, 0px) + 8px);
+    padding: 6px 8px calc(env(safe-area-inset-bottom, 0px) + 6px);
     background: var(--ink);
     box-shadow: 0 -2px 0 var(--dark), 0 -14px 14px -6px rgb(10 20 18 / 0.9);
   }
   .tiles .menu-item, .tiles .menu-item:nth-child(n + 4) {
     grid-column: auto;
     grid-template-columns: 1fr;
-    grid-template-rows: 40px auto;
+    grid-template-rows: 30px auto;
     justify-items: center;
     align-content: center;
     gap: 0;
     min-width: 0;
-    min-height: 68px;
-    padding: 6px 2px;
-    font-size: 14px;
+    min-height: 56px;
+    padding: 4px 2px;
+    font-size: 13px;
     text-align: center;
     background: var(--deep);
   }
-  .tiles .menu-item .menu-icon canvas { width: 36px !important; height: auto !important; image-rendering: pixelated; }
+  .tiles .menu-item .menu-icon canvas { width: 28px !important; height: auto !important; image-rendering: pixelated; }
   .tiles .menu-item > span:not(.menu-icon, .badge) { overflow: hidden; max-width: 100%; white-space: nowrap; text-overflow: ellipsis; }
   .tiles .menu-long { display: none; }
   .tiles .menu-short { display: block; }
