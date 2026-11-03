@@ -1093,6 +1093,8 @@ html.keyboard-open .sheet[open] > .account-body {
 .tiles .spot-picture { flex: 1; height: auto; min-height: 80px; }
 .tiles .spot-traits { display: flex; flex-wrap: wrap; justify-content: center; align-self: center; gap: 2px 8px; padding: 6px 16px; font-size: clamp(16px, 1.9vh, 20px); }
 .tiles .spot-traits dd + dt::before { margin-right: 8px; color: var(--mid); content: "·"; }
+/* The traits are just a line of text under the picture, no box round them. */
+.tiles .spot-traits > .frame-art { display: none; }
 
 
 /* A tile: its name small at the top, the figure that matters big, one line under it. Lit a little on hover. */
