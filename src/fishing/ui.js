@@ -646,11 +646,13 @@ export class AnglerUI {
 
   /* ---------- Tiled menu ---------- */
 
-  /** Wide screens, the tiled menu: switched on for the admins' accounts while it is tried out. */
+  /** The tiled menu (on for everyone): the menu's windows as pages, the account and the ranks on the profile page. */
   setTiles(on) {
     // The account's forms and the ranks live on the profile page in the tiled menu, in their own windows otherwise.
-    if (document.body.classList.contains("tiles") !== on) {
-      document.body.classList.toggle("tiles", on);
+    // index.html starts with the class on, so the nodes are moved by what was done here, not by the class.
+    document.body.classList.toggle("tiles", on);
+    if (this.tilesOn !== on) {
+      this.tilesOn = on;
       (on ? $("#profile-account") : $("#account-dialog")).append($("#account-body"));
       (on ? $("#profile-level") : $("#collection-dialog")).append($("#ranks"));
       $("#ranks").hidden = !on;

@@ -208,10 +208,8 @@ const ui = new AnglerUI(progress, {
 });
 applySpot();
 
-// The tiled menu is tried out by the admins first; on this computer `?tiles` shows it too.
-const tilesForced = ["localhost", "127.0.0.1"].includes(location.hostname) && new URLSearchParams(location.search).has("tiles");
-const tilesWanted = () => tilesForced || Boolean(cloud.admin);
-ui.setTiles(tilesForced);
+// The tiled menu, for everyone (index.html already draws the menu that way).
+ui.setTiles(true);
 
 // Accounts: every save goes up to the cloud; signing in elsewhere brings it back.
 const cloud = new Cloud({
@@ -233,7 +231,8 @@ const cloud = new Cloud({
       ui.commit();
     }
     ui.renderAccount();
-    ui.setTiles(tilesWanted());
+    // Signing in or out: the tiles drawn again (the tournament's board knows who you are).
+    ui.setTiles(true);
   },
   // Signed in and in step: this week's best goes up (it may have been caught
   // before signing in), and last week's tournament is settled, once.

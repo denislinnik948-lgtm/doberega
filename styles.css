@@ -1098,7 +1098,7 @@ html.keyboard-open .sheet[open] > .account-body {
 .rank-row.is-now .rank-name strong { color: var(--gold); }
 .tourney-player small { color: var(--soft); font-size: 16px; }
 
-/* ---------- Tiled menu (for now only the admins'): a grid on wide screens, a column with a bar of sections on phones ---------- */
+/* ---------- Tiled menu: a grid on wide screens, a column with a bar of sections on phones ---------- */
 
 /* Elsewhere the spot's tile is no box at all and the tiles stay hidden. */
 .spot-tile { display: contents; }
@@ -1397,7 +1397,7 @@ html.keyboard-open .sheet[open] > .account-body {
 @keyframes page-in { from { opacity: 0; } }
 
 /*
- * Headings in the game's blackletter (tiled menu for now): the titles of pages and of the water at 30 px,
+ * Headings in the game's blackletter: the titles of pages and of the water at 30 px,
  * the names of tiles and sections at 15 px, in their own letters (blackletter in capitals only would not read).
  */
 .tiles :is(.title-tab, .fish-button) { font-family: var(--gothic); font-size: 30px; font-weight: 400; letter-spacing: 0; }

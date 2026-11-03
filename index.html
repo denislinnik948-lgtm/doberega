@@ -20,7 +20,7 @@
     <link rel="preload" href="./fonts/doberega-gothic.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body class="in-menu">
+  <body class="in-menu tiles">
     <main class="scene" data-i18n-aria="a11y.scene">
       <canvas id="water-canvas" data-i18n-aria="a11y.canvas"></canvas>
 
@@ -66,7 +66,7 @@
           </span>
         </button>
 
-        <!-- Wide screens, tiled menu (for now only the admins'): who is playing, the tournament and today's things on tiles of their own. -->
+        <!-- The tiled menu: who is playing, the tournament and today's things on tiles of their own. -->
         <button class="tile tile-only tile-profile" id="tile-profile" data-frame="box" type="button" aria-haspopup="dialog">
           <span class="tile-avatar" id="tile-avatar" aria-hidden="true"></span>
           <span class="tile-who"><strong class="tile-name" id="tile-profile-name"></strong><span class="tile-note" id="tile-profile-rank"></span><span class="achievement-bar"><span id="tile-level-fill"></span></span><small class="tile-note" id="tile-level-next"></small></span>
