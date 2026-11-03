@@ -512,19 +512,24 @@ html.keyboard-open .sheet[open] > .account-body {
   scrollbar-color: var(--mid) transparent;
 }
 .trophy-wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 28px 22px; }
-/* A trophy: the fish hung on a wooden board, a brass plate under it, the details in small letters. */
+/* A trophy: the fish hung on a wooden board with a brass plate on it, the details in small letters under the board. */
 .trophy { display: grid; justify-items: center; align-content: start; gap: 8px; text-align: center; }
 .plaque { width: 100%; aspect-ratio: 5 / 3; }
-/* The fish as big as the board lets it, whatever its shape, with a hard shadow as if it stood off the wood. */
-.plaque > canvas.sprite { position: absolute; inset: 12% 10%; width: 80% !important; height: 76% !important; object-fit: contain; image-rendering: pixelated; filter: drop-shadow(4px 5px 0 rgb(0 0 0 / 0.45)); }
-.trophy:hover .plaque canvas.sprite { transform: rotate(-2deg); transition: transform 200ms; }
-.nameplate { display: grid; gap: 0; margin-top: -2px; padding: 4px 16px 5px; color: var(--ink); line-height: 1.1; background: var(--gold-dark); box-shadow: inset 0 0 0 2px var(--ink), inset 2px 2px 0 2px var(--gold); }
-.nameplate strong { font-size: 19px; font-weight: 500; }
-.nameplate span { font-size: 22px; font-variant-numeric: tabular-nums; }
+/* The fish as big as the board lets it over the plate, whatever its shape, with a hard shadow as if it stood off the wood. */
+.plaque > canvas.sprite { position: absolute; inset: 8% 10% 30%; width: 80% !important; height: 62% !important; object-fit: contain; image-rendering: pixelated; filter: drop-shadow(4px 5px 0 rgb(0 0 0 / 0.45)); }
+.trophy:hover .plaque > canvas.sprite { transform: rotate(-2deg); transition: transform 200ms; }
+/* The brass plate screwed to the board: the name, a groove, the weight. */
+.nameplate { position: absolute; bottom: 9%; left: 50%; display: flex; align-items: stretch; max-width: 84%; color: var(--ink); line-height: 1.1; white-space: nowrap; background: var(--gold-dark); box-shadow: inset 0 0 0 2px var(--ink), inset 2px 2px 0 2px var(--gold); transform: translateX(-50%); }
+.nameplate > span { padding: 4px 12px 5px; }
+.nameplate-name { overflow: hidden; font-size: 18px; text-overflow: ellipsis; }
+.nameplate-weight { font-size: 20px; font-variant-numeric: tabular-nums; box-shadow: inset 2px 0 0 var(--ink), inset 4px 0 0 var(--gold); }
 .trophy.is-legend .nameplate { background: var(--gold); }
 .trophy-about { display: grid; gap: 1px; }
 .trophy-about small { color: var(--light); font-size: 17px; }
-.trophy-player { display: block; color: var(--bone); font-size: 19px; }
+/* Whose trophy it is: a bar as wide as the board above it, the angler's name large, the rank at the other end. */
+.trophy-owner { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; width: 100%; margin-bottom: -2px; padding: 6px 14px; background: var(--dark); box-shadow: inset 0 0 0 2px var(--mid), inset 0 -4px 0 var(--gold-dark); text-align: left; }
+.trophy-owner strong { overflow: hidden; color: var(--bone); font-size: 24px; font-weight: 500; white-space: nowrap; text-overflow: ellipsis; }
+.trophy-owner small { color: var(--gold); font-size: 17px; white-space: nowrap; }
 .trophy-hint { margin-top: 0; font-size: 18px; }
 .trophy-badges { margin: 0; color: var(--gold); font-size: 20px; text-align: center; }
 .trophy-badges[hidden] { display: none; }
@@ -1069,7 +1074,7 @@ html.keyboard-open .sheet[open] > .account-body {
 @media (min-width: 900px) {
   /* Clock and money up top; the water to fish on a big tile; the player, today's quest, the tournament and
      the day's fish and run beside it; the sections along the bottom. The grid fills the screen and scales with it. */
-  .tiles .menu {
+  .tiles.in-menu .menu {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     grid-template-rows: auto repeat(3, minmax(0, 1fr)) minmax(0, 0.62fr);
@@ -1216,7 +1221,16 @@ html.keyboard-open .sheet[open] > .account-body {
   .tiles .tourney-goal dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 28px; margin: 0; }
   .tiles .tourney-goal dt { color: var(--soft); font-size: 16px; }
   .tiles .tourney-goal dd { margin: 0; color: var(--bone); font-size: 20px; }
-  .tiles .profile-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); align-items: start; gap: 28px; }
+  .tiles .profile-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); grid-template-rows: auto 1fr; grid-template-areas: "avatar level" "account level"; align-items: start; gap: 28px; }
+  .tiles .profile-avatar { grid-area: avatar; }
+  .tiles .profile-account { grid-area: account; }
+  .tiles .profile-level { grid-area: level; }
+  /* The anglers to pick from, the picked one in gold corners. */
+  .avatar-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+  .avatar-pick { position: relative; display: grid; place-items: center; aspect-ratio: 1; padding: 4px; border: 0; background: rgb(10 20 18 / 0.6); box-shadow: inset 0 0 0 2px var(--dark); cursor: pointer; }
+  .avatar-pick canvas { display: block; width: 100% !important; height: auto !important; image-rendering: pixelated; }
+  .avatar-pick:hover { box-shadow: inset 0 0 0 2px var(--mid); }
+  .avatar-pick.is-picked { box-shadow: inset 0 0 0 2px var(--gold); }
   .tiles .profile-body section { display: grid; gap: 12px; }
   .tiles .profile-body .today-heading { margin: 0; }
 }

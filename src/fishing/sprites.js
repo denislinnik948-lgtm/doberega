@@ -864,24 +864,124 @@ export function atlasSprite(scale = 3) {
   ], { o: P.ink, W: P.bone, L: P.mid, S: P.soft, s: P.soft, R: P.ember }).toCanvas(scale);
 }
 
-/** An angler in a canvas hat: the player's profile. */
-export function anglerSprite(scale = 3) {
-  return fromRows([
-    "....oooooo....",
-    "...oHHHHHHo...",
-    "...oHhHHHHo...",
-    ".oooooooooooo.",
-    ".oBBBBBBBBBBo.",
-    "..oooooooooo..",
-    "...oFFFFFFo...",
-    "...oFoFFoFo...",
-    "...oFFFFFFo...",
-    "...oFFmmFFo...",
-    "....oFFFFo....",
-    "..ooJJJJJJoo..",
-    ".oJJJJJJJJJJo.",
-    ".oooooooooooo.",
-  ], { o: P.ink, H: "#7a6a3a", h: "#b4a46a", B: "#4e4426", F: "#d8b48a", m: "#a0603a", J: P.mid }).toCanvas(scale);
+/*
+ * The anglers a player can pick as their picture: a head and shoulders, each
+ * with a hat (or hair) of their own, a skin tone, a jacket, and some with a
+ * beard, a moustache or glasses. Drawn in fills; the ink outline goes round.
+ */
+const SKIN = { light: "#e0bc94", tan: "#c08a5e", dark: "#8a5a3a", ruddy: "#dca084" };
+export const AVATARS = [
+  { hat: "bucket", hatColor: "#7a6a3a", skin: "light", jacket: P.mid },
+  { hat: "cap", hatColor: "#b8402e", skin: "light", jacket: "#3a5a86", face: "moustache", hair: "#5a3a1e" },
+  { hat: "beanie", hatColor: "#d0782e", skin: "ruddy", jacket: "#2e4a32", face: "beard", hair: "#b8b8a8" },
+  { hat: "straw", hatColor: "#d8c070", skin: "tan", jacket: "#d8d4c0" },
+  { hat: "none", hair: "#3a2a1a", skin: "light", jacket: "#5a5e62", glasses: true },
+  { hat: "ushanka", hatColor: "#6a4a2e", skin: "ruddy", jacket: "#5e6a3a", face: "moustache", hair: "#3a2a1a" },
+  { hat: "cap", hatColor: "#4e6a3a", skin: "dark", jacket: "#4e5a36" },
+  { hat: "bald", skin: "tan", jacket: "#6a4a6e", face: "moustache", hair: "#c8c8bc", glasses: true },
+  { hat: "beanie", hatColor: "#3a6a9a", skin: "light", jacket: "#7a4a8a", long: "#d8b860" },
+  { hat: "bucket", hatColor: "#e2b85e", skin: "light", jacket: "#e2b85e" },
+  { hat: "scarf", hatColor: "#b83a3a", skin: "ruddy", jacket: "#3a5a86" },
+  { hat: "cap", hatColor: "#2a2a2e", skin: "light", jacket: "#2a2e32", face: "beard", hair: "#c4643e" },
+];
+
+/** One of the anglers above (an older or unknown pick is the first). */
+export function avatarSprite(id = 0, scale = 3) {
+  const look = AVATARS[id] ?? AVATARS[0];
+  const grid = new Grid(16, 16);
+  const fill = (x0, y0, x1, y1, color) => {
+    for (let y = y0; y <= y1; y += 1) for (let x = x0; x <= x1; x += 1) grid.set(x, y, color);
+  };
+  const skin = SKIN[look.skin];
+  const shade = (hex, k) => {
+    const n = parseInt(hex.slice(1), 16);
+    const c = [n >> 16, (n >> 8) & 255, n & 255].map((v) => Math.max(0, Math.min(255, Math.round(v * k))));
+    return `#${c.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+  };
+  // Shoulders, neck and face.
+  fill(4, 12, 11, 12, look.jacket);
+  fill(2, 13, 13, 15, look.jacket);
+  fill(7, 12, 8, 13, shade(look.jacket, 0.7));
+  fill(6, 11, 9, 11, shade(skin, 0.85));
+  fill(4, 5, 11, 10, skin);
+  if (look.long) {
+    fill(3, 4, 3, 11, look.long);
+    fill(12, 4, 12, 11, look.long);
+  }
+  // Eyes, a rosy cheek, the mouth.
+  grid.set(6, 7, P.ink);
+  grid.set(9, 7, P.ink);
+  grid.set(5, 8, shade(skin, 0.9));
+  grid.set(10, 8, shade(skin, 0.9));
+  fill(7, 9, 8, 9, shade(skin, 0.7));
+  if (look.face === "beard") {
+    fill(4, 8, 4, 10, look.hair);
+    fill(11, 8, 11, 10, look.hair);
+    fill(5, 9, 10, 11, look.hair);
+    fill(7, 9, 8, 9, shade(look.hair, 0.75));
+  } else if (look.face === "moustache") {
+    fill(6, 9, 9, 9, look.hair);
+  }
+  if (look.glasses) {
+    fill(5, 7, 10, 7, P.ink);
+    grid.set(6, 7, "#9ab8c0");
+    grid.set(9, 7, "#9ab8c0");
+  }
+  // The hat, or the hair.
+  const hat = look.hatColor;
+  const dark = hat && shade(hat, 0.7);
+  const light = hat && shade(hat, 1.25);
+  switch (look.hat) {
+    case "bucket":
+      fill(5, 1, 10, 3, hat);
+      fill(6, 1, 7, 1, light);
+      fill(2, 4, 13, 4, dark);
+      break;
+    case "cap":
+      fill(4, 2, 11, 4, hat);
+      fill(6, 2, 8, 2, light);
+      fill(3, 5, 12, 5, dark);
+      if (look.hair) fill(4, 6, 4, 7, look.hair);
+      break;
+    case "beanie":
+      fill(4, 1, 11, 4, hat);
+      fill(4, 4, 11, 4, light);
+      fill(7, 0, 8, 0, "#e2e2c8");
+      break;
+    case "straw":
+      fill(5, 2, 10, 3, hat);
+      fill(5, 3, 10, 3, "#8a3a2a");
+      fill(1, 4, 14, 4, shade(hat, 0.85));
+      break;
+    case "ushanka":
+      fill(4, 1, 11, 3, hat);
+      fill(3, 3, 12, 4, light);
+      fill(3, 5, 3, 9, light);
+      fill(12, 5, 12, 9, light);
+      break;
+    case "scarf":
+      fill(4, 2, 11, 4, hat);
+      fill(3, 4, 3, 10, hat);
+      fill(12, 4, 12, 10, hat);
+      fill(5, 3, 5, 3, "#e2e2c8");
+      fill(9, 2, 9, 2, "#e2e2c8");
+      fill(7, 11, 8, 11, dark);
+      break;
+    case "none":
+      fill(4, 3, 11, 4, look.hair);
+      fill(4, 5, 5, 5, look.hair);
+      fill(11, 5, 11, 6, look.hair);
+      break;
+    case "bald":
+      fill(5, 4, 10, 4, skin);
+      fill(4, 5, 4, 7, look.hair);
+      fill(11, 5, 11, 7, look.hair);
+      grid.set(6, 4, shade(skin, 1.15));
+      break;
+    default:
+      break;
+  }
+  return grid.outline(P.ink).toCanvas(scale);
 }
 
 /** Backpack: the inventory. */

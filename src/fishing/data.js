@@ -341,8 +341,13 @@ export const LOCATIONS = [
   },
 ];
 
+// How many angler pictures there are to pick from (drawn in sprites.js, AVATARS).
+export const AVATAR_COUNT = 12;
+
 export const START_STATE = {
   money: 30,
+  // The angler's picture (an index into AVATARS).
+  avatar: 0,
   baits: { worm: 5 },
   hooks: { small: 0, medium: 5, large: 0 },
   hook: "medium",

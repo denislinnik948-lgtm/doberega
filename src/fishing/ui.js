@@ -1,9 +1,9 @@
 import {
-  BAITS, BOTTLE_MONEY, EXTRAS, FISH, GROUNDBAIT, GULL, HOOKS, LEGENDS, LINE, LOCATIONS, RODS, gameHoursMs,
+  AVATAR_COUNT, BAITS, BOTTLE_MONEY, EXTRAS, FISH, GROUNDBAIT, GULL, HOOKS, LEGENDS, LINE, LOCATIONS, RODS, gameHoursMs,
   baitEntries, fishPrice, formatMoney, formatWeight, handbookEntries, peakPeriod, spotEntries, trophyCost,
 } from "./data.js";
 import {
-  anglerSprite, atlasSprite, bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, groundbaitSprite, hookSprite, keepnetSprite, lineSprite, medalSprite, packSprite, questSprite, rodSprite, windSprite,
+  atlasSprite, avatarSprite, bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, groundbaitSprite, hookSprite, keepnetSprite, lineSprite, medalSprite, packSprite, questSprite, rodSprite, windSprite,
 } from "./sprites.js";
 import { P } from "./palette.js";
 import { ACHIEVEMENTS, GROUPS, bump, evaluate } from "./achievements.js";
@@ -158,7 +158,6 @@ export class AnglerUI {
     $("#pack-icon").replaceChildren(packSprite(3));
     $("#trophy-icon").replaceChildren(cupSprite(3));
     $("#collection-icon").replaceChildren(atlasSprite(3));
-    $("#tile-avatar").replaceChildren(anglerSprite(5));
     icon("#exit-button", exitSprite(3));
     $("#keepnet-chip-sprite").replaceChildren(keepnetSprite(3));
     $("#settings-icon").replaceChildren(gearSprite(3));
@@ -680,8 +679,27 @@ export class AnglerUI {
   openProfile() {
     this.renderAccount();
     this.fillRanks();
+    this.fillAvatars();
     const dialog = $("#profile-dialog");
     if (!dialog.open) dialog.showModal();
+  }
+
+  /** The anglers to pick a picture from; the one picked has gold corners and shows on the profile tile. */
+  fillAvatars() {
+    $("#avatar-grid").replaceChildren(...Array.from({ length: AVATAR_COUNT }, (_, id) => element("button", {
+      className: `avatar-pick${id === this.progress.avatar ? " is-picked" : ""}`,
+      type: "button",
+      role: "radio",
+      ariaChecked: String(id === this.progress.avatar),
+      ariaLabel: t("profile.avatarN", { number: id + 1 }),
+      onclick: () => {
+        if (id === this.progress.avatar) return;
+        this.progress.avatar = id;
+        sounds.ui("select");
+        this.commit();
+        this.fillAvatars();
+      },
+    }, [avatarSprite(id, 4)])));
   }
 
   /** The tournament's own page: the week's fish, the prizes and the board. */
@@ -722,7 +740,7 @@ export class AnglerUI {
     const species = tourneyFish(week);
     const best = tourneyState(progress, week).best;
     const xp = Math.floor(progress.xp ?? 0);
-    const key = [quest.day, state.value, state.done, streakNow(progress), streakToday(progress), week, best, xp, language()].join(":");
+    const key = [quest.day, state.value, state.done, streakNow(progress), streakToday(progress), week, best, xp, progress.avatar, language()].join(":");
     if (key === this.tilesKey) return;
     this.tilesKey = key;
 
@@ -739,7 +757,8 @@ export class AnglerUI {
     $("#tile-streak-count").textContent = t("level.days", { count: run });
     $("#tile-streak-days").replaceChildren(...STREAK_GIFTS.map((_, index) => element("span", { className: index < lit ? "" : "is-off", textContent: index < lit ? "■" : "□" })));
 
-    // The player: name (from the account strip's drawing), rank and level, and how far to the next.
+    // The player: their picture, name (from the account strip's drawing), rank and level, and how far to the next.
+    $("#tile-avatar").replaceChildren(avatarSprite(progress.avatar, 5));
     const rank = rankAt(xp);
     const next = RANKS[rank + 1];
     const from = RANKS[rank].xp;
@@ -1957,24 +1976,28 @@ export class AnglerUI {
     const note = $("#trophy-hint");
     note.textContent = hint;
     note.hidden = !hint;
-    // Each fish mounted on a board as anglers hang them, a brass plate under it with the name and weight.
+    // Each fish mounted on a board as anglers hang them, a brass plate on the board: the name, and apart from it the weight.
+    // Another angler's trophy says whose it is above the board.
     $("#trophy-wall").replaceChildren(...trophies.map((fish, index) => {
       const legend = Boolean(FISH[fish.species]?.legend);
-      const board = element("div", { className: "plaque" }, [fishSprite(fish.species, 8, nameOf("fish", fish.species))]);
+      const plate = element("div", { className: "nameplate" }, [
+        element("span", { className: "nameplate-name", textContent: nameOf("fish", fish.species) }),
+        element("span", { className: "nameplate-weight", textContent: formatWeight(fish.weight) }),
+      ]);
+      const board = element("div", { className: "plaque" }, [fishSprite(fish.species, 8, nameOf("fish", fish.species)), plate]);
       if (legend) board.dataset.variant = "legend";
       const spot = LOCATIONS[fish.spot] ? nameOf("location", LOCATIONS[fish.spot].id) : null;
       const date = fish.date ? new Date(fish.date).toLocaleDateString(locale(), { day: "numeric", month: "short", year: "numeric" }) : null;
-      const plate = element("div", { className: "nameplate" }, [
-        element("strong", { textContent: nameOf("fish", fish.species) }),
-        element("span", { textContent: formatWeight(fish.weight) }),
-      ]);
+      const owner = fish.player ? element("div", { className: "trophy-owner" }, [
+        element("strong", { textContent: fish.player }),
+        Number.isFinite(fish.rank) ? element("small", { textContent: this.rankName(fish.rank) }) : "",
+      ]) : "";
       const about = element("div", { className: "trophy-about" }, [
-        fish.player ? element("span", { className: "trophy-player", textContent: Number.isFinite(fish.rank) ? `${fish.player} · ${this.rankName(fish.rank)}` : fish.player }) : "",
         element("small", { textContent: [spot, date].filter(Boolean).join(" · ") }),
         fish.bait && BAITS[fish.bait] ? element("small", { textContent: t("trophies.bait", { bait: nameOf("bait", fish.bait) }) }) : "",
       ]);
       frame(board, "plaque", 500 + index * 7);
-      return element("li", { className: `trophy${legend ? " is-legend" : ""}` }, [board, plate, about]);
+      return element("li", { className: `trophy${legend ? " is-legend" : ""}` }, [owner, board, about]);
     }));
   }
 }
