@@ -1060,7 +1060,7 @@ html.keyboard-open .sheet[open] > .account-body {
     grid-template-areas:
       "top top top top top"
       "spot spot spot profile profile"
-      "spot spot spot quest tourney"
+      "spot spot spot tourney tourney"
       "spot spot spot today today"
       "shop pack trophy collection settings";
     align-items: stretch;
@@ -1090,7 +1090,6 @@ html.keyboard-open .sheet[open] > .account-body {
 
   .tiles .menu-nav { display: contents; }
   #tile-profile { grid-area: profile; }
-  #tile-quest { grid-area: quest; }
   #tile-tourney { grid-area: tourney; }
   #tile-today { grid-area: today; }
   #shop-button { grid-area: shop; }
@@ -1144,9 +1143,10 @@ html.keyboard-open .sheet[open] > .account-body {
   .tiles .tile-profile .tile-name { overflow: hidden; color: var(--bone); font-size: clamp(24px, 3.6vh, 36px); white-space: nowrap; text-overflow: ellipsis; }
   .tiles .tile-profile:not(.is-safe) .tile-name { color: var(--gold); }
 
-  /* The day's fish and the run share one wide tile, a faint line between the halves. */
+  /* The quest, the day's fish and the run share one wide tile, a faint line between the parts. */
   .tiles .tile-today { flex-direction: row; align-items: stretch; gap: 0; padding: 0; }
-  .tiles .tile-half { display: flex; flex: 1; flex-direction: column; justify-content: space-between; gap: clamp(4px, 0.8vh, 8px); min-width: 0; padding: clamp(12px, 2vh, 22px) clamp(14px, 1.5vw, 24px); }
+  .tiles .tile-half { display: flex; flex: 1 1 0; flex-direction: column; justify-content: space-between; gap: clamp(4px, 0.8vh, 8px); min-width: 0; padding: clamp(12px, 2vh, 22px) clamp(14px, 1.5vw, 24px); }
+  .tiles #tile-quest-goal { display: -webkit-box; white-space: normal; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .tiles .tile-half + .tile-half { box-shadow: inset 2px 0 0 rgb(60 104 96 / 0.45); }
 
   /* The sections along the bottom: only the icon and the name, side by side. */

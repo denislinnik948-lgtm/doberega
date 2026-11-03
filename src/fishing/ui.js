@@ -127,8 +127,7 @@ export class AnglerUI {
     $("#quest-strip").addEventListener("click", () => this.openQuest());
     // The tiled menu: each tile opens the page it sums up.
     $("#tile-profile").addEventListener("click", () => this.openProfile());
-    $("#tile-quest").addEventListener("click", () => this.openQuest());
-    $("#tile-today").addEventListener("click", () => this.openQuest("today-day"));
+    $("#tile-today").addEventListener("click", () => this.openQuest());
     $("#tile-tourney").addEventListener("click", () => this.openTourney());
     for (const tab of document.querySelectorAll("#shop-dialog .tab")) {
       tab.addEventListener("click", () => this.showShopTab(tab.dataset.tab));
@@ -887,7 +886,7 @@ export class AnglerUI {
   }
 
   /** The quest window: what it asks, how far along, the reward, and when the next one comes. */
-  openQuest(section = "") {
+  openQuest() {
     const quest = todaysQuest();
     const state = questState(this.progress, quest);
     const dialog = $("#quest-dialog");
@@ -923,8 +922,6 @@ export class AnglerUI {
     const left = untilNextQuest();
     $("#quest-next").textContent = t("quest.next", { hours: Math.floor(left / 3600000), minutes: Math.floor((left % 3600000) / 60000) });
     if (!dialog.open) dialog.showModal();
-    // Opened from a tile: straight to its part of the page.
-    if (section) $(`#${section}`).scrollIntoView({ block: "start" });
   }
 
   /** A rain cloud beside the clock while it's raining (snow in winter), and gusts while the wind blows. */

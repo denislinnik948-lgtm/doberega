@@ -65,15 +65,15 @@
           </span>
         </button>
 
-        <!-- Wide screens, tiled menu (for now only the admins'): who is playing, today's things and the tournament on tiles of their own. -->
+        <!-- Wide screens, tiled menu (for now only the admins'): who is playing, the tournament and today's things on tiles of their own. -->
         <button class="tile tile-only tile-profile" id="tile-profile" data-frame="box" type="button" aria-haspopup="dialog">
           <span class="tile-avatar" id="tile-avatar" aria-hidden="true"></span>
           <span class="tile-who"><strong class="tile-name" id="tile-profile-name"></strong><span class="tile-note" id="tile-profile-rank"></span><span class="achievement-bar"><span id="tile-level-fill"></span></span><small class="tile-note" id="tile-level-next"></small></span>
         </button>
-        <button class="tile tile-only" id="tile-quest" data-frame="box" type="button" aria-haspopup="dialog"><small data-i18n="quest.title">Daily quest</small><strong id="tile-quest-count"></strong><span class="tile-note" id="tile-quest-goal"></span></button>
         <button class="tile tile-only" id="tile-tourney" data-frame="box" type="button" aria-haspopup="dialog"><small data-i18n="tourney.tab">Tournament</small><ol class="tile-board" id="tile-tourney-board"></ol><span class="tile-note" id="tile-tourney-note"></span></button>
-        <!-- The fish of the day and the days in a row: one wide tile into the Today page. -->
+        <!-- Today's quest, the fish of the day and the days in a row: one wide tile into the Today page. -->
         <button class="tile tile-only tile-today" id="tile-today" data-frame="box" type="button" aria-haspopup="dialog">
+          <span class="tile-half"><small data-i18n="quest.title">Daily quest</small><strong id="tile-quest-count"></strong><span class="tile-note" id="tile-quest-goal"></span></span>
           <span class="tile-half"><small data-i18n="dayFish.title">Fish of the day</small><span class="tile-art" id="tile-day-art" aria-hidden="true"></span><span class="tile-note" id="tile-day-text"></span></span>
           <span class="tile-half"><small data-i18n="streak.title">Days in a row</small><strong id="tile-streak-count"></strong><span class="tile-days" id="tile-streak-days" aria-hidden="true"></span></span>
         </button>
@@ -180,14 +180,14 @@
           <span class="quest-bar" aria-hidden="true"><span id="quest-fill"></span></span>
           <p class="quest-status" id="quest-status"></p>
         </section>
-        <section class="today-part today-fish" id="today-day">
+        <section class="today-part today-fish">
           <h3 class="today-heading" data-i18n="dayFish.title">Fish of the day</h3>
           <div class="day-fish-card">
             <span class="day-fish-big" id="day-fish-big" aria-hidden="true"></span>
             <p class="quest-status" id="day-fish-about"></p>
           </div>
         </section>
-        <section class="today-part today-streak" id="today-streak">
+        <section class="today-part today-streak">
           <h3 class="today-heading" data-i18n="streak.title">Days in a row</h3>
           <p class="quest-status" id="streak-about"></p>
           <ol class="streak-days" id="streak-days"></ol>
