@@ -774,24 +774,41 @@ export class AnglerUI {
 
   /** The tournament tile: the week's fish, the top three, and this angler's best. */
   renderTourneyTile(week, species, best) {
-    const mine = best > 0 ? t("level.yourBest", { weight: formatWeight(best) }) : t("level.noBest");
-    $("#tile-tourney-note").textContent = `${nameOf("fish", species)} · ${mine}`;
+    // A cell for the week's fish, the time left and your best; then one for each of the top three.
+    $("#tile-tourney-fish").replaceChildren(
+      element("span", { className: "tourney-cell-art" }, [fishSprite(species, 2)]),
+      element("strong", { textContent: nameOf("fish", species) }),
+      element("span", { className: "tile-note", textContent: this.weekLeft() }),
+      element("span", { className: "tile-note", textContent: best > 0 ? t("level.yourBest", { weight: formatWeight(best) }) : t("level.noBest") }),
+    );
     const board = $("#tile-tourney-board");
+    const podium = (rows = []) => board.replaceChildren(...[0, 1, 2].map((index) => {
+      const entry = rows[index];
+      if (!entry) {
+        return element("li", { className: "tourney-cell is-free" }, [
+          element("span", { className: "podium-place", textContent: String(index + 1) }),
+          element("span", { className: "tile-note", textContent: t("level.freePlace") }),
+        ]);
+      }
+      return element("li", { className: `tourney-cell is-place-${index + 1}${entry.user_id === this.cloud?.user?.id ? " is-me" : ""}` }, [
+        element("span", { className: "podium-place", textContent: String(index + 1) }),
+        element("span", { className: "podium-avatar" }, [avatarSprite(entry.avatar ?? 0, 2)]),
+        element("span", { className: "podium-name", textContent: entry.player || t("trophies.anonymous") }),
+        element("span", { className: "podium-weight", textContent: formatWeight(entry.weight) }),
+      ]);
+    }));
     const cloud = this.cloud;
-    if (!cloud?.enabled) return board.replaceChildren();
+    if (!cloud?.enabled) return podium();
+    if (!board.children.length) podium();
     // The board is asked again at most once a minute.
     if (this.tileBoard?.week === week && Date.now() - this.tileBoard.at < 60000) return;
     this.tileBoard = { week, at: Date.now() };
     cloud.tournamentBoard(week, species, 3).then((result) => {
       if (result.error || this.tileBoard?.week !== week) return;
-      const me = cloud.user?.id;
-      board.replaceChildren(...result.rows.map((entry, index) => element("li", { className: entry.user_id === me ? "is-me" : "" }, [
-        element("span", { textContent: String(index + 1) }),
-        element("span", { className: "tile-board-who" }, [avatarSprite(entry.avatar ?? 0, 1), entry.player || t("trophies.anonymous")]),
-        element("span", { textContent: formatWeight(entry.weight) }),
-      ])));
+      podium(result.rows);
     });
   }
+
 
   /* ---------- Daily quest ---------- */
 

@@ -1152,12 +1152,24 @@ html.keyboard-open .sheet[open] > .account-body {
   .tiles .tile-art canvas { display: block; }
   .tiles .tile-days { color: var(--gold); font-size: clamp(18px, 2.6vh, 26px); letter-spacing: 0.12em; }
   .tiles .tile-days .is-off { color: var(--mid); }
-  .tiles .tile-board { display: grid; flex: 1; align-content: center; gap: 2px; width: 100%; margin: 0; padding: 0; list-style: none; }
-  .tiles .tile-board li { display: grid; grid-template-columns: 1.2em minmax(0, 1fr) auto; gap: 8px; }
-  .tiles .tile-board li span:nth-child(2) { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-  .tiles .tile-board-who canvas { display: inline-block; width: 24px !important; height: 24px !important; margin-right: 8px; vertical-align: -5px; image-rendering: pixelated; }
-  .tiles .tile-board li span:last-child { color: var(--light); font-variant-numeric: tabular-nums; }
-  .tiles .tile-board .is-me, .tiles .tile-board .is-me span:last-child { color: var(--gold); }
+  /* The tournament tile: the week's fish in one cell, the top three each in a cell of their own. */
+  .tiles .tile-tourney { justify-content: flex-start; }
+  .tiles .tourney-cells { display: grid; flex: 1; grid-template-columns: minmax(0, 1.25fr) minmax(0, 3fr); gap: 8px; width: 100%; min-height: 0; }
+  .tiles .tile-podium { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+  .tiles .tourney-cell { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 0; padding: 6px 8px; text-align: center; background: rgb(10 20 18 / 0.55); box-shadow: inset 0 0 0 2px var(--dark); }
+  .tiles .tourney-cell-fish { align-items: flex-start; text-align: left; }
+  .tiles .tourney-cell-fish strong { font-size: clamp(18px, 2.4vh, 24px); }
+  .tiles .tourney-cell-art canvas, .tiles .podium-avatar canvas { display: block; }
+  .tiles .podium-place { position: absolute; top: 4px; left: 8px; color: var(--soft); font-size: clamp(16px, 2vh, 20px); }
+  .tiles .is-place-1 .podium-place { color: var(--gold); }
+  .tiles .is-place-2 .podium-place { color: var(--bone); }
+  .tiles .is-place-3 .podium-place { color: var(--ember); }
+  .tiles .is-place-1 { box-shadow: inset 0 0 0 2px var(--gold-dark); }
+  .tiles .podium-name { overflow: hidden; max-width: 100%; color: var(--bone); white-space: nowrap; text-overflow: ellipsis; }
+  .tiles .podium-weight { color: var(--gold); font-variant-numeric: tabular-nums; }
+  .tiles .tourney-cell.is-me .podium-name { color: var(--gold); }
+  .tiles .tourney-cell.is-free { opacity: 0.6; }
+  .tiles .tourney-cell .tile-note { white-space: normal; line-height: 1.1; }
 
   /* The player: the angler's picture, then name, rank and level, and the bar to the next. */
   .tiles .tile-profile { flex-direction: row; align-items: center; justify-content: flex-start; gap: clamp(14px, 1.6vw, 24px); }
