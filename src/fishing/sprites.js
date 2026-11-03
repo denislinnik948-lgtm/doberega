@@ -844,6 +844,46 @@ export function medalSprite(scale = 3, ribbon = P.ember) {
   ], { o: P.ink, R: ribbon, Y: P.gold, g: P.bone, d: P.goldDark }).toCanvas(scale);
 }
 
+/** An open atlas, lines on one page and a fish on the other: the collection. */
+export function atlasSprite(scale = 3) {
+  return fromRows([
+    "................",
+    ".oooooo..oooooo.",
+    "oWWWWWWooWWWWWWo",
+    "oWLLLLWooWWWWWWo",
+    "oWWWWWWooWWWWWWo",
+    "oWLLLLWoosWSSSWo",
+    "oWWWWWWooWSSSoSo",
+    "oWLLLWWoosWSSSWo",
+    "oWWWWWWooWWWWWWo",
+    "oWLLLLWooWLLLLWo",
+    "oWWWWWWooWWWWWWo",
+    "oRRRRRRooRRRRRRo",
+    ".oooooooooooooo.",
+    "................",
+  ], { o: P.ink, W: P.bone, L: P.mid, S: P.soft, s: P.soft, R: P.ember }).toCanvas(scale);
+}
+
+/** An angler in a canvas hat: the player's profile. */
+export function anglerSprite(scale = 3) {
+  return fromRows([
+    "....oooooo....",
+    "...oHHHHHHo...",
+    "...oHhHHHHo...",
+    ".oooooooooooo.",
+    ".oBBBBBBBBBBo.",
+    "..oooooooooo..",
+    "...oFFFFFFo...",
+    "...oFoFFoFo...",
+    "...oFFFFFFo...",
+    "...oFFmmFFo...",
+    "....oFFFFo....",
+    "..ooJJJJJJoo..",
+    ".oJJJJJJJJJJo.",
+    ".oooooooooooo.",
+  ], { o: P.ink, H: "#7a6a3a", h: "#b4a46a", B: "#4e4426", F: "#d8b48a", m: "#a0603a", J: P.mid }).toCanvas(scale);
+}
+
 /** Backpack: the inventory. */
 export function packSprite(scale = 3) {
   // A khaki canvas backpack: carry loop, buckled top flap, shoulder straps and a front pocket.

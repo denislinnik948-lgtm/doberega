@@ -65,17 +65,18 @@
           </span>
         </button>
 
-        <!-- Wide screens, tiled menu (for now only the admins'): today's things and the account on tiles of their own. -->
-        <button class="tile tile-only" id="tile-quest" data-frame="box" type="button" aria-haspopup="dialog"><small data-i18n="quest.title">Daily quest</small><strong id="tile-quest-count"></strong><span id="tile-quest-goal"></span></button>
-        <button class="tile tile-only" id="tile-day" data-frame="box" type="button" aria-haspopup="dialog"><small data-i18n="dayFish.title">Fish of the day</small><span class="tile-art" id="tile-day-art" aria-hidden="true"></span><span id="tile-day-text"></span></button>
-        <button class="tile tile-only" id="tile-tourney" data-frame="box" type="button" aria-haspopup="dialog"><small id="tile-tourney-title"></small><ol class="tile-board" id="tile-tourney-board"></ol><span class="tile-note" id="tile-tourney-note"></span></button>
-        <button class="tile tile-only" id="tile-streak" data-frame="box" type="button" aria-haspopup="dialog"><small data-i18n="streak.title">Days in a row</small><strong id="tile-streak-count"></strong><span class="tile-days" id="tile-streak-days" aria-hidden="true"></span></button>
-
-        <!-- Who is playing and how far they have come: the account and the level share one wide tile. -->
-        <div class="tile tile-only tile-pair" id="tile-profile" data-frame="box">
-          <button class="tile-part" id="tile-account" type="button" aria-haspopup="dialog"><small data-i18n="account.title">Account</small><strong class="tile-name" id="tile-account-name"></strong><span class="tile-note" id="tile-account-note"></span></button>
-          <button class="tile-part" id="tile-level" type="button" aria-haspopup="dialog"><small data-i18n="level.title">Level</small><strong id="tile-level-name"></strong><span class="achievement-bar"><span id="tile-level-fill"></span></span><span class="tile-note" id="tile-level-next"></span></button>
-        </div>
+        <!-- Wide screens, tiled menu (for now only the admins'): who is playing, today's things and the tournament on tiles of their own. -->
+        <button class="tile tile-only tile-profile" id="tile-profile" data-frame="box" type="button" aria-haspopup="dialog">
+          <span class="tile-avatar" id="tile-avatar" aria-hidden="true"></span>
+          <span class="tile-who"><strong class="tile-name" id="tile-profile-name"></strong><span class="tile-note" id="tile-profile-rank"></span><span class="achievement-bar"><span id="tile-level-fill"></span></span><small class="tile-note" id="tile-level-next"></small></span>
+        </button>
+        <button class="tile tile-only" id="tile-quest" data-frame="box" type="button" aria-haspopup="dialog"><small data-i18n="quest.title">Daily quest</small><strong id="tile-quest-count"></strong><span class="tile-note" id="tile-quest-goal"></span></button>
+        <button class="tile tile-only" id="tile-tourney" data-frame="box" type="button" aria-haspopup="dialog"><small data-i18n="tourney.tab">Tournament</small><ol class="tile-board" id="tile-tourney-board"></ol><span class="tile-note" id="tile-tourney-note"></span></button>
+        <!-- The fish of the day and the days in a row: one wide tile into the Today page. -->
+        <button class="tile tile-only tile-today" id="tile-today" data-frame="box" type="button" aria-haspopup="dialog">
+          <span class="tile-half"><small data-i18n="dayFish.title">Fish of the day</small><span class="tile-art" id="tile-day-art" aria-hidden="true"></span><span class="tile-note" id="tile-day-text"></span></span>
+          <span class="tile-half"><small data-i18n="streak.title">Days in a row</small><strong id="tile-streak-count"></strong><span class="tile-days" id="tile-streak-days" aria-hidden="true"></span></span>
+        </button>
 
         <nav class="menu-nav" data-i18n-aria="a11y.menu">
           <button class="menu-item" id="shop-button" data-frame="box" type="button"><span class="menu-icon" id="shop-icon"></span><span data-i18n="menu.shop">Shop</span></button>
@@ -166,32 +167,42 @@
       </div>
     </dialog>
 
-    <dialog class="sheet quest-sheet" id="quest-dialog" data-frame="ornate" aria-labelledby="quest-title">
+    <dialog class="sheet quest-sheet page" id="quest-dialog" data-frame="ornate" aria-labelledby="quest-title">
       <header class="sheet-heading">
         <h2 class="title-tab" id="quest-title" data-frame="tab" data-i18n="today.title">Today</h2>
         <form method="dialog"><button class="pixel-btn pixel-btn-square" type="submit" data-i18n-aria="a11y.close">✕</button></form>
       </header>
       <div class="quest-body">
-        <h3 class="today-heading" data-i18n="quest.title">Daily quest</h3>
-        <p class="quest-goal" id="quest-goal"></p>
-        <span class="quest-bar" aria-hidden="true"><span id="quest-fill"></span></span>
-        <p class="quest-status" id="quest-status"></p>
-        <h3 class="today-heading" data-i18n="dayFish.title">Fish of the day</h3>
-        <div class="day-fish-card">
-          <span class="day-fish-big" id="day-fish-big" aria-hidden="true"></span>
-          <p class="quest-status" id="day-fish-about"></p>
+        <!-- Each part a card of its own on the tiled menu's page; one list in the window. -->
+        <section class="today-part today-quest">
+          <h3 class="today-heading" data-i18n="quest.title">Daily quest</h3>
+          <p class="quest-goal" id="quest-goal"></p>
+          <span class="quest-bar" aria-hidden="true"><span id="quest-fill"></span></span>
+          <p class="quest-status" id="quest-status"></p>
+        </section>
+        <section class="today-part today-fish" id="today-day">
+          <h3 class="today-heading" data-i18n="dayFish.title">Fish of the day</h3>
+          <div class="day-fish-card">
+            <span class="day-fish-big" id="day-fish-big" aria-hidden="true"></span>
+            <p class="quest-status" id="day-fish-about"></p>
+          </div>
+        </section>
+        <section class="today-part today-streak" id="today-streak">
+          <h3 class="today-heading" data-i18n="streak.title">Days in a row</h3>
+          <p class="quest-status" id="streak-about"></p>
+          <ol class="streak-days" id="streak-days"></ol>
+        </section>
+        <!-- The tournament here only in the old menu: the tiled one has a page of its own for it. -->
+        <div class="today-tourney">
+          <h3 class="today-heading" data-i18n="tourney.title">Tournament of the week</h3>
+          <p class="quest-status" id="tourney-about"></p>
+          <button class="pixel-btn" id="tourney-open" type="button" data-i18n="tourney.open">Leaderboard</button>
         </div>
-        <h3 class="today-heading" data-i18n="streak.title">Days in a row</h3>
-        <p class="quest-status" id="streak-about"></p>
-        <ol class="streak-days" id="streak-days"></ol>
-        <h3 class="today-heading" data-i18n="tourney.title">Tournament of the week</h3>
-        <p class="quest-status" id="tourney-about"></p>
-        <button class="pixel-btn" id="tourney-open" type="button" data-i18n="tourney.open">Leaderboard</button>
         <p class="quest-next" id="quest-next"></p>
       </div>
     </dialog>
 
-    <dialog class="sheet sheet-wide" id="shop-dialog" data-frame="ornate" aria-labelledby="shop-title">
+    <dialog class="sheet sheet-wide page" id="shop-dialog" data-frame="ornate" aria-labelledby="shop-title">
       <header class="sheet-heading">
         <h2 class="title-tab" id="shop-title" data-frame="tab" data-i18n="shop.title">Shop</h2>
         <div class="chip chip-small" data-frame="box"><span class="chip-icon coin-slot"></span><span class="money-value">30</span></div>
@@ -209,7 +220,7 @@
       <ul class="shelves" id="extra-shop" role="tabpanel" hidden></ul>
     </dialog>
 
-    <dialog class="sheet sheet-wide" id="pack-dialog" data-frame="ornate" aria-labelledby="pack-title">
+    <dialog class="sheet sheet-wide page" id="pack-dialog" data-frame="ornate" aria-labelledby="pack-title">
       <header class="sheet-heading">
         <h2 class="title-tab" id="pack-title" data-frame="tab" data-i18n="pack.title">Backpack</h2>
         <div class="chip chip-small pack-hooks" data-frame="box" data-i18n-aria="a11y.hooks"><span class="chip-icon" id="pack-hook-sprite"></span><span id="pack-hook-count">×5</span></div>
@@ -228,7 +239,7 @@
       </div>
     </dialog>
 
-    <dialog class="sheet sheet-wide" id="handbook-dialog" data-frame="ornate" aria-labelledby="handbook-title">
+    <dialog class="sheet sheet-wide page" id="handbook-dialog" data-frame="ornate" aria-labelledby="handbook-title">
       <header class="sheet-heading">
         <h2 class="title-tab" id="handbook-title" data-frame="tab" data-i18n="handbook.title">Angler's handbook</h2>
         <form method="dialog"><button class="pixel-btn pixel-btn-square" type="submit" data-i18n-aria="a11y.close">✕</button></form>
@@ -242,7 +253,7 @@
       <ul class="handbook" id="handbook-list"></ul>
     </dialog>
 
-    <dialog class="sheet sheet-wide" id="trophy-dialog" data-frame="ornate" aria-labelledby="trophy-title">
+    <dialog class="sheet sheet-wide page" id="trophy-dialog" data-frame="ornate" aria-labelledby="trophy-title">
       <header class="sheet-heading">
         <h2 class="title-tab" id="trophy-title" data-frame="tab" data-i18n="trophies.title">Trophies</h2>
         <form method="dialog"><button class="pixel-btn pixel-btn-square" type="submit" data-i18n-aria="a11y.close">✕</button></form>
@@ -264,7 +275,7 @@
     </dialog>
 
     <!-- The collection: every fish (and legend) found so far, and the achievements. -->
-    <dialog class="sheet sheet-wide" id="collection-dialog" data-frame="ornate" aria-labelledby="collection-title">
+    <dialog class="sheet sheet-wide page" id="collection-dialog" data-frame="ornate" aria-labelledby="collection-title">
       <header class="sheet-heading">
         <h2 class="title-tab" id="collection-title" data-frame="tab" data-i18n="collection.title">Collection</h2>
         <form method="dialog"><button class="pixel-btn pixel-btn-square" type="submit" data-i18n-aria="a11y.close">✕</button></form>
@@ -280,7 +291,31 @@
       <div class="ranks" id="ranks" hidden></div>
     </dialog>
 
-    <dialog class="sheet settings-sheet" id="settings-dialog" data-frame="ornate" aria-labelledby="settings-title">
+    <!-- The tiled menu's own pages: the week's tournament, and the player (account and level). -->
+    <dialog class="sheet sheet-wide page" id="tourney-dialog" data-frame="ornate" aria-labelledby="tourney-page-title">
+      <header class="sheet-heading">
+        <h2 class="title-tab" id="tourney-page-title" data-frame="tab" data-i18n="tourney.title">Tournament of the week</h2>
+        <form method="dialog"><button class="pixel-btn pixel-btn-square" type="submit" data-i18n-aria="a11y.close">✕</button></form>
+      </header>
+      <div class="tourney">
+        <div id="tourney-page-head"></div>
+        <ol class="tourney-board" id="tourney-page-board"></ol>
+        <p class="empty-note" id="tourney-page-empty"></p>
+      </div>
+    </dialog>
+
+    <dialog class="sheet sheet-wide page" id="profile-dialog" data-frame="ornate" aria-labelledby="profile-title">
+      <header class="sheet-heading">
+        <h2 class="title-tab" id="profile-title" data-frame="tab" data-i18n="profile.title">Profile</h2>
+        <form method="dialog"><button class="pixel-btn pixel-btn-square" type="submit" data-i18n-aria="a11y.close">✕</button></form>
+      </header>
+      <div class="profile-body">
+        <section class="profile-account" id="profile-account"><h3 class="today-heading" data-i18n="account.title">Account</h3></section>
+        <section class="profile-level" id="profile-level"><h3 class="today-heading" data-i18n="level.title">Level</h3></section>
+      </div>
+    </dialog>
+
+    <dialog class="sheet settings-sheet page" id="settings-dialog" data-frame="ornate" aria-labelledby="settings-title">
       <header class="sheet-heading">
         <h2 class="title-tab" id="settings-title" data-frame="tab" data-i18n="settings.title">Settings</h2>
         <form method="dialog"><button class="pixel-btn pixel-btn-square" type="submit" data-i18n-aria="a11y.close">✕</button></form>
@@ -302,7 +337,7 @@
       </div>
     </dialog>
 
-    <dialog class="sheet" id="account-dialog" data-frame="ornate" aria-labelledby="account-title">
+    <dialog class="sheet page" id="account-dialog" data-frame="ornate" aria-labelledby="account-title">
       <header class="sheet-heading">
         <h2 class="title-tab" id="account-title" data-frame="tab" data-i18n="account.title">Account</h2>
         <form method="dialog"><button class="pixel-btn pixel-btn-square" type="submit" data-i18n-aria="a11y.close">✕</button></form>

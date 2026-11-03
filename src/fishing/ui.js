@@ -3,7 +3,7 @@ import {
   baitEntries, fishPrice, formatMoney, formatWeight, handbookEntries, peakPeriod, spotEntries, trophyCost,
 } from "./data.js";
 import {
-  bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, groundbaitSprite, hookSprite, keepnetSprite, lineSprite, medalSprite, packSprite, questSprite, rodSprite, windSprite,
+  anglerSprite, atlasSprite, bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, groundbaitSprite, hookSprite, keepnetSprite, lineSprite, medalSprite, packSprite, questSprite, rodSprite, windSprite,
 } from "./sprites.js";
 import { P } from "./palette.js";
 import { ACHIEVEMENTS, GROUPS, bump, evaluate } from "./achievements.js";
@@ -125,14 +125,11 @@ export class AnglerUI {
     $("#settings-button").addEventListener("click", () => this.openSettings());
     $("#account-button").addEventListener("click", () => this.openAccount());
     $("#quest-strip").addEventListener("click", () => this.openQuest());
-    // The tiled menu: each of today's tiles opens the window it sums up.
-    for (const id of ["#tile-quest", "#tile-day", "#tile-streak"]) $(id).addEventListener("click", () => this.openQuest());
-    $("#tile-tourney").addEventListener("click", () => this.openTrophies("tourney"));
-    $("#tile-account").addEventListener("click", () => this.openAccount());
-    $("#tile-level").addEventListener("click", () => {
-      this.showCollectionTab("ranks");
-      if (!this.collectionDialog.open) this.collectionDialog.showModal();
-    });
+    // The tiled menu: each tile opens the page it sums up.
+    $("#tile-profile").addEventListener("click", () => this.openProfile());
+    $("#tile-quest").addEventListener("click", () => this.openQuest());
+    $("#tile-today").addEventListener("click", () => this.openQuest("today-day"));
+    $("#tile-tourney").addEventListener("click", () => this.openTourney());
     for (const tab of document.querySelectorAll("#shop-dialog .tab")) {
       tab.addEventListener("click", () => this.showShopTab(tab.dataset.tab));
     }
@@ -161,7 +158,8 @@ export class AnglerUI {
     $("#shop-icon").replaceChildren(bagSprite(3));
     $("#pack-icon").replaceChildren(packSprite(3));
     $("#trophy-icon").replaceChildren(cupSprite(3));
-    $("#collection-icon").replaceChildren(medalSprite(3, P.ember));
+    $("#collection-icon").replaceChildren(atlasSprite(3));
+    $("#tile-avatar").replaceChildren(anglerSprite(5));
     icon("#exit-button", exitSprite(3));
     $("#keepnet-chip-sprite").replaceChildren(keepnetSprite(3));
     $("#settings-icon").replaceChildren(gearSprite(3));
@@ -183,6 +181,7 @@ export class AnglerUI {
     document.querySelectorAll("[data-i18n-aria]").forEach((node) => node.setAttribute("aria-label", t(node.dataset.i18nAria)));
     document.querySelectorAll("[data-i18n-title]").forEach((node) => node.setAttribute("title", t(node.dataset.i18nTitle)));
     document.querySelectorAll("[data-i18n-roledescription]").forEach((node) => node.setAttribute("aria-roledescription", t(node.dataset.i18nRoledescription)));
+    this.labelBackButtons();
     // The account form is rebuilt in the new language.
     $("#account-body")?.replaceChildren();
     this.renderAccount?.();
@@ -257,6 +256,7 @@ export class AnglerUI {
   }
 
   openAccount() {
+    if (document.body.classList.contains("tiles")) return this.openProfile();
     this.renderAccount();
     const dialog = $("#account-dialog");
     if (!dialog.open) dialog.showModal();
@@ -274,10 +274,9 @@ export class AnglerUI {
     // Without a configured backend there's nothing to sign in to; the warning still stands.
     button.hidden = !cloud?.enabled;
     button.textContent = t(signedIn ? "account.open" : "account.login");
-    // The same on the tiled menu's account tile.
-    $("#tile-account-name").textContent = signedIn ? cloud.displayName : t(cloud?.enabled ? "account.login" : "account.title");
-    $("#tile-account-note").textContent = signedIn ? t("account.cloud") : t("account.local");
-    $("#tile-account").classList.toggle("is-safe", signedIn);
+    // The tiled menu's profile tile: the name, or a way in while there is none.
+    $("#tile-profile-name").textContent = signedIn ? cloud.displayName : t(cloud?.enabled ? "account.login" : "account.title");
+    $("#tile-profile").classList.toggle("is-safe", signedIn);
   }
 
   /** After the very first fish, offer once to sign in, warning what skipping means. */
@@ -315,7 +314,7 @@ export class AnglerUI {
     }
     this.updateAccount(mode);
     // Back from a password reset email: the new-password form comes straight up.
-    if (mode === "recover" && !$("#account-dialog").open) $("#account-dialog").showModal();
+    if (mode === "recover" && !$("#account-body").closest("dialog").open) this.openAccount();
   }
 
   /**
@@ -654,14 +653,67 @@ export class AnglerUI {
 
   /** Wide screens, the tiled menu: switched on for the admins' accounts while it is tried out. */
   setTiles(on) {
+    // The account's forms and the ranks live on the profile page in the tiled menu, in their own windows otherwise.
+    if (document.body.classList.contains("tiles") !== on) {
+      document.body.classList.toggle("tiles", on);
+      (on ? $("#profile-account") : $("#account-dialog")).append($("#account-body"));
+      (on ? $("#profile-level") : $("#collection-dialog")).append($("#ranks"));
+      $("#ranks").hidden = !on;
+      this.labelBackButtons();
+    }
     // Signing in or out changes the tournament tile too: draw them all again.
-    document.body.classList.toggle("tiles", on);
     this.tileBoard = null;
     this.tilesKey = null;
     this.renderTiles();
   }
 
-  /** What each tile says: today's things and the level (the sections along the bottom are only their names). */
+  /** In the tiled menu every window of the menu is a page: its ✕ says "Back" instead. */
+  labelBackButtons() {
+    const pages = document.body.classList.contains("tiles");
+    document.querySelectorAll("dialog.page .sheet-heading form button").forEach((button) => {
+      button.textContent = pages ? `← ${t("nav.back")}` : "✕";
+      button.classList.toggle("pixel-btn-square", !pages);
+      button.classList.toggle("back-btn", pages);
+    });
+  }
+
+  /** The player's page: the account up top, the level and every rank under it. */
+  openProfile() {
+    this.renderAccount();
+    this.fillRanks();
+    const dialog = $("#profile-dialog");
+    if (!dialog.open) dialog.showModal();
+  }
+
+  /** The tournament's own page: the week's fish, the prizes and the board. */
+  openTourney() {
+    const dialog = $("#tourney-dialog");
+    // Up top a card: the week's fish, the time left, your best, and the prizes.
+    const week = tourneyWeek();
+    const species = tourneyFish(week);
+    const best = tourneyState(this.progress, week).best;
+    const reward = questReward(this.progress);
+    const fact = (label, value) => element("div", {}, [element("dt", { textContent: label }), element("dd", { textContent: value })]);
+    const card = element("div", { className: "tourney-card" }, [
+      element("span", { className: "tourney-fish" }, [fishSprite(species, 4, nameOf("fish", species))]),
+      element("div", { className: "tourney-goal" }, [
+        element("small", { textContent: t("tourney.heaviest") }),
+        element("strong", { textContent: nameOf("fish", species) }),
+        element("dl", {}, [
+          fact(t("tourney.endsIn"), this.weekLeft()),
+          fact(t("tourney.yours"), best ? formatWeight(best) : t("tourney.none")),
+          fact(t("tourney.prizes"), TOURNEY_PRIZES.map((share) => formatMoney(Math.round(reward * share))).join(" / ")),
+          fact(t("tourney.everyone"), t("tourney.gift")),
+        ]),
+      ]),
+    ]);
+    frame(card, "box", 1401);
+    $("#tourney-page-head").replaceChildren(card);
+    this.fillTourney({ head: null, board: $("#tourney-page-board"), empty: $("#tourney-page-empty"), shown: () => dialog.open });
+    if (!dialog.open) dialog.showModal();
+  }
+
+  /** What each tile says: who is playing, today's things and the tournament (the sections along the bottom are only their names). */
   renderTiles() {
     if (!document.body.classList.contains("tiles")) return;
     const { progress } = this;
@@ -679,7 +731,7 @@ export class AnglerUI {
     $("#tile-quest-goal").textContent = this.questGoal(quest);
 
     const dayFish = fishOfDay(quest.day);
-    $("#tile-day-art").replaceChildren(fishSprite(dayFish, 2));
+    $("#tile-day-art").replaceChildren(fishSprite(dayFish, 3));
     $("#tile-day-text").textContent = t("level.dayFish", { fish: nameOf("fish", dayFish) });
 
     // Days in a row: the run, and where it stands in the week's round of gifts.
@@ -688,10 +740,11 @@ export class AnglerUI {
     $("#tile-streak-count").textContent = t("level.days", { count: run });
     $("#tile-streak-days").replaceChildren(...STREAK_GIFTS.map((_, index) => element("span", { className: index < lit ? "" : "is-off", textContent: index < lit ? "■" : "□" })));
 
+    // The player: name (from the account strip's drawing), rank and level, and how far to the next.
     const rank = rankAt(xp);
     const next = RANKS[rank + 1];
     const from = RANKS[rank].xp;
-    $("#tile-level-name").textContent = this.rankName(rank);
+    $("#tile-profile-rank").textContent = t("level.rank", { rank: this.rankName(rank), number: rank + 1 });
     $("#tile-level-fill").style.width = `${(next ? (xp - from) / (next.xp - from) : 1) * 100}%`;
     $("#tile-level-next").textContent = next ? t("level.toNext", { xp: (next.xp - xp).toLocaleString(locale()) }) : t("level.top");
 
@@ -700,9 +753,8 @@ export class AnglerUI {
 
   /** The tournament tile: the week's fish, the top three, and this angler's best. */
   renderTourneyTile(week, species, best) {
-    $("#tile-tourney-title").textContent = `${t("tourney.tab")} · ${nameOf("fish", species).toLocaleLowerCase(locale())}`;
     const mine = best > 0 ? t("level.yourBest", { weight: formatWeight(best) }) : t("level.noBest");
-    $("#tile-tourney-note").textContent = `${mine} · ${this.weekLeft()}`;
+    $("#tile-tourney-note").textContent = `${nameOf("fish", species)} · ${mine}`;
     const board = $("#tile-tourney-board");
     const cloud = this.cloud;
     if (!cloud?.enabled) return board.replaceChildren();
@@ -835,7 +887,7 @@ export class AnglerUI {
   }
 
   /** The quest window: what it asks, how far along, the reward, and when the next one comes. */
-  openQuest() {
+  openQuest(section = "") {
     const quest = todaysQuest();
     const state = questState(this.progress, quest);
     const dialog = $("#quest-dialog");
@@ -871,6 +923,8 @@ export class AnglerUI {
     const left = untilNextQuest();
     $("#quest-next").textContent = t("quest.next", { hours: Math.floor(left / 3600000), minutes: Math.floor((left % 3600000) / 60000) });
     if (!dialog.open) dialog.showModal();
+    // Opened from a tile: straight to its part of the page.
+    if (section) $(`#${section}`).scrollIntoView({ block: "start" });
   }
 
   /** A rain cloud beside the clock while it's raining (snow in winter), and gusts while the wind blows. */
@@ -1744,18 +1798,16 @@ export class AnglerUI {
    * The tournament board: the week's fish and prizes, then the top twenty,
    * this angler marked (and added below with their place if further down).
    */
-  fillTourney() {
+  fillTourney({ head = $("#tourney-head"), board = $("#tourney-board"), empty = $("#trophy-empty"), shown = () => !$("#tourney").hidden } = {}) {
     const week = tourneyWeek();
     const species = tourneyFish(week);
     const reward = questReward(this.progress);
-    $("#tourney-head").textContent = t("tourney.head", {
+    if (head) head.textContent = t("tourney.head", {
       fish: this.tourneyGoal(species),
       left: this.weekLeft(),
       prizes: TOURNEY_PRIZES.map((share) => formatMoney(Math.round(reward * share))).join(" / "),
       gift: t("tourney.gift"),
     });
-    const board = $("#tourney-board");
-    const empty = $("#trophy-empty");
     const say = (text) => {
       board.replaceChildren();
       empty.textContent = text;
@@ -1766,7 +1818,7 @@ export class AnglerUI {
     say(t("trophies.loading"));
     const request = (this.tourneyRequest = Promise.all([cloud.tournamentBoard(week, species), cloud.tournamentPlace(week, species).catch(() => null)]));
     request.then(([result, mine]) => {
-      if (request !== this.tourneyRequest || $("#tourney").hidden) return;
+      if (request !== this.tourneyRequest || !shown()) return;
       if (result.error) return say(t("trophies.othersError"));
       const me = cloud.user?.id;
       const row = (place, player, weight, isMe, rank) => element("li", { className: `tourney-row${isMe ? " is-me" : ""}${place <= 3 ? ` is-top is-top-${place}` : ""}` }, [
