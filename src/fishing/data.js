@@ -4,7 +4,7 @@ import { isAutumn } from "../theme.js";
 
 /**
  * Fishing catalog (display names live in src/i18n.js): fish, bait, rods, extras and fishing spots. Weights are in
- * kilograms, prices in hryvnia. The economy is deliberately tight: each rod
+ * kilograms, prices in the game's coins (¤). The economy is deliberately tight: each rod
  * is a real grind away from the last.
  */
 
@@ -400,7 +400,8 @@ export function formatWeight(kg) {
 }
 
 export function formatMoney(value) {
-  return `${value.toLocaleString(locale())} ₴`;
+  // The game's own coins: "¤" is drawn as a little pixel coin (fonts/doberega-coin.woff2), kept on the figure's line.
+  return `${value.toLocaleString(locale())}\u00A0¤`;
 }
 
 function pickWeighted(entries, random) {

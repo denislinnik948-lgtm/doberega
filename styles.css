@@ -8,15 +8,22 @@
   src: url("./fonts/doberega-gothic.woff2") format("woff2");
   font-display: swap;
 }
+/* The money sign: every "¤" in the game is a little pixel coin (the font has that one letter). */
+@font-face {
+  font-family: "Doberega Coin";
+  src: url("./fonts/doberega-coin.woff2") format("woff2");
+  unicode-range: U+00A4;
+  font-display: block;
+}
 
 :root {
   color-scheme: dark;
-  font-family: "Handjet", ui-monospace, Menlo, monospace;
+  font-family: "Doberega Coin", "Handjet", ui-monospace, Menlo, monospace;
   font-size: 22px;
   font-weight: 500;
   line-height: 1.15;
   font-synthesis: none;
-  --gothic: "Doberega Gothic", "Handjet", ui-monospace, monospace;
+  --gothic: "Doberega Coin", "Doberega Gothic", "Handjet", ui-monospace, monospace;
   --ink: #0a1412;
   --deep: #13221f;
   --dark: #1e3833;
@@ -1207,7 +1214,7 @@ html.keyboard-open .sheet[open] > .account-body {
 .tiles dialog.page .sheet-heading { gap: 16px; }
 .tiles dialog.page .sheet-heading form { order: -1; }
 .tiles dialog.page .sheet-heading .title-tab { margin-right: auto; }
-.tiles .back-btn { min-height: 48px; padding-inline: 16px; font-size: 22px; }
+.tiles .back-btn { min-height: 48px; padding-inline: 16px; font-size: 22px; white-space: nowrap; }
 /* Long lists scroll with the page itself, not in a box of their own. */
 .tiles dialog.page :is(.atlas, .achievement-list, .quest-body, .handbook, .trophy-wall, .ranks, .tourney, .pack-body, .shelves) { max-height: none; overflow: visible; }
 

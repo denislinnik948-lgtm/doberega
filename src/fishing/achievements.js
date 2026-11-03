@@ -2,7 +2,7 @@ import { FISH, LEGENDS, LOCATIONS, RODS } from "./data.js";
 
 /**
  * Achievements: a badge, a note on screen and a little money each. The money
- * is modest (50–1500 ₴, about 17,500 ₴ for all of them, under 3% of what the
+ * is modest (50–1500 ¤, about 17,500 ¤ for all of them, under 3% of what the
  * rods and gear cost), so they reward without upsetting the economy.
  *
  * What they need is counted in `progress.stats` (see `recordCatch` below and the
@@ -33,7 +33,7 @@ const spotBadge = (spotId) => counted(spotSet(spotId).length, (progress) => spot
 
 /*
  * The list, in the order it's shown. `group` heads a section; `reward` is in
- * hryvnia; `secret` hides the name's meaning until earned.
+ * the game's coins (¤); `secret` hides the name's meaning until earned.
  */
 export const ACHIEVEMENTS = [
   // First steps.

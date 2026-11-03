@@ -218,7 +218,7 @@ function sprite(ctx, source, x, y, w, h) {
 }
 
 const weight = (kg) => (kg < 1 ? `${Math.round(kg * 1000)} ${TEXT.gram}` : `${LANG === "uk" ? String(kg).replace(".", ",") : kg} ${TEXT.kilo}`);
-const money = (value) => (value ? `${value.toLocaleString(LANG === "uk" ? "uk-UA" : "en-US").replace(/\s/g, " ")} ₴` : TEXT.free);
+const money = (value) => (value ? `${value.toLocaleString(LANG === "uk" ? "uk-UA" : "en-US").replace(/\s/g, " ")} ¤` : TEXT.free);
 
 /* ---------- The posts ---------- */
 
