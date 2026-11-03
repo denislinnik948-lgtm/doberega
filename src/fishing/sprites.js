@@ -1091,25 +1091,22 @@ function drawAngler(look) {
   return grid;
 }
 
-/* The author's own background: an evening sun behind the head, its rays turning, a few early stars. */
+/* The author's own background: quiet, in the game's greens, faint rays behind the head and a thin brass edge. */
 function sunburst(grid) {
   for (let y = 0; y < 24; y += 1) {
     for (let x = 0; x < 24; x += 1) {
       const dx = x - 11.5;
       const dy = y - 11;
-      const d = Math.hypot(dx, dy);
       const ray = Math.floor((Math.atan2(dy, dx) + Math.PI) / (Math.PI / 8)) % 2;
-      let color = ray ? "#7a2e3a" : "#4a1e3a";
-      if (d < 10.5) color = d < 9.5 ? "#e2b85e" : "#c4643e";
-      else if (y > 15) color = ray ? "#5a2436" : "#3a1830";
-      grid.set(x, y, color);
+      const d = Math.hypot(dx, dy);
+      grid.set(x, y, d < 10.5 ? (ray ? "#284640" : "#22403a") : ray ? "#1e3833" : "#19302b");
     }
   }
-  for (const [x, y] of [[2, 2], [21, 3], [4, 19], [20, 18]]) grid.set(x, y, "#f0e6c0");
+  for (const [x, y] of [[2, 3], [21, 2]]) grid.set(x, y, "#58726a");
   for (let i = 0; i < 24; i += 1) {
-    grid.set(i, 0, P.gold);
+    grid.set(i, 0, P.goldDark);
     grid.set(i, 23, P.goldDark);
-    grid.set(0, i, P.gold);
+    grid.set(0, i, P.goldDark);
     grid.set(23, i, P.goldDark);
   }
 }
