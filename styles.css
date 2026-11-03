@@ -1,6 +1,14 @@
 /* Pixel-art game UI over an ASCII scene. Frames (thorny borders, title tabs,
    ticked caption boxes, dithered fills) are painted on canvases by
    src/fishing/frames.js; this file handles layout, type and buttons. */
+
+/* The game's own pixel blackletter for headings (tools/font/build-gothic.py); sharpest at 15, 30 and 45 px. */
+@font-face {
+  font-family: "Doberega Gothic";
+  src: url("./fonts/doberega-gothic.woff2") format("woff2");
+  font-display: swap;
+}
+
 :root {
   color-scheme: dark;
   font-family: "Handjet", ui-monospace, Menlo, monospace;
@@ -8,6 +16,7 @@
   font-weight: 500;
   line-height: 1.15;
   font-synthesis: none;
+  --gothic: "Doberega Gothic", "Handjet", ui-monospace, monospace;
   --ink: #0a1412;
   --deep: #13221f;
   --dark: #1e3833;
@@ -1379,3 +1388,16 @@ html.keyboard-open .sheet[open] > .account-body {
 }
 
 @keyframes page-in { from { opacity: 0; } }
+
+/*
+ * Headings in the game's blackletter (tiled menu for now): the titles of pages and of the water at 30 px,
+ * the names of tiles and sections at 15 px, in their own letters (blackletter in capitals only would not read).
+ */
+.tiles :is(.title-tab, .fish-button) { font-family: var(--gothic); font-size: 30px; font-weight: 400; letter-spacing: 0; }
+.tiles .tile small:not(.tile-note), .tiles .today-heading, .tiles .pack-pocket h3, .tiles .tourney-goal small {
+  font-family: var(--gothic);
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
