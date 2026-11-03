@@ -1892,22 +1892,24 @@ export class AnglerUI {
     const note = $("#trophy-hint");
     note.textContent = hint;
     note.hidden = !hint;
+    // Each fish mounted on a board as anglers hang them, a brass plate under it with the name and weight.
     $("#trophy-wall").replaceChildren(...trophies.map((fish, index) => {
-      const tab = element("div", { className: "title-tab title-tab-small", textContent: nameOf("fish", fish.species) });
-      const picture = element("div", { className: "picture" }, [fishSprite(fish.species, 3)]);
+      const legend = Boolean(FISH[fish.species]?.legend);
+      const board = element("div", { className: "plaque" }, [fishSprite(fish.species, 8, nameOf("fish", fish.species))]);
+      if (legend) board.dataset.variant = "legend";
       const spot = LOCATIONS[fish.spot] ? nameOf("location", LOCATIONS[fish.spot].id) : null;
       const date = fish.date ? new Date(fish.date).toLocaleDateString(locale(), { day: "numeric", month: "short", year: "numeric" }) : null;
-      const caption = element("div", { className: "caption" }, [
-        element("strong", { textContent: formatWeight(fish.weight) }),
+      const plate = element("div", { className: "nameplate" }, [
+        element("strong", { textContent: nameOf("fish", fish.species) }),
+        element("span", { textContent: formatWeight(fish.weight) }),
+      ]);
+      const about = element("div", { className: "trophy-about" }, [
         fish.player ? element("span", { className: "trophy-player", textContent: Number.isFinite(fish.rank) ? `${fish.player} · ${this.rankName(fish.rank)}` : fish.player }) : "",
         element("small", { textContent: [spot, date].filter(Boolean).join(" · ") }),
         fish.bait && BAITS[fish.bait] ? element("small", { textContent: t("trophies.bait", { bait: nameOf("bait", fish.bait) }) }) : "",
       ]);
-      const card = element("li", { className: "trophy" }, [element("div", { className: "card-scene" }, [tab, picture]), caption]);
-      frame(picture, "picture", 500 + index * 7);
-      frame(tab, "tab");
-      frame(caption, "box", 900 + index);
-      return card;
+      frame(board, "plaque", 500 + index * 7);
+      return element("li", { className: `trophy${legend ? " is-legend" : ""}` }, [board, plate, about]);
     }));
   }
 }

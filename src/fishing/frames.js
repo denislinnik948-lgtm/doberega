@@ -386,7 +386,64 @@ function landscape(px, w, h, random, kind) {
   thornyBorder(px, m, m, w - 2 * m, h - 2 * m, random);
 }
 
+/*
+ * A trophy board: dark-stained planks with their grain, cut corners, a bevel
+ * lit from the top left, and a brass screw at each end. A legend's board has
+ * a gold trim.
+ */
+const WOOD = { edge: "#1c120a", dark: "#3a2614", mid: "#553720", light: "#6e4a2a", grain: "#46301a", lit: "#86603a" };
+function plaque(px, w, h, random, variant) {
+  const cut = Math.max(3, Math.round(Math.min(w, h) * 0.1));
+  const inset = (y) => Math.max(0, cut - y, cut - (h - 1 - y));
+  const planks = Math.max(2, Math.round(h / 34));
+  const plankH = h / planks;
+  const phase = random() * 10;
+  for (let y = 0; y < h; y += 1) {
+    const x0 = inset(y);
+    const plank = Math.floor(y / plankH);
+    const seam = y > 0 && Math.floor((y - 1) / plankH) !== plank;
+    for (let x = x0; x < w - x0; x += 1) {
+      const border = y === 0 || y === h - 1 || x === x0 || x === w - x0 - 1;
+      let color;
+      if (border) color = WOOD.edge;
+      else if (seam) color = WOOD.edge;
+      else {
+        // Grain: long wavy streaks along each plank, a knot here and there.
+        const wave = Math.sin(x * 0.07 + plank * 2.1 + phase) * 2.2 + Math.sin(x * 0.019 + plank) * 3;
+        const streak = Math.sin((y - plank * plankH + wave) * 1.3 + plank * 5);
+        color = streak > 0.82 ? WOOD.grain : streak < -0.9 ? WOOD.light : (x + y) % 7 === 0 && streak > 0.4 ? WOOD.dark : WOOD.mid;
+      }
+      px.set(x, y, color);
+    }
+    // Bevel: light along the top and left edges, dark along the bottom and right.
+    if (y > 0 && y < h - 1) {
+      px.set(x0 + 1, y, WOOD.lit);
+      px.set(w - x0 - 2, y, WOOD.dark);
+    }
+  }
+  px.rect(cut + 1, 1, w - cut * 2 - 2, 1, WOOD.lit);
+  px.rect(cut + 1, h - 2, w - cut * 2 - 2, 1, WOOD.dark);
+  if (variant === "legend") {
+    for (let y = 2; y < h - 2; y += 1) {
+      const x0 = inset(y) + 2;
+      px.set(x0, y, P.gold);
+      px.set(w - x0 - 1, y, P.gold);
+    }
+    px.rect(cut + 2, 2, w - cut * 2 - 4, 1, P.gold);
+    px.rect(cut + 2, h - 3, w - cut * 2 - 4, 1, P.goldDark);
+  }
+  // Two brass screws holding the board.
+  for (const sx of [cut + 3, w - cut - 5]) {
+    const sy = Math.round(h / 2) - 1;
+    px.rect(sx, sy, 2, 2, P.goldDark);
+    px.set(sx, sy, P.gold);
+  }
+}
+
 const PAINTERS = {
+  plaque(px, w, h, random, variant) {
+    plaque(px, w, h, random, variant);
+  },
   location(px, w, h, random, variant) {
     landscape(px, w, h, random, variant);
   },
@@ -458,7 +515,7 @@ function paint(element) {
   element.dataset.framePainted = "1";
 }
 
-/** Give an element a pixel frame of the given kind ("ornate", "picture", "box", "well", "tab"). */
+/** Give an element a pixel frame of the given kind ("ornate", "picture", "box", "well", "tab", "plaque"). */
 export function frame(element, kind, seed = 7) {
   if (frames.has(element)) {
     frames.get(element).kind = kind;

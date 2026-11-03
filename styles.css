@@ -511,12 +511,19 @@ html.keyboard-open .sheet[open] > .account-body {
   list-style: none;
   scrollbar-color: var(--mid) transparent;
 }
-.trophy-wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 18px; }
-.trophy { display: grid; gap: 10px; }
-.trophy .picture { min-height: 120px; }
-.trophy .caption strong { color: var(--gold); font-size: 22px; font-weight: 500; }
-.trophy .caption small { color: var(--light); font-size: 18px; }
-.trophy .caption small + small { display: block; }
+.trophy-wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 28px 22px; }
+/* A trophy: the fish hung on a wooden board, a brass plate under it, the details in small letters. */
+.trophy { display: grid; justify-items: center; align-content: start; gap: 8px; text-align: center; }
+.plaque { width: 100%; aspect-ratio: 5 / 3; }
+/* The fish as big as the board lets it, whatever its shape, with a hard shadow as if it stood off the wood. */
+.plaque > canvas.sprite { position: absolute; inset: 12% 10%; width: 80% !important; height: 76% !important; object-fit: contain; image-rendering: pixelated; filter: drop-shadow(4px 5px 0 rgb(0 0 0 / 0.45)); }
+.trophy:hover .plaque canvas.sprite { transform: rotate(-2deg); transition: transform 200ms; }
+.nameplate { display: grid; gap: 0; margin-top: -2px; padding: 4px 16px 5px; color: var(--ink); line-height: 1.1; background: var(--gold-dark); box-shadow: inset 0 0 0 2px var(--ink), inset 2px 2px 0 2px var(--gold); }
+.nameplate strong { font-size: 19px; font-weight: 500; }
+.nameplate span { font-size: 22px; font-variant-numeric: tabular-nums; }
+.trophy.is-legend .nameplate { background: var(--gold); }
+.trophy-about { display: grid; gap: 1px; }
+.trophy-about small { color: var(--light); font-size: 17px; }
 .trophy-player { display: block; color: var(--bone); font-size: 19px; }
 .trophy-hint { margin-top: 0; font-size: 18px; }
 .trophy-badges { margin: 0; color: var(--gold); font-size: 20px; text-align: center; }
