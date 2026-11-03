@@ -8,6 +8,9 @@ const NO_RIPPLES = [];
 // for each of thousands of cells a frame, so there is nothing to allocate.
 const result = { x: 0, y: 0, density: 0 };
 
+// How many ring widths from its front a ripple still shows (exp(-0.5 * 4.5²) is under 1/20000).
+const RING_REACH = 4.5;
+
 /**
  * Pure water-surface model. It derives coherent motion and luminance from a fixed
  * character cell and elapsed time; it never uses per-frame randomness, and the
@@ -91,11 +94,17 @@ export function sampleWater(point, time, config, verticalDepth, ripples = NO_RIP
 
     const dx = x - ripple.x;
     const dy = y - ripple.y;
-    const distance = Math.hypot(dx, dy);
     const size = ripple.size ?? 1;
     const propagationSpeed = 110 * (0.7 + config.waveSpeed * 0.35) * (0.9 + size * 0.1);
     const radius = age * propagationSpeed;
     const width = 8 + (14 + age * 2.4) * size;
+    // Most of the water is far ahead of the front or long behind it, where the
+    // ring is under 1/20000: skip it on the squared distance, before any root or exp.
+    const reach = radius + width * RING_REACH;
+    const behind = radius - width * RING_REACH;
+    const distanceSq = dx * dx + dy * dy;
+    if (distanceSq > reach * reach || (behind > 0 && distanceSq < behind * behind)) continue;
+    const distance = Math.sqrt(distanceSq);
     const frontDistance = distance - radius;
     const ringProfile = Math.exp(-0.5 * (frontDistance / width) ** 2);
     const fade = Math.exp(-age * (0.3 / Math.sqrt(size)) - radius / (850 * size)) * ripple.strength;

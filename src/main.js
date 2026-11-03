@@ -174,6 +174,8 @@ function setMode(next) {
     game.reset();
     spaceHeld = false;
   }
+  // Under the menu nothing was drawn: draw the water now, not an old frame for a moment.
+  else renderNow();
 }
 
 const ui = new AnglerUI(progress, {
@@ -658,6 +660,11 @@ function floatLife(step, elapsed) {
 /** Game hours of groundbait left at a water (0 if none). */
 const groundbaitLeft = (id) => Math.max(0, ((progress.baited[id] ?? 0) - Date.now()) / (DAY_LENGTH * 1000) * 24);
 
+/** Whether the scene is hidden under the menu or a full-screen page (windows like the catch card let it show). */
+function sceneCovered() {
+  return mode === "menu" || Boolean(document.querySelector("dialog.page[open]"));
+}
+
 function renderNow(now = performance.now()) {
   const elapsed = getElapsed(now);
   maybeJumpFish(elapsed);
@@ -708,6 +715,9 @@ function renderNow(now = performance.now()) {
   playLoops(step, dayTime);
   const winter = isWinter();
   floatLife(step, elapsed);
+  // The menu and the pages cover the whole screen: the world keeps going (time,
+  // the fish, the sounds) but there is no point drawing a scene nobody sees.
+  if (sceneCovered()) return;
   renderer.render(elapsed, config, ripples, anglerView(elapsed), dayTime, {
     rain: weather.intensity,
     // Snow in winter brings no lightning.
@@ -840,7 +850,8 @@ function resize(force = false) {
  * simply wait at the water 30 frames a second look the same as 60; the full
  * 60 come only when things move fast: a cast, a fight, reeling in, a fresh
  * splash, or your finger on the screen. Under the menu or a window the scene
- * barely shows (12 frames), and in a window you aren't looking at, 20.
+ * barely shows (12 frames, and under the menu or a page nothing is drawn at
+ * all, see sceneCovered), and in a window you aren't looking at, 20.
  */
 let lastDrawn = -Infinity;
 let lastFast = -Infinity;

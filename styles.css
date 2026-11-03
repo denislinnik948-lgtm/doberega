@@ -1081,9 +1081,10 @@ html.keyboard-open .sheet[open] > .account-body {
 
 .menu-short { display: none; }
 
-/* The menu's windows are pages here: the whole screen, "Back" top left, no frame round them. */
+/* The menu's windows are pages: the whole screen, "Back" top left, no painted frame round them (none is drawn). */
 .tiles dialog.page {
   width: 100%;
+  border: 0;
   max-width: none;
   height: 100%;
   max-height: none;
@@ -1096,7 +1097,6 @@ html.keyboard-open .sheet[open] > .account-body {
     radial-gradient(ellipse at 50% 40%, var(--deep), var(--ink) 75%) fixed;
 }
 .tiles dialog.page[open] { animation: page-in 160ms steps(3); }
-.tiles dialog.page > .frame-art { display: none; }
 .tiles dialog.page::backdrop { background: var(--ink); }
 .tiles dialog.page .sheet-heading { gap: 16px; }
 .tiles dialog.page .sheet-heading form { order: -1; }
