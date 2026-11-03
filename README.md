@@ -130,7 +130,7 @@ Nobody else's progress is listed: the quest is between the angler and the water 
 
 ## Collection
 
-**Колекція** in the main menu has two tabs. **Атлас** shows every fish in the game as a card (built from `handbookEntries`, so a new species appears by itself): a caught one in colour with how many and the heaviest, the rest a dark silhouette with a hint, the water where it is most common and the part of the day it feeds best (burbot: autumn nights). **Ачівки** lists the achievements below. Trophies keep their own window.
+**Колекція** in the main menu has two tabs. **Атлас** shows every fish in the game as a card (built from `handbookEntries`, so a new species appears by itself): a caught one in colour with how many and the heaviest, the rest a dark silhouette marked "not caught yet", with no hint of where or when: finding out is the point (the handbook still tells it). **Ачівки** lists the achievements below. Trophies keep their own window.
 
 ## Ranks
 

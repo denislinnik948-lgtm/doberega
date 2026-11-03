@@ -1747,8 +1747,7 @@ export class AnglerUI {
 
   /**
    * The atlas: every fish there is. Found ones in colour, with how many and
-   * the heaviest; the rest only a dark shape, with a hint of where and when
-   * to look for them.
+   * the heaviest; the rest only a dark shape.
    */
   fillAtlas() {
     const { progress } = this;
@@ -1772,9 +1771,8 @@ export class AnglerUI {
         const record = stats.heaviest?.[entry.id];
         return cell(entry.id, true, [t("atlas.caught", { count: caught }), record ? t("atlas.record", { weight: formatWeight(record) }) : ""], 1100 + index);
       }
-      const where = entry.spots[0] ? nameOf("location", entry.spots[0].id) : "";
-      const when = entry.season === "autumn" ? t("atlas.autumn") : periodName(peakPeriod(entry.id));
-      return cell(entry.id, false, [where, when], 1100 + index);
+      // Not found yet: only its shape, no hint of where or when; finding out is the point.
+      return cell(entry.id, false, [t("atlas.notYet")], 1100 + index);
     });
     // The legends: a rumour each until landed, then the heaviest one on the wall.
     const legends = Object.values(LEGENDS).map((legend, index) => {
