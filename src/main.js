@@ -208,8 +208,6 @@ const ui = new AnglerUI(progress, {
 });
 applySpot();
 
-// The tiled menu, for everyone (index.html already draws the menu that way).
-ui.setTiles(true);
 
 // Accounts: every save goes up to the cloud; signing in elsewhere brings it back.
 const cloud = new Cloud({
@@ -232,7 +230,7 @@ const cloud = new Cloud({
     }
     ui.renderAccount();
     // Signing in or out: the tiles drawn again (the tournament's board knows who you are).
-    ui.setTiles(true);
+    ui.refreshTiles();
   },
   // Signed in and in step: this week's best goes up (it may have been caught
   // before signing in), and last week's tournament is settled, once.

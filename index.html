@@ -53,27 +53,14 @@
           <button class="pixel-btn pixel-btn-primary fish-button" id="fish-button" type="button" data-i18n="menu.fish">Go fishing</button>
         </div>
 
-        <!-- Today's quest, the same for everyone: what it asks and how far along you are. -->
-        <button class="quest-strip" id="quest-strip" data-frame="box" type="button" aria-haspopup="dialog">
-          <span class="quest-icon" id="quest-strip-icon" aria-hidden="true"></span>
-          <span class="quest-strip-text"><small data-i18n="quest.title">Daily quest</small><span id="quest-strip-goal"></span></span>
-          <span class="quest-strip-count" id="quest-strip-count"></span>
-          <!-- The fish of the day (it sells dearer) and the run of days in a row with a catch. -->
-          <span class="day-line">
-            <span class="day-fish-art" id="day-fish-art" aria-hidden="true"></span>
-            <span class="day-fish-text" id="day-fish-text"></span>
-            <span class="day-streak" id="day-streak"></span>
-          </span>
-        </button>
-
         <!-- The tiled menu: who is playing, the tournament and today's things on tiles of their own. -->
-        <button class="tile tile-only tile-profile" id="tile-profile" data-frame="box" type="button" aria-haspopup="dialog">
+        <button class="tile tile-profile" id="tile-profile" data-frame="box" type="button" aria-haspopup="dialog">
           <span class="tile-avatar" id="tile-avatar" aria-hidden="true"></span>
           <span class="tile-who"><strong class="tile-name" id="tile-profile-name"></strong><span class="tile-note" id="tile-profile-rank"></span><span class="achievement-bar"><span id="tile-level-fill"></span></span><small class="tile-note" id="tile-level-next"></small></span>
         </button>
-        <button class="tile tile-only tile-tourney" id="tile-tourney" data-frame="box" type="button" aria-haspopup="dialog"><small data-i18n="tourney.tab">Tournament</small><span class="tourney-cells"><span class="tourney-cell tourney-cell-fish" id="tile-tourney-fish"></span><ol class="tile-podium" id="tile-tourney-board"></ol></span></button>
+        <button class="tile tile-tourney" id="tile-tourney" data-frame="box" type="button" aria-haspopup="dialog"><small data-i18n="tourney.tab">Tournament</small><span class="tourney-cells"><span class="tourney-cell tourney-cell-fish" id="tile-tourney-fish"></span><ol class="tile-podium" id="tile-tourney-board"></ol></span></button>
         <!-- Today's quest, the fish of the day and the days in a row: one wide tile into the Today page. -->
-        <button class="tile tile-only tile-today" id="tile-today" data-frame="box" type="button" aria-haspopup="dialog">
+        <button class="tile tile-today" id="tile-today" data-frame="box" type="button" aria-haspopup="dialog">
           <span class="tile-half"><small data-i18n="quest.title">Daily quest</small><strong id="tile-quest-count"></strong><span class="tile-note" id="tile-quest-goal"></span></span>
           <span class="tile-half"><small data-i18n="dayFish.title">Fish of the day</small><span class="tile-art" id="tile-day-art" aria-hidden="true"></span><span class="tile-note" id="tile-day-text"></span></span>
           <span class="tile-half"><small data-i18n="streak.title">Days in a row</small><strong id="tile-streak-count"></strong><span class="tile-days" id="tile-streak-days" aria-hidden="true"></span></span>
@@ -83,16 +70,10 @@
           <button class="menu-item" id="shop-button" data-frame="box" type="button"><span class="menu-icon" id="shop-icon"></span><span data-i18n="menu.shop">Shop</span></button>
           <button class="menu-item" id="pack-button" data-frame="box" type="button"><span class="menu-icon" id="pack-icon"></span><span data-i18n="menu.pack">Backpack</span></button>
           <button class="menu-item" id="trophy-button" data-frame="box" type="button"><span class="menu-icon" id="trophy-icon"></span><span data-i18n="menu.trophies">Trophies</span></button>
-          <button class="menu-item" id="collection-button" data-frame="box" type="button"><span class="menu-icon" id="collection-icon"></span><span data-i18n="menu.collection">Collection</span> <span id="rank-badge" class="badge" hidden>1</span></button>
+          <button class="menu-item" id="collection-button" data-frame="box" type="button"><span class="menu-icon" id="collection-icon"></span><span data-i18n="menu.collection">Collection</span></button>
           <button class="menu-item" id="settings-button" data-frame="box" type="button"><span class="menu-icon" id="settings-icon"></span><span class="menu-long" data-i18n="menu.settings">Settings</span><span class="menu-short" data-i18n="menu.settingsShort">Options</span></button>
         </nav>
 
-        <!-- A quiet line: where progress is kept, and the way into the account. -->
-        <div class="account-strip" id="account-strip">
-          <span class="account-dot" aria-hidden="true"></span>
-          <span class="account-strip-text" id="account-strip-text"></span>
-          <button class="link-btn" id="account-button" type="button"></button>
-        </div>
       </section>
 
       <!-- In-game HUD. -->
@@ -193,12 +174,6 @@
           <p class="quest-status" id="streak-about"></p>
           <ol class="streak-days" id="streak-days"></ol>
         </section>
-        <!-- The tournament here only in the old menu: the tiled one has a page of its own for it. -->
-        <div class="today-tourney">
-          <h3 class="today-heading" data-i18n="tourney.title">Tournament of the week</h3>
-          <p class="quest-status" id="tourney-about"></p>
-          <button class="pixel-btn" id="tourney-open" type="button" data-i18n="tourney.open">Leaderboard</button>
-        </div>
         <p class="quest-next" id="quest-next"></p>
       </div>
     </dialog>
@@ -262,12 +237,6 @@
       <div class="tabs" role="tablist">
         <button class="pixel-btn tab is-active" type="button" role="tab" aria-selected="true" data-tab="mine" data-i18n="trophies.mine">Mine</button>
         <button class="pixel-btn tab" type="button" role="tab" aria-selected="false" data-tab="others" data-i18n="trophies.others">Other anglers</button>
-        <button class="pixel-btn tab" type="button" role="tab" aria-selected="false" data-tab="tourney" data-i18n="tourney.tab">Tournament</button>
-      </div>
-      <!-- The week's tournament: the fish, the prizes and the board. -->
-      <div class="tourney" id="tourney" hidden>
-        <p class="tourney-head" id="tourney-head"></p>
-        <ol class="tourney-board" id="tourney-board"></ol>
       </div>
       <p class="trophy-badges" id="trophy-badges" hidden></p>
       <ul class="trophy-wall" id="trophy-wall"></ul>
@@ -284,15 +253,13 @@
       <div class="tabs" role="tablist">
         <button class="pixel-btn tab is-active" type="button" role="tab" aria-selected="true" data-tab="atlas" data-i18n="atlas.tab">Atlas</button>
         <button class="pixel-btn tab" type="button" role="tab" aria-selected="false" data-tab="achievements" data-i18n="achievements.tab">Achievements</button>
-        <button class="pixel-btn tab" type="button" role="tab" aria-selected="false" data-tab="ranks" data-i18n="rank.tab">Rank</button>
       </div>
       <p class="achievement-summary" id="collection-summary"></p>
       <div class="atlas" id="atlas"></div>
       <div class="achievement-list" id="achievement-list" hidden></div>
-      <div class="ranks" id="ranks" hidden></div>
     </dialog>
 
-    <!-- The tiled menu's own pages: the week's tournament, and the player (account and level). -->
+    <!-- Pages of their own: the week's tournament, and the player (picture, account and level). -->
     <dialog class="sheet sheet-wide page" id="tourney-dialog" data-frame="ornate" aria-labelledby="tourney-page-title">
       <header class="sheet-heading">
         <h2 class="title-tab" id="tourney-page-title" data-frame="tab" data-i18n="tourney.title">Tournament of the week</h2>
@@ -312,8 +279,8 @@
       </header>
       <div class="profile-body">
         <section class="profile-avatar"><h3 class="today-heading" data-i18n="profile.avatar">Your angler</h3><div class="avatar-grid" id="avatar-grid" role="radiogroup" data-i18n-aria="profile.avatar"></div></section>
-        <section class="profile-account" id="profile-account"><h3 class="today-heading" data-i18n="account.title">Account</h3></section>
-        <section class="profile-level" id="profile-level"><h3 class="today-heading" data-i18n="level.title">Level</h3></section>
+        <section class="profile-account" id="profile-account"><h3 class="today-heading" data-i18n="account.title">Account</h3><div class="account-body" id="account-body"></div></section>
+        <section class="profile-level" id="profile-level"><h3 class="today-heading" data-i18n="level.title">Level</h3><div class="ranks" id="ranks"></div></section>
       </div>
     </dialog>
 
@@ -337,14 +304,6 @@
         <label class="volume-row"><span data-i18n="settings.effects">Effects</span><input type="range" id="volume-fx" min="0" max="100" step="5" /><output id="volume-fx-value"></output></label>
         <label class="volume-row"><span data-i18n="settings.music">Music</span><input type="range" id="volume-music" min="0" max="100" step="5" /><output id="volume-music-value"></output></label>
       </div>
-    </dialog>
-
-    <dialog class="sheet page" id="account-dialog" data-frame="ornate" aria-labelledby="account-title">
-      <header class="sheet-heading">
-        <h2 class="title-tab" id="account-title" data-frame="tab" data-i18n="account.title">Account</h2>
-        <form method="dialog"><button class="pixel-btn pixel-btn-square" type="submit" data-i18n-aria="a11y.close">✕</button></form>
-      </header>
-      <div class="account-body" id="account-body"></div>
     </dialog>
 
     <!-- Offered once, after the very first fish: sign in, or carry on knowing the risk. -->

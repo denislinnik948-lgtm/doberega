@@ -242,14 +242,7 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
 .groundbait-icon .sprite { display: block; }
 .groundbait-ring { width: 40px; height: 40px; image-rendering: pixelated; }
 .hud-top .clock { min-height: 60px; }
-/* Today's quest: a line above the menu buttons. */
-.quest-icon .sprite { display: block; }
-.quest-strip.is-done .quest-strip-count { color: var(--light); }
-.quest-strip { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; width: min(620px, 100%); min-height: 52px; padding: 6px 14px 6px 10px; color: var(--bone); font: inherit; font-size: 20px; line-height: 1.15; text-align: left; cursor: pointer; }
-.quest-strip-text { display: grid; min-width: 0; }
-.quest-strip-text small { color: var(--light); font-size: 16px; }
-.quest-strip-count { color: var(--gold); font-size: 24px; font-variant-numeric: tabular-nums; }
-.quest-strip:active { transform: translateY(2px); }
+/* Today's page: the quest, the fish of the day and the run of days in a row. */
 .quest-sheet { width: min(480px, calc(100% - 24px)); }
 .quest-body { display: grid; gap: 10px; min-height: 0; overflow-y: auto; scrollbar-color: var(--mid) transparent; }
 .quest-body h3 { margin: 6px 0 0; }
@@ -258,15 +251,6 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
 .quest-bar span { display: block; height: 100%; background: var(--gold); }
 .quest-status { margin: 0; color: var(--gold); font-size: 22px; }
 .quest-next { margin: 0; color: var(--light); font-size: 18px; }
-/* Under the quest in the menu: the fish of the day and the run of days in a row. */
-.day-line { display: flex; grid-column: 1 / -1; align-items: center; gap: 8px; min-width: 0; margin-top: -2px; padding-top: 4px; border-top: 2px solid rgb(60 104 96 / 0.45); color: var(--light); font-size: 17px; }
-.day-fish-art { display: grid; place-items: center; width: 34px; }
-.day-fish-art canvas { display: block; max-width: 34px; max-height: 18px; width: auto !important; height: auto !important; }
-.day-fish-text { overflow: hidden; min-width: 0; white-space: nowrap; text-overflow: ellipsis; }
-.day-streak { flex: none; margin-left: auto; color: var(--soft); }
-.day-streak.is-today { color: var(--gold); }
-/* The Today window: quest, fish of the day and the week's round of gifts. */
-.today-part { display: contents; }
 .today-heading { margin: 8px 0 0; color: var(--light); font-size: 18px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
 .quest-body .today-heading:first-child { margin-top: 0; }
 .day-fish-card { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 12px; }
@@ -306,21 +290,6 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
 .icon-btn:hover .sprite { transform: translateY(-1px); }
 .icon-btn:active { transform: translateY(2px); }
 
-.badge {
-  position: absolute;
-  z-index: 2;
-  top: -6px;
-  right: -6px;
-  min-width: 22px;
-  padding: 5px 5px 4px;
-  color: var(--ink);
-  font-size: 18px;
-  line-height: 1;
-  text-align: center;
-  background: var(--gold);
-  box-shadow: 0 0 0 2px var(--ink);
-}
-.badge[hidden] { display: none; }
 
 .loadout {
   bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(12px, 3vh, 24px));
@@ -567,29 +536,17 @@ html.keyboard-open .sheet[open] > .account-body {
 .in-menu .game-only { display: none; }
 .in-game .menu { display: none; }
 
+/* Over the whole screen; its layout (a grid of tiles, or a column on phones) is under "Tiled menu". */
 .menu {
   position: absolute;
   z-index: 3;
   inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  /* Centred, but never pushed up under the top bar with the title. */
-  justify-content: safe center;
-  gap: 12px;
-  padding: calc(clamp(12px, 3vh, 24px) + 70px) 14px clamp(12px, 2.5vh, 24px);
   overflow-y: auto;
-  /* The live scene only glimmers through: dark in the middle, near black at the edges. */
-  background: radial-gradient(ellipse at 50% 50%, rgba(6, 10, 12, 0.82), rgba(4, 6, 8, 0.95) 75%);
 }
 /* Nothing in the menu is squeezed: on a short screen it scrolls instead. */
 .menu > * { flex-shrink: 0; }
+/* Clock on the left, the game's name dead centre, money on the right. */
 .menu-top {
-  position: absolute;
-  top: clamp(12px, 3vh, 24px);
-  right: clamp(12px, 3vw, 28px);
-  left: clamp(12px, 3vw, 28px);
-  /* Clock on the left, the game's name dead centre, money on the right. */
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: start;
@@ -618,27 +575,18 @@ html.keyboard-open .sheet[open] > .account-body {
 .spot-dots button:hover span { background: var(--mid); }
 .spot-dots .is-active span { background: var(--bone); }
 
-.fish-button { min-width: min(320px, 80%); min-height: 56px; font-size: 30px; }
+.fish-button { font-size: 30px; }
 
-.menu-nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
-/* Icon and label side by side: compact enough to leave room for the account line. */
+/* A section's button: its icon and name (laid out by the tiles: in a row on wide screens, in the bar on phones). */
 .menu-item {
   position: relative;
   display: grid;
-  grid-template-columns: auto 1fr;
   align-items: center;
   gap: 10px;
-  min-width: 140px;
-  min-height: 56px;
-  padding: 8px 12px;
   color: var(--bone);
-  font-size: 20px;
-  text-align: left;
   cursor: pointer;
 }
 .menu-item:hover .sprite { transform: translateY(-2px); }
-.menu-item:active { transform: translateY(2px); }
-.menu-item .badge { top: 4px; right: 6px; }
 
 .icon-btn:disabled { opacity: 0.45; cursor: default; }
 
@@ -672,23 +620,6 @@ html.keyboard-open .sheet[open] > .account-body {
 
 /* ---------- Account ---------- */
 
-/* Menu line under the buttons: a small amber marker while progress is only local, calm once it's in the cloud. */
-.account-strip {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 4px 10px;
-  max-width: min(620px, 100%);
-  color: var(--light);
-  font-size: 18px;
-  line-height: 1.25;
-  text-align: center;
-}
-.account-dot { flex: none; width: 8px; height: 8px; background: var(--gold); box-shadow: 0 0 0 2px var(--ink); }
-.account-strip.is-safe .account-dot { background: var(--light); }
-.account-strip .link-btn { font-size: 18px; color: var(--bone); }
-.account-strip .link-btn[hidden] { display: none; }
 .warning-text { margin: 0; color: var(--gold); font-size: 18px; line-height: 1.3; }
 
 .account-body { display: grid; gap: 10px; }
@@ -791,42 +722,8 @@ html.keyboard-open .sheet[open] > .account-body {
 @media (max-width: 520px) {
   :root { font-size: 22px; }
 
-  /* Menu: a compact top bar, content starting below it so nothing overlaps. */
-  .menu {
-    justify-content: flex-start;
-    gap: 9px;
-    padding: calc(env(safe-area-inset-top, 0px) + 78px) 12px calc(env(safe-area-inset-bottom, 0px) + 12px);
-  }
-  .menu-top { top: calc(env(safe-area-inset-top, 0px) + 12px); right: 12px; left: 12px; }
-  /* Clock, name and money with equal gaps between them, whatever the clock's width. */
-  .menu-top { grid-template-columns: auto auto auto; justify-content: space-between; gap: 6px; }
-  .menu-top h1 { padding: 8px 10px; font-size: 24px; }
-  .menu-top .clock { min-height: 46px; padding: 6px 10px 6px 8px; font-size: 22px; }
-  .menu-top .chip { min-height: 46px; padding: 6px 10px 6px 8px; font-size: 20px; }
   /* Painted boxes draw their line 4px in from the edge; plain buttons are inset to match. */
   .spot-slider { gap: 8px; margin-top: 0; padding-inline: 4px; }
-  .spot-arrow { width: 40px; min-height: 56px; }
-  .spot-picture { height: clamp(130px, 19vh, 200px); }
-  .spot-traits { padding: 12px 16px; }
-  .fish-button { width: calc(100% - 8px); min-height: 60px; }
-  /* Three a row, the icon over its label, so all five fit in two rows. */
-  .menu-nav { display: grid; grid-template-columns: repeat(6, 1fr); grid-auto-rows: 1fr; gap: 10px; width: 100%; }
-  .menu-item {
-    grid-column: span 2;
-    grid-template-columns: 1fr;
-    grid-template-rows: 46px auto;
-    justify-items: center;
-    align-items: center;
-    align-content: center;
-    gap: 0;
-    min-width: 0;
-    min-height: 72px;
-    padding: 6px 4px 6px;
-    font-size: 18px;
-    text-align: center;
-  }
-  /* The second row's two buttons share it evenly. */
-  .menu-item:nth-child(n + 4) { grid-column: span 3; }
 
   /* In game: the same 12px from every screen edge, the bottom row one height. */
   .hud-top { top: calc(env(safe-area-inset-top, 0px) + 12px); right: calc(env(safe-area-inset-right, 0px) + 12px); left: calc(env(safe-area-inset-left, 0px) + 12px); }
@@ -839,7 +736,6 @@ html.keyboard-open .sheet[open] > .account-body {
   .chip { min-height: 48px; font-size: 22px; }
   .hud-top .clock { min-height: 52px; font-size: 26px; }
   .groundbait-chip { width: 52px; height: 52px; }
-  .quest-strip { min-height: 48px; font-size: 18px; }
   .bait-chip { min-height: 60px; font-size: 22px; }
 
   /* Dialogs use almost the whole screen and scroll inside. */
@@ -1100,23 +996,15 @@ html.keyboard-open .sheet[open] > .account-body {
 
 /* ---------- Tiled menu: a grid on wide screens, a column with a bar of sections on phones ---------- */
 
-/* Elsewhere the spot's tile is no box at all and the tiles stay hidden. */
-.spot-tile { display: contents; }
-.spot-tile > .frame-art, .tile-only { display: none; }
-
 .tiles.in-menu .menu {
   /* No water behind the tiles: plain dark ground with faint glyphs, like a page of the scene's own letters. */
   background:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='72' font-family='monospace' font-size='14' fill='%231e3833'%3E%3Ctext x='6' y='18'%3E·%3C/text%3E%3Ctext x='54' y='18'%3E~%3C/text%3E%3Ctext x='30' y='54'%3E~%3C/text%3E%3Ctext x='78' y='54'%3E·%3C/text%3E%3C/svg%3E"),
     radial-gradient(ellipse at 50% 40%, var(--deep), var(--ink) 75%);
 }
-.tiles .menu-top { position: static; }
-.tiles :is(.quest-strip, .account-strip) { display: none; }
-.tiles .tile-only { display: revert; }
 
 /* The big tile: the picture takes whatever height is left; the traits one short line, the button as wide as the picture. */
 .tiles .spot-tile { display: flex; flex-direction: column; gap: clamp(6px, 1.2vh, 12px); min-height: 0; padding: clamp(10px, 1.6vh, 18px); }
-.tiles .spot-tile > .frame-art { display: block; }
 .tiles .spot-slider { flex: 1; width: 100%; min-height: 0; }
 .tiles .spot-card { display: flex; flex-direction: column; align-self: stretch; gap: clamp(6px, 1.2vh, 12px); }
 .tiles .card-scene { display: flex; flex: 1; flex-direction: column; min-height: 0; }
@@ -1191,7 +1079,6 @@ html.keyboard-open .sheet[open] > .account-body {
 .tiles #tile-quest-goal { display: -webkit-box; white-space: normal; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .tiles .tile-half + .tile-half { box-shadow: inset 2px 0 0 rgb(60 104 96 / 0.45); }
 
-.tiles #rank-badge { display: none; }
 .menu-short { display: none; }
 
 /* The menu's windows are pages here: the whole screen, "Back" top left, no frame round them. */
@@ -1218,8 +1105,6 @@ html.keyboard-open .sheet[open] > .account-body {
 /* Long lists scroll with the page itself, not in a box of their own. */
 .tiles dialog.page :is(.atlas, .achievement-list, .quest-body, .handbook, .trophy-wall, .ranks, .tourney, .pack-body, .shelves) { max-height: none; overflow: visible; }
 
-/* Each thing in one place: the tournament and the ranks have pages of their own here. */
-.tiles :is(#trophy-dialog .tab[data-tab="tourney"], #collection-dialog .tab[data-tab="ranks"], .today-tourney) { display: none; }
 /* Today as a page: the quest and the fish of the day side by side, the run of days under them. */
 .tiles #quest-dialog .quest-body { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
 .tiles .today-part { display: grid; align-content: start; gap: 12px; padding: 16px 20px; background: rgb(10 20 18 / 0.55); box-shadow: inset 0 0 0 2px var(--dark); }
@@ -1276,7 +1161,7 @@ html.keyboard-open .sheet[open] > .account-body {
     padding: clamp(14px, 3vh, 28px) clamp(16px, 3vw, 48px);
     overflow: hidden;
   }
-  .tiles .menu-top { position: static; grid-area: top; }
+  .tiles .menu-top { grid-area: top; }
   .tiles .spot-tile { grid-area: spot; }
   /* Arrows are 48px with a 14px gap: the button keeps to the picture's width between them. */
   .tiles .fish-button { align-self: stretch; min-width: 0; margin-inline: 62px; min-height: clamp(48px, 7vh, 72px); }
@@ -1308,7 +1193,8 @@ html.keyboard-open .sheet[open] > .account-body {
     padding: calc(env(safe-area-inset-top, 0px) + 10px) 10px calc(env(safe-area-inset-bottom, 0px) + 84px);
     overflow-y: auto;
   }
-  .tiles .menu-top { order: 0; display: grid; grid-template-columns: auto auto auto; justify-content: space-between; gap: 6px; inset: auto; }
+  /* Clock, name and money with equal gaps between them, whatever the clock's width. */
+  .tiles .menu-top { order: 0; grid-template-columns: auto auto auto; justify-content: space-between; gap: 6px; }
   #tile-profile { order: 1; }
   .tiles .spot-tile { order: 2; }
   #tile-today { order: 3; }
@@ -1361,7 +1247,7 @@ html.keyboard-open .sheet[open] > .account-body {
     background: var(--ink);
     box-shadow: 0 -2px 0 var(--dark), 0 -14px 14px -6px rgb(10 20 18 / 0.9);
   }
-  .tiles .menu-item, .tiles .menu-item:nth-child(n + 4) {
+  .tiles .menu-item {
     grid-column: auto;
     grid-template-columns: 1fr;
     grid-template-rows: 30px auto;
@@ -1376,7 +1262,7 @@ html.keyboard-open .sheet[open] > .account-body {
     background: var(--deep);
   }
   .tiles .menu-item .menu-icon canvas { width: 28px !important; height: auto !important; image-rendering: pixelated; }
-  .tiles .menu-item > span:not(.menu-icon, .badge) { overflow: hidden; max-width: 100%; white-space: nowrap; text-overflow: ellipsis; }
+  .tiles .menu-item > span:not(.menu-icon) { overflow: hidden; max-width: 100%; white-space: nowrap; text-overflow: ellipsis; }
   .tiles .menu-long { display: none; }
   .tiles .menu-short { display: block; }
 

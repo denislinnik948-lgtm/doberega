@@ -1326,33 +1326,6 @@ export function groundbaitSprite(scale = 3) {
   ], { o: P.ink, y: "#e0c068", T: "#c9a35a", R: P.ember, B: "#9a7a46", L: "#b8955a", b: "#6e5430" }).toCanvas(scale);
 }
 
-/** Today's quest: a little notice pinned up, written on, or with a green tick once done. */
-export function questSprite(scale = 3, done = false) {
-  return fromRows(done ? [
-    "....oo....",
-    "...oRRo...",
-    ".oooooooo.",
-    ".oPPPPPPo.",
-    ".oPPPPPgo.",
-    ".oPPPPgPo.",
-    ".ogPPgPPo.",
-    ".oPggPPPo.",
-    ".oPPPPPPo.",
-    ".oooooooo.",
-  ] : [
-    "....oo....",
-    "...oRRo...",
-    ".oooooooo.",
-    ".oPPPPPPo.",
-    ".oPddddPo.",
-    ".oPPPPPPo.",
-    ".oPdddPPo.",
-    ".oPPPPPPo.",
-    ".oPddPPPo.",
-    ".oooooooo.",
-  ], { o: P.ink, R: P.ember, P: P.bone, d: P.mid, g: "#5e9a4a" }).toCanvas(scale);
-}
-
 /** A spool of fishing line; `worn` greys the line and frays its loose end. */
 export function lineSprite(scale = 3, worn = false) {
   return fromRows([
