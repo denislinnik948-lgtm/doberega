@@ -7,7 +7,7 @@ import { moonAt, moonBite } from "./moon.js";
 import { windAt, windBite } from "./wind.js";
 import { Critters, Ducks } from "./wildlife.js";
 import { FishingGame, TUNING } from "./fishing/game.js";
-import { BAITS, FISH, GROUNDBAIT, HOOKS, LINE, LOCATIONS, RODS } from "./fishing/data.js";
+import { BAITS, FISH, GROUNDBAIT, HOOKS, LINE, LOCATIONS, RODS, SPECIAL_AVATAR } from "./fishing/data.js";
 import { baitCount, loadProgress, onProgressSaved, replaceProgress, saveProgress } from "./fishing/store.js";
 import { Cloud } from "./cloud.js";
 import { currentSeason, isWinter, onSeasonChange } from "./theme.js";
@@ -226,6 +226,12 @@ const cloud = new Cloud({
     if (rankPending(progress)) ui.commit();
   },
   onChange: () => {
+    // The author's own picture, given once when an admin's account is first recognised.
+    if (cloud.admin && !progress.authorAvatar) {
+      progress.authorAvatar = true;
+      progress.avatar = SPECIAL_AVATAR;
+      ui.commit();
+    }
     ui.renderAccount();
     ui.setTiles(tilesWanted());
   },

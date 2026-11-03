@@ -1,4 +1,5 @@
 import { P } from "./palette.js";
+import { SPECIAL_AVATAR } from "./data.js";
 import { fishPortrait } from "./fish-portrait.js";
 
 /**
@@ -865,123 +866,263 @@ export function atlasSprite(scale = 3) {
 }
 
 /*
- * The anglers a player can pick as their picture: a head and shoulders, each
- * with a hat (or hair) of their own, a skin tone, a jacket, and some with a
- * beard, a moustache or glasses. Drawn in fills; the ink outline goes round.
+ * The anglers a player can pick as their picture: head and shoulders on a
+ * 24-pixel grid, lit from the top left (a lit forehead, a shaded right
+ * cheek, eyes with whites, brows, nose and ears), each with a hat or hair of
+ * its own (ribbed bobble hats, woven straw, fur, a dotted headscarf), a skin
+ * tone, a jacket with its collar, and some a beard, a moustache or glasses.
+ * One more, SPECIAL_AVATAR, is not among the picks: it is the game's
+ * author's own, on a sunburst of its own (the server keeps it to the admins).
  */
 const SKIN = { light: "#e0bc94", tan: "#c08a5e", dark: "#8a5a3a", ruddy: "#dca084" };
 export const AVATARS = [
-  { hat: "bucket", hatColor: "#7a6a3a", skin: "light", jacket: P.mid },
+  { hat: "bucket", hatColor: "#7a6a3a", skin: "light", jacket: "#3c6860", hair: "#5a3a1e" },
   { hat: "cap", hatColor: "#b8402e", skin: "light", jacket: "#3a5a86", face: "moustache", hair: "#5a3a1e" },
   { hat: "beanie", hatColor: "#d0782e", skin: "ruddy", jacket: "#2e4a32", face: "beard", hair: "#b8b8a8" },
-  { hat: "straw", hatColor: "#d8c070", skin: "tan", jacket: "#d8d4c0" },
+  { hat: "straw", hatColor: "#d8c070", skin: "tan", jacket: "#d8d4c0", shirt: "#8a3a2a", hair: "#3a2a1a" },
   { hat: "none", hair: "#3a2a1a", skin: "light", jacket: "#5a5e62", glasses: true },
   { hat: "ushanka", hatColor: "#6a4a2e", skin: "ruddy", jacket: "#5e6a3a", face: "moustache", hair: "#3a2a1a" },
-  { hat: "cap", hatColor: "#4e6a3a", skin: "dark", jacket: "#4e5a36" },
-  { hat: "bald", skin: "tan", jacket: "#6a4a6e", face: "moustache", hair: "#c8c8bc", glasses: true },
-  { hat: "beanie", hatColor: "#3a6a9a", skin: "light", jacket: "#7a4a8a", long: "#d8b860" },
-  { hat: "bucket", hatColor: "#e2b85e", skin: "light", jacket: "#e2b85e" },
-  { hat: "scarf", hatColor: "#b83a3a", skin: "ruddy", jacket: "#3a5a86" },
+  { hat: "cap", hatColor: "#4e6a3a", skin: "dark", jacket: "#4e5a36", hair: "#1e1a18" },
+  { hat: "bald", skin: "tan", jacket: "#6a4a6e", face: "moustache", hair: "#c8c8bc", sides: true, glasses: true },
+  { hat: "beanie", hatColor: "#3a6a9a", skin: "light", jacket: "#7a4a8a", long: "#d8b860", hair: "#b8903a" },
+  { hat: "bucket", hatColor: "#e2b85e", skin: "light", jacket: "#e2b85e", shirt: "#3c6860", hair: "#5a3a1e" },
+  { hat: "scarf", hatColor: "#b83a3a", skin: "ruddy", jacket: "#3a5a86", hair: "#5a3a1e" },
   { hat: "cap", hatColor: "#2a2a2e", skin: "light", jacket: "#2a2e32", face: "beard", hair: "#c4643e" },
 ];
+const SPECIAL_LOOK = { hat: "bald", skin: "light", top: "tank", face: "beard", hair: "#1c1a1c", back: "sunburst" };
 
-/** One of the anglers above (an older or unknown pick is the first). */
-export function avatarSprite(id = 0, scale = 3) {
-  const look = AVATARS[id] ?? AVATARS[0];
-  const grid = new Grid(16, 16);
+function tint(hex, k) {
+  const n = parseInt(hex.slice(1), 16);
+  const c = [n >> 16, (n >> 8) & 255, n & 255].map((v) => Math.max(0, Math.min(255, Math.round(v * k))));
+  return `#${c.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function drawAngler(look) {
+  const grid = new Grid(24, 24);
   const fill = (x0, y0, x1, y1, color) => {
     for (let y = y0; y <= y1; y += 1) for (let x = x0; x <= x1; x += 1) grid.set(x, y, color);
   };
+  const dot = (x, y, color) => grid.set(x, y, color);
   const skin = SKIN[look.skin];
-  const shade = (hex, k) => {
-    const n = parseInt(hex.slice(1), 16);
-    const c = [n >> 16, (n >> 8) & 255, n & 255].map((v) => Math.max(0, Math.min(255, Math.round(v * k))));
-    return `#${c.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
-  };
-  // Shoulders, neck and face.
-  fill(4, 12, 11, 12, look.jacket);
-  fill(2, 13, 13, 15, look.jacket);
-  fill(7, 12, 8, 13, shade(look.jacket, 0.7));
-  fill(6, 11, 9, 11, shade(skin, 0.85));
-  fill(4, 5, 11, 10, skin);
-  if (look.long) {
-    fill(3, 4, 3, 11, look.long);
-    fill(12, 4, 12, 11, look.long);
+  const skinShade = tint(skin, 0.86);
+  const skinLit = tint(skin, 1.1);
+  const hair = look.hair ?? "#3a2a1a";
+
+  // Shoulders: a jacket with the shirt's collar, or a white vest on bare shoulders.
+  if (look.top === "tank") {
+    fill(6, 19, 17, 19, skin);
+    fill(3, 20, 20, 23, skin);
+    fill(3, 21, 4, 23, skinLit);
+    fill(19, 21, 20, 23, skinShade);
+    const vest = "#ecebe2";
+    fill(7, 20, 16, 23, vest);
+    fill(7, 18, 8, 19, vest);
+    fill(15, 18, 16, 19, vest);
+    fill(10, 20, 13, 20, skin);
+    fill(15, 21, 16, 23, "#cfcdc0");
+    dot(9, 22, "#d8d6ca");
+  } else {
+    const jacket = look.jacket;
+    const jacketDark = tint(jacket, 0.78);
+    const shirt = look.shirt ?? "#d8d4c0";
+    fill(6, 19, 17, 19, jacket);
+    fill(3, 20, 20, 23, jacket);
+    fill(3, 21, 5, 23, tint(jacket, 1.14));
+    fill(18, 21, 20, 23, jacketDark);
+    fill(10, 19, 13, 19, shirt);
+    fill(11, 20, 12, 21, shirt);
+    fill(9, 19, 9, 20, jacketDark);
+    fill(14, 19, 14, 20, jacketDark);
+    dot(10, 20, jacketDark);
+    dot(13, 20, jacketDark);
+    dot(11, 22, jacketDark);
+    dot(12, 23, jacketDark);
+    fill(5, 22, 7, 22, jacketDark);
   }
-  // Eyes, a rosy cheek, the mouth.
-  grid.set(6, 7, P.ink);
-  grid.set(9, 7, P.ink);
-  grid.set(5, 8, shade(skin, 0.9));
-  grid.set(10, 8, shade(skin, 0.9));
-  fill(7, 9, 8, 9, shade(skin, 0.7));
+  fill(9, 16, 14, 18, skinShade);
+  if (look.long) {
+    fill(4, 8, 6, 19, look.long);
+    fill(17, 8, 19, 19, look.long);
+    for (let y = 9; y <= 19; y += 2) {
+      dot(5, y, tint(look.long, 0.82));
+      dot(18, y, tint(look.long, 0.82));
+    }
+  }
+
+  // The head, lit from the top left.
+  fill(7, 6, 16, 6, skin);
+  fill(6, 7, 17, 15, skin);
+  fill(7, 16, 16, 16, skin);
+  fill(16, 8, 17, 14, skinShade);
+  dot(16, 15, skinShade);
+  fill(8, 7, 10, 7, skinLit);
+  fill(5, 10, 5, 12, skin);
+  dot(5, 11, skinShade);
+  fill(18, 10, 18, 12, skinShade);
+  fill(8, 9, 10, 9, hair);
+  fill(13, 9, 15, 9, hair);
+  dot(8, 11, "#f0ece0");
+  dot(9, 11, P.ink);
+  dot(14, 11, P.ink);
+  dot(15, 11, "#f0ece0");
+  dot(11, 12, skinShade);
+  dot(12, 12, skinShade);
+  dot(11, 13, skinShade);
+  dot(12, 13, tint(skin, 0.72));
+  if (look.skin === "ruddy") {
+    dot(8, 13, "#d88070");
+    dot(15, 13, "#d88070");
+  }
+  fill(10, 15, 13, 15, tint(skin, 0.62));
+
   if (look.face === "beard") {
-    fill(4, 8, 4, 10, look.hair);
-    fill(11, 8, 11, 10, look.hair);
-    fill(5, 9, 10, 11, look.hair);
-    fill(7, 9, 8, 9, shade(look.hair, 0.75));
+    const dark = tint(hair, 0.72);
+    fill(6, 11, 6, 15, hair);
+    fill(17, 11, 17, 15, hair);
+    fill(7, 14, 16, 17, hair);
+    fill(8, 18, 15, 18, hair);
+    fill(10, 19, 13, 19, hair);
+    for (let y = 15; y <= 18; y += 1) for (let x = 7; x <= 16; x += 1) if ((x + y * 2) % 4 === 0) dot(x, y, dark);
+    fill(9, 14, 14, 14, dark);
+    fill(10, 15, 13, 15, tint(skin, 0.55));
   } else if (look.face === "moustache") {
-    fill(6, 9, 9, 9, look.hair);
+    fill(9, 14, 14, 14, hair);
+    dot(9, 15, hair);
+    dot(14, 15, hair);
   }
   if (look.glasses) {
-    fill(5, 7, 10, 7, P.ink);
-    grid.set(6, 7, "#9ab8c0");
-    grid.set(9, 7, "#9ab8c0");
+    // A thin frame round each eye, the bridge between them; the eyes show through.
+    const rim = "#4a4440";
+    for (const x0 of [7, 13]) {
+      fill(x0, 10, x0 + 3, 10, rim);
+      dot(x0, 11, rim);
+      dot(x0 + 3, 11, rim);
+      fill(x0 + 1, 12, x0 + 2, 12, rim);
+    }
+    fill(11, 10, 12, 10, rim);
   }
+
   // The hat, or the hair.
   const hat = look.hatColor;
-  const dark = hat && shade(hat, 0.7);
-  const light = hat && shade(hat, 1.25);
+  const dark = hat && tint(hat, 0.72);
+  const light = hat && tint(hat, 1.22);
   switch (look.hat) {
     case "bucket":
-      fill(5, 1, 10, 3, hat);
-      fill(6, 1, 7, 1, light);
-      fill(2, 4, 13, 4, dark);
+      fill(8, 1, 15, 1, hat);
+      fill(7, 2, 16, 4, hat);
+      fill(9, 2, 11, 2, light);
+      fill(7, 5, 16, 5, dark);
+      fill(3, 6, 20, 6, hat);
+      fill(3, 7, 20, 7, dark);
+      dot(4, 6, light);
       break;
     case "cap":
-      fill(4, 2, 11, 4, hat);
-      fill(6, 2, 8, 2, light);
-      fill(3, 5, 12, 5, dark);
-      if (look.hair) fill(4, 6, 4, 7, look.hair);
+      fill(8, 1, 15, 1, hat);
+      fill(7, 2, 16, 6, hat);
+      fill(8, 2, 10, 3, light);
+      for (let y = 2; y <= 6; y += 1) dot(12, y, dark);
+      dot(11, 0, dark);
+      dot(12, 0, dark);
+      fill(5, 7, 18, 7, dark);
+      fill(6, 8, 17, 8, tint(hat, 0.55));
+      fill(6, 9, 6, 11, hair);
+      fill(17, 9, 17, 11, hair);
       break;
     case "beanie":
-      fill(4, 1, 11, 4, hat);
-      fill(4, 4, 11, 4, light);
-      fill(7, 0, 8, 0, "#e2e2c8");
+      fill(8, 2, 15, 2, hat);
+      fill(7, 3, 16, 6, hat);
+      for (let x = 7; x <= 16; x += 2) for (let y = 3; y <= 6; y += 1) dot(x, y, dark);
+      fill(6, 7, 17, 8, light);
+      for (let x = 6; x <= 17; x += 2) dot(x, 8, hat);
+      fill(10, 0, 13, 1, "#e2e2c8");
+      dot(10, 1, "#c8c8b4");
       break;
     case "straw":
-      fill(5, 2, 10, 3, hat);
-      fill(5, 3, 10, 3, "#8a3a2a");
-      fill(1, 4, 14, 4, shade(hat, 0.85));
+      fill(8, 2, 15, 5, hat);
+      fill(2, 6, 21, 7, tint(hat, 0.92));
+      for (let y = 2; y <= 7; y += 1) for (let x = 2; x <= 21; x += 1) if ((x + y) % 3 === 0 && grid.get(x, y)) dot(x, y, tint(hat, 0.78));
+      fill(8, 5, 15, 5, "#8a3a2a");
+      dot(14, 5, "#b85a3a");
       break;
     case "ushanka":
-      fill(4, 1, 11, 3, hat);
-      fill(3, 3, 12, 4, light);
-      fill(3, 5, 3, 9, light);
-      fill(12, 5, 12, 9, light);
+      fill(8, 0, 15, 0, hat);
+      fill(7, 1, 16, 4, hat);
+      for (let y = 1; y <= 4; y += 1) for (let x = 7; x <= 16; x += 1) if ((x * 3 + y) % 5 === 0) dot(x, y, dark);
+      fill(5, 5, 18, 7, light);
+      fill(4, 8, 6, 15, light);
+      fill(17, 8, 19, 15, light);
+      for (let y = 5; y <= 15; y += 1) for (let x = 4; x <= 19; x += 1) if ((x + y) % 3 === 0 && grid.get(x, y) === light) dot(x, y, tint(light, 0.88));
+      dot(5, 16, dark);
+      dot(18, 16, dark);
       break;
     case "scarf":
-      fill(4, 2, 11, 4, hat);
-      fill(3, 4, 3, 10, hat);
-      fill(12, 4, 12, 10, hat);
-      fill(5, 3, 5, 3, "#e2e2c8");
-      fill(9, 2, 9, 2, "#e2e2c8");
-      fill(7, 11, 8, 11, dark);
+      fill(7, 2, 16, 2, hat);
+      fill(6, 3, 17, 8, hat);
+      fill(5, 8, 6, 17, hat);
+      fill(17, 8, 18, 17, hat);
+      for (let y = 2; y <= 17; y += 1) for (let x = 5; x <= 18; x += 1) if ((x + y * 2) % 5 === 0 && grid.get(x, y) === hat) dot(x, y, "#e2e2c8");
+      fill(6, 8, 17, 8, dark);
+      fill(10, 17, 13, 18, dark);
+      dot(11, 19, hat);
+      dot(12, 19, hat);
       break;
     case "none":
-      fill(4, 3, 11, 4, look.hair);
-      fill(4, 5, 5, 5, look.hair);
-      fill(11, 5, 11, 6, look.hair);
+      fill(7, 3, 16, 3, hair);
+      fill(6, 4, 17, 7, hair);
+      for (let x = 7; x <= 16; x += 3) for (let y = 4; y <= 7; y += 1) dot(x, y, tint(hair, 1.35));
+      fill(7, 8, 10, 8, hair);
+      fill(6, 8, 6, 11, hair);
+      fill(17, 8, 17, 11, hair);
       break;
     case "bald":
-      fill(5, 4, 10, 4, skin);
-      fill(4, 5, 4, 7, look.hair);
-      fill(11, 5, 11, 7, look.hair);
-      grid.set(6, 4, shade(skin, 1.15));
+      fill(8, 3, 15, 3, skin);
+      fill(7, 4, 16, 5, skin);
+      fill(15, 4, 16, 6, skinShade);
+      fill(9, 4, 11, 4, skinLit);
+      dot(10, 3, skinLit);
+      if (look.sides) {
+        fill(6, 8, 6, 11, hair);
+        fill(17, 8, 17, 11, hair);
+      }
       break;
     default:
       break;
   }
-  return grid.outline(P.ink).toCanvas(scale);
+  return grid;
+}
+
+/* The author's own background: an evening sun behind the head, its rays turning, a few early stars. */
+function sunburst(grid) {
+  for (let y = 0; y < 24; y += 1) {
+    for (let x = 0; x < 24; x += 1) {
+      const dx = x - 11.5;
+      const dy = y - 11;
+      const d = Math.hypot(dx, dy);
+      const ray = Math.floor((Math.atan2(dy, dx) + Math.PI) / (Math.PI / 8)) % 2;
+      let color = ray ? "#7a2e3a" : "#4a1e3a";
+      if (d < 10.5) color = d < 9.5 ? "#e2b85e" : "#c4643e";
+      else if (y > 15) color = ray ? "#5a2436" : "#3a1830";
+      grid.set(x, y, color);
+    }
+  }
+  for (const [x, y] of [[2, 2], [21, 3], [4, 19], [20, 18]]) grid.set(x, y, "#f0e6c0");
+  for (let i = 0; i < 24; i += 1) {
+    grid.set(i, 0, P.gold);
+    grid.set(i, 23, P.goldDark);
+    grid.set(0, i, P.gold);
+    grid.set(23, i, P.goldDark);
+  }
+}
+
+/** One of the anglers above, or the author's own (an unknown pick is the first). */
+export function avatarSprite(id = 0, scale = 3) {
+  const look = id === SPECIAL_AVATAR ? SPECIAL_LOOK : AVATARS[id] ?? AVATARS[0];
+  const figure = drawAngler(look).outline(P.ink);
+  if (!look.back) return figure.toCanvas(scale);
+  const grid = new Grid(24, 24);
+  sunburst(grid);
+  for (let y = 0; y < 24; y += 1) for (let x = 0; x < 24; x += 1) if (figure.get(x, y)) grid.set(x, y, figure.get(x, y));
+  return grid.toCanvas(scale);
 }
 
 /** Backpack: the inventory. */

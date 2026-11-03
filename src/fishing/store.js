@@ -1,6 +1,6 @@
 import { ACHIEVEMENTS } from "./achievements.js";
 import { RANKS, pastXp } from "./ranks.js";
-import { AVATAR_COUNT, BAITS, EXTRAS, FISH, HOOKS, LOCATIONS, RETIRED_BAITS, RODS, START_STATE, gameHoursMs } from "./data.js";
+import { AVATAR_COUNT, BAITS, SPECIAL_AVATAR, EXTRAS, FISH, HOOKS, LOCATIONS, RETIRED_BAITS, RODS, START_STATE, gameHoursMs } from "./data.js";
 
 // The storage key keeps the game's old working name so existing saves carry over.
 const KEY = "stillwater.fishing.v2";
@@ -90,7 +90,9 @@ export function normalizeProgress(saved) {
     // from before ranks gets its experience worked out from its stats.
     state.xp = Number.isFinite(saved.xp) ? Math.max(0, saved.xp) : pastXp(state);
     if (Number.isFinite(saved.rank)) state.rank = Math.max(0, Math.min(RANKS.length - 1, Math.floor(saved.rank)));
-    if (Number.isInteger(saved.avatar) && saved.avatar >= 0 && saved.avatar < AVATAR_COUNT) state.avatar = saved.avatar;
+    // The picture: one of the twelve, or the author's own (99, kept to the admins by the server).
+    if (Number.isInteger(saved.avatar) && ((saved.avatar >= 0 && saved.avatar < AVATAR_COUNT) || saved.avatar === SPECIAL_AVATAR)) state.avatar = saved.avatar;
+    if (saved.authorAvatar === true) state.authorAvatar = true;
     if (Number.isFinite(saved.savedAt)) state.savedAt = saved.savedAt;
   }
   return state;

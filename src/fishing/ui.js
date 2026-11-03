@@ -1,9 +1,9 @@
 import {
-  AVATAR_COUNT, BAITS, BOTTLE_MONEY, EXTRAS, FISH, GROUNDBAIT, GULL, HOOKS, LEGENDS, LINE, LOCATIONS, RODS, gameHoursMs,
+  BAITS, BOTTLE_MONEY, SPECIAL_AVATAR, EXTRAS, FISH, GROUNDBAIT, GULL, HOOKS, LEGENDS, LINE, LOCATIONS, RODS, gameHoursMs,
   baitEntries, fishPrice, formatMoney, formatWeight, handbookEntries, peakPeriod, spotEntries, trophyCost,
 } from "./data.js";
 import {
-  atlasSprite, avatarSprite, bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, groundbaitSprite, hookSprite, keepnetSprite, lineSprite, medalSprite, packSprite, questSprite, rodSprite, windSprite,
+  AVATARS, atlasSprite, avatarSprite, bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, groundbaitSprite, hookSprite, keepnetSprite, lineSprite, medalSprite, packSprite, questSprite, rodSprite, windSprite,
 } from "./sprites.js";
 import { P } from "./palette.js";
 import { ACHIEVEMENTS, GROUPS, bump, evaluate } from "./achievements.js";
@@ -686,12 +686,15 @@ export class AnglerUI {
 
   /** The anglers to pick a picture from; the one picked has gold corners and shows on the profile tile. */
   fillAvatars() {
-    $("#avatar-grid").replaceChildren(...Array.from({ length: AVATAR_COUNT }, (_, id) => element("button", {
-      className: `avatar-pick${id === this.progress.avatar ? " is-picked" : ""}`,
+    // The author's own picture comes first, and only on an admin's account.
+    const ids = [...(this.cloud?.admin ? [SPECIAL_AVATAR] : []), ...AVATARS.keys()];
+    $("#avatar-grid").classList.toggle("has-own", ids[0] === SPECIAL_AVATAR);
+    $("#avatar-grid").replaceChildren(...ids.map((id) => element("button", {
+      className: `avatar-pick${id === this.progress.avatar ? " is-picked" : ""}${id === SPECIAL_AVATAR ? " is-own" : ""}`,
       type: "button",
       role: "radio",
       ariaChecked: String(id === this.progress.avatar),
-      ariaLabel: t("profile.avatarN", { number: id + 1 }),
+      ariaLabel: id === SPECIAL_AVATAR ? t("profile.avatarOwn") : t("profile.avatarN", { number: id + 1 }),
       onclick: () => {
         if (id === this.progress.avatar) return;
         this.progress.avatar = id;
@@ -784,7 +787,7 @@ export class AnglerUI {
       const me = cloud.user?.id;
       board.replaceChildren(...result.rows.map((entry, index) => element("li", { className: entry.user_id === me ? "is-me" : "" }, [
         element("span", { textContent: String(index + 1) }),
-        element("span", { textContent: entry.player || t("trophies.anonymous") }),
+        element("span", { className: "tile-board-who" }, [avatarSprite(entry.avatar ?? 0, 1), entry.player || t("trophies.anonymous")]),
         element("span", { textContent: formatWeight(entry.weight) }),
       ])));
     });
@@ -1767,6 +1770,7 @@ export class AnglerUI {
         date: row.caught_at,
         player: row.player || t("trophies.anonymous"),
         rank: row.angler_rank,
+        avatar: row.avatar,
       })).filter((trophy) => FISH[trophy.species]);
       this.fillTrophyWall(trophies, trophies.length ? "" : t("trophies.othersEmpty"), !cloud.user ? t("trophies.shareHint") : "");
     });
@@ -1900,8 +1904,9 @@ export class AnglerUI {
       if (request !== this.tourneyRequest || !shown()) return;
       if (result.error) return say(t("trophies.othersError"));
       const me = cloud.user?.id;
-      const row = (place, player, weight, isMe, rank) => element("li", { className: `tourney-row${isMe ? " is-me" : ""}${place <= 3 ? ` is-top is-top-${place}` : ""}` }, [
+      const row = (place, player, weight, isMe, rank, avatar) => element("li", { className: `tourney-row${isMe ? " is-me" : ""}${place <= 3 ? ` is-top is-top-${place}` : ""}` }, [
         element("span", { className: "tourney-place", textContent: String(place) }),
+        element("span", { className: "tourney-avatar" }, [avatarSprite(avatar ?? 0, 2)]),
         element("span", { className: "tourney-player" }, [
           player || t("trophies.anonymous"),
           Number.isFinite(rank) ? element("small", { textContent: ` · ${this.rankName(rank)}` }) : "",
@@ -1914,10 +1919,10 @@ export class AnglerUI {
       const rows = result.rows.map((entry, index) => {
         if (entry.weight !== last) place = index + 1;
         last = entry.weight;
-        return row(place, entry.player, entry.weight, entry.user_id === me, entry.angler_rank);
+        return row(place, entry.player, entry.weight, entry.user_id === me, entry.angler_rank, entry.avatar);
       });
       if (mine?.place && !result.rows.some((entry) => entry.user_id === me)) {
-        rows.push(element("li", { className: "tourney-gap", textContent: "…" }), row(mine.place, cloud.user.user_metadata?.nickname, mine.weight, true, this.progress.rank ?? 0));
+        rows.push(element("li", { className: "tourney-gap", textContent: "…" }), row(mine.place, cloud.user.user_metadata?.nickname, mine.weight, true, this.progress.rank ?? 0, this.progress.avatar));
       }
       board.replaceChildren(...rows);
       const note = !rows.length ? t("tourney.empty") : !cloud.user ? t("tourney.signIn") : !mine?.place ? t("tourney.notYet") : "";
@@ -1989,6 +1994,7 @@ export class AnglerUI {
       const spot = LOCATIONS[fish.spot] ? nameOf("location", LOCATIONS[fish.spot].id) : null;
       const date = fish.date ? new Date(fish.date).toLocaleDateString(locale(), { day: "numeric", month: "short", year: "numeric" }) : null;
       const owner = fish.player ? element("div", { className: "trophy-owner" }, [
+        element("span", { className: "trophy-owner-avatar" }, [avatarSprite(fish.avatar ?? 0, 2)]),
         element("strong", { textContent: fish.player }),
         Number.isFinite(fish.rank) ? element("small", { textContent: this.rankName(fish.rank) }) : "",
       ]) : "";

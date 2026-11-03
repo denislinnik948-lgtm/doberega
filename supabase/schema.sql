@@ -42,6 +42,8 @@ create index if not exists trophies_caught_at_idx on public.trophies (caught_at 
 -- The angler's rank (0 Novice .. 9 Legend of the water), shown by their name.
 -- (Not called "rank": that is also the name of a built-in function.)
 alter table public.trophies add column if not exists angler_rank smallint not null default 0;
+-- The angler's picture (AVATARS in src/fishing/sprites.js), shown by their name; see check_avatar below.
+alter table public.trophies add column if not exists avatar smallint not null default 0;
 
 alter table public.trophies enable row level security;
 
@@ -77,6 +79,7 @@ create table if not exists public.tournament (
 );
 
 alter table public.tournament add column if not exists angler_rank smallint not null default 0;
+alter table public.tournament add column if not exists avatar smallint not null default 0;
 
 create index if not exists tournament_board_idx on public.tournament (week, species, weight desc);
 
@@ -96,9 +99,10 @@ as $$
 $$;
 
 -- A new best for the signed-in angler; the heaviest each fish can grow is the limit.
--- `lvl` is the angler's rank, shown by their name.
+-- `lvl` is the angler's rank and `pic` their picture, both shown by their name.
 drop function if exists public.submit_tournament(text, real);
-create or replace function public.submit_tournament(fish text, kg real, lvl int default 0)
+drop function if exists public.submit_tournament(text, real, int);
+create or replace function public.submit_tournament(fish text, kg real, lvl int default 0, pic int default 0)
 returns void
 language plpgsql
 security definer
@@ -115,16 +119,18 @@ begin
     return;
   end if;
   select left(coalesce(raw_user_meta_data ->> 'nickname', ''), 16) into nickname from auth.users where id = auth.uid();
-  insert into public.tournament (user_id, week, species, player, weight, caught_at, angler_rank)
-  values (auth.uid(), public.tournament_week(), fish, nickname, kg, now(), greatest(0, least(9, coalesce(lvl, 0))))
+  insert into public.tournament (user_id, week, species, player, weight, caught_at, angler_rank, avatar)
+  values (auth.uid(), public.tournament_week(), fish, nickname, kg, now(), greatest(0, least(9, coalesce(lvl, 0))), coalesce(pic, 0))
+  -- The weight only ever grows; the name, rank and picture are always the latest.
   on conflict (user_id, week, species) do update
-    set weight = excluded.weight, player = excluded.player, caught_at = excluded.caught_at, angler_rank = excluded.angler_rank
-    where public.tournament.weight < excluded.weight;
+    set weight = greatest(public.tournament.weight, excluded.weight),
+        caught_at = case when excluded.weight > public.tournament.weight then excluded.caught_at else public.tournament.caught_at end,
+        player = excluded.player, angler_rank = excluded.angler_rank, avatar = excluded.avatar;
 end;
 $$;
 
-revoke all on function public.submit_tournament(text, real, int) from public;
-grant execute on function public.submit_tournament(text, real, int) to authenticated;
+revoke all on function public.submit_tournament(text, real, int, int) from public;
+grant execute on function public.submit_tournament(text, real, int, int) to authenticated;
 
 -- The daily quest no longer keeps a list of who has done it.
 drop table if exists public.quest_done;
@@ -165,6 +171,30 @@ create table if not exists public.admins (
   user_id uuid primary key references auth.users (id) on delete cascade
 );
 alter table public.admins enable row level security;
+
+-- Pictures: one of the twelve anyone can pick (0-11), or 99, the author's own,
+-- which only an admin's rows keep; anything else becomes the first picture.
+create or replace function public.check_avatar()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.avatar is null or new.avatar < 0
+    or (new.avatar > 11 and not (new.avatar = 99 and exists (select 1 from public.admins where user_id = new.user_id))) then
+    new.avatar := 0;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trophies_avatar on public.trophies;
+create trigger trophies_avatar before insert or update on public.trophies
+  for each row execute function public.check_avatar();
+drop trigger if exists tournament_avatar on public.tournament;
+create trigger tournament_avatar before insert or update on public.tournament
+  for each row execute function public.check_avatar();
 
 -- The admins' own devices, kept out of the stats (old events included).
 create table if not exists public.excluded_visitors (

@@ -341,8 +341,10 @@ export const LOCATIONS = [
   },
 ];
 
-// How many angler pictures there are to pick from (drawn in sprites.js, AVATARS).
+// How many angler pictures there are to pick from (drawn in sprites.js, AVATARS),
+// and the author's own, which nobody else can pick.
 export const AVATAR_COUNT = 12;
+export const SPECIAL_AVATAR = 99;
 
 export const START_STATE = {
   money: 30,

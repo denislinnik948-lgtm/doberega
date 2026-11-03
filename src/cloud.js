@@ -203,13 +203,15 @@ export class Cloud {
       spot: LOCATIONS[trophy.spot]?.id ?? null,
       bait: trophy.bait ?? null,
       caught_at: trophy.date,
-      // The angler's rank, shown by their name (ranks.js).
+      // The angler's rank and picture, shown by their name (ranks.js, sprites.js).
       angler_rank: progress.rank ?? 0,
+      avatar: progress.avatar ?? 0,
     }));
     // A missing trophies table must not get in the way of saving progress;
-    // nor a table from before ranks (schema.sql not yet run again): then without the rank.
+    // nor a table from before ranks or pictures (schema.sql not yet run again): then without them.
     let { error } = await this.client.from("trophies").upsert(rows, { onConflict: "user_id,trophy_id" });
-    if (error && /angler_rank/.test(error.message)) ({ error } = await this.client.from("trophies").upsert(rows.map(({ angler_rank: rank, ...row }) => row), { onConflict: "user_id,trophy_id" }));
+    if (error && /avatar/.test(error.message)) ({ error } = await this.client.from("trophies").upsert(rows.map(({ avatar, ...row }) => row), { onConflict: "user_id,trophy_id" }));
+    if (error && /angler_rank/.test(error.message)) ({ error } = await this.client.from("trophies").upsert(rows.map(({ angler_rank: rank, avatar, ...row }) => row), { onConflict: "user_id,trophy_id" }));
     if (error) console.warn("Trophies were not published:", error.message);
   }
 
@@ -227,7 +229,10 @@ export class Cloud {
   /** Send a new best of the week; the server checks the week and the weight. */
   async submitTournament(species, weight) {
     if (!this.user) return;
-    const { error } = await this.client.rpc("submit_tournament", { fish: species, kg: weight, lvl: this.getProgress().rank ?? 0 });
+    const progress = this.getProgress();
+    let { error } = await this.client.rpc("submit_tournament", { fish: species, kg: weight, lvl: progress.rank ?? 0, pic: progress.avatar ?? 0 });
+    // The function from before pictures (schema.sql not yet run again).
+    if (error && /submit_tournament/.test(error.message)) ({ error } = await this.client.rpc("submit_tournament", { fish: species, kg: weight, lvl: progress.rank ?? 0 }));
     if (error) console.warn("Tournament result was not sent:", error.message);
   }
 
