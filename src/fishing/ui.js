@@ -1200,7 +1200,7 @@ export class AnglerUI {
       tab.setAttribute("aria-selected", String(active));
       $(`#${tab.dataset.tab}`).hidden = !active;
     }
-    // The slip under the shelves follows the tab.
+    // Each tab keeps its own open drawer.
     if (this.shopDialog.open) this.openShop();
   }
 
@@ -1259,53 +1259,60 @@ export class AnglerUI {
 
   /**
    * The shop as a counter: each tab's wares on wooden shelves, three to a
-   * shelf, a price tag under each. Tapping a ware picks it; what it is, how
-   * many to buy and the Buy button sit in one slip under the shelves.
+   * shelf, a price tag under each. Tapping a ware opens a drawer under its
+   * shelf: what it is, how many to buy and the Buy button.
    */
   openShop() {
-    const { progress } = this;
     const wares = this.shopWares();
-    let slip = $("#shop-slip");
-    if (!slip) {
-      slip = element("div", { className: "shop-slip", id: "shop-slip" });
-      this.shopDialog.append(slip);
-      frame(slip, "box", 431);
-    }
-    const activeTab = this.shopDialog.querySelector(".tab.is-active")?.dataset.tab ?? "bait-shop";
     for (const [tab, list] of Object.entries(wares)) {
-      if (!list.some((ware) => ware.id === this.shopPicks[tab])) this.shopPicks[tab] = list[0]?.id;
+      if (!list.some((ware) => ware.id === this.shopPicks[tab])) this.shopPicks[tab] = null;
       const shelves = [];
       for (let i = 0; i < list.length; i += 3) {
-        shelves.push(element("li", { className: "shelf" }, list.slice(i, i + 3).map((ware) => element("button", {
-          className: `ware${ware.id === this.shopPicks[tab] ? " is-picked" : ""}${ware.owned ? " is-owned" : ""}`,
-          type: "button",
-          ariaPressed: String(ware.id === this.shopPicks[tab]),
-          onclick: () => {
-            if (this.shopPicks[tab] === ware.id) return;
-            this.shopPicks[tab] = ware.id;
-            sounds.ui("select");
-            this.openShop();
-          },
-        }, [
-          element("span", { className: "ware-art" }, [ware.art()]),
-          element("span", { className: "ware-name", textContent: ware.title }),
-          element("span", { className: "price-tag", textContent: ware.owned ? "✓" : formatMoney(ware.price) }),
-        ]))));
+        shelves.push(element("li", { className: "shelf" }, list.slice(i, i + 3).map((ware) => {
+          const button = element("button", {
+            className: `ware${ware.id === this.shopPicks[tab] ? " is-picked" : ""}${ware.owned ? " is-owned" : ""}`,
+            type: "button",
+            ariaExpanded: String(ware.id === this.shopPicks[tab]),
+            onclick: () => this.pickWare(tab, ware.id),
+          }, [
+            element("span", { className: "ware-art" }, [ware.art()]),
+            element("span", { className: "ware-name", textContent: ware.title }),
+            element("span", { className: "price-tag", textContent: ware.owned ? "✓" : formatMoney(ware.price) }),
+          ]);
+          button.dataset.id = ware.id;
+          return button;
+        })));
       }
       $(`#${tab}`).replaceChildren(...shelves);
+      // Drawn again (after a purchase, a new count): what was open stays open, without sliding again.
+      if (this.shopPicks[tab]) this.showWare(tab, false);
     }
-    this.renderSlip(wares[activeTab].find((ware) => ware.id === this.shopPicks[activeTab]));
     if (!this.shopDialog.open) this.shopDialog.showModal();
   }
 
-  /** The slip under the shelves: the picked ware, and buying it. */
-  renderSlip(ware) {
-    const { progress } = this;
-    const slip = $("#shop-slip");
-    if (!ware) {
-      setContent(slip);
-      return;
+  /** A tap on a ware opens what it is under its shelf; a second tap closes it. */
+  pickWare(tab, id) {
+    const closing = this.shopPicks[tab] === id;
+    this.shopPicks[tab] = closing ? null : id;
+    sounds.ui("select");
+    for (const button of $(`#${tab}`).querySelectorAll(".ware")) {
+      const picked = button.dataset.id === this.shopPicks[tab];
+      button.classList.toggle("is-picked", picked);
+      button.ariaExpanded = String(picked);
     }
+    if (closing) this.closeDrawers(this.shopDialog);
+    else this.showWare(tab, true);
+  }
+
+  showWare(tab, animate) {
+    const ware = this.shopWares()[tab].find((item) => item.id === this.shopPicks[tab]);
+    const button = $(`#${tab}`).querySelector(`.ware[data-id="${ware.id}"]`);
+    this.placeDrawer(this.shopDialog, button.closest(".shelf"), button, this.wareDetails(ware), animate);
+  }
+
+  /** What a ware is and the way to buy it: how many, and the price. */
+  wareDetails(ware) {
+    const { progress } = this;
     const buy = (total, apply) => element("button", {
       className: "pixel-btn pixel-btn-buy slip-buy",
       type: "button",
@@ -1326,23 +1333,54 @@ export class AnglerUI {
       const qty = this.shopQuantities[ware.id] ?? 1;
       action = [this.stepper(ware.id, ware.price), buy(qty * ware.price, () => { ware.add(qty); this.shopQuantities[ware.id] = 1; })];
     } else action = [buy(ware.price, ware.buy)];
-    setContent(slip,
+    return [
       element("div", { className: "slip-head" }, [
         element("strong", { textContent: ware.title }),
         element("span", { className: "slip-stock", textContent: ware.add ? t("shop.inPack", { count: ware.stock }) : "" }),
       ]),
       ...ware.facts.map((line) => element("small", { className: "slip-fact", textContent: line })),
       element("div", { className: "slip-action" }, action),
-    );
+    ];
   }
 
-  /**
-   * The backpack laid open: a rod case, a tackle box (hooks, line, lures),
-   * the bait, and a pocket for the rest. Tapping a rod, hook or bait takes
-   * it up at once; the slip at the bottom says what the last tapped thing is
-   * and holds what else it can do (put on a new line, bait the water, read).
+  /*
+   * The drawer: what the picked thing is, opened right under its row (`after`:
+   * a shelf, a rod's line, or the last cell on the picked cell's line), a notch
+   * pointing up at it. Only one is open in a window; moving to another row
+   * slides the old one shut while the new one slides open.
    */
-  openPack() {
+  placeDrawer(root, after, pick, nodes, animate) {
+    let drawer = root.querySelector(".drawer:not(.is-closing)");
+    if (drawer && drawer.previousElementSibling !== after) {
+      this.closeDrawers(root);
+      drawer = null;
+    }
+    if (!drawer) {
+      const inner = element("div", { className: "drawer-inner" });
+      drawer = element(after.tagName === "LI" ? "li" : "div", { className: "drawer" }, [element("div", { className: "drawer-body" }, [inner])]);
+      after.after(drawer);
+      frame(inner, "box", 431);
+      if (!animate) drawer.classList.add("is-instant");
+      // Laid out shut first, so opening it slides.
+      void drawer.offsetHeight;
+      drawer.classList.add("is-open");
+    }
+    const inner = drawer.querySelector(".drawer-inner");
+    setContent(inner, ...nodes);
+    const box = pick.getBoundingClientRect();
+    inner.style.setProperty("--notch", `${Math.round(box.left + box.width / 2 - inner.getBoundingClientRect().left)}px`);
+  }
+
+  closeDrawers(root) {
+    for (const drawer of root.querySelectorAll(".drawer:not(.is-closing)")) {
+      drawer.classList.add("is-closing");
+      drawer.classList.remove("is-open", "is-instant");
+      setTimeout(() => drawer.remove(), 300);
+    }
+  }
+
+  /** Everything in the backpack, by pocket: what it is, its count, whether it is in use, and what a tap does. */
+  packItems() {
     const { progress } = this;
     const reel = progress.extras.includes("spinreel");
     const worn = progress.line < LINE.weakBelow;
@@ -1384,52 +1422,40 @@ export class AnglerUI {
       facts: [nameOf("extraText", id)], action: id === "handbook" ? [t("pack.readIt"), () => this.openHandbook()] : null,
     });
 
-    if (!items.some((item) => item.key === this.packPick)) this.packPick = items.find((item) => item.on)?.key ?? items[0]?.key;
-    const pick = (item) => () => {
-      this.packPick = item.key;
-      if (item.take && !item.on) {
-        item.take();
-        this.commit();
-      } else sounds.ui("select");
-      this.openPack();
+    return items;
+  }
+
+  /**
+   * The backpack laid open: a rod case, a tackle box (hooks, line, lures),
+   * the bait, and a pocket for the rest. Tapping a rod, hook or bait takes
+   * it up at once; a drawer under it says what it is and holds what else it
+   * can do (put on a new line, bait the water, read).
+   */
+  openPack() {
+    const items = this.packItems();
+    if (!items.some((item) => item.key === this.packPick)) this.packPick = null;
+    const cell = (item, className, children) => {
+      const button = element("button", {
+        className: `${className}${item.key === this.packPick ? " is-picked" : ""}${item.on ? " is-on" : ""}`,
+        type: "button",
+        title: item.title,
+        ariaExpanded: String(item.key === this.packPick),
+        onclick: () => this.pickPackItem(item.key),
+      }, children);
+      button.dataset.key = item.key;
+      return button;
     };
-    const tile = (item) => element("button", {
-      className: `pack-cell${item.key === this.packPick ? " is-picked" : ""}${item.on ? " is-on" : ""}`,
-      type: "button",
-      title: item.title,
-      ariaPressed: String(item.key === this.packPick),
-      onclick: pick(item),
-    }, [
-      element("span", { className: "ware-art" }, [item.art()]),
-      element("span", { className: `pick-tag${item.worn ? " is-worn" : ""}`, textContent: item.tag }),
-    ]);
     const section = (id, label, className) => {
       const own = items.filter((item) => item.section === id);
       return element("section", { className: `pack-pocket pack-${id}` }, [
         element("h3", { textContent: label }),
         own.length
           ? element("div", { className }, own.map((item) => (id === "rods"
-            ? element("button", {
-              className: `rod-row${item.key === this.packPick ? " is-picked" : ""}${item.on ? " is-on" : ""}`,
-              type: "button",
-              ariaPressed: String(item.key === this.packPick),
-              onclick: pick(item),
-            }, [element("span", { className: "ware-art" }, [item.art()]), element("span", { className: "ware-name", textContent: item.title }), element("span", { className: "pick-tag", textContent: item.tag })])
-            : tile(item))))
+            ? cell(item, "rod-row", [element("span", { className: "ware-art" }, [item.art()]), element("span", { className: "ware-name", textContent: item.title }), element("span", { className: "pick-tag", textContent: item.tag })])
+            : cell(item, "pack-cell", [element("span", { className: "ware-art" }, [item.art()]), element("span", { className: `pick-tag${item.worn ? " is-worn" : ""}`, textContent: item.tag })]))))
           : element("p", { className: "empty-note", textContent: t("pack.empty") }),
       ]);
     };
-    const picked = items.find((item) => item.key === this.packPick);
-    const slipBody = picked ? [
-      element("div", { className: "slip-head" }, [
-        element("strong", { textContent: picked.title }),
-        element("span", { className: "slip-stock", textContent: picked.on ? picked.status : "" }),
-      ]),
-      ...picked.facts.map((line) => element("small", { className: "slip-fact", textContent: line })),
-      ...(picked.action ? [element("div", { className: "slip-action" }, [element("button", {
-        className: "pixel-btn pixel-btn-buy slip-buy", type: "button", textContent: picked.action[0], onclick: picked.action[1],
-      })])] : []),
-    ] : [];
     const body = $("#pack-pockets");
     body.replaceChildren(
       element("div", { className: "pack-sections" }, [
@@ -1442,15 +1468,54 @@ export class AnglerUI {
       ]),
     );
     body.querySelectorAll(".pack-pocket").forEach((pocket, index) => frame(pocket, "well", 520 + index));
-    let slip = $("#pack-slip");
-    if (!slip) {
-      slip = element("div", { className: "shop-slip", id: "pack-slip" });
-      this.packDialog.append(slip);
-      frame(slip, "box", 433);
-    }
-    setContent(slip, ...slipBody);
     if (!this.packDialog.open) this.packDialog.showModal();
+    // Drawn again (a new line, groundbait used): what was open stays open, without sliding again.
+    if (this.packPick) this.showPackItem(false);
   }
+
+  /** A tap takes the thing in hand (a rod, a hook, a bait) and opens what it is under it; a second tap closes it. */
+  pickPackItem(key) {
+    const item = this.packItems().find((entry) => entry.key === key);
+    const closing = this.packPick === key && !(item.take && !item.on);
+    if (item.take && !item.on) {
+      item.take();
+      this.commit();
+    } else sounds.ui("select");
+    this.packPick = closing ? null : key;
+    // What is in use and what is picked, marked again in place so nothing jumps.
+    const now = new Map(this.packItems().map((entry) => [entry.key, entry]));
+    for (const button of $("#pack-pockets").querySelectorAll("[data-key]")) {
+      const entry = now.get(button.dataset.key);
+      button.classList.toggle("is-on", Boolean(entry?.on));
+      button.classList.toggle("is-picked", button.dataset.key === this.packPick);
+      button.ariaExpanded = String(button.dataset.key === this.packPick);
+      const tag = button.querySelector(".pick-tag");
+      if (entry && tag) tag.textContent = entry.tag;
+    }
+    if (closing) this.closeDrawers(this.packDialog);
+    else this.showPackItem(true);
+  }
+
+  showPackItem(animate) {
+    const item = this.packItems().find((entry) => entry.key === this.packPick);
+    const button = $("#pack-pockets").querySelector(`[data-key="${CSS.escape(item.key)}"]`);
+    // In a grid the drawer goes after the last cell on the picked one's line.
+    let after = button;
+    if (button.classList.contains("pack-cell")) {
+      for (let next = button.nextElementSibling; next && !next.classList.contains("drawer") && next.offsetTop === button.offsetTop; next = next.nextElementSibling) after = next;
+    }
+    this.placeDrawer(this.packDialog, after, button, [
+      element("div", { className: "slip-head" }, [
+        element("strong", { textContent: item.title }),
+        element("span", { className: "slip-stock", textContent: item.on ? item.status : "" }),
+      ]),
+      ...item.facts.map((line) => element("small", { className: "slip-fact", textContent: line })),
+      ...(item.action ? [element("div", { className: "slip-action" }, [element("button", {
+        className: "pixel-btn pixel-btn-buy slip-buy", type: "button", textContent: item.action[0], onclick: item.action[1],
+      })])] : []),
+    ], animate);
+  }
+
 
   /**
    * Put a spare line on: on its own once the old one is worn through, or

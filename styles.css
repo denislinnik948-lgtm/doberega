@@ -951,8 +951,17 @@ html.keyboard-open .sheet[open] > .account-body {
 .price-tag::before { position: absolute; top: -6px; left: calc(50% - 1px); width: 2px; height: 6px; content: ""; background: var(--soft); }
 .ware.is-owned .price-tag { background: var(--light); }
 
-/* The slip under the shelves (and in the backpack): what it is, and what to do with it. */
-.shop-slip { display: grid; flex: none; gap: 6px; padding: 16px 18px; }
+/*
+ * The drawer under a picked thing (shop and backpack): what it is and what to do with it. It slides open
+ * from nothing to its own height right under the thing's row, a notch pointing up at the thing.
+ */
+.drawer { display: grid; grid-template-rows: 0fr; grid-column: 1 / -1; opacity: 0; list-style: none; transition: grid-template-rows 260ms ease-out, opacity 200ms ease-out; }
+.drawer.is-open { grid-template-rows: 1fr; opacity: 1; }
+.drawer.is-instant { transition: none; }
+.drawer-body { min-height: 0; overflow: hidden; }
+.drawer-inner { position: relative; display: grid; gap: 6px; margin: 12px 0 14px; padding: 14px 18px; }
+.drawer-inner::before { position: absolute; top: -8px; left: calc(var(--notch, 50%) - 8px); border: 8px solid transparent; border-top: 0; border-bottom-color: #58726a; content: ""; }
+@media (prefers-reduced-motion: reduce) { .drawer { transition: none; } }
 .slip-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .slip-head strong { color: var(--bone); font-size: 24px; font-weight: 500; }
 .slip-stock { color: var(--gold); font-size: 18px; white-space: nowrap; }
@@ -1006,7 +1015,7 @@ html.keyboard-open .sheet[open] > .account-body {
   .shelf { padding: 0; }
   .ware { min-height: 108px; font-size: 18px; }
   .pack-pair { grid-template-columns: minmax(0, 1fr); }
-  .shop-slip { padding: 14px; }
+  .drawer-inner { padding: 12px 14px; }
 }
 /* A legend's rumour is a sentence: wider cards. */
 .atlas-legends { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
