@@ -1234,6 +1234,8 @@ document.addEventListener("click", (event) => {
   pendingClick = setTimeout(() => sounds.ui(kind), 0);
 }, true);
 const watchDialogs = new MutationObserver((changes) => {
+  // Pages opened out of sight to be ready sooner (ui.warmPages) make no sound.
+  if (document.body.classList.contains("warming")) return;
   for (const change of changes) {
     if (change.attributeName !== "open") continue;
     clearTimeout(pendingClick);

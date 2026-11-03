@@ -787,18 +787,21 @@ export function baitSprite(id, scale = 3) {
 
 /* ---------- UI icons ---------- */
 
+/** The game's coin: gold, lit on its top left, a little fish struck on its face (the same as the "¤" sign in text). */
 export function coinSprite(scale = 3) {
-  const grid = new Grid(10, 10);
-  for (let x = 0; x < 10; x += 1) {
-    for (let y = 0; y < 10; y += 1) {
-      const d = Math.hypot(x - 4.5, y - 4.5);
-      if (d > 4.6) continue;
-      let color = d > 3.6 ? P.goldDark : x + y < 7 ? P.bone : P.gold;
-      if (d < 2.4 && d > 1.3) color = P.goldDark;
-      grid.set(x, y, color);
-    }
-  }
-  return grid.outline(P.ink).toCanvas(scale);
+  return fromRows([
+    "...oooooo...",
+    "..oDDDDDDo..",
+    ".oDLLGGGGDo.",
+    "oDLGGGGGGGDo",
+    "oDLGfffGfGDo",
+    "oDGffffffGDo",
+    "oDGGfffGfGDo",
+    "oDGGGGGGGGDo",
+    ".oDGGGGGGDo.",
+    "..oDDDDDDo..",
+    "...oooooo...",
+  ], { o: P.ink, D: P.goldDark, L: P.bone, G: P.gold, f: P.goldDark }).toCanvas(scale);
 }
 
 /** A little shop front with a striped awning: the shop. */

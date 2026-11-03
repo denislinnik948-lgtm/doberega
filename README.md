@@ -132,9 +132,13 @@ Nobody else's progress is listed: the quest is between the angler and the water 
 
 **Колекція** in the main menu has two tabs. **Атлас** shows every fish in the game as a card (built from `handbookEntries`, so a new species appears by itself): a caught one in colour with how many and the heaviest, the rest a dark silhouette marked "not caught yet", with no hint of where or when: finding out is the point (the handbook still tells it). **Ачівки** lists the achievements below. Trophies keep their own window.
 
+## Pages opening quickly
+
+A page's first opening makes the browser work out the look of all it holds, some 20 to 100 ms. So a few seconds after the game loads (`ui.warmPages`, after the fish portraits), each page is opened once out of sight in an idle moment and closed again, silently (`.warming`), only while the menu shows with nothing open; the tournament page gets no board, so the server is not asked. The real first opening is then as quick as any after it.
+
 ## Headings font
 
-Headings use the game's own pixel blackletter, **Doberega Gothic** (`fonts/doberega-gothic.woff2`, 3 KB): Ukrainian and English letters, figures and marks, each drawn as rows of pixels in `tools/font/build-gothic.py`, which turns them into the font (fontTools; `tools/font/preview.html` shows every letter). Bowls are slanted hexagons and every two-pixel stem gets the slanted ends of a broad pen (`pen_cut`). A pixel is 100 units on a 1500-unit em, so it is sharp at 15, 30 and 45 px: page and water titles and the Go fishing button at 30, tile and section names at 15 (in their own letters, never all capitals). Anything it lacks falls back to Handjet. Money is the game's own coins, written ¤: `fonts/doberega-coin.woff2` holds that one sign drawn as a little pixel coin and comes first in the body text's fonts, so every price, reward and note shows a coin (built by the same script).
+Headings use the game's own pixel blackletter, **Doberega Gothic** (`fonts/doberega-gothic.woff2`, 3 KB): Ukrainian and English letters, figures and marks, each drawn as rows of pixels in `tools/font/build-gothic.py`, which turns them into the font (fontTools; `tools/font/preview.html` shows every letter). Bowls are slanted hexagons and every two-pixel stem gets the slanted ends of a broad pen (`pen_cut`). A pixel is 100 units on a 1500-unit em, so it is sharp at 15, 30 and 45 px: page and water titles and the Go fishing button at 30, tile and section names at 15 (in their own letters, never all capitals). Anything it lacks falls back to Handjet. Money is the game's own coins, written ¤: `fonts/doberega-coin.woff2` holds that one sign drawn as a little pixel coin with a fish struck on it (the same coin as the money icon, `coinSprite`) and comes first in the body text's fonts, so every price, reward and note shows a coin (built by the same script).
 
 ## Angler's picture
 

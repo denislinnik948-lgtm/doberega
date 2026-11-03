@@ -263,7 +263,8 @@ def build(out):
     print(f"{out}: {len(names)} letters and marks")
 
 
-COIN = rows("..####.. .#....#. #..##..# #.#..#.# #.#..#.# #..##..# .#....#. ..####..")
+# The coin with a fish struck on it, as the menu's coin icon (coinSprite in sprites.js).
+COIN = rows("..#####.. .#.....#. #.......# #.###.#.# #.#####.# #.###.#.# #.......# .#.....#. ..#####..")
 
 
 def build_coin(out):

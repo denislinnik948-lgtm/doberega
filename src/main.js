@@ -272,6 +272,8 @@ cloud.init().then(() => {
 track("visit", { after: 2000 });
 // Fish portraits take a moment each to shade: do them while nothing else is going on.
 setTimeout(warmFishPortraits, 3000);
+// So do the pages the first time they open (after the fish, which some of them show).
+setTimeout(() => ui.warmPages(), 5000);
 
 function toScreen(point) {
   return { x: point.x * width, y: point.y * height };

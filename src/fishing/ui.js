@@ -636,6 +636,48 @@ export class AnglerUI {
   }
 
 
+  /**
+   * A page's first opening is slow: the browser works out the look of all it
+   * holds for the first time. While the player looks at the menu, each page is
+   * opened once out of sight, one in each idle moment, so the real first
+   * opening is as quick as any after it. Only in the menu with nothing open,
+   * and never the tournament (it would ask the server for its board).
+   */
+  warmPages() {
+    const idle = window.requestIdleCallback ?? ((callback) => setTimeout(callback, 200));
+    const pages = [
+      () => this.openQuest(),
+      () => this.openProfile(),
+      () => this.openCollection(),
+      () => {
+        this.collectionDialog.showModal();
+        this.showCollectionTab("achievements");
+      },
+      () => this.openShop(),
+      () => this.openPack(),
+      () => this.openTrophies(),
+      () => this.openSettings(),
+      () => $("#tourney-dialog").showModal(),
+    ];
+    const next = () => {
+      if (!pages.length) return;
+      if (this.isFishing() || document.querySelector("dialog[open]")) return void setTimeout(() => idle(next), 2000);
+      const focused = document.activeElement;
+      document.body.classList.add("warming");
+      try {
+        pages.shift()();
+        void document.body.offsetHeight;
+      } finally {
+        document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
+        focused?.focus?.({ preventScroll: true });
+        // Off only after the dialogs' sound watcher has seen (and ignored) the opening and closing.
+        setTimeout(() => document.body.classList.remove("warming"), 0);
+      }
+      idle(next);
+    };
+    idle(next);
+  }
+
   /** Every window of the menu is a page: its ✕ says "Back" instead. */
   labelBackButtons() {
     document.querySelectorAll("dialog.page .sheet-heading form button").forEach((button) => {

@@ -1281,6 +1281,9 @@ html.keyboard-open .sheet[open] > .account-body {
 }
 
 @keyframes page-in { from { opacity: 0; } }
+/* A page opened out of sight in an idle moment, only so the browser has worked out its look (ui.warmPages). */
+.warming dialog[open] { visibility: hidden !important; animation: none !important; }
+.warming dialog::backdrop { display: none; }
 
 /*
  * Headings in the game's blackletter: the titles of pages and of the water at 30 px,
