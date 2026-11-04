@@ -1240,7 +1240,7 @@ export class AnglerUI {
     const reel = progress.extras.includes("spinreel");
     return {
       "bait-shop": Object.entries(BAITS).filter(([, bait]) => !bait.free && !bait.lure).map(([id, bait]) => piece(
-        id, () => baitSprite(id, 4), nameOf("bait", id), [t("shop.each", { price: bait.price })], bait.price, progress.baits[id] ?? 0,
+        id, () => baitSprite(id, 4), nameOf("bait", id), [], bait.price, progress.baits[id] ?? 0,
         (qty) => { progress.baits[id] = (progress.baits[id] ?? 0) + qty; },
         // Bait is sold by the ten.
         10,
@@ -1251,7 +1251,7 @@ export class AnglerUI {
       )),
       "tackle-shop": [
         ...Object.entries(HOOKS).map(([id, hook]) => piece(
-          `hook-${id}`, () => hookSprite(HOOK_SCALE[id] + 1), nameOf("hook", id), [...reachLines(hook), t("shop.each", { price: hook.price })], hook.price, progress.hooks[id] ?? 0,
+          `hook-${id}`, () => hookSprite(HOOK_SCALE[id] + 1), nameOf("hook", id), reachLines(hook), hook.price, progress.hooks[id] ?? 0,
           (qty) => { progress.hooks[id] = (progress.hooks[id] ?? 0) + qty; },
           // Hooks too come by the ten.
           10,
@@ -1273,10 +1273,11 @@ export class AnglerUI {
   }
 
   /**
-   * The shop as a counter: each tab's wares on wooden shelves, three to a
-   * shelf, a price tag under each. A tap puts a ware in the basket (bait and
-   * hooks by the ten, the rest one at a time; a rod or an extra once, and a
-   * second tap takes it out again). What a ware is shows on hover. The basket
+   * The shop as a list: each tab's wares in rows, a picture, the name, what
+   * it does (not for bait) and how many are in the backpack, and a price tag
+   * on the right. A tap puts a ware in the basket (bait and hooks by the ten,
+   * the rest one at a time; a rod or an extra once, and a second tap takes it
+   * out again). The basket
    * bar at the bottom shows what is in it and pays for it all; tapped, it
    * opens the basket's own page.
    */
@@ -1289,27 +1290,31 @@ export class AnglerUI {
       if (!ware || ware.owned) delete this.basket[id];
     }
     for (const [tab, list] of Object.entries(wares)) {
-      const shelves = [];
-      for (let i = 0; i < list.length; i += 3) {
-        shelves.push(element("li", { className: "shelf" }, list.slice(i, i + 3).map((ware) => {
-          const inBasket = this.basket[ware.id] ?? 0;
-          const tag = ware.owned ? "✓" : ware.step > 1 ? `×${ware.step} · ${formatMoney(ware.price * ware.step)}` : formatMoney(ware.price);
-          return element("button", {
-            className: `ware${ware.owned ? " is-owned" : ""}${inBasket ? " is-in" : ""}`,
-            type: "button",
-            disabled: ware.owned,
-            title: [ware.title, ...ware.facts].join("\n"),
-            ariaLabel: ware.owned ? `${ware.title}: ${t("shop.owned")}` : !ware.add && inBasket ? `${ware.title}: ${t("shop.inCartOnce")}` : `${ware.title}: ${t("shop.toCart", { count: ware.step, total: formatMoney(ware.price * ware.step) })}`,
-            onclick: () => this.addToBasket(ware.id, ware.add ? ware.step : inBasket ? -1 : 1),
-          }, [
-            element("span", { className: "ware-art" }, [ware.art()]),
-            element("span", { className: "ware-name", textContent: ware.title }),
-            element("span", { className: "price-tag", textContent: tag }),
-            inBasket ? element("span", { className: "ware-in", textContent: ware.add ? `×${inBasket}` : "✓" }) : "",
-          ]);
-        })));
-      }
-      $(`#${tab}`).replaceChildren(...shelves);
+      $(`#${tab}`).replaceChildren(...list.map((ware) => {
+        const inBasket = this.basket[ware.id] ?? 0;
+        const label = ware.owned ? t("shop.owned") : !ware.add && inBasket ? t("shop.inCartOnce") : t("shop.toCart", { count: ware.step, total: formatMoney(ware.price * ware.step) });
+        // Under the name: what it does (bait needs no words), and how many are in the backpack.
+        const about = [...ware.facts, ware.add ? t("shop.inPack", { count: ware.stock }) : ""].filter(Boolean);
+        return element("li", {}, [element("button", {
+          className: `ware-row${ware.owned ? " is-owned" : ""}${inBasket ? " is-in" : ""}`,
+          type: "button",
+          disabled: ware.owned,
+          ariaLabel: `${ware.title}: ${label}`,
+          onclick: () => this.addToBasket(ware.id, ware.add ? ware.step : inBasket ? -1 : 1),
+        }, [
+          element("span", { className: "ware-art" }, [ware.art()]),
+          element("span", { className: "ware-text" }, [
+            element("strong", { textContent: ware.title }),
+            ...about.map((line) => element("small", { textContent: line })),
+          ]),
+          // The price tag on the right: what a tap adds and for how much, or that it is yours or in the basket.
+          element("span", { className: "ware-buy" }, ware.owned ? [element("span", { className: "ware-step", textContent: "✓" })] : [
+            element("span", { className: "ware-step", textContent: !ware.add && inBasket ? "✓" : `+${ware.step}` }),
+            element("span", { className: "ware-price", textContent: formatMoney(ware.price * ware.step) }),
+          ]),
+          ware.add && inBasket ? element("span", { className: "ware-in", textContent: `×${inBasket}` }) : "",
+        ])]);
+      }));
     }
     this.renderBasketBar($("#basket-bar"), true);
     if (!this.shopDialog.open) this.shopDialog.showModal();
