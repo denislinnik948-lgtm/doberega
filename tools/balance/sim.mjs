@@ -38,7 +38,7 @@ const WORLD_START = 0.68;
 
 /*
  * What a healthy economy looks like: every rod and the paid water in about
- * 28 hours of this angler's fishing (27.7 h for the rods alone back when
+ * 26 hours of this angler's fishing (27.7 h for the rods alone back when
  * every water was open), each rod a longer climb than the one before, and
  * the first one quick.
  */

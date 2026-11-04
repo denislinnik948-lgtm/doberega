@@ -1805,7 +1805,10 @@ export class AnglerUI {
           bottom: lower(traitValue("bottom", spot.traits.bottom)), current: lower(traitValue("current", spot.traits.current)),
         }), [
           [t("handbook.fishLabel"), lower(list(spot.fish.map((fish) => nameOf("fish", fish))))],
-          [t("handbook.sizeLabel"), t(spot.minKg ? "handbook.spotRange" : "handbook.spotMax", { min: formatWeight(spot.minKg), kg: formatWeight(spot.maxKg), odds: spot.bigOdds })],
+          [t("handbook.sizeLabel"), t("handbook.spotSizes", {
+            from: spot.minKg ? t("handbook.spotFrom", { min: formatWeight(spot.minKg) }) : "",
+            typ: formatWeight(spot.typicalKg), max: formatWeight(spot.maxKg), odds: spot.bigOdds,
+          }) + (spot.tailKg ? t("handbook.spotTail", { tail: formatWeight(spot.tailKg) }) : "")],
           [t("handbook.accessLabel"), this.accessText(index)],
           [t("handbook.waterLabel"), `${nameOf("pace", spot.pace)} · ${nameOf("snags", spot.snags)}`],
         ], 760 + index);
