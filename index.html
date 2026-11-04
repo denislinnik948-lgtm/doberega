@@ -194,6 +194,19 @@
       <ul class="shelves" id="rod-shop" role="tabpanel" hidden></ul>
       <ul class="shelves" id="tackle-shop" role="tabpanel" hidden></ul>
       <ul class="shelves" id="extra-shop" role="tabpanel" hidden></ul>
+      <!-- The basket's bar, stuck to the bottom: what is in it and Pay; it opens the basket's page. -->
+      <div class="basket-bar" id="basket-bar" data-frame="box"></div>
+    </dialog>
+
+    <!-- The basket's own page, over the shop: what is in it, by how many, and Pay. -->
+    <dialog class="sheet sheet-wide page" id="basket-dialog" aria-labelledby="basket-title">
+      <header class="sheet-heading">
+        <h2 class="title-tab" id="basket-title" data-frame="tab" data-i18n="cart.title">Basket</h2>
+        <div class="chip chip-small" data-frame="box"><span class="chip-icon coin-slot"></span><span class="money-value">30</span></div>
+        <form method="dialog"><button class="pixel-btn pixel-btn-square" type="submit" data-i18n-aria="a11y.close">✕</button></form>
+      </header>
+      <ul class="basket-list" id="basket-list"></ul>
+      <div class="basket-bar" id="basket-page-bar" data-frame="box"></div>
     </dialog>
 
     <dialog class="sheet sheet-wide page" id="pack-dialog" aria-labelledby="pack-title">

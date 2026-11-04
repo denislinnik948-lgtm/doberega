@@ -813,7 +813,6 @@ html.keyboard-open .sheet[open] > .account-body {
 /* ---------- Shop and backpack ---------- */
 
 /* The picked thing: gold corner brackets that breathe, the item lifted a little. */
-.ware.is-picked::after,
 .pack-cell.is-picked::after,
 .rod-row.is-picked::after {
   position: absolute;
@@ -833,9 +832,9 @@ html.keyboard-open .sheet[open] > .account-body {
   animation: bracket-breathe 1.2s steps(2) infinite;
 }
 @keyframes bracket-breathe { 50% { inset: -5px; } }
-:is(.ware, .pack-cell, .rod-row).is-picked .ware-art { transform: translateY(-3px); }
+:is(.pack-cell, .rod-row).is-picked .ware-art { transform: translateY(-3px); }
 :is(.ware, .pack-cell, .rod-row) .ware-art { display: grid; place-items: center; transition: transform 120ms steps(2); }
-@media (prefers-reduced-motion: reduce) { :is(.ware, .pack-cell, .rod-row).is-picked::after { animation: none; } }
+@media (prefers-reduced-motion: reduce) { :is(.pack-cell, .rod-row).is-picked::after { animation: none; } }
 
 /* Shop: the wares on wooden shelves, three to a shelf, a price tag hanging under each. */
 .shelves { flex: 1 1 auto; min-height: 0; margin: 0; padding: 8px 4px 0; overflow-y: auto; list-style: none; scrollbar-color: var(--mid) transparent; }
@@ -865,22 +864,20 @@ html.keyboard-open .sheet[open] > .account-body {
   line-height: 1;
   cursor: pointer;
 }
-/* A ware and, under it, the button that puts it in the basket. */
-.ware-slot { display: grid; justify-items: stretch; align-content: end; gap: 6px; min-width: 0; padding-bottom: 8px; }
-.ware-add { justify-self: center; min-width: 52px; padding: 2px 10px; border: 2px solid var(--mid); color: var(--gold); font: inherit; font-size: 18px; background: var(--ink); cursor: pointer; }
-.ware-add:hover { border-color: var(--gold-dark); }
-.ware-add.is-placeholder { visibility: hidden; }
-.ware-add:active { transform: translateY(2px); }
+/* A tap puts the ware in the basket: it dips a little; what is owned is just shown. */
+.ware:hover:not(:disabled) .ware-art { transform: translateY(-3px); }
+.ware:active:not(:disabled) { transform: translateY(2px); }
+.ware:disabled { cursor: default; }
 /* How many are in the basket already: a gold tag on the ware's corner. */
 .ware-in { position: absolute; top: 4px; right: 8px; padding: 1px 5px; color: var(--ink); font-size: 16px; background: var(--gold); box-shadow: 0 0 0 2px var(--ink); }
 .ware-art { min-height: 44px; }
 .ware-name { display: -webkit-box; max-width: 100%; overflow: hidden; text-align: center; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.ware.is-picked .ware-name { color: var(--bone); }
+.ware.is-in .ware-name { color: var(--bone); }
 .price-tag { position: relative; margin-top: 6px; padding: 1px 6px; color: var(--ink); background: var(--bone); font-size: 17px; }
 .price-tag::before { position: absolute; top: -6px; left: calc(50% - 1px); width: 2px; height: 6px; content: ""; background: var(--soft); }
 .ware.is-owned .price-tag { background: var(--light); }
 
-/* The basket: a bar stuck to the bottom of the shop (what is in it, Pay) and its list in place of the shelves. */
+/* The basket: a bar stuck to the bottom of the shop and of its own page (what is in it, Pay), and the page's list. */
 /* Stuck to the very bottom edge of the page, over its bottom padding, so nothing shows beneath it. */
 .basket-bar { position: sticky; bottom: calc(-1 * var(--page-bottom, 0px)); z-index: 3; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; margin: auto 0 calc(-1 * var(--page-bottom, 0px)); padding: 10px 12px calc(10px + var(--page-bottom, 0px)); background: var(--deep); }
 .basket-open { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 0; border: 0; color: var(--bone); font: inherit; text-align: left; background: none; cursor: pointer; }
@@ -889,14 +886,10 @@ html.keyboard-open .sheet[open] > .account-body {
 .basket-sum small { color: var(--soft); font-size: 15px; }
 .basket-sum strong { overflow: hidden; font-size: 20px; font-weight: 500; white-space: nowrap; text-overflow: ellipsis; }
 .basket-pay { min-height: 46px; padding-inline: 16px; white-space: nowrap; }
-#shop-dialog.is-basket .shelves { display: none; }
 .basket-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
-.basket-list[hidden] { display: none; }
 .basket-line { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto auto; align-items: center; gap: 10px; padding: 8px 10px; background: rgb(10 20 18 / 0.55); box-shadow: inset 0 0 0 2px var(--dark); }
 .basket-line .ware-art { min-height: 0; }
 .basket-line .ware-art canvas { width: 40px !important; height: 40px !important; object-fit: contain; image-rendering: pixelated; }
-/* While the basket is open no shelf's tab is the one showing. */
-#shop-dialog.is-basket .tab.is-active { color: var(--light); border-color: transparent; background: rgba(10, 20, 18, 0.5); }
 .basket-name { display: grid; min-width: 0; }
 .basket-name strong { overflow: hidden; color: var(--bone); font-size: 20px; font-weight: 500; white-space: nowrap; text-overflow: ellipsis; }
 .basket-name small { color: var(--soft); font-size: 15px; }
