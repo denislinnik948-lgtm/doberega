@@ -92,7 +92,9 @@ export class AnglerUI {
     this.packSlot = $("#pack-slot");
     this.baitDialog = $("#bait-dialog");
     this.baitButton = $("#bait-chip");
-    this.shopQuantities = {};
+    // The shop's basket: how many of each ware (by its id) are in it, and whether its list is open.
+    this.basket = {};
+    this.basketOpen = false;
     // Which ware is picked on each shelf of the shop, which item is looked at in the backpack.
     this.shopPicks = {};
     this.packPick = null;
@@ -1225,37 +1227,27 @@ export class AnglerUI {
       tab.setAttribute("aria-selected", String(active));
       $(`#${tab.dataset.tab}`).hidden = !active;
     }
-    // Each tab keeps its own open drawer.
+    // Each tab keeps its own open drawer; a tab shows the shelves again, not the basket.
+    this.basketOpen = false;
     if (this.shopDialog.open) this.openShop();
   }
 
-  /** A − qty + stepper for buying bait by the piece. */
-  stepper(id, unitPrice) {
-    const qty = this.shopQuantities[id] ?? 1;
-    const affordable = Math.max(1, Math.floor(this.progress.money / unitPrice));
-    const set = (value) => {
-      this.shopQuantities[id] = Math.max(1, Math.min(999, value));
-      this.openShop();
-    };
-    return element("div", { className: "stepper" }, [
-      element("button", { className: "pixel-btn pixel-btn-square", type: "button", textContent: "−", ariaLabel: t("a11y.less"), disabled: qty <= 1, onclick: () => set(qty - 1) }),
-      element("span", { className: "stepper-value", textContent: String(qty) }),
-      element("button", { className: "pixel-btn pixel-btn-square", type: "button", textContent: "+", ariaLabel: t("a11y.more"), disabled: qty >= affordable, onclick: () => set(qty + 1) }),
-    ]);
-  }
+
 
   /* ---------- Shop and backpack ---------- */
 
   /** Everything the shop sells, tab by tab: sold by the piece (with a stock) or once (owned or not). */
   shopWares() {
     const { progress } = this;
-    const piece = (id, art, title, facts, price, stock, add) => ({ id, art, title, facts: [facts].flat(), price, stock, add });
-    const once = (id, art, title, facts, price, owned, buy) => ({ id, art, title, facts: [facts].flat(), price, owned, buy });
+    const piece = (id, art, title, facts, price, stock, add, step = 1) => ({ id, art, title, facts: [facts].flat(), price, stock, add, step });
+    const once = (id, art, title, facts, price, owned, buy) => ({ id, art, title, facts: [facts].flat(), price, owned, buy, step: 1 });
     const reel = progress.extras.includes("spinreel");
     return {
       "bait-shop": Object.entries(BAITS).filter(([, bait]) => !bait.free && !bait.lure).map(([id, bait]) => piece(
-        id, () => baitSprite(id, 4), nameOf("bait", id), [], bait.price, progress.baits[id] ?? 0,
+        id, () => baitSprite(id, 4), nameOf("bait", id), [t("shop.each", { price: bait.price })], bait.price, progress.baits[id] ?? 0,
         (qty) => { progress.baits[id] = (progress.baits[id] ?? 0) + qty; },
+        // Bait is sold by the ten.
+        10,
       )),
       "rod-shop": Object.entries(RODS).map(([id, rod]) => once(
         id, () => rodArt(id, 3), nameOf("rod", id), t("shop.upTo", { weight: formatWeight(rod.maxKg) }), rod.price, progress.rods.includes(id),
@@ -1284,16 +1276,25 @@ export class AnglerUI {
 
   /**
    * The shop as a counter: each tab's wares on wooden shelves, three to a
-   * shelf, a price tag under each. Tapping a ware opens a drawer under its
-   * shelf: what it is, how many to buy and the Buy button.
+   * shelf, a price tag under each and a button to put some in the basket
+   * (bait by the ten). Tapping a ware opens a drawer under its shelf with what
+   * it is. The basket bar at the bottom shows what is in it and pays for it
+   * all at once; tapping it lists the basket to change or take things out.
    */
   openShop() {
     const wares = this.shopWares();
+    const all = Object.values(wares).flat();
+    // Things bought since (a rod, an extra) leave the basket.
+    for (const id of Object.keys(this.basket)) {
+      const ware = all.find((item) => item.id === id);
+      if (!ware || ware.owned) delete this.basket[id];
+    }
     for (const [tab, list] of Object.entries(wares)) {
       if (!list.some((ware) => ware.id === this.shopPicks[tab])) this.shopPicks[tab] = null;
       const shelves = [];
       for (let i = 0; i < list.length; i += 3) {
         shelves.push(element("li", { className: "shelf" }, list.slice(i, i + 3).map((ware) => {
+          const inBasket = this.basket[ware.id] ?? 0;
           const button = element("button", {
             className: `ware${ware.id === this.shopPicks[tab] ? " is-picked" : ""}${ware.owned ? " is-owned" : ""}`,
             type: "button",
@@ -1302,17 +1303,122 @@ export class AnglerUI {
           }, [
             element("span", { className: "ware-art" }, [ware.art()]),
             element("span", { className: "ware-name", textContent: ware.title }),
-            element("span", { className: "price-tag", textContent: ware.owned ? "✓" : formatMoney(ware.price) }),
+            element("span", { className: "price-tag", textContent: ware.owned ? "✓" : ware.step > 1 ? `×${ware.step} · ${formatMoney(ware.price * ware.step)}` : formatMoney(ware.price) }),
+            inBasket ? element("span", { className: "ware-in", textContent: ware.add ? `×${inBasket}` : "✓" }) : "",
           ]);
           button.dataset.id = ware.id;
-          return button;
+          // Straight into the basket from the shelf: a ten of bait, one of the rest.
+          // A ware that can't go in (owned, or already in it) keeps the button's room, so the shelf stays level.
+          const add = ware.owned || (!ware.add && inBasket) ? element("span", { className: "ware-add is-placeholder", ariaHidden: "true" }) : element("button", {
+            className: "ware-add",
+            type: "button",
+            textContent: ware.step > 1 ? `+${ware.step}` : "+",
+            ariaLabel: t("shop.toCart", { count: ware.step, total: formatMoney(ware.price * ware.step) }),
+            onclick: () => this.addToBasket(ware.id, ware.step),
+          });
+          return element("div", { className: "ware-slot" }, [button, add]);
         })));
       }
       $(`#${tab}`).replaceChildren(...shelves);
-      // Drawn again (after a purchase, a new count): what was open stays open, without sliding again.
+      // Drawn again (a ware added, a purchase): what was open stays open, without sliding again.
       if (this.shopPicks[tab]) this.showWare(tab, false);
     }
+    this.renderBasket(all);
     if (!this.shopDialog.open) this.shopDialog.showModal();
+  }
+
+  /** Put more of a ware in the basket, or take some out (one of a kind: in or out). */
+  addToBasket(id, count) {
+    const ware = Object.values(this.shopWares()).flat().find((item) => item.id === id);
+    if (!ware || ware.owned) return;
+    const now = this.basket[id] ?? 0;
+    const next = ware.add ? Math.max(0, Math.min(9990, now + count)) : count > 0 ? 1 : 0;
+    if (next) this.basket[id] = next;
+    else delete this.basket[id];
+    if (next > now) sounds.ui("select");
+    this.openShop();
+  }
+
+  /**
+   * The basket: a bar along the bottom of the shop (how many things, the sum,
+   * Pay) and, opened from it, the list of what is in it to change. Paying
+   * takes the money for everything at once and puts it all in the backpack.
+   */
+  renderBasket(all) {
+    const { progress } = this;
+    const lines = Object.entries(this.basket).map(([id, count]) => ({ ware: all.find((item) => item.id === id), count })).filter((line) => line.ware);
+    const total = lines.reduce((sum, line) => sum + line.ware.price * line.count, 0);
+    const short = total - progress.money;
+    let bar = $("#basket-bar");
+    if (!bar) {
+      bar = element("div", { className: "basket-bar", id: "basket-bar" });
+      this.shopDialog.append(bar);
+      frame(bar, "box", 437);
+    }
+    const toggle = element("button", {
+      className: "basket-open",
+      type: "button",
+      ariaExpanded: String(Boolean(this.basketOpen)),
+      onclick: () => {
+        this.basketOpen = !this.basketOpen;
+        this.openShop();
+      },
+    }, [
+      element("span", { className: "basket-icon", textContent: this.basketOpen ? "←" : "▤" }),
+      element("span", { className: "basket-sum" }, [
+        element("small", { textContent: this.basketOpen ? t("cart.back") : t("cart.title") }),
+        element("strong", { textContent: lines.length ? t("cart.summary", { count: lines.length, total: formatMoney(total) }) : t("cart.empty") }),
+      ]),
+    ]);
+    const pay = element("button", {
+      className: "pixel-btn pixel-btn-buy basket-pay",
+      type: "button",
+      disabled: !lines.length || short > 0,
+      textContent: short > 0 && lines.length ? t("cart.short", { money: formatMoney(short) }) : t("cart.pay", { total: formatMoney(total) }),
+      onclick: () => this.payBasket(lines, total),
+    });
+    setContent(bar, toggle, pay);
+
+    // The list, shown in place of the shelves while the basket is open.
+    let list = $("#basket-list");
+    if (!list) {
+      list = element("ul", { className: "basket-list", id: "basket-list" });
+      bar.before(list);
+    }
+    this.shopDialog.classList.toggle("is-basket", Boolean(this.basketOpen));
+    list.hidden = !this.basketOpen;
+    if (!this.basketOpen) return;
+    list.replaceChildren(...(lines.length ? lines.map(({ ware, count }) => element("li", { className: "basket-line" }, [
+      element("span", { className: "ware-art" }, [ware.art()]),
+      element("span", { className: "basket-name" }, [
+        element("strong", { textContent: ware.title }),
+        element("small", { textContent: ware.add ? t("shop.each", { price: ware.price }) : formatMoney(ware.price) }),
+      ]),
+      ware.add ? element("div", { className: "stepper" }, [
+        element("button", { className: "pixel-btn pixel-btn-square", type: "button", textContent: "−", ariaLabel: t("a11y.less"), onclick: () => this.addToBasket(ware.id, -ware.step) }),
+        element("span", { className: "stepper-value", textContent: String(count) }),
+        element("button", { className: "pixel-btn pixel-btn-square", type: "button", textContent: "+", ariaLabel: t("a11y.more"), onclick: () => this.addToBasket(ware.id, ware.step) }),
+      ]) : element("button", { className: "link-btn", type: "button", textContent: t("shop.remove"), onclick: () => this.addToBasket(ware.id, -1) }),
+      element("span", { className: "basket-price", textContent: formatMoney(ware.price * count) }),
+    ])) : [element("li", { className: "empty-note", textContent: t("cart.hint") })]));
+  }
+
+  /** Pay for the whole basket at once. */
+  payBasket(lines, total) {
+    const { progress } = this;
+    if (!lines.length || progress.money < total) return;
+    progress.money -= total;
+    for (const { ware, count } of lines) {
+      if (ware.add) ware.add(count);
+      else ware.buy();
+    }
+    if (total >= 1000) sounds.buyBig();
+    else sounds.coin();
+    this.basket = {};
+    this.basketOpen = false;
+    this.commit();
+    this.openShop();
+    this.toast(t("cart.bought", { total: formatMoney(total) }), "good", 2200);
   }
 
   /** A tap on a ware opens what it is under its shelf; a second tap closes it. */
@@ -1335,33 +1441,29 @@ export class AnglerUI {
     this.placeDrawer(this.shopDialog, button.closest(".shelf"), button, this.wareDetails(ware), animate);
   }
 
-  /** What a ware is and the way to buy it: how many, and the price. */
+  /** What a ware is, how many are in the backpack and in the basket, and the way to put it in the basket. */
   wareDetails(ware) {
-    const { progress } = this;
-    const buy = (total, apply) => element("button", {
-      className: "pixel-btn pixel-btn-buy slip-buy",
-      type: "button",
-      disabled: progress.money < total,
-      onclick: () => {
-        if (progress.money < total) return;
-        progress.money -= total;
-        if (total >= 1000) sounds.buyBig();
-        else sounds.coin();
-        apply();
-        this.commit();
-        this.openShop();
-      },
-    }, [t("shop.buy", { total: formatMoney(total) })]);
+    const inBasket = this.basket[ware.id] ?? 0;
     let action;
     if (ware.owned) action = [element("span", { className: "slip-owned", textContent: t("shop.owned") })];
-    else if (ware.add) {
-      const qty = this.shopQuantities[ware.id] ?? 1;
-      action = [this.stepper(ware.id, ware.price), buy(qty * ware.price, () => { ware.add(qty); this.shopQuantities[ware.id] = 1; })];
-    } else action = [buy(ware.price, ware.buy)];
+    else if (!ware.add && inBasket) {
+      action = [
+        element("span", { className: "slip-owned", textContent: t("shop.inCartOnce") }),
+        element("button", { className: "pixel-btn", type: "button", textContent: t("shop.remove"), onclick: () => this.addToBasket(ware.id, -1) }),
+      ];
+    } else {
+      action = [element("button", {
+        className: "pixel-btn pixel-btn-buy slip-buy",
+        type: "button",
+        textContent: t("shop.toCart", { count: ware.step, total: formatMoney(ware.price * ware.step) }),
+        onclick: () => this.addToBasket(ware.id, ware.step),
+      })];
+    }
+    const stock = [ware.add ? t("shop.inPack", { count: ware.stock }) : "", ware.add && inBasket ? t("shop.inCart", { count: inBasket }) : ""].filter(Boolean).join(" · ");
     return [
       element("div", { className: "slip-head" }, [
         element("strong", { textContent: ware.title }),
-        element("span", { className: "slip-stock", textContent: ware.add ? t("shop.inPack", { count: ware.stock }) : "" }),
+        element("span", { className: "slip-stock", textContent: stock }),
       ]),
       ...ware.facts.map((line) => element("small", { className: "slip-fact", textContent: line })),
       element("div", { className: "slip-action" }, action),
@@ -1389,6 +1491,8 @@ export class AnglerUI {
       // Laid out shut first, so opening it slides.
       void drawer.offsetHeight;
       drawer.classList.add("is-open");
+      // Opened near the bottom of the screen: once it has slid open, bring it into view.
+      if (animate) setTimeout(() => drawer.isConnected && drawer.scrollIntoView({ block: "nearest", behavior: "smooth" }), 280);
     }
     const inner = drawer.querySelector(".drawer-inner");
     setContent(inner, ...nodes);
