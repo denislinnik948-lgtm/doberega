@@ -16,6 +16,7 @@
       <h1>Doberega <span>· статистика</span></h1>
       <div class="controls" id="controls" hidden>
         <div class="segmented" role="radiogroup" aria-label="Період" id="period">
+          <button type="button" data-days="1">День</button>
           <button type="button" data-days="7">7 днів</button>
           <button type="button" data-days="30" aria-pressed="true">30 днів</button>
           <button type="button" data-days="90">90 днів</button>
@@ -62,12 +63,12 @@
         <table class="table cohorts" id="cohorts"></table>
       </section>
 
-      <section class="card" aria-labelledby="visitors-title">
+      <section class="card by-day" aria-labelledby="visitors-title">
         <h2 id="visitors-title">Відвідувачі за день</h2>
         <div class="chart" id="visitors-chart"></div>
       </section>
 
-      <div class="grid two">
+      <div class="grid two by-day">
         <section class="card" aria-labelledby="signups-title">
           <h2 id="signups-title">Реєстрації за день</h2>
           <div class="chart short" id="signups-chart"></div>

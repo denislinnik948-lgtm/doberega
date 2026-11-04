@@ -11,6 +11,9 @@ const SUPABASE_JS = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+
 const $ = (selector) => document.querySelector(selector);
 const number = new Intl.NumberFormat("uk-UA");
 const percent = (part, whole) => (whole ? `${Math.round((part / whole) * 100)}%` : "–");
+// Short tags links carry (?utm_source=ig from an Instagram bio or story) and
+// the sites behind them, under one plain name.
+const SOURCES = { direct: "Напряму", ig: "Instagram", "instagram.com": "Instagram", "l.instagram.com": "Instagram", fb: "Facebook", "facebook.com": "Facebook", "m.facebook.com": "Facebook", "l.facebook.com": "Facebook", "t.me": "Telegram", tg: "Telegram", threads: "Threads", "threads.net": "Threads" };
 const DEVICES = { mobile: "Телефон", tablet: "Планшет", desktop: "Комп'ютер", unknown: "Невідомо" };
 // Game updates worth comparing before and after, by the Monday of their week.
 const RELEASES = { "2026-11-02": "оновлення: колекція, турнір, звання" };
@@ -180,16 +183,20 @@ function render(stats) {
   show("board");
   const p = stats.period;
   const a = stats.allTime;
-  $("#period-title").textContent = `За ${days} днів`;
+  $("#period-title").textContent = days === 1 ? "За сьогодні" : `За ${days} днів`;
+  // One day makes no chart by days.
+  for (const section of document.querySelectorAll(".by-day")) section.hidden = days === 1;
   $("#period-tiles").replaceChildren(
     tile(p.visitors, "Відвідувачів", `${number.format(p.visits)} відкриттів`),
     tile(p.fishers, "Почали рибалити", percent(p.fishers, p.visitors)),
     tile(p.catchers, "Упіймали рибу", percent(p.catchers, p.visitors)),
     tile(p.signups, "Зареєструвались", percent(p.signups, p.visitors)),
-    tile(p.appVisitors, "Відкривали з іконки", percent(p.appVisitors, p.visitors)),
-    tile(p.returning, "Повертались", "у різні дні"),
-    tile(percent(p.d1, p.d1Base), "Повернулись наступного дня", `${number.format(p.d1 ?? 0)} з ${number.format(p.d1Base ?? 0)} нових`),
-    tile(percent(p.d7, p.d7Base), "Повернулись протягом тижня", `${number.format(p.d7 ?? 0)} з ${number.format(p.d7Base ?? 0)} нових`),
+    // Coming back takes more than one day to show.
+    ...(days === 1 ? [] : [
+      tile(p.returning, "Повертались", "у різні дні"),
+      tile(percent(p.d1, p.d1Base), "Повернулись наступного дня", `${number.format(p.d1 ?? 0)} з ${number.format(p.d1Base ?? 0)} нових`),
+      tile(percent(p.d7, p.d7Base), "Повернулись протягом тижня", `${number.format(p.d7 ?? 0)} з ${number.format(p.d7Base ?? 0)} нових`),
+    ]),
   );
   // Coming back by the week of the first visit, the newest at the top.
   const share = (part, base) => (base ? `${percent(part, base)} (${number.format(part)})` : "–");
@@ -223,7 +230,13 @@ function render(stats) {
   lineChart($("#visitors-chart"), daily.map((d) => ({ day: d.day, value: d.visitors })), "відвідувачів");
   barChart($("#signups-chart"), daily.map((d) => ({ day: d.day, value: d.signups })), "реєстрацій");
   barChart($("#catch-chart"), daily.map((d) => ({ day: d.day, value: d.catchers })), "з уловом");
-  bars($("#sources"), stats.sources.map((s) => ({ label: s.name === "direct" ? "Напряму" : s.name, value: s.visitors })), { of: p.visitors });
+  // Tags of one site are added up (a visitor who came both ways counts twice, rarely).
+  const sources = new Map();
+  for (const s of stats.sources) {
+    const label = SOURCES[s.name.toLowerCase()] ?? s.name;
+    sources.set(label, (sources.get(label) ?? 0) + s.visitors);
+  }
+  bars($("#sources"), [...sources].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value), { of: p.visitors });
   bars($("#devices"), stats.devices.map((d) => ({ label: DEVICES[d.name] ?? d.name, value: d.visitors })), { of: p.visitors });
   const when = (stamp) => (stamp ? new Date(stamp).toLocaleDateString("uk-UA", { day: "numeric", month: "short" }) : "–");
   $("#recent").replaceChildren(
@@ -267,13 +280,13 @@ function demo() {
   const sum = (key) => daily.reduce((total, d) => total + d[key], 0);
   render({
     days,
-    period: { visitors: sum("visitors"), visits: Math.round(sum("visitors") * 1.6), fishers: Math.round(sum("visitors") * 0.7), catchers: sum("catchers"), signups: sum("signups"), appVisitors: Math.round(sum("visitors") * 0.2), returning: Math.round(sum("visitors") * 0.3), d1Base: 410, d1: 92, d7Base: 300, d7: 87 },
+    period: { visitors: sum("visitors"), visits: Math.round(sum("visitors") * 1.6), fishers: Math.round(sum("visitors") * 0.7), catchers: sum("catchers"), signups: sum("signups"), returning: Math.round(sum("visitors") * 0.3), d1Base: 410, d1: 92, d7Base: 300, d7: 87 },
     cohorts: [["2026-09-21", 120, 22, 30], ["2026-09-28", 140, 25, 33], ["2026-10-05", 110, 19, 28], ["2026-10-12", 150, 27, 41], ["2026-10-19", 130, 24, 36], ["2026-10-26", 160, 30, 45], ["2026-11-02", 90, 31, null]].map(([week, visitors, d1, d7]) => ({
       week, visitors, d1_base: visitors, d1: Math.round((visitors * d1) / 100), d7_base: d7 === null ? 0 : visitors, d7: d7 === null ? 0 : Math.round((visitors * d7) / 100),
     })),
     allTime: { visitors: 2140, users: 186, active7: 42, saves: 180, fishCaught: 9312, trophies: 57 },
     daily,
-    sources: [{ name: "direct", visitors: 610 }, { name: "t.me", visitors: 240 }, { name: "instagram.com", visitors: 180 }, { name: "google.com", visitors: 64 }],
+    sources: [{ name: "direct", visitors: 610 }, { name: "t.me", visitors: 240 }, { name: "ig", visitors: 150 }, { name: "instagram.com", visitors: 30 }, { name: "google.com", visitors: 64 }],
     devices: [{ name: "mobile", visitors: 820 }, { name: "desktop", visitors: 260 }, { name: "tablet", visitors: 14 }],
     recentUsers: [{ name: "Окунь", created_at: today.toISOString(), last_seen: today.toISOString() }, { name: "an***@gmail.com", created_at: today.toISOString(), last_seen: null }],
   });
