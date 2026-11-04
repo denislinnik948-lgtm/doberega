@@ -11,9 +11,10 @@
  * 80% tension, easing off to 35%), fishes lures in jerks and pauses, and casts
  * mostly far out. Game time, rain, wind and the moon follow the real clock, as in the game.
  * Every cast pays for its bait, every lost hook or lure and every worn-out
- * line is bought again. At each rod it tries every water, bait and hook,
- * keeps the five best in a short screen, measures those properly and fishes
- * the best until the next rod is paid for.
+ * line is bought again. Waters open as in the game: by rank as experience
+ * comes in, the paid one once its fee is paid. At each stage it tries every
+ * open water, bait and hook, keeps the five best in a short screen, measures
+ * those properly and fishes the best until the next purchase or opening.
  *
  * Exits with code 1 when a check fails (see CHECKS), so it can guard any
  * change to the economy.
@@ -21,7 +22,7 @@
 import { setSeason } from "../../src/theme.js";
 import { FishingGame, TUNING } from "../../src/fishing/game.js";
 import { BAITS, EXTRAS, HOOKS, LINE, LOCATIONS, RODS, START_STATE, fishPrice } from "../../src/fishing/data.js";
-import { fishXp } from "../../src/fishing/ranks.js";
+import { RANKS, fishXp, rankAt } from "../../src/fishing/ranks.js";
 import { dayTimeAt } from "../../src/daycycle.js";
 import { rainAt } from "../../src/weather.js";
 import { moonBite } from "../../src/moon.js";
@@ -36,15 +37,19 @@ const FINALISTS = 5;
 const WORLD_START = 0.68;
 
 /*
- * What a healthy economy looks like: the whole ladder in about 26 hours of
- * this angler's fishing (it was 26.3 h before line wear and the moon), each
- * rod a longer climb than the one before, and the first one quick.
+ * What a healthy economy looks like: every rod and the paid water in about
+ * 28 hours of this angler's fishing (27.7 h for the rods alone back when
+ * every water was open), each rod a longer climb than the one before, and
+ * the first one quick.
  */
 const CHECKS = [
   { name: "full ladder, hours", value: (r) => r.total, min: 22, max: 34 },
-  { name: "second rod, hours", value: (r) => r.stages[0].hours, min: 0.1, max: 1 },
-  // Compared on the rods alone: the spinning reel bought on the way would blur it.
-  { name: "each rod takes longer than the last", value: (r) => r.stages.slice(1).every((stage, i) => stage.rodHours >= r.stages[i].rodHours * 0.9) ? 1 : 0, min: 1, max: 1 },
+  { name: "second rod, hours", value: (r) => r.rodTotal("hazel"), min: 0.1, max: 1 },
+  // Each rod's price over what the angler earns when buying it: the rank waits would blur the plain hours.
+  { name: "each rod takes longer than the last", value: (r) => {
+    const climbs = r.stages.filter((stage) => stage.ends.startsWith("rod ")).map((stage) => RODS[stage.ends.slice(4)].price / Math.max(1, stage.rate));
+    return climbs.slice(1).every((climb, i) => climb >= climbs[i] * 0.9) ? 1 : 0;
+  }, min: 1, max: 1 },
 ];
 
 setSeason("summer");
@@ -143,10 +148,10 @@ function session({ rod, spot, bait, hook, hours, seed, extras = [] }) {
   return { ...tally, rate: (tally.income - tally.spend) / hours };
 }
 
-/** Every setup worth trying with this rod: each water, bait and hook (lures with the spinning reel). */
-function setups(rod) {
+/** Every setup worth trying with this rod: each open water, bait and hook (lures with the spinning reel). */
+function setups(rod, open) {
   const list = [];
-  LOCATIONS.forEach((_, spot) => {
+  open.forEach((spot) => {
     for (const [bait, info] of Object.entries(BAITS)) {
       if (info.lure) list.push({ rod, spot, bait, hook: "medium", extras: ["spinreel"], needs: "spinreel" });
       else for (const hook of Object.keys(HOOKS)) list.push({ rod, spot, bait, hook });
@@ -157,8 +162,8 @@ function setups(rod) {
 
 const label = (s) => `${LOCATIONS[s.spot].id} ${s.bait}${BAITS[s.bait].lure ? "" : `/${s.hook}`}`;
 
-function bestSetup(rod, stage) {
-  const screened = setups(rod)
+function bestSetup(rod, open, stage) {
+  const screened = setups(rod, open)
     .map((setup, index) => ({ setup, ...session({ ...setup, hours: SCREEN_HOURS, seed: 1000 * stage + index }) }))
     .sort((a, b) => b.rate - a.rate)
     .slice(0, FINALISTS);
@@ -167,33 +172,68 @@ function bestSetup(rod, stage) {
     .sort((a, b) => b.rate - a.rate)[0];
 }
 
+/*
+ * The ladder: every rod and every paid water, bought in order of price (a
+ * rod only after the one before it). The ranked waters open as experience
+ * comes in; each opening, like each purchase, starts a new stage with the
+ * best setup found again.
+ */
 const rods = Object.keys(RODS).sort((a, b) => RODS[a].tier - RODS[b].tier);
+const purchases = [
+  ...rods.slice(1).map((id) => ({ kind: "rod", id, price: RODS[id].price })),
+  ...LOCATIONS.map((spot, index) => ({ kind: "water", id: spot.id, index, price: spot.unlock?.price })).filter((item) => item.price),
+].sort((a, b) => a.price - b.price);
 const stages = [];
 let money = START_STATE.money;
+let xp = 0;
+let rod = rods[0];
 let reel = false;
+const paid = new Set();
+const isOpen = (spot, index) => !spot.unlock || (spot.unlock.rank !== undefined ? rankAt(xp) >= spot.unlock.rank : paid.has(index));
 const started = Date.now();
-for (let i = 0; i < rods.length - 1; i += 1) {
-  const best = bestSetup(rods[i], i);
+let next = 0;
+while (next < purchases.length) {
+  const open = LOCATIONS.map((spot, index) => (isOpen(spot, index) ? index : -1)).filter((index) => index >= 0);
+  const best = bestSetup(rod, open, stages.length);
   // The spinning reel is bought the first time a lure pays best.
   const extra = best.setup.needs === "spinreel" && !reel ? EXTRAS.spinreel.price : 0;
   if (extra) reel = true;
-  const need = Math.max(0, RODS[rods[i + 1]].price + extra - money);
-  const hours = need / Math.max(1, best.rate);
-  money = Math.max(0, money - RODS[rods[i + 1]].price - extra + best.rate * hours);
-  stages.push({ rod: rods[i], next: rods[i + 1], setup: label(best.setup), rate: best.rate, hours, rodHours: RODS[rods[i + 1]].price / Math.max(1, best.rate), landed: best.landed / MEASURE_HOURS, lost: best.lost / MEASURE_HOURS, lines: best.lines / MEASURE_HOURS, xp: best.xp / MEASURE_HOURS });
+  const item = purchases[next];
+  const rate = Math.max(1, best.rate);
+  const xpRate = best.xp / MEASURE_HOURS;
+  const buyHours = Math.max(0, item.price + extra - money) / rate;
+  // The next ranked water still shut, and the experience it waits for.
+  const waiting = LOCATIONS.filter((spot, index) => spot.unlock?.rank !== undefined && !isOpen(spot, index)).map((spot) => RANKS[spot.unlock.rank].xp);
+  const rankHours = waiting.length ? Math.max(0, Math.min(...waiting) - xp) / Math.max(1, xpRate) : Infinity;
+  const hours = Math.min(buyHours, rankHours);
+  money = money - extra + rate * hours;
+  xp += xpRate * hours;
+  let ends;
+  if (rankHours < buyHours) {
+    // Just short of it by rounding: settle on the threshold.
+    xp = Math.max(xp, Math.min(...waiting));
+    ends = `rank ${RANKS[rankAt(xp)].id}`;
+  } else {
+    money -= item.price;
+    if (item.kind === "rod") rod = item.id;
+    else paid.add(item.index);
+    next += 1;
+    ends = `${item.kind === "rod" ? "rod" : "water"} ${item.id}`;
+  }
+  stages.push({ rod: best.setup.rod, ends, kind: rankHours < buyHours ? "rank" : item.kind, setup: label(best.setup), rate: best.rate, hours, landed: best.landed / MEASURE_HOURS, lost: best.lost / MEASURE_HOURS, lines: best.lines / MEASURE_HOURS, xp: xpRate, xpAt: xp });
 }
 const total = stages.reduce((sum, stage) => sum + stage.hours, 0);
-const result = { stages, total };
+const rodTotal = (id) => stages.slice(0, stages.findIndex((stage) => stage.ends === `rod ${id}`) + 1).reduce((sum, stage) => sum + stage.hours, 0);
+const result = { stages, total, rodTotal };
 
 const pad = (text, size) => String(text).padEnd(size);
-console.log(pad("rod", 11) + pad("next", 11) + pad("best setup", 26) + pad("$/h", 8) + pad("fish/h", 8) + pad("lost/h", 8) + pad("lines/h", 9) + pad("xp/h", 8) + "hours");
+console.log(pad("rod", 11) + pad("until", 20) + pad("best setup", 28) + pad("$/h", 8) + pad("fish/h", 8) + pad("lost/h", 8) + pad("lines/h", 9) + pad("xp/h", 8) + pad("hours", 8) + "xp");
+let clock = 0;
 for (const stage of stages) {
-  console.log(pad(stage.rod, 11) + pad(stage.next, 11) + pad(stage.setup, 26) + pad(Math.round(stage.rate), 8) + pad(stage.landed.toFixed(0), 8) + pad(stage.lost.toFixed(1), 8) + pad(stage.lines.toFixed(2), 9) + pad(Math.round(stage.xp), 8) + stage.hours.toFixed(2));
+  clock += stage.hours;
+  console.log(pad(stage.rod, 11) + pad(stage.ends, 20) + pad(stage.setup, 28) + pad(Math.round(stage.rate), 8) + pad(stage.landed.toFixed(0), 8) + pad(stage.lost.toFixed(1), 8) + pad(stage.lines.toFixed(2), 9) + pad(Math.round(stage.xp), 8) + pad(`${stage.hours.toFixed(2)} (${clock.toFixed(1)})`, 14) + Math.round(stage.xpAt));
 }
-// Experience along the ladder, for the rank thresholds (ranks.js).
-let xpSoFar = 0;
-console.log(`\nexperience at each new rod: ${stages.map((stage) => Math.round((xpSoFar += stage.xp * stage.hours))).join(", ")}; then ${Math.round(stages.at(-1).xp)} an hour`);
-console.log(`\nfull ladder: ${total.toFixed(1)} h (simulated in ${((Date.now() - started) / 1000).toFixed(0)} s${quick ? ", quick" : ""})\n`);
+console.log(`\nfull ladder: ${total.toFixed(1)} h, the rods alone by ${rodTotal("catfish").toFixed(1)} h (simulated in ${((Date.now() - started) / 1000).toFixed(0)} s${quick ? ", quick" : ""})\n`);
 
 let failed = 0;
 for (const check of CHECKS) {

@@ -5,8 +5,8 @@ import { FISH, HOOKS, LOCATIONS, RODS } from "./data.js";
  * The daily quest: one for everyone, the same all day. Days are counted in
  * UTC from the Unix epoch, so every angler gets the same quest at the same
  * moment, picked from the templates below by a hash of the day's number.
- * Every quest can be done with the starting kit at the first waters, given
- * an hour or so; the reward follows the best rod the angler owns (about a
+ * Every quest can be done with the starting kit at the pond, the one water
+ * open to all, given an hour or so; the reward follows the best rod the angler owns (about a
  * quarter of an hour of their fishing), so it matters at every stage without
  * shortening the rod ladder by much.
  *
@@ -18,12 +18,12 @@ import { FISH, HOOKS, LOCATIONS, RODS } from "./data.js";
 
 const DAY_MS = 86400000;
 
-/** Species for "catch so many": common at the pond, the lake or the castle lake, on worm or maggot. */
-const COUNT_FISH = [["karas", 5, 8], ["plitka", 6, 10], ["krasnopirka", 5, 8], ["okun", 4, 7], ["yorzh", 4, 7], ["verkhovodka", 6, 10], ["lyn", 2, 4], ["lyasch", 2, 4], ["rotan", 4, 6]];
+/** Species for "catch so many": common at the pond, on worm or maggot. */
+const COUNT_FISH = [["karas", 5, 8], ["plitka", 6, 10], ["krasnopirka", 5, 8], ["yorzh", 4, 7], ["verkhovodka", 6, 10], ["rotan", 4, 6]];
 /** Species for "one this heavy": a weight that takes some luck but no special rod. */
-const HEAVY_FISH = [["karas", 0.6], ["okun", 0.5], ["lyn", 1], ["lyasch", 1.2], ["plitka", 0.3], ["krasnopirka", 0.3]];
-/** Fish to land at a given water, by how lively it is. */
-const SPOT_COUNTS = { pond: [15, 25], lake: [12, 20], castle: [10, 16], reservoir: [8, 12], bridge: [8, 12] };
+const HEAVY_FISH = [["karas", 0.6], ["plitka", 0.3], ["krasnopirka", 0.3], ["rotan", 0.25]];
+/** Fish to land at a given water, by how lively it is: only the waters open to everyone. */
+const SPOT_COUNTS = { pond: [15, 25] };
 
 /** Reward by the best rod owned (its tier, 1..8). */
 const REWARDS = [200, 350, 500, 800, 1300, 2000, 3500, 5500];
@@ -52,7 +52,7 @@ export function questFor(day) {
     return { day, kind, fish, weight, target: 1 };
   }
   if (kind === "spot") {
-    const spot = pick(LOCATIONS, 2).id;
+    const spot = pick(LOCATIONS.filter((place) => !place.unlock), 2).id;
     const [from, to] = SPOT_COUNTS[spot] ?? [10, 15];
     return { day, kind, spot, target: between(from, to, 3) };
   }

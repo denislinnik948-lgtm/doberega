@@ -308,36 +308,45 @@ export const gameHoursMs = (hours) => (hours / 24) * DAY_SECONDS * 1000;
  * how often anything bites (big water: fewer, bigger fish). `water` tints the lake.
  */
 export const LOCATIONS = [
+  /*
+   * The waters in the order they open: the pond is open to everyone; the
+   * lake, the castle lake and Pripyat open with a rank (`unlock.rank`, an index
+   * into RANKS); the old bridge takes a membership fee (`unlock.price`), paid
+   * once. Each is the next step up: the pond holds only small fry, Pripyat
+   * fish up to 10 kg, and a paid water only big fish (`minKg`), nothing
+   * small at all. The order is kept: saves and trophies name a water by its place.
+   */
   {
     id: "pond", snagChance: 0.02, kind: "pond", water: "#4a7d66",
     traits: { type: "pond", depth: "shallow", bottom: "mud", current: "none" },
-    bigChance: 1 / 100, maxKg: 6, pace: 1.1,
-    fish: { karas: 5, krasnopirka: 3, plitka: 3, yorzh: 2, lyn: 1.5, korop: 0.4, verkhovodka: 3, rotan: 2 },
+    bigChance: 1 / 100, maxKg: 1.5, pace: 1.1,
+    fish: { karas: 5, krasnopirka: 3, plitka: 3, yorzh: 2, verkhovodka: 3, rotan: 2 },
   },
   {
     id: "lake", snagChance: 0.025, kind: "lake", water: "#3f7f86",
     traits: { type: "lake", depth: "medium", bottom: "sandWeed", current: "none" },
-    bigChance: 1 / 60, maxKg: 12, pace: 1,
-    fish: { plitka: 3, okun: 3, lyasch: 2, krasnopirka: 2, lyn: 2, shchuka: 1, korop: 1, verkhovodka: 2, amur: 0.3 },
+    bigChance: 1 / 60, maxKg: 4, pace: 1, unlock: { rank: 2 },
+    fish: { plitka: 3, okun: 3, lyasch: 2, krasnopirka: 2, lyn: 2, karas: 2, shchuka: 1, verkhovodka: 1.5 },
   },
   {
     id: "castle", snagChance: 0.035, kind: "castle", water: "#34b8b0",
     traits: { type: "lake", depth: "deep", bottom: "stones", current: "none" },
-    bigChance: 1 / 45, maxKg: 16, pace: 0.95,
+    bigChance: 1 / 45, maxKg: 7, pace: 0.95, unlock: { rank: 3 },
     // Clear, deep and stony: a predator lake.
-    fish: { okun: 4, plitka: 3, shchuka: 2.5, sudak: 1.5, lyasch: 1.5, yorzh: 1, forel: 2, myn: 0.8 },
+    fish: { okun: 4, plitka: 2.5, shchuka: 2.5, sudak: 1.5, lyasch: 1.5, forel: 2, myn: 0.8 },
   },
   {
     id: "reservoir", snagChance: 0.04, kind: "reservoir", water: "#5f7a6c",
     traits: { type: "reservoir", depth: "deep", bottom: "clayLogs", current: "weak" },
-    bigChance: 1 / 30, maxKg: 40, pace: 0.9,
-    fish: { lyasch: 3, sudak: 2, shchuka: 2, korop: 2, okun: 2, som: 0.8, bychok: 2.5, yaz: 1.5, zherekh: 1.2, amur: 0.4, tovstolob: 0.5 },
+    bigChance: 1 / 30, maxKg: 10, pace: 0.9, unlock: { rank: 4 },
+    fish: { lyasch: 3, sudak: 2, shchuka: 2, korop: 2, okun: 2, bychok: 2.5, yaz: 1.5, zherekh: 1.2, amur: 0.4, tovstolob: 0.4 },
   },
   {
+    // A predator river: only the big ones of each kind.
     id: "bridge", snagChance: 0.06, kind: "bridge", water: "#2f6a7a",
     traits: { type: "river", depth: "deep", bottom: "logsEddies", current: "strong" },
-    bigChance: 1 / 20, maxKg: 60, pace: 0.95,
-    fish: { som: 3, sudak: 2, lyasch: 2, okun: 1.5, plitka: 1.5, korop: 1, shchuka: 1, verkhovodka: 1.5, yaz: 2, zherekh: 1.5, myn: 1, sterliad: 0.15 },
+    bigChance: 1 / 15, minKg: 0.8, maxKg: 40, pace: 1.1, unlock: { price: 15000 },
+    fish: { sudak: 3, zherekh: 2.5, shchuka: 2, okun: 1.5, yaz: 1, myn: 1, som: 1.5, amur: 0.4, sterliad: 0.15 },
   },
 ];
 
@@ -373,6 +382,8 @@ export const START_STATE = {
   achievements: {},
   caught: 0,
   location: 0,
+  // The paid waters whose membership fee is paid, by spot id (see waters.js).
+  waters: [],
 };
 
 /** The fish of the day (see quests.js) sells for this much more, if it was caught that day. */
@@ -485,9 +496,11 @@ export function rollFish(baitId, locationIndex, random = Math.random, reach = 0.
   const big = random() < bigOdds;
   const t = big ? 0.55 + 0.45 * random() ** 1.4 : 0.5 * random() ** 1.7;
   // Small water caps how big a fish can grow; bread only ever tempts tiddlers.
-  const max = Math.min(fish.max, Math.max(fish.min, location.maxKg ?? fish.max));
-  const span = (max - fish.min) * (bait.maxSize ?? 1);
-  const weight = Math.round((fish.min + span * t) * 1000) / 1000;
+  // A paid water holds only the big ones: nothing under its `minKg`.
+  const min = Math.min(fish.max, Math.max(fish.min, location.minKg ?? 0));
+  const max = Math.min(fish.max, Math.max(min, location.maxKg ?? fish.max));
+  const span = (max - min) * (bait.maxSize ?? 1);
+  const weight = Math.round((min + span * t) * 1000) / 1000;
   // Too small for this hook or lure: it nibbles at it and moves on.
   if (!takesHook(gear, weight, random)) return null;
   return { species, weight, big: big && !bait.maxSize };
@@ -518,7 +531,7 @@ export function handbookEntries() {
     const spots = LOCATIONS
       .filter((spot) => (spot.fish[id] ?? 0) > 0)
       .sort((a, b) => b.fish[id] - a.fish[id])
-      .map((spot) => ({ id: spot.id, abundance: abundance(spot, id), maxKg: Math.min(fish.max, spot.maxKg ?? fish.max) }));
+      .map((spot) => ({ id: spot.id, abundance: abundance(spot, id), minKg: Math.max(fish.min, spot.minKg ?? 0), maxKg: Math.min(fish.max, spot.maxKg ?? fish.max) }));
     // Just the baits it bites on (a lure predator: the lure only), keenest first.
     const baits = Object.entries(BAITS)
       .filter(([, bait]) => (bait.species[id] ?? 0) > 0 && (!fish.lure || bait.lure))
@@ -544,7 +557,9 @@ export function spotEntries() {
     id: spot.id,
     traits: spot.traits,
     fish: Object.entries(spot.fish).sort(([, a], [, b]) => b - a).map(([id]) => id),
+    minKg: spot.minKg ?? 0,
     maxKg: spot.maxKg,
+    unlock: spot.unlock ?? null,
     bigOdds: Math.round(1 / spot.bigChance),
     pace: (spot.pace ?? 1) > 1.02 ? "fast" : (spot.pace ?? 1) < 0.9 ? "slow" : "normal",
     snags: spot.snagChance >= 0.05 ? "many" : spot.snagChance >= 0.03 ? "some" : "few",

@@ -1,5 +1,6 @@
 import { ACHIEVEMENTS } from "./achievements.js";
 import { RANKS, pastXp } from "./ranks.js";
+import { ensureOpenSpot } from "./waters.js";
 import { AVATAR_COUNT, BAITS, SPECIAL_AVATAR, EXTRAS, FISH, HOOKS, LOCATIONS, RETIRED_BAITS, RODS, START_STATE, gameHoursMs } from "./data.js";
 
 // The storage key keeps the game's old working name so existing saves carry over.
@@ -69,6 +70,7 @@ export function normalizeProgress(saved) {
       state.achievements = Object.fromEntries(Object.entries(saved.achievements).filter(([id, date]) => ACHIEVEMENTS.some((item) => item.id === id) && typeof date === "string"));
     }
     if (LOCATIONS[saved.location]) state.location = saved.location;
+    if (Array.isArray(saved.waters)) state.waters = [...new Set(saved.waters.filter((id) => LOCATIONS.some((spot) => spot.id === id && spot.unlock?.price)))];
     // Today's run at the daily quest (see quests.js); another day's is simply started afresh.
     if (saved.quest && Number.isFinite(saved.quest.day) && Number.isFinite(saved.quest.value)) {
       state.quest = {
@@ -95,6 +97,8 @@ export function normalizeProgress(saved) {
     if (saved.authorAvatar === true) state.authorAvatar = true;
     if (Number.isFinite(saved.savedAt)) state.savedAt = saved.savedAt;
   }
+  // A water now shut to this angler (its rank not reached, its fee not paid): back to an open one.
+  ensureOpenSpot(state);
   return state;
 }
 

@@ -30,8 +30,9 @@ export function fishXp(fish) {
  * Experience needed for each rank, and its gift (money as a share of the
  * quest reward, so it keeps up with the angler, and groundbait). Measured
  * with the balance simulator (tools/balance/sim.mjs prints experience per
- * hour): about 20 minutes, 1, 3, 6, 12, 20, 35, 55 and 80 hours of good
- * fishing; most anglers take longer.
+ * hour): about 25 minutes, 1.5, 4, 7, 12, 20, 35, 55 and 80 hours of good
+ * fishing; most anglers take longer. The third, fourth and fifth also open
+ * a water (see waters.js).
  */
 export const RANKS = [
   { id: "novice", xp: 0 },
@@ -62,7 +63,7 @@ export const rankPending = (progress) => rankAt(progress.xp ?? 0) > (progress.ra
 
 /**
  * Give the gifts of every rank reached since the last one given (several at
- * once for an older save). Returns { rank, money, groundbait } or null.
+ * once for an older save). Returns { rank, from (the rank before), money, groundbait } or null.
  */
 export function claimRanks(progress) {
   const reached = rankAt(progress.xp ?? 0);
@@ -77,7 +78,7 @@ export function claimRanks(progress) {
   progress.money += money;
   progress.groundbait = (progress.groundbait ?? 0) + groundbait;
   progress.rank = reached;
-  return { rank: reached, money, groundbait };
+  return { rank: reached, from: given, money, groundbait };
 }
 
 /**

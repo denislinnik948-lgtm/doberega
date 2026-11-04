@@ -3,7 +3,7 @@ import { FISH, LEGENDS, LOCATIONS, RODS } from "./data.js";
 /**
  * Achievements: a badge, a note on screen and a little money each. The money
  * is modest (50–1500 $, about 17,500 $ for all of them, under 3% of what the
- * rods and gear cost), so they reward without upsetting the economy.
+ * rods, gear and the paid water cost), so they reward without upsetting the economy.
  *
  * What they need is counted in `progress.stats` (see `recordCatch` below and the
  * calls in main.js and ui.js); `progress.achievements` holds when each was

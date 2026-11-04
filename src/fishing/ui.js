@@ -8,6 +8,7 @@ import {
 import { P } from "./palette.js";
 import { ACHIEVEMENTS, GROUPS, bump, evaluate } from "./achievements.js";
 import { RANKS, XP, claimRanks, rankAt } from "./ranks.js";
+import { joinWater, opensWithRank, spotLock } from "./waters.js";
 import {
   STREAK_GIFTS, TOURNEY_PRIZES, fishOfDay, questReward, questState, streakNow, streakToday, todaysQuest, tourneyFish, tourneyState, tourneyWeek, untilNextQuest, untilWeekEnd,
 } from "./quests.js";
@@ -109,7 +110,12 @@ export class AnglerUI {
 
     $("#spot-prev").addEventListener("click", () => this.shiftSpot(-1));
     $("#spot-next").addEventListener("click", () => this.shiftSpot(1));
-    $("#fish-button").addEventListener("click", onFish);
+    // At a shut water the button pays its fee (or waits for the rank) instead.
+    $("#fish-button").addEventListener("click", () => {
+      const lock = spotLock(this.progress, this.progress.location);
+      if (!lock) onFish();
+      else if (lock.price) this.joinSpot();
+    });
     $("#exit-button").addEventListener("click", () => {
       if (!this.busy) onExit();
     });
@@ -531,9 +537,12 @@ export class AnglerUI {
   }
 
   /** A new rank (or several at once): its name and the gifts, already given. */
-  rankUp({ rank, money, groundbait }) {
+  rankUp({ rank, from, money, groundbait }) {
     const gifts = [money ? `+${formatMoney(money)}` : "", groundbait ? `${t("shop.groundbait")} ×${groundbait}` : ""].filter(Boolean).join(" · ");
     this.notify(`${t("rank.up", { rank: this.rankName(rank) })}${gifts ? ` · ${gifts}` : ""}`);
+    // A rank that opens a water says so too, in the note after.
+    const opened = opensWithRank(from, rank);
+    if (opened.length) this.notify(t(opened.length > 1 ? "water.openedMany" : "water.opened", { names: opened.map((spot) => nameOf("location", spot.id)).join(", ") }));
     this.renderProfileName();
   }
 
@@ -617,6 +626,7 @@ export class AnglerUI {
     $("#keepnet-chip").setAttribute("aria-label", `${t("a11y.keepnet")}: ${netCount}`);
 
     this.renderTiles();
+    this.renderSpotLock();
 
     // The hook size in use and how many are left.
     const hooksLeft = progress.hooks[progress.hook] ?? 0;
@@ -984,6 +994,7 @@ export class AnglerUI {
 
   shiftSpot(step) {
     const count = LOCATIONS.length;
+    this.joinConfirm = null;
     this.progress.location = (this.progress.location + step + count) % count;
     saveProgress(this.progress);
     this.renderSpot();
@@ -1008,6 +1019,60 @@ export class AnglerUI {
       title: nameOf("location", spot.id),
       onclick: () => this.shiftSpot(index - this.progress.location),
     }, [element("span")])));
+    this.renderSpotLock();
+  }
+
+  /** How a water is entered, for the handbook: open, by a rank, or by a fee (and whether it is paid). */
+  accessText(index) {
+    const unlock = LOCATIONS[index].unlock;
+    if (!unlock) return t("water.openAll");
+    const text = unlock.rank !== undefined ? t("water.openRank", { rank: this.rankName(unlock.rank) }) : t("water.openFee", { price: formatMoney(unlock.price) });
+    return unlock.price && !spotLock(this.progress, index) ? `${text} · ${t("water.member")}` : text;
+  }
+
+  /**
+   * A shut water: the picture dimmed under a note of what opens it, and the
+   * Fish button turned into the fee (a first tap asks, a second pays) or
+   * shut until the rank.
+   */
+  renderSpotLock() {
+    const { progress } = this;
+    const button = $("#fish-button");
+    // Building the scene: the button says so until it is done.
+    if (button.textContent === t("menu.loading")) return;
+    const lock = spotLock(progress, progress.location);
+    $("#spot-picture").classList.toggle("is-locked", Boolean(lock));
+    const note = $("#spot-lock");
+    note.hidden = !lock;
+    if (lock) note.textContent = lock.rank !== undefined ? t("water.needRank", { rank: this.rankName(lock.rank) }) : t("water.fee", { price: formatMoney(lock.price) });
+    document.querySelectorAll("#spot-dots button").forEach((dot, index) => dot.classList.toggle("is-locked", Boolean(spotLock(progress, index))));
+    const short = lock?.price ? lock.price - progress.money : 0;
+    button.classList.toggle("is-join", Boolean(lock?.price));
+    button.disabled = Boolean(lock) && (lock.rank !== undefined || short > 0);
+    button.textContent = !lock ? t("menu.fish")
+      : lock.rank !== undefined ? t("water.locked")
+        : short > 0 ? t("water.short", { sum: formatMoney(short) })
+          : t(this.joinConfirm === progress.location ? "water.confirm" : "water.join", { price: formatMoney(lock.price) });
+  }
+
+  /** The fee: the first tap asks (for a few seconds), the second pays and opens the water. */
+  joinSpot() {
+    const index = this.progress.location;
+    clearTimeout(this.joinTimer);
+    if (this.joinConfirm !== index) {
+      this.joinConfirm = index;
+      this.joinTimer = setTimeout(() => {
+        this.joinConfirm = null;
+        this.renderSpotLock();
+      }, 4000);
+      this.renderSpotLock();
+      return;
+    }
+    this.joinConfirm = null;
+    if (!joinWater(this.progress, index)) return this.renderSpotLock();
+    sounds.buyBig();
+    this.commit();
+    this.toast(t("water.joined", { name: nameOf("location", LOCATIONS[index].id) }), "good", 2600);
   }
 
   /* ---------- Gear ---------- */
@@ -1725,7 +1790,7 @@ export class AnglerUI {
         entry.protected ? t("handbook.protected", { range: entry.range }) : t("handbook.weight", { range: entry.range, price: entry.pricePerKg }),
         entry.season === "autumn" ? t("handbook.autumnOnly") : "",
       ].filter(Boolean).join(" · "), [
-        [t("handbook.livesIn"), entry.spots.map((spot) => t("handbook.spotIn", { spot: nameOf("location", spot.id), abundance: nameOf("abundance", spot.abundance), kg: formatWeight(spot.maxKg) }))],
+        [t("handbook.livesIn"), entry.spots.map((spot) => t(spot.minKg > FISH[entry.id].min ? "handbook.spotInRange" : "handbook.spotIn", { spot: nameOf("location", spot.id), abundance: nameOf("abundance", spot.abundance), min: formatWeight(spot.minKg), kg: formatWeight(spot.maxKg) }))],
         [t("handbook.bitesOn"), lower(list(entry.baits.map((bait) => nameOf("bait", bait))))],
         [t("handbook.activeAt"), entry.times.map(periodName).join(", ")],
         [t("handbook.biteLabel"), nameOf("biteStyle", entry.style)],
@@ -1740,7 +1805,8 @@ export class AnglerUI {
           bottom: lower(traitValue("bottom", spot.traits.bottom)), current: lower(traitValue("current", spot.traits.current)),
         }), [
           [t("handbook.fishLabel"), lower(list(spot.fish.map((fish) => nameOf("fish", fish))))],
-          [t("handbook.sizeLabel"), t("handbook.spotMax", { kg: formatWeight(spot.maxKg), odds: spot.bigOdds })],
+          [t("handbook.sizeLabel"), t(spot.minKg ? "handbook.spotRange" : "handbook.spotMax", { min: formatWeight(spot.minKg), kg: formatWeight(spot.maxKg), odds: spot.bigOdds })],
+          [t("handbook.accessLabel"), this.accessText(index)],
           [t("handbook.waterLabel"), `${nameOf("pace", spot.pace)} · ${nameOf("snags", spot.snags)}`],
         ], 760 + index);
       });
