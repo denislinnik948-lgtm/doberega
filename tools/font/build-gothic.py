@@ -6,9 +6,7 @@ this script turns them into a web font, one square per pixel.
     python3 -m venv .venv && .venv/bin/pip install fonttools brotli
     .venv/bin/python tools/font/build-gothic.py
 
-Writes fonts/doberega-gothic.woff2, and fonts/doberega-coin.woff2: the
-game's money sign (¤) as a little pixel coin, the only letter in it, put first
-in the body text's fonts so every "¤" in the game shows as a coin. A pixel is 100 units on a 1500-unit em
+Writes fonts/doberega-gothic.woff2. A pixel is 100 units on a 1500-unit em
 (12 rows above the baseline, 3 below), so the font is sharpest at 15, 30 or
 45 px. Letters it lacks fall back to the next font in the CSS.
 """
@@ -263,38 +261,5 @@ def build(out):
     print(f"{out}: {len(names)} letters and marks")
 
 
-# The coin with a fish struck on it, as the menu's coin icon (coinSprite in sprites.js).
-COIN = rows("..#####.. .#.....#. #.......# #.###.#.# #.#####.# #.###.#.# #.......# .#.....#. ..#####..")
-
-
-def build_coin(out):
-    """One glyph, ¤, a coin as tall as the body font's capitals, on its baseline."""
-    unit = 80
-    pen = TTGlyphPen(None)
-    for index, row in enumerate(COIN):
-        y = (len(COIN) - 1 - index) * unit
-        for x, cell in enumerate(row):
-            if cell == "#":
-                pen.moveTo((x * unit, y))
-                pen.lineTo((x * unit, y + unit))
-                pen.lineTo(((x + 1) * unit, y + unit))
-                pen.lineTo(((x + 1) * unit, y))
-                pen.closePath()
-    fb = FontBuilder(1000, isTTF=True)
-    fb.setupGlyphOrder([".notdef", "currency"])
-    fb.setupCharacterMap({0xA4: "currency"})
-    fb.setupGlyf({".notdef": TTGlyphPen(None).glyph(), "currency": pen.glyph()})
-    fb.setupHorizontalMetrics({".notdef": (500, 0), "currency": ((len(COIN[0]) + 1) * unit, 0)})
-    fb.setupHorizontalHeader(ascent=900, descent=-250)
-    fb.setupNameTable({"familyName": "Doberega Coin", "styleName": "Regular"})
-    fb.setupOS2(sTypoAscender=900, sTypoDescender=-250, sTypoLineGap=0, usWinAscent=900, usWinDescent=250)
-    fb.setupPost()
-    fb.font.flavor = "woff2"
-    fb.save(out)
-    print(f"{out}: the coin")
-
-
 if __name__ == "__main__":
-    fonts = Path(__file__).resolve().parents[2] / "fonts"
-    build(fonts / "doberega-gothic.woff2")
-    build_coin(fonts / "doberega-coin.woff2")
+    build(Path(__file__).resolve().parents[2] / "fonts" / "doberega-gothic.woff2")

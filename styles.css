@@ -8,22 +8,15 @@
   src: url("./fonts/doberega-gothic.woff2") format("woff2");
   font-display: swap;
 }
-/* The money sign: every "¤" in the game is a little pixel coin (the font has that one letter). */
-@font-face {
-  font-family: "Doberega Coin";
-  src: url("./fonts/doberega-coin.woff2") format("woff2");
-  unicode-range: U+00A4;
-  font-display: block;
-}
 
 :root {
   color-scheme: dark;
-  font-family: "Doberega Coin", "Handjet", ui-monospace, Menlo, monospace;
+  font-family: "Handjet", ui-monospace, Menlo, monospace;
   font-size: 22px;
   font-weight: 500;
   line-height: 1.15;
   font-synthesis: none;
-  --gothic: "Doberega Coin", "Doberega Gothic", "Handjet", ui-monospace, monospace;
+  --gothic: "Doberega Gothic", "Handjet", ui-monospace, monospace;
   --ink: #0a1412;
   --deep: #13221f;
   --dark: #1e3833;

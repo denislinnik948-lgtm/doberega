@@ -893,7 +893,7 @@ export class AnglerUI {
     setTimeout(next, 50);
   }
 
-  /** A day's gift in words ("Worm ×10", "250 ¤"); money is a share of the quest reward until paid. */
+  /** A day's gift in words ("Worm ×10", "250 $"); money is a share of the quest reward until paid. */
   giftText(gift) {
     if (gift.money) return formatMoney(gift.paid ?? Math.round(questReward(this.progress) * gift.money));
     if (gift.bait) return `${nameOf("bait", gift.bait)} ×${gift.count}`;

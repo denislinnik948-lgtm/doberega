@@ -186,7 +186,7 @@ const total = stages.reduce((sum, stage) => sum + stage.hours, 0);
 const result = { stages, total };
 
 const pad = (text, size) => String(text).padEnd(size);
-console.log(pad("rod", 11) + pad("next", 11) + pad("best setup", 26) + pad("¤/h", 8) + pad("fish/h", 8) + pad("lost/h", 8) + pad("lines/h", 9) + pad("xp/h", 8) + "hours");
+console.log(pad("rod", 11) + pad("next", 11) + pad("best setup", 26) + pad("$/h", 8) + pad("fish/h", 8) + pad("lost/h", 8) + pad("lines/h", 9) + pad("xp/h", 8) + "hours");
 for (const stage of stages) {
   console.log(pad(stage.rod, 11) + pad(stage.next, 11) + pad(stage.setup, 26) + pad(Math.round(stage.rate), 8) + pad(stage.landed.toFixed(0), 8) + pad(stage.lost.toFixed(1), 8) + pad(stage.lines.toFixed(2), 9) + pad(Math.round(stage.xp), 8) + stage.hours.toFixed(2));
 }

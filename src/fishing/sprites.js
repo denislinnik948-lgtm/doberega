@@ -787,18 +787,18 @@ export function baitSprite(id, scale = 3) {
 
 /* ---------- UI icons ---------- */
 
-/** The game's coin: gold, lit on its top left, a little fish struck on its face (the same as the "¤" sign in text). */
+/** The money icon: a gold dollar coin, lit on its top left, the dollar struck on its face. */
 export function coinSprite(scale = 3) {
   return fromRows([
     "...oooooo...",
     "..oDDDDDDo..",
-    ".oDLLGGGGDo.",
-    "oDLGGGGGGGDo",
-    "oDLGfffGfGDo",
-    "oDGffffffGDo",
-    "oDGGfffGfGDo",
-    "oDGGGGGGGGDo",
-    ".oDGGGGGGDo.",
+    ".oDLLfGGGDo.",
+    "oDLGffffGGDo",
+    "oDLfGfGGGGDo",
+    "oDGGfffGGGDo",
+    "oDGGGfGfGGDo",
+    "oDGffffGGGDo",
+    ".oDGGfGGGDo.",
     "..oDDDDDDo..",
     "...oooooo...",
   ], { o: P.ink, D: P.goldDark, L: P.bone, G: P.gold, f: P.goldDark }).toCanvas(scale);
