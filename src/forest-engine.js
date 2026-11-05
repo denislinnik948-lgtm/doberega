@@ -1,5 +1,5 @@
 import { hash01 } from "./noise.js";
-import { activeScene, shorelineY } from "./scene.js";
+import { activeScene, rimLift, shorelineY } from "./scene.js";
 import { currentSeason, isAutumn, isWinter } from "./theme.js";
 
 const FOREST_LAYERS = [
@@ -72,7 +72,7 @@ function chooseSpecies(seed, layerIndex, broadleaf) {
 
 function createTrees(width, height, sunX) {
   const trees = [];
-  const { heightScale = 1, spacingScale = 1, broadleaf, gaps = [], poplar = 0, lift = 1 } = activeScene().forest;
+  const { heightScale = 1, spacingScale = 1, broadleaf, gaps = [], poplar = 0, lift = 1, onRim = false } = activeScene().forest;
   const inGap = (x) => gaps.some(([from, to]) => x > from * width && x < to * width);
 
   FOREST_LAYERS.forEach((layer, layerIndex) => {
@@ -87,7 +87,8 @@ function createTrees(width, height, sunX) {
       const baseOffset = lift * (layer.offset
         + hash01(seed * 19) * layer.variation
         + terrain);
-      const baseY = shorelineY(centerX, height) - height * baseOffset;
+      // On a quarry the woods stand on the rim of its walls.
+      const baseY = shorelineY(centerX, height) - height * baseOffset - (onRim ? rimLift(centerX, height) : 0);
       // Some scenes scatter tall, narrow poplars among the rounder crowns.
       const tall = species === "round" && hash01(seed * 61) < poplar;
       const treeHeight = heightScale * height * (tall ? 1.55 : 1) * (

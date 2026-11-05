@@ -1,4 +1,4 @@
-import { BAITS, BOOT_CHANCE, FINDS, FISH, GROUNDBAIT, HOOKS, LINE, LOCATIONS, LOST_LURES, NIBBLE, RODS, biteActivity, lineWeakness, rollFish, straightenChance } from "./data.js";
+import { BAITS, BOOT_CHANCE, FINDS, FISH, GROUNDBAIT, HOOKS, LINE, LOCATIONS, LOST_LURES, NIBBLE, RODS, biteActivity, lineWeakness, rollFish, spotMood, straightenChance } from "./data.js";
 
 /**
  * Fishing state machine. Positions are normalized to the viewport (0..1) so the
@@ -328,7 +328,7 @@ export class FishingGame {
     const hunger = biteActivity(this.bait, this.location, this.hour);
     const spotPace = LOCATIONS[this.location]?.pace ?? 1;
     // The floor is low so a bait no local fish wants really does go quiet.
-    const pace = Math.min(2.2, Math.max(0.1, hunger * 1.2 * spotPace * this.biteBoost));
+    const pace = Math.min(2.2, Math.max(0.1, hunger * 1.2 * spotPace * this.biteBoost)) * spotMood(this.location, this.hour, this.reach());
     // Groundbait draws the fish in, and so does a school around the float.
     return pace * (this.groundbait ? GROUNDBAIT.boost : 1) * (this.school ? TUNING.schoolBoost : 1);
   }

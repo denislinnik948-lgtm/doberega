@@ -1,5 +1,5 @@
 import { clamp, hash2, valueNoise } from "./noise.js";
-import { activeScene, bankWidths, shorelineY, view } from "./scene.js";
+import { activeScene, bankWidths, rimLift, shorelineY, view } from "./scene.js";
 import { isWinter } from "./theme.js";
 
 /** Ridged fractal noise: sharp crests where the smooth noise crosses its midpoint. */
@@ -343,9 +343,69 @@ export function createStructures(width, height, cellWidth, lineHeight, fine = nu
   };
   if (structures.chnpp) onFineGrid(addChnpp, structures.chnpp);
   if (structures.crag) onFineGrid(addCrag, structures.crag);
+  if (structures.quarry) onFineGrid(addQuarry, structures.quarry);
   if (structures.archBridge) onFineGrid(addArchBridge, structures.archBridge);
 
   return out;
+}
+
+/**
+ * The quarry walls: granite rising sheer from the water to the rim (see
+ * rimLift), split into blocks by vertical joints and level beds, each block
+ * its own shade, lit along its upper edges, rust stains running down from
+ * the rim, darker and wet near the water, a tuft of green on a ledge; snow
+ * on the ledges in winter. Glyphs over a dark granite ground.
+ */
+function addQuarry(spec, width, height, cellWidth, lineHeight, out) {
+  const snowy = isWinter();
+  const top = (x) => shorelineY(x, height) - rimLift(x, height);
+  const outline = [[0, shorelineY(0, height) + lineHeight]];
+  for (let x = 0; x <= width; x += cellWidth) outline.push([x, top(x) + lineHeight * 0.4]);
+  outline.push([width, shorelineY(width, height) + lineHeight]);
+  out.shapes.push({ points: outline, color: "#24221e" });
+  const shades = ["#2e2c28", "#4a463f", "#6a645a", "#8a8274", "#aaa294"];
+  for (let column = 0; column * cellWidth < width; column += 1) {
+    const x = (column + 0.5) * cellWidth;
+    // Deep vertical recesses where the stone split away, in shade all the way down.
+    const recess = valueNoise(x * 0.012, 1, 5301);
+    const rust = hash2(column, 4, 5209) < 0.06 ? 2 + hash2(column, 5, 5211) * 10 : 0;
+    const rim = top(x);
+    const shore = shorelineY(x, height);
+    for (let row = Math.floor(rim / lineHeight); (row + 0.5) * lineHeight < shore; row += 1) {
+      const y = (row + 0.5) * lineHeight;
+      if (y < rim) continue;
+      const fromTop = (y - rim) / lineHeight;
+      const depth = (y - rim) / Math.max(1, shore - rim);
+      const noise = hash2(column, row, 5213);
+      // Big faces, each lit a little differently, and the fractures between them:
+      // a crack wanders down the face, a bed runs partway across it.
+      const facet = valueNoise(x * 0.02, y * 0.012, 5303);
+      const crackX = valueNoise(x * 0.05 + valueNoise(y * 0.02, 2, 5305) * 1.5, 3, 5307);
+      const crack = Math.abs(crackX - 0.5) < 0.025;
+      const bed = Math.abs(valueNoise(y * 0.09, x * 0.004, 5309) - 0.5) < 0.03 && valueNoise(x * 0.03, y * 0.01, 5311) > 0.55;
+      let glyph;
+      let color;
+      if (fromTop < 1 && snowy) {
+        glyph = noise > 0.5 ? "=" : "~";
+        color = noise > 0.3 ? "#e8eef0" : "#c8d2d8";
+      } else if (fromTop < 1 && noise > 0.85) {
+        // A tuft of grass or a little bush clinging to the rim.
+        glyph = noise > 0.93 ? "&" : "*";
+        color = noise > 0.9 ? "#5a7a3e" : "#3e5a2e";
+      } else if (crack || bed) {
+        glyph = crack ? (noise > 0.4 ? "|" : "/") : noise > 0.5 ? "_" : "-";
+        color = "#1e1c19";
+      } else {
+        // The face: lit near the rim and on the sunnier facets, dark in the recesses and wet by the water.
+        const tone = 0.62 + facet * 0.5 + (fromTop < 2 ? 0.12 : 0) - (recess < 0.3 ? (0.3 - recess) * 2.2 : 0) - depth * 0.35 + (noise - 0.5) * 0.18;
+        color = shades[Math.max(0, Math.min(4, Math.floor((tone - 0.4) / 0.16)))];
+        if (rust && fromTop < rust && noise > 0.35) color = noise > 0.75 ? "#8a6040" : "#6a4a32";
+        if (depth > 0.88 && noise > 0.6) color = "#2e3a2e";
+        glyph = tone > 0.9 ? "#%&$"[Math.floor(noise * 4)] : tone > 0.6 ? "$&@%#"[Math.floor(noise * 5)] : "@#%:"[Math.floor(noise * 4)];
+      }
+      out.cells.push({ x, y, column, row, glyph, color });
+    }
+  }
 }
 
 /**

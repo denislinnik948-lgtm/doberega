@@ -18,6 +18,8 @@ const MONO_FONT = '"SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospa
 const GAME_ISOMETRIC_SLOPE = 0.5;
 const WATER_BANDS = 10;
 const REFLECTION_LEVELS = 3;
+// The strokes a still water's reflection is drawn in (see `mirror`).
+const MIRROR_GLYPHS = "==-=~=_=";
 // Water from deep (0) to shallow (last): darker over the depths, lighter and clearer near the banks.
 const DEPTH_LEVELS = 4;
 const DEEP_WATER = "#142a32";
@@ -339,7 +341,8 @@ export class CanvasWaterRenderer {
           ice: this.winterIce ? this.iceGlyph(screenX, screenY, noise) : null,
           pathWidth: width * (0.016 + 0.11 * distance),
           sunPath: 0,
-          reflectionLevel: Math.min(REFLECTION_LEVELS - 1, Math.floor(distance * 6)),
+          // Still water (`mirror`) keeps a clear reflection farther out.
+          reflectionLevel: Math.min(REFLECTION_LEVELS - 1, Math.floor(distance * (activeScene().water.mirror ? 3 : 6))),
           depthLevel: Math.min(DEPTH_LEVELS - 1, Math.floor(this.shallowAt(screenX, screenY) * DEPTH_LEVELS)),
           // Filled in by the water model on first use (a river bend's turn here).
           bendCos: undefined,
@@ -443,6 +446,7 @@ export class CanvasWaterRenderer {
     this.signImage = scene.foreground.sign ? this.createSignImage(scene.foreground.sign) : null;
     this.oak = scene.foreground.oak ? this.createOak() : null;
     this.deck = scene.foreground.deck ? this.createDeck() : null;
+    this.slabs = scene.foreground.slabs ? this.createSlabs() : null;
     // Where bullfinches can sit in winter: the oak's boughs, the bridge rail
     // and (added as the reeds are drawn, since they sway) the cattails.
     this.perches = [];
@@ -498,9 +502,11 @@ export class CanvasWaterRenderer {
     this.waterDepthColors = Array.from({ length: DEPTH_LEVELS }, (_, level) => bands.map((band) => (
       hexToInt(mixColor(band, waterColor, level * 0.14, 0.82 + level * 0.12))
     )));
+    // Still water (`mirror`) gives back the shore truer, less of the water's own tone in it.
+    const mirror = activeScene().water.mirror ?? 0;
     this.reflectionColors = this.backdropColors.map((color) => Array.from(
       { length: REFLECTION_LEVELS },
-      (_, level) => hexToInt(mixColor(color, bands[1], 0.16 + level * 0.2, 0.92)),
+      (_, level) => hexToInt(mixColor(color, bands[1], (0.16 + level * 0.2) * (1 - mirror * 0.55), 0.92 + mirror * 0.06)),
     ));
   }
 
@@ -732,6 +738,33 @@ export class CanvasWaterRenderer {
     this.paintWaterBody(ctx);
     this.paintWreckHull(ctx);
 
+    // Still water (`mirror`): the far shore painted upside down beneath the
+    // water's glyphs, clear by the shore and fading into the water's own dark
+    // farther out.
+    if (scene.water.mirror) {
+      const ratio = this.pixelRatio;
+      const axis = Math.round(horizon * ratio);
+      const fade = height * 0.3 * ratio;
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.beginPath();
+      ctx.rect(0, axis, ctx.canvas.width, fade);
+      ctx.clip();
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      ctx.translate(0, axis * 2);
+      ctx.scale(1, -1);
+      ctx.drawImage(ctx.canvas, 0, 0, ctx.canvas.width, axis, 0, 0, ctx.canvas.width, axis);
+      ctx.restore();
+      const water = scene.water.body ?? "#1c3a3a";
+      const veil = ctx.createLinearGradient(0, axis, 0, axis + fade);
+      veil.addColorStop(0, `${water}55`);
+      veil.addColorStop(1, `${water}ff`);
+      ctx.fillStyle = veil;
+      ctx.fillRect(0, axis, ctx.canvas.width, fade);
+      ctx.restore();
+    }
+
     // The grassy bank we stand on: dark earth under the blades, fading into the
     // water over a few soft steps instead of a hard edge.
     if (scene.nearBank) {
@@ -743,8 +776,9 @@ export class CanvasWaterRenderer {
         for (let x = 0; x <= width + 8; x += 8) ctx.lineTo(x, nearBankY(x, height) - rise + this.lineHeight * 0.8);
         ctx.lineTo(width, height);
         ctx.closePath();
-        // Under snow in winter.
-        ctx.fillStyle = winter ? (step ? "rgba(176, 190, 198, 0.16)" : "#b0bec6") : step ? `rgba(20, 34, 26, ${0.16})` : "#14221a";
+        // Under snow in winter; grey stone under granite slabs.
+        const slabs = scene.foreground.slabs;
+        ctx.fillStyle = winter ? (step ? "rgba(176, 190, 198, 0.16)" : "#b0bec6") : slabs ? (step ? "rgba(52, 50, 44, 0.16)" : "#34322c") : step ? `rgba(20, 34, 26, ${0.16})` : "#14221a";
         ctx.fill();
       }
     }
@@ -1454,6 +1488,77 @@ export class CanvasWaterRenderer {
   }
 
   /**
+   * Our bank at the quarry: flat pale granite slabs down to the water, in
+   * glyphs only, cracked across in wandering dark lines, a darker lip along
+   * the water's edge, lichen spots, and grass and a few blades growing in the
+   * cracks; snow lying on them in winter. Pre-rendered once per layout.
+   */
+  createSlabs() {
+    const { height, pixelRatio } = this;
+    const { left: frameLeft, width: frameWidth } = this.frame;
+    const winter = isWinter();
+    const size = Math.round(this.reedSize * 0.5);
+    const cellWidth = size * 0.62;
+    const lineHeight = size * 0.85;
+    let top = height;
+    for (let x = frameLeft; x <= frameLeft + frameWidth; x += cellWidth) top = Math.min(top, nearBankY(x, height));
+    top = Math.floor(top - lineHeight);
+    const image = document.createElement("canvas");
+    image.width = Math.max(1, Math.round(frameWidth * pixelRatio));
+    image.height = Math.max(1, Math.round((height - top) * pixelRatio));
+    const ctx = image.getContext("2d");
+    ctx.setTransform(pixelRatio, 0, 0, pixelRatio, -frameLeft * pixelRatio, -top * pixelRatio);
+    ctx.font = `600 ${size}px ${MONO_FONT}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const shades = ["#6e685c", "#8e887a", "#aaa394", "#c4bdae", "#d8d2c4"];
+    for (let column = Math.floor(frameLeft / cellWidth); column * cellWidth < frameLeft + frameWidth + cellWidth; column += 1) {
+      const x = (column + 0.5) * cellWidth;
+      const bank = nearBankY(x, height);
+      for (let row = Math.floor(bank / lineHeight); row * lineHeight < height + lineHeight; row += 1) {
+        const y = (row + 0.5) * lineHeight;
+        if (y < bank) continue;
+        const fromEdge = (y - bank) / lineHeight;
+        const noise = hash2(column, row, 5401);
+        // Cracks wander across the slabs; the slabs themselves lie a little tilted, each its own shade.
+        const crack = Math.abs(valueNoise(x * 0.012, y * 0.03, 5403) - 0.5) < 0.03 || Math.abs(valueNoise(x * 0.03 + 7, y * 0.008, 5405) - 0.5) < 0.022;
+        const slab = valueNoise(x * 0.008, y * 0.02, 5407);
+        let glyph;
+        let color;
+        if (crack) {
+          // Grass and a blade or two grow up out of the cracks.
+          if (!winter && noise > 0.55) {
+            glyph = noise > 0.85 ? "'" : noise > 0.7 ? "," : "\"";
+            color = noise > 0.8 ? "#7a9a4a" : "#557a38";
+          } else {
+            glyph = noise > 0.5 ? "/" : noise > 0.25 ? "-" : "\\";
+            color = "#2a2824";
+          }
+        } else if (fromEdge < 1) {
+          // The lip at the water's edge, dark and wet.
+          glyph = noise > 0.5 ? "_" : "=";
+          color = noise > 0.4 ? "#4a463e" : "#3a362f";
+        } else if (winter && noise > 0.25) {
+          glyph = noise > 0.6 ? "=" : "~";
+          color = noise > 0.45 ? "#eef3f5" : "#c8d2d8";
+        } else if (noise > 0.965) {
+          // Lichen: grey-green rosettes and a rare orange one.
+          glyph = noise > 0.99 ? "o" : "*";
+          color = noise > 0.99 ? "#c88a3a" : "#8a9a6a";
+        } else {
+          // Lighter toward us and on the higher slabs, worn flat: level strokes.
+          const tone = 0.45 + slab * 0.5 + Math.min(1, fromEdge / 6) * 0.12 + (noise - 0.5) * 0.2;
+          color = shades[Math.max(0, Math.min(4, Math.floor((tone - 0.3) / 0.14)))];
+          glyph = "=-_~=#%"[Math.floor(noise * 7)];
+        }
+        ctx.fillStyle = color;
+        ctx.fillText(glyph, x, y);
+      }
+    }
+    return { image, top, left: frameLeft, width: frameWidth };
+  }
+
+  /**
    * The wooden jetty we sit on, close up in the middle of the bank, in glyphs
    * only: boards running out toward the water, narrowing with distance, each
    * its own shade of weathered wood, the gaps and the side edges as slanted
@@ -1704,6 +1809,7 @@ export class CanvasWaterRenderer {
     const glintColors = this.glintColors;
     // Glints are light, not water: drawn on their own so night doesn't dim them.
     const glints = this.glintBatch;
+    const mirror = Boolean(activeScene().water.mirror);
     batch.clear();
     glints.clear();
     // The reflection wobble depends only on the row: one sine per row, not per cell.
@@ -1719,7 +1825,8 @@ export class CanvasWaterRenderer {
       const sample = sampleWater(cell, time, waveConfig, cell.depth, ripples);
       const rampPosition = clamp((sample.density - 0.58) / 0.32, 0, 0.9999);
       const glyph = WATER_RAMP[Math.floor(rampPosition * WATER_RAMP.length)];
-      if (glyph === " ") continue;
+      // Still water fills even its quiet cells with the reflection.
+      if (glyph === " " && !mirror) continue;
 
       // A small fraction of the physical wave displacement lets the text breathe
       // while keeping the underlying character grid clearly aligned.
@@ -1751,12 +1858,13 @@ export class CanvasWaterRenderer {
           ? backdrop[Math.floor(mirrorY / lineHeight) * columns + column]
           : -1;
         if (source >= 0) {
-          batch.push(x, y, glyph, reflectionColors[source][cell.reflectionLevel]);
+          // Still water mirrors the shore in full, level strokes.
+          batch.push(x, y, mirror ? MIRROR_GLYPHS[Math.floor(cell.noise * MIRROR_GLYPHS.length)] : glyph, reflectionColors[source][cell.reflectionLevel]);
           continue;
         }
       }
 
-      batch.push(x, y, glyph, this.waterDepthColors[cell.depthLevel][cell.band]);
+      if (glyph !== " ") batch.push(x, y, glyph, this.waterDepthColors[cell.depthLevel][cell.band]);
     }
   }
 
@@ -2564,7 +2672,8 @@ export class CanvasWaterRenderer {
       this.drawOakLeaves(ctx, time);
     }
 
-    // The jetty we sit on.
+    // The granite slabs of our bank, and the jetty we sit on.
+    if (this.slabs) ctx.drawImage(this.slabs.image, this.slabs.left, this.slabs.top, this.slabs.width, this.height - this.slabs.top);
     if (this.deck) ctx.drawImage(this.deck.image, this.deck.left, this.deck.top, this.deck.width, this.height - this.deck.top);
 
     // The railing stands between us and the reeds by the far abutments.

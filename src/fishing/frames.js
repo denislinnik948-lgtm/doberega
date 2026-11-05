@@ -382,6 +382,28 @@ function landscape(px, w, h, random, kind) {
       }
     }
     for (const side of [-1, 1]) px.rect(Math.round(w / 2 + side * w * 0.11) - 1, front - Math.round(5 * unit), 3, Math.round(5 * unit), P.goldDark);
+  } else if (kind === "quarry") {
+    // The granite quarry: grey walls straight up out of the water, woods on the rim, mirrored below, pale slabs in front.
+    const wall = (x) => {
+      const u = (x - x0) / (w - 2 * m);
+      const tall = u < 0.05 ? 7 : u < 0.4 ? 20 : u < 0.46 ? 7 : u < 0.62 ? 14 : u < 0.8 ? 10 : 7;
+      return Math.round(tall * unit * (0.9 + 0.2 * ((Math.floor(x / 4) * 7) % 5) / 5));
+    };
+    for (let x = x0; x < x1; x += 1) {
+      const top = horizon - wall(x);
+      for (let y = top; y <= horizon; y += 1) px.set(x, y, (x * 5 + y * 3) % 7 === 0 ? P.dark : (x + y) % 3 ? P.soft : P.mid);
+      // A crack now and then down the face.
+      if (x % 9 === 4) for (let y = top + 2; y < horizon - 1; y += 1) if ((y + x) % 4) px.set(x, y, P.dark);
+      // The mirror below the walls.
+      for (let y = horizon + 1; y <= horizon + wall(x) * 0.7 && y < h - m; y += 2) px.set(x, y, (x + y) % 3 ? P.mid : P.dark);
+    }
+    for (let x = x0 + 1; x < x1; x += 2 + Math.floor(random() * 3)) pine(px, x, horizon - wall(x) + 1, Math.round((6 + random() * 10) * unit), P.ink);
+    px.rect(x0, horizon, w - 2 * m, 1, P.ink);
+    // Pale granite slabs along the near edge.
+    const front = Math.round(h * 0.88);
+    for (let y = front; y < h - m; y += 1) {
+      for (let x = x0; x < x1; x += 1) px.set(x, y, y === front ? P.dark : (x * 3 + y * 7) % 11 === 0 ? P.mid : P.light);
+    }
   } else if (kind === "bridge") {
     ridge(px, x0, x1, horizon, 12 * unit, 1.3, P.dark, horizon + 1);
     for (let x = x0 + 2; x < x1; x += 3 + Math.floor(random() * 6)) {

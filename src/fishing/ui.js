@@ -1817,6 +1817,7 @@ export class AnglerUI {
           }) + (spot.tailKg ? t("handbook.spotTail", { tail: formatWeight(spot.tailKg) }) : "")],
           [t("handbook.accessLabel"), this.accessText(LOCATIONS.findIndex((place) => place.id === spot.id))],
           [t("handbook.waterLabel"), `${nameOf("pace", spot.pace)} · ${nameOf("snags", spot.snags)}`],
+          ...(spot.ways.length ? [[t("handbook.waysLabel"), spot.ways.map((way) => t(`handbook.way.${way}`)).join("; ")]] : []),
         ], 760 + index);
       });
     } else if (id === "baits") {

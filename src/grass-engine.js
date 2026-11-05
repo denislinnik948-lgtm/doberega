@@ -114,8 +114,8 @@ export function createGrass({ width, height, cellWidth, lineHeight, frame, seaso
     });
   }
 
-  // The bank we stand on.
-  if (scene.nearBank) {
+  // The bank we stand on (bare granite slabs grow none, see createSlabs).
+  if (scene.nearBank && !scene.foreground.slabs) {
     const deck = deckShape(height);
     let top = height;
     for (let x = frame.left; x <= frame.left + frame.width; x += cellWidth) top = Math.min(top, nearBankY(x, height));

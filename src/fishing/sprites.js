@@ -224,6 +224,16 @@ export const FISH_LOOKS = {
     len: 56, h: 11, peak: 0.55, back: "#3a302c", side: "#b08a78", belly: "#ece0d4", fin: "#5a4a40", lowFin: "#b07a60", tailFin: "#5a4a40", eye: "#e8d8b0",
     dorsal: [[0.44, 0.56, 4]], anal: [0.16, 0.26, 3], tail: "square", pattern: "spots", spotColor: "#2a1e1a", broadHead: true,
   },
+  // Chub: a thick silver-bronze body, a broad dark head, big dark-edged scales, orange lower fins.
+  holavl: {
+    len: 36, h: 12, peak: 0.55, back: "#2e3a2e", side: "#b0a880", belly: "#ece6d0", fin: "#3a3a30", lowFin: "#d0703a", tailFin: "#3a3a30", eye: "#e8d8a0",
+    dorsal: [[0.44, 0.56, 4]], anal: [0.18, 0.28, 3], tail: "fork", pattern: "scales", broadHead: true,
+  },
+  // Steelhead: a sea-run rainbow, steel-blue back, bright silver sides, a faint pink band.
+  stalhead: {
+    len: 42, h: 11, peak: 0.5, back: "#2e4458", side: "#d2d8dc", belly: "#f2f2ee", fin: "#5a6a78", lowFin: "#c8b8b8", tailFin: "#4a5a68", eye: "#e8e0c8",
+    dorsal: [[0.44, 0.56, 4]], anal: [0.2, 0.3, 3], tail: "square", pattern: "spots", spotColor: "#24303a", stripe: "#d8a0ac",
+  },
   // Burbot: long and mottled brown, one barbel, long low fins.
   myn: {
     len: 44, h: 9, peak: 0.7, back: "#2e2a18", side: "#6a5e36", belly: "#c8bc90", fin: "#4a4228", lowFin: "#5a5030", tailFin: "#4a4228", eye: "#c8b070",
@@ -422,6 +432,8 @@ Object.assign(FISH_LOOKS, {
   myron: { ...FISH_LOOKS.korop, back: "#2e2a14", side: "#8a7a34", belly: "#d8c890", fin: "#3e3a1c", lowFin: "#8a4a2a", tailFin: "#5a4220" },
   // Grandpa Panas the catfish: near black, pale-eyed.
   panas: { ...FISH_LOOKS.som, back: "#1a1c16", side: "#4a4a3a", belly: "#b8b49a", eye: "#e8e0c0" },
+  // The granite pike: dark, grey as the quarry walls, pale spots like lichen.
+  granitna: { ...FISH_LOOKS.shchuka, back: "#2a2e2c", side: "#6a6e66", belly: "#d8d6c8", fin: "#5a5448", lowFin: "#7a6a52", tailFin: "#5a5448", spotColor: "#b8b8a4", eye: "#f0d070" },
   // Veselka, the rainbow: a huge rainbow trout, its band gone bright as a rainbow.
   veselka: { ...FISH_LOOKS.raiduzhna, back: "#2a5a4a", side: "#e2dcd2", belly: "#f6f0e6", stripe: "#e8607e", lowFin: "#e88a8a", eye: "#fff0c0" },
 });

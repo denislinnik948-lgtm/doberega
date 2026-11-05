@@ -48,6 +48,10 @@ export const FISH = {
   paliya: { min: 0.2, max: 3, pricePerKg: 80, active: { base: 0.2, peaks: [[5, 2.5, 1], [21, 2.5, 1]] } },
   // Huchen: the mountain rivers' great salmon, in the Red Book; let go, never sold. Night and dawn.
   holovach: { min: 2, max: 20, pricePerKg: 0, protected: true, active: { base: 0.1, peaks: [[2, 3, 0.9], [5, 2, 1]] } },
+  // The quarry's own (see LOCATIONS, quarry). Chub: a wary, broad-headed fish of clear water, keen by day.
+  holavl: { min: 0.3, max: 4, pricePerKg: 45, active: { base: 0.25, peaks: [[12, 4, 1], [17, 3, 0.6]] } },
+  // Steelhead: a sea-run rainbow trout, steel-backed and strong; lures only, at dawn and dusk.
+  stalhead: { min: 1, max: 12, pricePerKg: 110, lure: true, active: { base: 0.15, peaks: [[5, 2.5, 1.1], [20, 2.5, 1]] } },
   // Burbot: bites only at night and only in autumn (`season`).
   myn: { min: 0.5, max: 4, pricePerKg: 60, season: "autumn", active: { base: 0.02, peaks: [[0, 4, 1.2], [23, 3, 0.6], [3, 3, 0.8]] } },
   // Grass carp: a big, strong fish for anglers who have climbed far.
@@ -73,6 +77,7 @@ export const FISH = {
   myron: { min: 28, max: 35, pricePerKg: 0, unique: true, legend: true, active: { base: 1, peaks: [] } },
   panas: { min: 70, max: 85, pricePerKg: 0, unique: true, legend: true, active: { base: 1, peaks: [] } },
   veselka: { min: 14, max: 16, pricePerKg: 0, unique: true, legend: true, active: { base: 1, peaks: [] } },
+  granitna: { min: 20, max: 24, pricePerKg: 0, unique: true, legend: true, active: { base: 1, peaks: [] } },
   // Not fish: now and then reeled in instead of an empty hook (see FINDS).
   boot: { min: 0.6, max: 1.4, pricePerKg: 0, junk: true, active: { base: 0, peaks: [] } },
   bottle: { min: 0.4, max: 0.7, pricePerKg: 0, junk: true, active: { base: 0, peaks: [] } },
@@ -107,6 +112,8 @@ export const NIBBLE = {
   raiduzhna: { tempers: [5, 3, 1, 1], pace: 0.75, twitches: 0.9, strength: 1.2, window: 0.9 },
   paliya: { tempers: [3, 4, 2, 1], pace: 0.8, twitches: 1.1, strength: 0.9, window: 0.85 },
   holovach: { tempers: [4, 1, 2, 3], pace: 1.1, twitches: 0.6, strength: 1.6, window: 1.1 },
+  holavl: { tempers: [3, 2, 4, 1], pace: 1, twitches: 0.9, strength: 1.1, window: 0.9 },
+  stalhead: { tempers: [7, 1, 1, 1], pace: 0.8, twitches: 0.5, strength: 1.6, window: 1 },
   myn: { tempers: [2, 2, 3, 3], pace: 1.4, twitches: 0.8, strength: 1, window: 1.4 },
   amur: { tempers: [1, 2, 4, 3], pace: 1.4, twitches: 1, strength: 1.2, window: 1.1 },
   tovstolob: { tempers: [0, 1, 4, 5], pace: 1.8, twitches: 0.6, strength: 0.9, window: 1.2 },
@@ -120,7 +127,7 @@ export const NIBBLE = {
   lostlure: { tempers: [1, 0, 0, 0], pace: 1, twitches: 0, strength: 0.5, window: 1 },
 };
 // A legend bites like its kind, only harder.
-for (const [id, kind] of Object.entries({ zolotyi: "karas", syva: "shchuka", knyazha: "forel", myron: "korop", panas: "som", veselka: "raiduzhna" })) {
+for (const [id, kind] of Object.entries({ zolotyi: "karas", syva: "shchuka", knyazha: "forel", myron: "korop", panas: "som", veselka: "raiduzhna", granitna: "shchuka" })) {
   NIBBLE[id] = { ...NIBBLE[kind], strength: NIBBLE[kind].strength * 1.3 };
 }
 
@@ -147,6 +154,7 @@ export const LEGENDS = {
   reservoir: { id: "myron", kind: "korop", baits: ["boilie", "corn", "peas", "barley"] },
   bridge: { id: "panas", kind: "som", baits: ["frog", "livebait", "crayfish"] },
   troutfarm: { id: "veselka", kind: "raiduzhna", baits: ["spinner", "worm", "corn"] },
+  quarry: { id: "granitna", kind: "shchuka", baits: ["spoon", "wobbler"] },
 };
 export const LEGEND_CHANCE = 1 / 1500;
 
@@ -163,6 +171,20 @@ export const LOST_LURES = [["spinner", 0.7], ["spoon", 0.25], ["wobbler", 0.05]]
 export const BOTTLE_MONEY = { chance: 0.35, min: 20, max: 200 };
 /** By day a gull may snatch a small fish (under `maxKg`) as it comes off the hook. */
 export const GULL = { chance: 1 / 60, maxKg: 0.25 };
+
+/**
+ * How a water's own ways change the bite right now: at a `deep` water a cast
+ * in the near third (`reach` under a third) hardly ever gets one; a
+ * `twilight` water bites best at dawn and dusk and slower in the bright
+ * middle of the day.
+ */
+export function spotMood(locationIndex, hour, reach) {
+  const spot = LOCATIONS[locationIndex];
+  let mood = 1;
+  if (spot?.deep && reach < 1 / 3) mood *= 0.08;
+  if (spot?.twilight) mood *= (hour >= 4 && hour < 7.5) || (hour >= 18.5 && hour < 22) ? 1.4 : hour >= 10 && hour < 16 ? 0.8 : 1;
+  return mood;
+}
 
 /** How hungry a fish is at `hour` (0..24): roughly 0.1 (asleep) to 1.3 (feeding). */
 export function activity(species, hour) {
@@ -213,7 +235,7 @@ export const BAITS = {
   barley: { price: 4, size: 0.8, species: { karas: 3, lyasch: 3, plitka: 2, korop: 2, lyn: 1, yaz: 2 } },
   bloodworm: { price: 5, size: 0.5, species: { yorzh: 3, plitka: 3, karas: 2, lyn: 3, okun: 2, bychok: 2, sterliad: 2, verkhovodka: 1, paliya: 3 } },
   peas: { price: 6, size: 0.9, species: { lyasch: 4, korop: 3, lyn: 2, plitka: 1, yaz: 3, amur: 2 } },
-  corn: { price: 7, size: 1, species: { karas: 2, lyasch: 3, korop: 4, lyn: 2, yaz: 2, amur: 4, raiduzhna: 2 } },
+  corn: { price: 7, size: 1, species: { karas: 2, lyasch: 3, korop: 4, lyn: 2, yaz: 2, amur: 4, raiduzhna: 2, holavl: 3 } },
   boilie: { price: 20, size: 1.6, species: { korop: 6, lyasch: 1, amur: 3, tovstolob: 0.6 } },
   // Live bait and crayfish: big perch and catfish (pike and zander go for the spoon).
   livebait: { price: 25, size: 1.4, species: { okun: 4, som: 2, myn: 3, zherekh: 1, holovach: 1 } },
@@ -226,11 +248,11 @@ export const BAITS = {
    * in a pause, or on a steady retrieve.
    */
   // A small spinner: mostly perch, takes on a plain steady retrieve.
-  spinner: { price: 150, lure: true, size: 0.7, others: 0, minKg: 0, holdKg: 2, retrieve: { jerk: 1, flutter: 0.6, steady: 3 }, species: { okun: 6, shchuka: 1.2, sudak: 0.6, plitka: 0.8, forel: 4, zherekh: 1, raiduzhna: 4, paliya: 3 } },
+  spinner: { price: 150, lure: true, size: 0.7, others: 0, minKg: 0, holdKg: 2, retrieve: { jerk: 1, flutter: 0.6, steady: 3 }, species: { okun: 6, shchuka: 1.2, sudak: 0.6, plitka: 0.8, forel: 4, zherekh: 1, raiduzhna: 4, paliya: 3, holavl: 3 } },
   // The wobbling spoon: pike and zander, best fished in jerks.
-  spoon: { price: 300, lure: true, size: 1.2, others: 0, minKg: 0.3, holdKg: 8, retrieve: { jerk: 1, flutter: 1, steady: 1 }, species: { okun: 4, shchuka: 5, sudak: 4, som: 0.4, zherekh: 4, holovach: 3, raiduzhna: 2 } },
+  spoon: { price: 300, lure: true, size: 1.2, others: 0, minKg: 0.3, holdKg: 8, retrieve: { jerk: 1, flutter: 1, steady: 1 }, species: { okun: 4, shchuka: 5, sudak: 4, som: 0.4, zherekh: 4, holovach: 3, raiduzhna: 2, stalhead: 4 } },
   // A wobbler: only bigger fish, which hit it as it stops in the pause.
-  wobbler: { price: 900, lure: true, size: 1.5, others: 0, minKg: 1, holdKg: Infinity, retrieve: { jerk: 0.6, flutter: 2.2, steady: 0.5 }, species: { shchuka: 6, sudak: 2.5, okun: 2, som: 0.8, zherekh: 3, holovach: 3, raiduzhna: 1.5 } },
+  wobbler: { price: 900, lure: true, size: 1.5, others: 0, minKg: 1, holdKg: Infinity, retrieve: { jerk: 0.6, flutter: 2.2, steady: 0.5 }, species: { shchuka: 6, sudak: 2.5, okun: 2, som: 0.8, zherekh: 3, holovach: 3, raiduzhna: 1.5, holavl: 3, stalhead: 4 } },
 };
 
 /** Baits taken out of the game, with their price: a save that still holds some is paid back. */
@@ -381,6 +403,20 @@ export const LOCATIONS = [
     traits: { type: "pond", depth: "medium", bottom: "stones", current: "weak" },
     minKg: 0.8, typicalKg: 3, maxKg: 8, bigChance: 1 / 12, pace: 1.6, unlock: { price: 40000 },
     fish: { raiduzhna: 4, paliya: 2, forel: 1.5, holovach: 0.08 },
+  },
+  {
+    /*
+     * The granite quarry, a paid water: deep and clear under sheer walls,
+     * predators only, from a kilo, mostly up to 4 kg, a big one up to 10 and
+     * now and then a pike up to 14. The fish keep to the deep water out from
+     * the walls (`deep`: a cast in the near third hardly ever gets a bite) and
+     * feed at dawn and dusk (`twilight`), sluggish in the bright middle of the
+     * day. Being tried out (`preview`): shown only on a tester's account.
+     */
+    id: "quarry", snagChance: 0.05, kind: "quarry", water: "#2a6a5a", preview: true, deep: true, twilight: true,
+    traits: { type: "lake", depth: "deep", bottom: "stones", current: "none" },
+    minKg: 2, typicalKg: 8, maxKg: 12, bigChance: 1 / 6, tailKg: 14, tailChance: 1 / 100, pace: 1.8, unlock: { price: 80000 },
+    fish: { shchuka: 3, sudak: 2.5, stalhead: 3, holavl: 1.5, okun: 1.2 },
   },
 ];
 
@@ -619,6 +655,7 @@ export function spotEntries() {
     maxKg: spot.maxKg,
     tailKg: spot.tailKg ?? null,
     unlock: spot.unlock ?? null,
+    ways: ["deep", "twilight"].filter((way) => spot[way]),
     bigOdds: Math.round(1 / spot.bigChance),
     pace: (spot.pace ?? 1) > 1.02 ? "fast" : (spot.pace ?? 1) < 0.9 ? "slow" : "normal",
     snags: spot.snagChance >= 0.05 ? "many" : spot.snagChance >= 0.03 ? "some" : "few",

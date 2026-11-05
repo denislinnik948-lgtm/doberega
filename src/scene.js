@@ -1,3 +1,5 @@
+import { hash2 } from "./noise.js";
+
 /**
  * Scene layouts, one per kind of fishing spot, expressed as fractions of the
  * viewport. The active profile drives the horizon, ridges, forest, banks,
@@ -169,6 +171,34 @@ export const SCENES = {
     // We sit on a wooden jetty running out from the bank.
     foreground: { reeds: 0, rock: false, lilyPads: 0, deck: 0.9 },
   },
+  /**
+   * The granite quarry, after a photo of a flooded quarry in the woods: sheer
+   * grey walls of jointed granite rising straight from dark still water, a
+   * tall overhanging block on the left, lower ledges stepping away to the
+   * right, and a pine wood standing along the rim above them.
+   */
+  quarry: {
+    horizon: 0.52,
+    // On a narrow screen, keep the tall walls in view.
+    focus: 0.3,
+    ridges: [
+      // Far woods behind the rim, low and hazy.
+      { top: 0.4, amplitude: 0.02, seed: 8.2, fill: "#2c4038", glyph: "#3f5a4a", texture: "^.'", density: 0.14 },
+    ],
+    // The woods stand on the rim of the walls (`onRim`).
+    forest: { heightScale: 1.15, spacingScale: 0.7, broadleaf: 0.22, onRim: true, gaps: [[0.3, 0.335]] },
+    structures: {
+      // The walls: [from, to, height] across the scene, heights as screen fractions.
+      quarry: {
+        cliffs: [[0, 0.05, 0.06], [0.05, 0.2, 0.19], [0.2, 0.29, 0.15], [0.29, 0.34, 0.06], [0.34, 0.47, 0.12], [0.47, 0.61, 0.09], [0.61, 0.8, 0.065], [0.8, 1, 0.045]],
+      },
+    },
+    // Deep, still and dark green, the walls mirrored clearly in it.
+    water: { body: "#14302a", mirror: 1 },
+    // We sit on flat granite slabs at the water's edge.
+    nearBank: 0.05,
+    foreground: { reeds: 0, rock: false, lilyPads: 0, slabs: true },
+  },
 };
 
 let active = SCENES.lake;
@@ -186,6 +216,22 @@ export function shorelineY(x, height) {
   return height * active.horizon
     + Math.sin(x * 0.007 + 0.8) * height * 0.006
     + Math.sin(x * 0.016 - 1.4) * height * 0.0025;
+}
+
+/**
+ * How high the quarry walls stand above the water at x, in pixels (0 with no
+ * quarry): each stretch of wall at its own height, its top broken into blocks
+ * a little higher or lower, as granite splits.
+ */
+export function rimLift(x, height) {
+  const quarry = active.structures?.quarry;
+  if (!quarry) return 0;
+  const u = x / view.width;
+  const [, , tall] = quarry.cliffs.find(([from, to]) => u >= from && u < to) ?? quarry.cliffs[quarry.cliffs.length - 1];
+  // The rim is broken into blocks, now and then a step up or down.
+  const block = Math.floor(u / 0.03 + hash2(Math.floor(u / 0.03), 1, 5103) * 0.6);
+  const step = hash2(block, 3, 5101);
+  return height * tall * (0.88 + 0.2 * step + 0.05 * Math.sin(u * 140));
 }
 
 /** Fraction of the width covered by the near banks at a screen depth (0 top .. 1 bottom). */
