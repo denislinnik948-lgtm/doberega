@@ -39,6 +39,15 @@ export const FISH = {
   zherekh: { min: 1, max: 8, pricePerKg: 50, lure: true, active: { base: 0.2, peaks: [[8, 3, 1], [18, 3, 1]] } },
   // Trout: clear cold water, the dearest by the kilo; spinner or worm.
   forel: { min: 0.3, max: 4, pricePerKg: 90, active: { base: 0.25, peaks: [[7, 3, 1], [19, 3, 0.8]] } },
+  /*
+   * The trout farm's own (see LOCATIONS, troutfarm). Rainbow trout: stocked,
+   * silver with a pink band, keen in the morning and the evening.
+   */
+  raiduzhna: { min: 0.3, max: 10, pricePerKg: 80, active: { base: 0.3, peaks: [[8, 3, 1], [19, 3, 0.9]] } },
+  // Brook trout (char): small and bright, an orange belly; dawn and dusk.
+  paliya: { min: 0.2, max: 3, pricePerKg: 80, active: { base: 0.2, peaks: [[5, 2.5, 1], [21, 2.5, 1]] } },
+  // Huchen: the mountain rivers' great salmon, in the Red Book; let go, never sold. Night and dawn.
+  holovach: { min: 2, max: 20, pricePerKg: 0, protected: true, active: { base: 0.1, peaks: [[2, 3, 0.9], [5, 2, 1]] } },
   // Burbot: bites only at night and only in autumn (`season`).
   myn: { min: 0.5, max: 4, pricePerKg: 60, season: "autumn", active: { base: 0.02, peaks: [[0, 4, 1.2], [23, 3, 0.6], [3, 3, 0.8]] } },
   // Grass carp: a big, strong fish for anglers who have climbed far.
@@ -63,6 +72,7 @@ export const FISH = {
   knyazha: { min: 6, max: 8, pricePerKg: 0, unique: true, legend: true, active: { base: 1, peaks: [] } },
   myron: { min: 28, max: 35, pricePerKg: 0, unique: true, legend: true, active: { base: 1, peaks: [] } },
   panas: { min: 70, max: 85, pricePerKg: 0, unique: true, legend: true, active: { base: 1, peaks: [] } },
+  veselka: { min: 14, max: 16, pricePerKg: 0, unique: true, legend: true, active: { base: 1, peaks: [] } },
   // Not fish: now and then reeled in instead of an empty hook (see FINDS).
   boot: { min: 0.6, max: 1.4, pricePerKg: 0, junk: true, active: { base: 0, peaks: [] } },
   bottle: { min: 0.4, max: 0.7, pricePerKg: 0, junk: true, active: { base: 0, peaks: [] } },
@@ -94,6 +104,9 @@ export const NIBBLE = {
   yaz: { tempers: [1, 2, 5, 2], pace: 1.3, twitches: 1, strength: 0.9, window: 1 },
   zherekh: { tempers: [8, 1, 0, 1], pace: 0.8, twitches: 0.5, strength: 1.6, window: 1 },
   forel: { tempers: [5, 2, 2, 1], pace: 0.8, twitches: 0.8, strength: 1.1, window: 0.9 },
+  raiduzhna: { tempers: [5, 3, 1, 1], pace: 0.75, twitches: 0.9, strength: 1.2, window: 0.9 },
+  paliya: { tempers: [3, 4, 2, 1], pace: 0.8, twitches: 1.1, strength: 0.9, window: 0.85 },
+  holovach: { tempers: [4, 1, 2, 3], pace: 1.1, twitches: 0.6, strength: 1.6, window: 1.1 },
   myn: { tempers: [2, 2, 3, 3], pace: 1.4, twitches: 0.8, strength: 1, window: 1.4 },
   amur: { tempers: [1, 2, 4, 3], pace: 1.4, twitches: 1, strength: 1.2, window: 1.1 },
   tovstolob: { tempers: [0, 1, 4, 5], pace: 1.8, twitches: 0.6, strength: 0.9, window: 1.2 },
@@ -107,7 +120,7 @@ export const NIBBLE = {
   lostlure: { tempers: [1, 0, 0, 0], pace: 1, twitches: 0, strength: 0.5, window: 1 },
 };
 // A legend bites like its kind, only harder.
-for (const [id, kind] of Object.entries({ zolotyi: "karas", syva: "shchuka", knyazha: "forel", myron: "korop", panas: "som" })) {
+for (const [id, kind] of Object.entries({ zolotyi: "karas", syva: "shchuka", knyazha: "forel", myron: "korop", panas: "som", veselka: "raiduzhna" })) {
   NIBBLE[id] = { ...NIBBLE[kind], strength: NIBBLE[kind].strength * 1.3 };
 }
 
@@ -133,6 +146,7 @@ export const LEGENDS = {
   castle: { id: "knyazha", kind: "forel", baits: ["spinner", "worm"] },
   reservoir: { id: "myron", kind: "korop", baits: ["boilie", "corn", "peas", "barley"] },
   bridge: { id: "panas", kind: "som", baits: ["frog", "livebait", "crayfish"] },
+  troutfarm: { id: "veselka", kind: "raiduzhna", baits: ["spinner", "worm", "corn"] },
 };
 export const LEGEND_CHANCE = 1 / 1500;
 
@@ -194,15 +208,15 @@ export const BAITS = {
   bread: { price: 0, free: true, others: 0, size: 0, maxSize: 0.22, species: { plitka: 4, krasnopirka: 4, karas: 3, yorzh: 1, verkhovodka: 4 } },
   // Dough only ever tempts small fish (no carp or bream on it).
   dough: { price: 2, size: 0.4, maxSize: 0.45, species: { karas: 4, plitka: 3, krasnopirka: 3, yorzh: 1, verkhovodka: 2 } },
-  worm: { price: 3, size: 0.6, species: { plitka: 3, karas: 3, okun: 3, yorzh: 3, lyn: 2, lyasch: 1, rotan: 3, bychok: 4, yaz: 2, forel: 2, myn: 2, sterliad: 2 } },
-  maggot: { price: 4, size: 0.5, species: { plitka: 4, krasnopirka: 3, yorzh: 2, lyasch: 2, karas: 2, verkhovodka: 4, yaz: 1 } },
+  worm: { price: 3, size: 0.6, species: { plitka: 3, karas: 3, okun: 3, yorzh: 3, lyn: 2, lyasch: 1, rotan: 3, bychok: 4, yaz: 2, forel: 2, myn: 2, sterliad: 2, raiduzhna: 3, paliya: 3 } },
+  maggot: { price: 4, size: 0.5, species: { plitka: 4, krasnopirka: 3, yorzh: 2, lyasch: 2, karas: 2, verkhovodka: 4, yaz: 1, raiduzhna: 2 } },
   barley: { price: 4, size: 0.8, species: { karas: 3, lyasch: 3, plitka: 2, korop: 2, lyn: 1, yaz: 2 } },
-  bloodworm: { price: 5, size: 0.5, species: { yorzh: 3, plitka: 3, karas: 2, lyn: 3, okun: 2, bychok: 2, sterliad: 2, verkhovodka: 1 } },
+  bloodworm: { price: 5, size: 0.5, species: { yorzh: 3, plitka: 3, karas: 2, lyn: 3, okun: 2, bychok: 2, sterliad: 2, verkhovodka: 1, paliya: 3 } },
   peas: { price: 6, size: 0.9, species: { lyasch: 4, korop: 3, lyn: 2, plitka: 1, yaz: 3, amur: 2 } },
-  corn: { price: 7, size: 1, species: { karas: 2, lyasch: 3, korop: 4, lyn: 2, yaz: 2, amur: 4 } },
+  corn: { price: 7, size: 1, species: { karas: 2, lyasch: 3, korop: 4, lyn: 2, yaz: 2, amur: 4, raiduzhna: 2 } },
   boilie: { price: 20, size: 1.6, species: { korop: 6, lyasch: 1, amur: 3, tovstolob: 0.6 } },
   // Live bait and crayfish: big perch and catfish (pike and zander go for the spoon).
-  livebait: { price: 25, size: 1.4, species: { okun: 4, som: 2, myn: 3, zherekh: 1 } },
+  livebait: { price: 25, size: 1.4, species: { okun: 4, som: 2, myn: 3, zherekh: 1, holovach: 1 } },
   crayfish: { price: 30, size: 1.6, species: { som: 3, okun: 2, myn: 1 } },
   frog: { price: 45, size: 1.8, species: { som: 6 } },
   /*
@@ -212,11 +226,11 @@ export const BAITS = {
    * in a pause, or on a steady retrieve.
    */
   // A small spinner: mostly perch, takes on a plain steady retrieve.
-  spinner: { price: 150, lure: true, size: 0.7, others: 0, minKg: 0, holdKg: 2, retrieve: { jerk: 1, flutter: 0.6, steady: 3 }, species: { okun: 6, shchuka: 1.2, sudak: 0.6, plitka: 0.8, forel: 4, zherekh: 1 } },
+  spinner: { price: 150, lure: true, size: 0.7, others: 0, minKg: 0, holdKg: 2, retrieve: { jerk: 1, flutter: 0.6, steady: 3 }, species: { okun: 6, shchuka: 1.2, sudak: 0.6, plitka: 0.8, forel: 4, zherekh: 1, raiduzhna: 4, paliya: 3 } },
   // The wobbling spoon: pike and zander, best fished in jerks.
-  spoon: { price: 300, lure: true, size: 1.2, others: 0, minKg: 0.3, holdKg: 8, retrieve: { jerk: 1, flutter: 1, steady: 1 }, species: { okun: 4, shchuka: 5, sudak: 4, som: 0.4, zherekh: 4 } },
+  spoon: { price: 300, lure: true, size: 1.2, others: 0, minKg: 0.3, holdKg: 8, retrieve: { jerk: 1, flutter: 1, steady: 1 }, species: { okun: 4, shchuka: 5, sudak: 4, som: 0.4, zherekh: 4, holovach: 3, raiduzhna: 2 } },
   // A wobbler: only bigger fish, which hit it as it stops in the pause.
-  wobbler: { price: 900, lure: true, size: 1.5, others: 0, minKg: 1, holdKg: Infinity, retrieve: { jerk: 0.6, flutter: 2.2, steady: 0.5 }, species: { shchuka: 6, sudak: 2.5, okun: 2, som: 0.8, zherekh: 3 } },
+  wobbler: { price: 900, lure: true, size: 1.5, others: 0, minKg: 1, holdKg: Infinity, retrieve: { jerk: 0.6, flutter: 2.2, steady: 0.5 }, species: { shchuka: 6, sudak: 2.5, okun: 2, som: 0.8, zherekh: 3, holovach: 3, raiduzhna: 1.5 } },
 };
 
 /** Baits taken out of the game, with their price: a save that still holds some is paid back. */
@@ -356,7 +370,37 @@ export const LOCATIONS = [
     minKg: 0.8, typicalKg: 12, maxKg: 40, bigChance: 1 / 15, tailKg: 60, tailChance: 1 / 400, pace: 1.1, unlock: { price: 15000 },
     fish: { sudak: 3, zherekh: 2.5, shchuka: 2, okun: 1.5, yaz: 1, myn: 1, som: 1.5, amur: 0.4, sterliad: 0.15 },
   },
+  {
+    /*
+     * The trout farm «Smerekove» in the mountains, a paid water: stocked, so
+     * it bites often, but the fish run even, mostly 1–3 kg, a big rainbow up
+     * to 8; nothing under 800 g. Being tried out (`preview`): shown only on a
+     * tester's account for now.
+     */
+    id: "troutfarm", snagChance: 0.03, kind: "troutfarm", water: "#2f9a86", preview: true,
+    traits: { type: "pond", depth: "medium", bottom: "stones", current: "weak" },
+    minKg: 0.8, typicalKg: 3, maxKg: 8, bigChance: 1 / 12, pace: 1.6, unlock: { price: 40000 },
+    fish: { raiduzhna: 4, paliya: 2, forel: 1.5, holovach: 0.08 },
+  },
 ];
+
+/*
+ * A tester (an admin's account, see cloud.js) sees the waters still being
+ * tried out and has every water open; everyone else never meets them, nor
+ * the fish that live only there.
+ */
+export const access = { tester: false };
+
+/** Whether a water is shown to this angler. */
+export const spotShown = (spot) => !spot.preview || access.tester;
+
+/** Whether a fish is shown: a fish that lives only in waters still being tried out is not. */
+export function fishShown(id) {
+  const homes = LOCATIONS.filter((spot) => (spot.fish[id] ?? 0) > 0);
+  const legendOf = Object.entries(LEGENDS).find(([, legend]) => legend.id === id);
+  if (legendOf) return spotShown(LOCATIONS.find((spot) => spot.id === legendOf[0]));
+  return !homes.length || homes.some(spotShown);
+}
 
 // How many angler pictures there are to pick from (drawn in sprites.js, AVATARS),
 // and the author's own, which nobody else can pick.
@@ -540,9 +584,9 @@ function biteStyle(id) {
 
 export function handbookEntries() {
   // Valerka and Artem stay a secret: the handbook never mentions them.
-  return Object.entries(FISH).filter(([, fish]) => !fish.junk && !fish.unique).map(([id, fish]) => {
+  return Object.entries(FISH).filter(([id, fish]) => !fish.junk && !fish.unique && fishShown(id)).map(([id, fish]) => {
     const spots = LOCATIONS
-      .filter((spot) => (spot.fish[id] ?? 0) > 0)
+      .filter((spot) => (spot.fish[id] ?? 0) > 0 && spotShown(spot))
       .sort((a, b) => b.fish[id] - a.fish[id])
       .map((spot) => ({ id: spot.id, abundance: abundance(spot, id), minKg: fish.max > (spot.minKg ?? 0) ? Math.max(fish.min, spot.minKg ?? 0) : fish.min, maxKg: Math.min(fish.max, spot.tailKg ?? spot.maxKg ?? fish.max) }));
     // Just the baits it bites on (a lure predator: the lure only), keenest first.
@@ -566,7 +610,7 @@ export function handbookEntries() {
 
 /** One page per fishing spot: its water, who lives there and how it fishes. */
 export function spotEntries() {
-  return LOCATIONS.map((spot) => ({
+  return LOCATIONS.filter(spotShown).map((spot) => ({
     id: spot.id,
     traits: spot.traits,
     fish: Object.entries(spot.fish).sort(([, a], [, b]) => b - a).map(([id]) => id),
@@ -587,7 +631,7 @@ export function baitEntries() {
     id,
     price: bait.price,
     free: Boolean(bait.free),
-    fish: Object.entries(bait.species).sort(([, a], [, b]) => b - a).filter(([fishId]) => FISH[fishId] && !FISH[fishId].unique && (!FISH[fishId].lure || bait.lure)).map(([fishId]) => fishId),
+    fish: Object.entries(bait.species).sort(([, a], [, b]) => b - a).filter(([fishId]) => FISH[fishId] && !FISH[fishId].unique && fishShown(fishId) && (!FISH[fishId].lure || bait.lure)).map(([fishId]) => fishId),
     size: bait.maxSize ? "small" : bait.size >= 1.3 ? "big" : bait.size >= 0.8 ? "medium" : "small",
   }));
 }

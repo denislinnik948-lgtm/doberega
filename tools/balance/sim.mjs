@@ -5,6 +5,7 @@
  *
  *   node tools/balance/sim.mjs           the full run, then the checks
  *   node tools/balance/sim.mjs --quick   shorter sessions, rougher numbers
+ *   node tools/balance/sim.mjs --spot troutfarm   what one water pays with each rod
  *
  * The angler is a fair player, not a perfect one: it misses about one bite in
  * five and reacts 0.3–1.2 s late, pumps the rod in the fight (pulling to about
@@ -170,6 +171,17 @@ function bestSetup(rod, open, stage) {
   return screened
     .map(({ setup }, index) => ({ setup, ...session({ ...setup, hours: MEASURE_HOURS, seed: 77 + 1000 * stage + index }) }))
     .sort((a, b) => b.rate - a.rate)[0];
+}
+
+// --spot <id>: only how well that water pays with each rod, then stop.
+const spotArg = process.argv.indexOf("--spot");
+if (spotArg > 0) {
+  const index = LOCATIONS.findIndex((spot) => spot.id === process.argv[spotArg + 1]);
+  for (const id of Object.keys(RODS).sort((a, b) => RODS[a].tier - RODS[b].tier).slice(3)) {
+    const best = bestSetup(id, [index], 0);
+    console.log(`${id.padEnd(11)}${label(best.setup).padEnd(28)}${String(Math.round(best.rate)).padEnd(8)}${(best.landed / MEASURE_HOURS).toFixed(0).padEnd(6)}${Math.round(best.xp / MEASURE_HOURS)} xp/h`);
+  }
+  process.exit(0);
 }
 
 /*

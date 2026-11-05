@@ -144,6 +144,31 @@ export const SCENES = {
     // Fast water carries no mist.
     mist: false,
   },
+  /**
+   * Trout farm in the mountains, after a photo of a green alpine lake: a
+   * sheer grey limestone massif rising high on the left, a lower peak on the
+   * right, dense spruce woods climbing their foot, one small hut among the
+   * trees, and clear emerald water. A stream sets the water slowly sideways.
+   */
+  troutfarm: {
+    horizon: 0.53,
+    // On a narrow screen, keep the big rock in view.
+    focus: 0.35,
+    ridges: [
+      { top: 0.5, amplitude: 0.42, seed: 7.4, jagged: true, alpine: true, rise: [0.62, 0.12], haze: 0.12, pale: 0.45, treeline: 0.37, fill: "#6a6e6c", glyph: "#8a8e8a", texture: ".'", density: 0.05 },
+      { top: 0.51, amplitude: 0.24, seed: 3.1, jagged: true, alpine: true, rise: [0.5, 0.72], haze: 0.22, pale: 0.4, treeline: 0.38, fill: "#5d6670", glyph: "#7a838c", texture: ".'", density: 0.05 },
+      // A wooded slope running down between the two peaks.
+      { top: 0.45, amplitude: 0.15, seed: 5.8, jagged: true, alpine: true, haze: 0.08, treeline: 0, fill: "#2d4840", glyph: "#43614f", texture: "^.'", density: 0.12 },
+    ],
+    forest: { heightScale: 1.7, spacingScale: 0.65, broadleaf: 0.06, gaps: [[0.34, 0.39]] },
+    structures: {
+      houses: { at: [0.365], scale: 0.55, roof: "#3b3026", walls: "#7a5636", logs: true },
+    },
+    water: { body: "#0c4a40", drift: { x: 0.0008, y: 0 } },
+    nearBank: 0.035,
+    // We sit on a wooden jetty running out from the bank.
+    foreground: { reeds: 0, rock: false, lilyPads: 0, deck: 0.9 },
+  },
 };
 
 let active = SCENES.lake;
@@ -262,11 +287,35 @@ export function jettyShape(width, height) {
   };
 }
 
+/**
+ * The wooden jetty we sit on (foreground.deck, the screen fraction of its far
+ * edge), in scene pixels: its far edge, its half width at a height (wider
+ * toward us) and whether a point is on it, or within `margin` beyond its far edge.
+ */
+export function deckShape(height) {
+  const deck = active.foreground.deck;
+  if (!deck) return null;
+  const center = view.left + view.frameWidth / 2;
+  const front = height * deck;
+  const frontHalf = Math.min(view.frameWidth * 0.2, height * 0.3);
+  const bottomHalf = frontHalf * 1.5;
+  const halfAt = (y) => frontHalf + (bottomHalf - frontHalf) * ((y - front) / (height - front));
+  return {
+    center,
+    front,
+    frontHalf,
+    bottomHalf,
+    halfAt,
+    covers: (x, y, margin = 0) => y > front - margin && Math.abs(x - center) < halfAt(Math.max(front, y)),
+  };
+}
+
 /** Is this screen point open water (not bank, rock or shore)? */
 export function isOpenWater(x, y, width, height) {
   if (y < shorelineY(x, height)) return false;
   if (y > nearBankY(x, height)) return false;
   if (active.foreground.bridge && y > active.foreground.bridge * height) return false;
+  if (deckShape(height)?.covers(x, y, height * 0.02)) return false;
   const { left, right } = bankWidths(y / height);
   if (x < left * width || x > width * (1 - right)) return false;
   for (const rock of active.water.rocks ?? []) {

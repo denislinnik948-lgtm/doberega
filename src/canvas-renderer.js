@@ -1,6 +1,6 @@
 import { sampleWater } from "./water-engine.js";
 import { createForestGlyphs } from "./forest-engine.js";
-import { activeScene, bankWidths, currentAt, isOpenWater, jettyShape, nearBankY, setScene, shorelineY, sunPosition, view, wreckShape } from "./scene.js";
+import { activeScene, bankWidths, currentAt, deckShape, isOpenWater, jettyShape, nearBankY, setScene, shorelineY, sunPosition, view, wreckShape } from "./scene.js";
 import { skyAt, toHex, toInt } from "./daycycle.js";
 import { clamp, hash01, hash2, hexToInt, mixColor, valueNoise } from "./noise.js";
 import { createBankGlyphs, createRidgeGlyphs, createShoreGlyphs, createStructures, ridgeTop } from "./landscape-engine.js";
@@ -442,6 +442,7 @@ export class CanvasWaterRenderer {
     this.bridgeImage = scene.foreground.bridge ? this.createBridgeImage(scene.foreground.bridge) : null;
     this.signImage = scene.foreground.sign ? this.createSignImage(scene.foreground.sign) : null;
     this.oak = scene.foreground.oak ? this.createOak() : null;
+    this.deck = scene.foreground.deck ? this.createDeck() : null;
     // Where bullfinches can sit in winter: the oak's boughs, the bridge rail
     // and (added as the reeds are drawn, since they sway) the cattails.
     this.perches = [];
@@ -746,6 +747,21 @@ export class CanvasWaterRenderer {
         ctx.fillStyle = winter ? (step ? "rgba(176, 190, 198, 0.16)" : "#b0bec6") : step ? `rgba(20, 34, 26, ${0.16})` : "#14221a";
         ctx.fill();
       }
+    }
+
+    // The jetty's shadow: dark water under its boards, as the earth under the grass.
+    const deck = deckShape(height);
+    if (deck) {
+      ctx.beginPath();
+      // Starting under the end beam's strokes, not above them.
+      const top = deck.front + this.reedSize * 0.3;
+      ctx.moveTo(deck.center - deck.halfAt(top), top);
+      ctx.lineTo(deck.center + deck.halfAt(top), top);
+      ctx.lineTo(deck.center + deck.bottomHalf, height);
+      ctx.lineTo(deck.center - deck.bottomHalf, height);
+      ctx.closePath();
+      ctx.fillStyle = "#14221a";
+      ctx.fill();
     }
 
     // Near banks (grass or rock) cover the water at the sides.
@@ -1435,6 +1451,106 @@ export class CanvasWaterRenderer {
     const landed = this.oak.landings;
     this.oak.landings = [];
     return landed;
+  }
+
+  /**
+   * The wooden jetty we sit on, close up in the middle of the bank, in glyphs
+   * only: boards running out toward the water, narrowing with distance, each
+   * its own shade of weathered wood, the gaps and the side edges as slanted
+   * strokes set exactly on their lines, the end beam at its far edge and a
+   * mooring post on each corner, one with a rope on it; snow on the boards in
+   * winter. Pre-rendered once per layout.
+   */
+  createDeck() {
+    const { height, pixelRatio } = this;
+    const { left: frameLeft, width: frameWidth } = this.frame;
+    const winter = isWinter();
+    const size = Math.round(this.reedSize * 0.55);
+    const cellWidth = size * 0.62;
+    const lineHeight = size * 0.85;
+    const { center, front, frontHalf, bottomHalf, halfAt } = deckShape(height);
+    // How far a line on the deck leans per row: its x moves this much (times `across`) each line down.
+    const slant = ((bottomHalf - frontHalf) / (height - front)) * lineHeight;
+    const boards = 9;
+    const top = Math.floor(front - lineHeight * 7);
+    const image = document.createElement("canvas");
+    image.width = Math.max(1, Math.round(frameWidth * pixelRatio));
+    image.height = Math.max(1, Math.round((height - top) * pixelRatio));
+    const ctx = image.getContext("2d");
+    ctx.setTransform(pixelRatio, 0, 0, pixelRatio, -frameLeft * pixelRatio, -top * pixelRatio);
+    ctx.font = `600 ${size}px ${MONO_FONT}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const put = (x, y, glyph, color) => {
+      ctx.fillStyle = color;
+      ctx.fillText(glyph, x, y);
+    };
+    // A stroke leaning the way a line on the deck runs at this place across it.
+    const lean = (across) => {
+      const dx = (across * slant) / cellWidth;
+      return Math.abs(dx) < 0.35 ? "|" : dx < 0 ? "/" : "\\";
+    };
+    // Each board its own weathered shade: [shadow, grain, lit].
+    const shades = [
+      ["#4a3a28", "#6e5a42", "#947c5a"],
+      ["#433424", "#64503a", "#8a7050"],
+      ["#504030", "#7a6446", "#a08866"],
+      ["#3c3022", "#5a4834", "#7e6848"],
+    ];
+    for (let row = Math.ceil(front / lineHeight); row * lineHeight < height + lineHeight; row += 1) {
+      const y = row * lineHeight + lineHeight / 2;
+      const half = halfAt(y);
+      const near = (y - front) / (height - front);
+      // The end beam across the far edge: a row of heavy strokes.
+      if (y - front < lineHeight * 1.5) {
+        for (let x = center - half + cellWidth / 2; x < center + half; x += cellWidth) {
+          const noise = hash2(Math.round(x / cellWidth), row, 2401);
+          put(x, y, noise > 0.8 ? "=" : "#", noise > 0.4 ? "#9a8262" : "#7a6446");
+        }
+        continue;
+      }
+      // The boards: a dense field of grain strokes, the gaps between them left open.
+      const width = (2 * half) / boards;
+      for (let board = 0; board < boards; board += 1) {
+        const [shadow, grain, lit] = shades[Math.floor(hash2(board, 0, 2403) * shades.length)];
+        const from = center - half + board * width;
+        const count = Math.max(1, Math.round((width - cellWidth * 0.6) / cellWidth));
+        for (let k = 0; k < count; k += 1) {
+          const x = from + cellWidth * 0.6 + ((width - cellWidth * 1.2) * (k + 0.5)) / count;
+          const noise = hash2(board * 31 + k, row, 2405);
+          if (winter && hash2(board * 7 + Math.floor(k / 2), Math.floor(row / 2), 2407) > 0.45) {
+            put(x, y, noise > 0.5 ? "%" : "&", noise > 0.3 ? "#e6edf0" : "#c4d0d6");
+            continue;
+          }
+          // A nail head where the board sits on a joist, a knot now and then.
+          const nail = (k === 0 || k === count - 1) && row % 7 === 3;
+          const glyph = nail ? "o" : noise > 0.985 ? "@" : "$&%#:|"[Math.floor(hash2(board * 31 + k, row, 2409) * 6)];
+          // Lit toward the sun's side and nearer us, a shadow along each gap.
+          const tone = noise + (k === 0 ? -0.35 : 0) + near * 0.15;
+          put(x, y, glyph, nail ? "#b0aaa0" : tone > 0.62 ? lit : tone > 0.2 ? grain : shadow);
+        }
+        // The gap after this board, a thin dark stroke on its line.
+        if (board < boards - 1) put(from + width, y, lean((from + width - center) / half), "#2a2016");
+      }
+      // The side edges of the deck, set exactly on their slanted lines.
+      put(center - half, y, lean(-1), "#3a2c1e");
+      put(center + half, y, lean(1), "#3a2c1e");
+    }
+    // A mooring post on each far corner, a rope coiled round the right one.
+    for (const side of [-1, 1]) {
+      const x = center + side * frontHalf * 0.88;
+      for (let k = 0; k < 7; k += 1) {
+        const y = front + lineHeight * 0.5 - lineHeight * k;
+        const rope = side > 0 && (k === 3 || k === 4);
+        for (const dx of [-2, -1, 0, 1, 2]) {
+          const edge = Math.abs(dx) === 2;
+          const glyph = k === 6 ? "#" : rope ? "@" : edge ? "|" : "#$%"[Math.floor(hash2(dx, k, 2411) * 3)];
+          const color = k === 6 ? "#a08866" : rope ? "#c4ac7a" : dx < 0 ? "#94784e" : dx > 0 ? "#4a3a28" : "#6e5a42";
+          put(x + dx * cellWidth * 0.75, y, glyph, color);
+        }
+      }
+    }
+    return { image, top, left: frameLeft, width: frameWidth };
   }
 
   /** The wooden railing of the bridge we fish from, pre-rendered once per layout. */
@@ -2447,6 +2563,9 @@ export class CanvasWaterRenderer {
       ctx.drawImage(this.oak.image, this.oak.left, this.oak.top, this.oak.width, this.oak.height);
       this.drawOakLeaves(ctx, time);
     }
+
+    // The jetty we sit on.
+    if (this.deck) ctx.drawImage(this.deck.image, this.deck.left, this.deck.top, this.deck.width, this.height - this.deck.top);
 
     // The railing stands between us and the reeds by the far abutments.
     if (this.bridgeImage) {

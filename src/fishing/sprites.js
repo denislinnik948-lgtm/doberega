@@ -209,6 +209,21 @@ export const FISH_LOOKS = {
     len: 34, h: 10, peak: 0.5, back: "#3c4a2a", side: "#c49a8a", belly: "#ecdcc8", fin: "#7a7458", lowFin: "#d0a080", tailFin: "#6a6448", eye: "#e8d0a0",
     dorsal: [[0.44, 0.58, 4]], anal: [0.2, 0.3, 3], tail: "square", pattern: "spots", spotColor: "#2a2418",
   },
+  // Rainbow trout: silver, a pink band along the side, fine dark spots over the back and tail.
+  raiduzhna: {
+    len: 38, h: 11, peak: 0.5, back: "#3a5048", side: "#c4c8bc", belly: "#eeeae2", fin: "#6a7a6a", lowFin: "#d8a4a0", tailFin: "#5e6e62", eye: "#e8d8b0",
+    dorsal: [[0.44, 0.58, 4]], anal: [0.2, 0.3, 3], tail: "square", pattern: "spots", spotColor: "#1e2420", stripe: "#d07a92",
+  },
+  // Brook trout: dark olive with pale spots, an orange belly, white-edged lower fins.
+  paliya: {
+    len: 30, h: 9, peak: 0.5, back: "#2a3622", side: "#7a7a4a", belly: "#e07a36", fin: "#4a4a30", lowFin: "#e06a3a", tailFin: "#4a4a30", eye: "#e8d090",
+    dorsal: [[0.44, 0.58, 3]], anal: [0.2, 0.3, 2], tail: "square", pattern: "spots", spotColor: "#e0d27a",
+  },
+  // Huchen: long and round, coppery, a broad head and small dark spots.
+  holovach: {
+    len: 56, h: 11, peak: 0.55, back: "#3a302c", side: "#b08a78", belly: "#ece0d4", fin: "#5a4a40", lowFin: "#b07a60", tailFin: "#5a4a40", eye: "#e8d8b0",
+    dorsal: [[0.44, 0.56, 4]], anal: [0.16, 0.26, 3], tail: "square", pattern: "spots", spotColor: "#2a1e1a", broadHead: true,
+  },
   // Burbot: long and mottled brown, one barbel, long low fins.
   myn: {
     len: 44, h: 9, peak: 0.7, back: "#2e2a18", side: "#6a5e36", belly: "#c8bc90", fin: "#4a4228", lowFin: "#5a5030", tailFin: "#4a4228", eye: "#c8b070",
@@ -333,6 +348,8 @@ function fishGrid(species) {
         const phase = (x - xAt(0.1)) / barWidth;
         if (Math.floor(phase) % 2 === 0 && phase < (look.bars ?? 6) * 2) color = t < 0.32 ? shade(look.barColor, 0.8) : look.barColor;
       }
+      // A coloured band along the middle of the side (the rainbow trout's).
+      if (look.stripe && t > 0.42 && t < 0.6 && u > 0.06 && u < 0.8) color = (x + y) % 2 && (t < 0.46 || t > 0.56) ? look.side : look.stripe;
       if (look.pattern === "spots" && t > 0.18 && t < 0.82 && u < 0.76) {
         // Pale, slightly elongated bean spots in staggered rows.
         const row = Math.floor((y - top) / 2.2);
@@ -405,6 +422,8 @@ Object.assign(FISH_LOOKS, {
   myron: { ...FISH_LOOKS.korop, back: "#2e2a14", side: "#8a7a34", belly: "#d8c890", fin: "#3e3a1c", lowFin: "#8a4a2a", tailFin: "#5a4220" },
   // Grandpa Panas the catfish: near black, pale-eyed.
   panas: { ...FISH_LOOKS.som, back: "#1a1c16", side: "#4a4a3a", belly: "#b8b49a", eye: "#e8e0c0" },
+  // Veselka, the rainbow: a huge rainbow trout, its band gone bright as a rainbow.
+  veselka: { ...FISH_LOOKS.raiduzhna, back: "#2a5a4a", side: "#e2dcd2", belly: "#f6f0e6", stripe: "#e8607e", lowFin: "#e88a8a", eye: "#fff0c0" },
 });
 
 function bootGrid() {

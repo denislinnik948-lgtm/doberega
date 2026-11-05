@@ -7,7 +7,7 @@ import { moonAt, moonBite } from "./moon.js";
 import { windAt, windBite } from "./wind.js";
 import { Critters, Ducks } from "./wildlife.js";
 import { FishingGame, TUNING } from "./fishing/game.js";
-import { BAITS, FISH, GROUNDBAIT, HOOKS, LINE, LOCATIONS, RODS, SPECIAL_AVATAR } from "./fishing/data.js";
+import { BAITS, FISH, GROUNDBAIT, HOOKS, LINE, LOCATIONS, RODS, SPECIAL_AVATAR, access } from "./fishing/data.js";
 import { baitCount, loadProgress, onProgressSaved, replaceProgress, saveProgress } from "./fishing/store.js";
 import { Cloud } from "./cloud.js";
 import { currentSeason, isWinter, onSeasonChange } from "./theme.js";
@@ -19,6 +19,7 @@ import { breakStreak, bump, recordCatch } from "./fishing/achievements.js";
 import { XP, fishXp, gainXp, rankPending } from "./fishing/ranks.js";
 import { recordDay, recordQuest, recordTourney, settleTourney, tourneyFish, tourneyState, tourneyWeek } from "./fishing/quests.js";
 import { warmFishPortraits } from "./fishing/sprites.js";
+import { ensureOpenSpot } from "./fishing/waters.js";
 
 // The water look is fixed: a still lake, gentle swell speed, soft glints.
 const config = {
@@ -224,6 +225,12 @@ const cloud = new Cloud({
     if (rankPending(progress)) ui.commit();
   },
   onChange: () => {
+    // An admin's account tests the waters still being tried out, with every water open.
+    if (access.tester !== cloud.admin) {
+      access.tester = cloud.admin;
+      if (ensureOpenSpot(progress)) applySpot();
+      ui.renderSpot();
+    }
     // The author's own picture, given once when an admin's account is first recognised.
     if (cloud.admin && !progress.authorAvatar) {
       progress.authorAvatar = true;

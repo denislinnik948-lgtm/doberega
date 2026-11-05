@@ -1,5 +1,5 @@
 import { fastSin, hash2 } from "./noise.js";
-import { activeScene, bankWidths, nearBankY, shorelineY } from "./scene.js";
+import { activeScene, bankWidths, deckShape, nearBankY, shorelineY } from "./scene.js";
 import { gradeInt } from "./theme.js";
 import { inCrown } from "./forest-engine.js";
 
@@ -116,6 +116,7 @@ export function createGrass({ width, height, cellWidth, lineHeight, frame, seaso
 
   // The bank we stand on.
   if (scene.nearBank) {
+    const deck = deckShape(height);
     let top = height;
     for (let x = frame.left; x <= frame.left + frame.width; x += cellWidth) top = Math.min(top, nearBankY(x, height));
     sow(near, {
@@ -124,7 +125,8 @@ export function createGrass({ width, height, cellWidth, lineHeight, frame, seaso
       left: frame.left - cellWidth,
       right: frame.left + frame.width + cellWidth,
       inside: (x, y) => y > nearBankY(x, height) - lineHeight * 0.1,
-      covered: () => false,
+      // No grass through the boards of a jetty.
+      covered: (x, y) => Boolean(deck?.covers(x, y)),
       // Close up, the grass catches more light.
       lift: 1,
       nearness: (y) => 0.55 + 0.45 * Math.min(1, Math.max(0, (y - top) / (height - top))),

@@ -181,6 +181,8 @@ export function fishPortrait(look, { length = 70 } = {}) {
         const c = (x + (row % 2) * 2) % 4;
         if ((r === 2 && (c === 1 || c === 2)) || (r === 1 && (c === 0 || c === 3))) value -= 0.2;
       }
+      // A coloured band along the middle of the side (the rainbow trout's), soft at its edges.
+      if (look.stripe && u > 0.06 && u < 0.8) color = mix(color, look.stripe, smooth(0.38, 0.46, t) * (1 - smooth(0.56, 0.64, t)) * 0.85);
       if (look.pattern === "spots" && t > 0.18 && t < 0.82 && u < 0.76) {
         const row = Math.floor((y - top) / 3.5);
         const cx = (x + row * 3) % 7;

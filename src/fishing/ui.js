@@ -1,14 +1,14 @@
 import {
-  BAITS, BOTTLE_MONEY, SPECIAL_AVATAR, EXTRAS, FISH, GROUNDBAIT, GULL, HOOKS, LEGENDS, LINE, LOCATIONS, RODS, gameHoursMs,
+  BAITS, BOTTLE_MONEY, SPECIAL_AVATAR, EXTRAS, FISH, GROUNDBAIT, GULL, HOOKS, LEGENDS, LINE, LOCATIONS, RODS, gameHoursMs, spotShown,
   baitEntries, fishPrice, formatMoney, formatWeight, handbookEntries, peakPeriod, spotEntries, trophyCost,
 } from "./data.js";
 import {
   AVATARS, atlasSprite, avatarSprite, bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, groundbaitSprite, hookSprite, keepnetSprite, lineSprite, medalSprite, packSprite, rodSprite, windSprite,
 } from "./sprites.js";
 import { P } from "./palette.js";
-import { ACHIEVEMENTS, GROUPS, bump, evaluate } from "./achievements.js";
+import { GROUPS, bump, evaluate, shownAchievements } from "./achievements.js";
 import { RANKS, XP, claimRanks, rankAt } from "./ranks.js";
-import { joinWater, opensWithRank, spotLock } from "./waters.js";
+import { joinWater, opensWithRank, shownSpots, spotLock } from "./waters.js";
 import {
   STREAK_GIFTS, TOURNEY_PRIZES, fishOfDay, questReward, questState, streakNow, streakToday, todaysQuest, tourneyFish, tourneyState, tourneyWeek, untilNextQuest, untilWeekEnd,
 } from "./quests.js";
@@ -993,9 +993,12 @@ export class AnglerUI {
   /* ---------- Main menu ---------- */
 
   shiftSpot(step) {
-    const count = LOCATIONS.length;
+    // Only through the waters this angler sees.
+    const shown = shownSpots();
+    const count = shown.length;
+    const at = Math.max(0, shown.indexOf(this.progress.location));
     this.joinConfirm = null;
-    this.progress.location = (this.progress.location + step + count) % count;
+    this.progress.location = shown[(at + step + count) % count];
     saveProgress(this.progress);
     this.renderSpot();
     this.onSpotChange?.();
@@ -1012,12 +1015,14 @@ export class AnglerUI {
       element("dd", { textContent: traitValue(key, value) }),
     ]));
     // The pages of the waters: one mark for each, the shown one lit; a mark takes you straight to its water.
-    $("#spot-dots").replaceChildren(...LOCATIONS.map((spot, index) => element("button", {
+    const shown = shownSpots();
+    const at = shown.indexOf(this.progress.location);
+    $("#spot-dots").replaceChildren(...shown.map((index, place) => element("button", {
       type: "button",
       tabIndex: -1,
       className: index === this.progress.location ? "is-active" : "",
-      title: nameOf("location", spot.id),
-      onclick: () => this.shiftSpot(index - this.progress.location),
+      title: nameOf("location", LOCATIONS[index].id),
+      onclick: () => this.shiftSpot(place - at),
     }, [element("span")])));
     this.renderSpotLock();
   }
@@ -1045,7 +1050,8 @@ export class AnglerUI {
     const note = $("#spot-lock");
     note.hidden = !lock;
     if (lock) note.textContent = lock.rank !== undefined ? t("water.needRank", { rank: this.rankName(lock.rank) }) : t("water.fee", { price: formatMoney(lock.price) });
-    document.querySelectorAll("#spot-dots button").forEach((dot, index) => dot.classList.toggle("is-locked", Boolean(spotLock(progress, index))));
+    const shown = shownSpots();
+    document.querySelectorAll("#spot-dots button").forEach((dot, place) => dot.classList.toggle("is-locked", Boolean(spotLock(progress, shown[place]))));
     const short = lock?.price ? lock.price - progress.money : 0;
     button.classList.toggle("is-join", Boolean(lock?.price));
     button.disabled = Boolean(lock) && (lock.rank !== undefined || short > 0);
@@ -1809,7 +1815,7 @@ export class AnglerUI {
             from: spot.minKg ? t("handbook.spotFrom", { min: formatWeight(spot.minKg) }) : "",
             typ: formatWeight(spot.typicalKg), max: formatWeight(spot.maxKg), odds: spot.bigOdds,
           }) + (spot.tailKg ? t("handbook.spotTail", { tail: formatWeight(spot.tailKg) }) : "")],
-          [t("handbook.accessLabel"), this.accessText(index)],
+          [t("handbook.accessLabel"), this.accessText(LOCATIONS.findIndex((place) => place.id === spot.id))],
           [t("handbook.waterLabel"), `${nameOf("pace", spot.pace)} · ${nameOf("snags", spot.snags)}`],
         ], 760 + index);
       });
@@ -1964,7 +1970,7 @@ export class AnglerUI {
       return cell(entry.id, false, [t("atlas.notYet")], 1100 + index);
     });
     // The legends: a rumour each until landed, then the heaviest one on the wall.
-    const legends = Object.values(LEGENDS).map((legend, index) => {
+    const legends = Object.entries(LEGENDS).filter(([spotId]) => spotShown(LOCATIONS.find((spot) => spot.id === spotId))).map(([, legend], index) => {
       const best = progress.trophies.filter((trophy) => trophy.species === legend.id).sort((a, b) => b.weight - a.weight)[0];
       if (best) return cell(legend.id, true, [t("atlas.record", { weight: formatWeight(best.weight) })], 1200 + index);
       return cell(legend.id, false, [t(`legend.${legend.id}`)], 1200 + index);
@@ -2032,14 +2038,15 @@ export class AnglerUI {
   fillAchievements() {
     const { progress } = this;
     const done = (achievement) => Boolean(progress.achievements?.[achievement.id]);
-    const earned = ACHIEVEMENTS.filter(done);
+    const shown = shownAchievements();
+    const earned = shown.filter(done);
     $("#collection-summary").textContent = t("achievements.summary", {
       count: earned.length,
-      total: ACHIEVEMENTS.length,
+      total: shown.length,
       money: formatMoney(earned.reduce((sum, achievement) => sum + achievement.reward, 0)),
     });
     $("#achievement-list").replaceChildren(...GROUPS.map((group) => {
-      const items = ACHIEVEMENTS.filter((achievement) => achievement.group === group).map((achievement) => {
+      const items = shown.filter((achievement) => achievement.group === group).map((achievement) => {
         const got = done(achievement);
         const hidden = achievement.secret && !got;
         const value = achievement.value(progress);

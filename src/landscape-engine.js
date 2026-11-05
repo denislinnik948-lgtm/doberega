@@ -20,8 +20,9 @@ export function ridgeTop(ridge, x, height) {
   if (ridge.jagged) {
     // Alpine ridgeline: sharp crests, rising toward one side of the view.
     const u = x / view.width;
+    // `rise` [from, to]: low at `from`, full height from `to` on (to the left when `to` < `from`).
     const [from, to] = ridge.rise ?? [0, 0];
-    const ramp = to > from ? Math.min(1, Math.max(0, (u - from) / (to - from))) ** 0.8 : 1;
+    const ramp = to !== from ? Math.min(1, Math.max(0, (u - from) / (to - from))) ** 0.8 : 1;
     const crest = ridged(x * 0.0042, s, 100 + Math.round(s * 10), 5);
     return height * (ridge.top - ridge.amplitude * ramp * (0.25 + 0.95 * crest));
   }
@@ -45,6 +46,7 @@ const ROCK_SHADE = [52, 60, 76];
 const WOOD_LIT = [70, 92, 76];
 const WOOD_SHADE = [36, 50, 52];
 const HAZE = [158, 178, 198];
+const LIMESTONE = [214, 212, 200];
 
 /**
  * What an alpine slope looks like at a screen point. Couloirs and spurs come
@@ -63,8 +65,9 @@ export function alpineSample(ridge, x, y, height, column = alpineColumn(ridge, x
   const nearCrest = Math.exp(-(y - top) / (height * 0.04));
   const light = Math.round(clamp(0.5 + slope * 9 + crestSlope * 1.2 * nearCrest + (here - 0.45) * 0.5, 0, 1) * 3) / 3;
   const snowline = ridge.snowline ? height * (ridge.snowline + (1 - here) * 0.07 + (valueNoise(x * 0.02, 3, seed) - 0.5) * 0.03) : -1;
-  // Woods climb to just under the snow, or most of the way up a lower ridge.
-  const woodsTop = ridge.snowline ? ridge.snowline + 0.13 : ridge.top - ridge.amplitude * 0.7;
+  // Woods climb to just under the snow, or most of the way up a lower ridge,
+  // or as high as the ridge's own `treeline` (a share of the screen height).
+  const woodsTop = ridge.treeline ?? (ridge.snowline ? ridge.snowline + 0.13 : ridge.top - ridge.amplitude * 0.7);
   const treeline = height * (woodsTop + (valueNoise(x * 0.015, 9, seed) - 0.5) * 0.03);
   const material = y < snowline && Math.abs(slope) < 0.065 ? "snow" : y > treeline ? "woods" : "rock";
   return { material, light, slope, crest: y - top < height * 0.012 };
@@ -79,7 +82,10 @@ const ALPINE = {
 /** Palette colour of a slope sample, with distance haze. */
 export function alpineColor(ridge, sample, depth) {
   const [shade, lit] = ALPINE[sample.material];
-  return mixRgb(mixRgb(shade, lit, sample.light), HAZE, (ridge.haze ?? 0.22) + depth * 0.12);
+  const base = mixRgb(shade, lit, sample.light);
+  // `pale`: a light limestone rather than dark granite.
+  const rock = sample.material === "rock" && ridge.pale ? mixRgb(base, LIMESTONE, ridge.pale) : base;
+  return mixRgb(rock, HAZE, (ridge.haze ?? 0.22) + depth * 0.12);
 }
 
 /** Per-column values of an alpine ridge, shared by every pixel below the crest. */

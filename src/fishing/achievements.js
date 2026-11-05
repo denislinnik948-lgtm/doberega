@@ -1,4 +1,4 @@
-import { FISH, LEGENDS, LOCATIONS, RODS } from "./data.js";
+import { FISH, LEGENDS, LOCATIONS, RODS, fishShown, spotShown } from "./data.js";
 
 /**
  * Achievements: a badge, a note on screen and a little money each. The money
@@ -8,11 +8,16 @@ import { FISH, LEGENDS, LOCATIONS, RODS } from "./data.js";
  * What they need is counted in `progress.stats` (see `recordCatch` below and the
  * calls in main.js and ui.js); `progress.achievements` holds when each was
  * earned. `evaluate` is run after every change of progress and hands back the
- * ones just earned. Secret ones show only "?" until earned.
+ * ones just earned. Secret ones show only "?" until earned. One tied to a
+ * water still being tried out (`preview`, its spot id) is only for a tester.
  */
 
-/** Every species worth collecting: no jokes, no junk. */
-const COLLECTABLE = Object.keys(FISH).filter((id) => !FISH[id].unique && !FISH[id].junk);
+/** Every species worth collecting that this angler can meet: no jokes, no junk. */
+const collectable = () => Object.keys(FISH).filter((id) => !FISH[id].unique && !FISH[id].junk && fishShown(id));
+/** The legends of the waters this angler sees. */
+const legends = () => Object.entries(LEGENDS).filter(([spotId]) => spotShown(LOCATIONS.find((spot) => spot.id === spotId))).map(([, legend]) => legend);
+/** A counted achievement whose target changes with what this angler sees (written out in full: spreading it would freeze the target). */
+const countedBy = (fields, target, value) => ({ ...fields, get target() { return target(); }, value: (progress) => Math.min(target(), value(progress)) });
 
 /** The fish a spot's "knows the water" badge asks for: the ones that live there, but not the protected or seasonal. */
 const spotSet = (spotId) => Object.keys(LOCATIONS.find((spot) => spot.id === spotId).fish).filter((id) => !FISH[id].protected && !FISH[id].season);
@@ -48,8 +53,10 @@ export const ACHIEVEMENTS = [
   { id: "knowsCastle", group: "collector", reward: 300, ...spotBadge("castle") },
   { id: "knowsReservoir", group: "collector", reward: 300, ...spotBadge("reservoir") },
   { id: "knowsBridge", group: "collector", reward: 300, ...spotBadge("bridge") },
+  { id: "knowsTroutfarm", group: "collector", reward: 300, preview: "troutfarm", ...spotBadge("troutfarm") },
   { id: "predators", group: "collector", reward: 300, ...counted(5, (p) => ["shchuka", "sudak", "zherekh", "okun", "forel"].filter((id) => species(p, id) > 0).length) },
-  { id: "ichthyologist", group: "collector", reward: 1000, ...counted(COLLECTABLE.length, (p) => COLLECTABLE.filter((id) => species(p, id) > 0 || (id === "sterliad" && (p.released?.sterliad ?? 0) > 0)).length) },
+  // A protected fish counts once let go.
+  countedBy({ id: "ichthyologist", group: "collector", reward: 1000 }, () => collectable().length, (p) => collectable().filter((id) => species(p, id) > 0 || (p.released?.[id] ?? 0) > 0).length),
   // Weight and records.
   { id: "kilo", group: "weight", reward: 50, ...flag((p) => heaviestAny(p) >= 1) },
   { id: "heavy", group: "weight", reward: 300, ...flag((p) => heaviestAny(p) >= 10) },
@@ -78,6 +85,7 @@ export const ACHIEVEMENTS = [
   { id: "allRods", group: "count", reward: 500, ...counted(Object.keys(RODS).length, (p) => p.rods.length) },
   // Special and secret.
   { id: "guardian", group: "special", reward: 500, ...flag((p) => (p.released?.sterliad ?? 0) >= 1) },
+  { id: "mountainKeeper", group: "special", reward: 500, preview: "troutfarm", ...flag((p) => (p.released?.holovach ?? 0) >= 1) },
   { id: "kindHeart", group: "special", reward: 100, ...counted(10, (p) => stat(p, "releasedFromNet")) },
   { id: "oldBoot", group: "special", reward: 50, ...flag((p) => stat(p, "boots") >= 1) },
   { id: "bottleMail", group: "special", reward: 100, ...counted(5, (p) => stat(p, "bottles")) },
@@ -86,8 +94,8 @@ export const ACHIEVEMENTS = [
   { id: "duckThief", group: "special", reward: 100, ...counted(5, (p) => stat(p, "duckSteals")) },
   { id: "podium", group: "special", reward: 500, ...flag((p) => stat(p, "podiums") >= 1) },
   { id: "champion", group: "special", reward: 1000, ...flag((p) => stat(p, "wins") >= 1) },
-  { id: "legend", group: "special", reward: 1000, ...flag((p) => Object.values(LEGENDS).some((legend) => hasTrophy(p, legend.id))) },
-  { id: "allLegends", group: "special", reward: 1500, ...counted(Object.keys(LEGENDS).length, (p) => Object.values(LEGENDS).filter((legend) => hasTrophy(p, legend.id)).length) },
+  { id: "legend", group: "special", reward: 1000, ...flag((p) => legends().some((legend) => hasTrophy(p, legend.id))) },
+  countedBy({ id: "allLegends", group: "special", reward: 1500 }, () => legends().length, (p) => legends().filter((legend) => hasTrophy(p, legend.id)).length),
   { id: "valerka", group: "special", reward: 500, secret: true, ...flag((p) => hasTrophy(p, "valerka")) },
   { id: "artem", group: "special", reward: 500, secret: true, ...flag((p) => hasTrophy(p, "artem")) },
   { id: "mutant", group: "special", reward: 500, secret: true, ...flag((p) => hasTrophy(p, "dvoholovyi")) },
@@ -96,6 +104,9 @@ export const ACHIEVEMENTS = [
 ];
 
 export const GROUPS = ["start", "collector", "weight", "skill", "time", "count", "special"];
+
+/** The achievements this angler can see and earn. */
+export const shownAchievements = () => ACHIEVEMENTS.filter((achievement) => !achievement.preview || spotShown(LOCATIONS.find((spot) => spot.id === achievement.preview)));
 
 /** Add to a counter in the stats. */
 export function bump(progress, key, amount = 1) {
@@ -167,7 +178,7 @@ export function achievementProgress(progress, achievement) {
 export function evaluate(progress) {
   progress.achievements ??= {};
   const earned = [];
-  for (const achievement of ACHIEVEMENTS) {
+  for (const achievement of shownAchievements()) {
     if (progress.achievements[achievement.id]) continue;
     if (achievement.value(progress) < achievement.target) continue;
     progress.achievements[achievement.id] = new Date().toISOString();

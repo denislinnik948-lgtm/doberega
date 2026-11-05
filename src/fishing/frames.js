@@ -351,6 +351,37 @@ function landscape(px, w, h, random, kind) {
         for (let y = 0; y < tall; y += 1) px.set(x + Math.round((y / tall) ** 2 * (side ? -2 : 2) * unit), h - 1 - y, y > tall * 0.6 ? P.gold : P.goldDark);
       }
     }
+  } else if (kind === "troutfarm") {
+    // Smerekove: pale rock peaks, spruce woods down to the water, a log hut, and the jetty we sit on.
+    for (let x = x0; x < x1; x += 1) {
+      const u = (x - x0) / (w - 2 * m);
+      const tri = (v) => 1 - Math.abs((v % 2) - 1);
+      // High on the left, falling away to the right.
+      const lift = (0.55 + 0.45 * (1 - u)) * (12 + 16 * tri(x * 0.045 + 0.4) + 6 * tri(x * 0.15));
+      const top = Math.round(horizon - lift * unit);
+      for (let y = top; y <= horizon; y += 1) px.set(x, y, y < top + 3 * unit && lift > 22 ? P.bone : (x + y) % 3 ? P.soft : P.mid);
+    }
+    ridge(px, x0, x1, horizon, 9 * unit, 4.1, P.deep, horizon + 1);
+    for (let x = x0 + 1; x < x1; x += 2 + Math.floor(random() * 3)) pine(px, x, horizon + 1, Math.round((6 + random() * 10) * unit), P.ink);
+    // The log hut on the far bank.
+    const hx = Math.round(w * 0.36);
+    const top = horizon - Math.round(4 * unit);
+    px.rect(hx - 4, top - 1, 9, Math.round(4 * unit) + 1, P.goldDark);
+    for (let k = 0; k < 4; k += 1) px.rect(hx - 5 + k, top - 2 - k, 11 - 2 * k, 1, P.ember);
+    px.rect(x0, horizon, w - 2 * m, 1, P.ink);
+    // The jetty: boards narrowing toward the water, a mooring post on each far corner.
+    const front = Math.round(h * 0.86);
+    for (let y = front; y < h - m; y += 1) {
+      const t = (y - front) / Math.max(1, h - m - front);
+      const half = Math.round(w * (0.12 + 0.06 * t));
+      const cx = Math.round(w / 2);
+      for (let x = cx - half; x <= cx + half; x += 1) {
+        const board = Math.floor(((x - (cx - half)) / (2 * half + 1)) * 7);
+        const seam = Math.floor(((x + 1 - (cx - half)) / (2 * half + 1)) * 7) !== board;
+        px.set(x, y, y === front ? P.gold : seam ? P.ink : (x + y) % 5 === 0 ? P.dark : P.goldDark);
+      }
+    }
+    for (const side of [-1, 1]) px.rect(Math.round(w / 2 + side * w * 0.11) - 1, front - Math.round(5 * unit), 3, Math.round(5 * unit), P.goldDark);
   } else if (kind === "bridge") {
     ridge(px, x0, x1, horizon, 12 * unit, 1.3, P.dark, horizon + 1);
     for (let x = x0 + 2; x < x1; x += 3 + Math.floor(random() * 6)) {
