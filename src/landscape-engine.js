@@ -773,6 +773,7 @@ function addArchBridge({ from, to, arches }, width, height, cellWidth, lineHeigh
  * Bushes, lone trees and winding paths on the hills of the first ridge, in
  * glyphs: round dark bushes lit on top, trees with a short trunk and a round
  * crown, and a pale dotted path climbing each slope. `count` bushes in all.
+ * They keep above the woods along the shore, never over their trees.
  */
 function addHillDecor({ count = 60, trees = 14 }, width, height, cellWidth, lineHeight, out) {
   const ridge = activeScene().ridges[0];
@@ -780,8 +781,9 @@ function addHillDecor({ count = 60, trees = 14 }, width, height, cellWidth, line
   const autumn = isAutumn();
   const top = (x) => ridgeTop(ridge, x, height);
   const shore = (x) => shorelineY(x, height);
-  // Only where the hill stands well above the water.
-  const onHill = (x, y) => y > top(x) + lineHeight * 1.5 && y < shore(x) - lineHeight * 1.5;
+  // Only on the open slopes, above the band of woods along the shore.
+  const woods = height * 0.1;
+  const onHill = (x, y) => y > top(x) + lineHeight * 1.5 && y < shore(x) - woods;
   const cells = new Map();
   const put = (x, y, glyph, color) => {
     if (!onHill(x, y) && glyph !== "|") return;
@@ -797,7 +799,7 @@ function addHillDecor({ count = 60, trees = 14 }, width, height, cellWidth, line
   for (const [start, dir] of [[0.3, -1], [0.7, 1]]) {
     for (let t = 0; t <= 1; t += 0.004) {
       const x = width * (start + dir * (0.05 + t * 0.22) + 0.025 * Math.sin(t * 9));
-      const y = shore(x) - (shore(x) - top(x)) * t * 0.85;
+      const y = shore(x) - woods - (shore(x) - woods - top(x)) * t * 0.85;
       const cell = cellAt(x, y, cellWidth, lineHeight);
       if (hash2(cell.column, cell.row, 5701) > 0.35) put(x, y, t > 0.5 ? "." : ":", winter ? "#cfd8dc" : "#b0a47c");
     }
@@ -805,7 +807,7 @@ function addHillDecor({ count = 60, trees = 14 }, width, height, cellWidth, line
   // Bushes, then the lone trees standing over them.
   for (let i = 0; i < count; i += 1) {
     const x = width * hash2(i, 1, 5703);
-    const y = top(x) + (shore(x) - top(x)) * (0.15 + 0.75 * hash2(i, 2, 5705));
+    const y = top(x) + (shore(x) - woods - top(x)) * (0.15 + 0.8 * hash2(i, 2, 5705));
     const rx = cellWidth * (3 + hash2(i, 3, 5707) * 5);
     const ry = lineHeight * (1.5 + hash2(i, 4, 5709) * 1.5);
     for (let dy = -ry; dy <= ry; dy += lineHeight) {
@@ -818,7 +820,7 @@ function addHillDecor({ count = 60, trees = 14 }, width, height, cellWidth, line
   }
   for (let i = 0; i < trees; i += 1) {
     const x = width * hash2(i, 5, 5713);
-    const ground = top(x) + (shore(x) - top(x)) * (0.2 + 0.6 * hash2(i, 6, 5715));
+    const ground = top(x) + (shore(x) - woods - top(x)) * (0.3 + 0.65 * hash2(i, 6, 5715));
     if (!onHill(x, ground)) continue;
     const tall = lineHeight * (9 + hash2(i, 7, 5717) * 6);
     for (let y = ground; y > ground - tall * 0.4; y -= lineHeight) {
@@ -915,10 +917,11 @@ function addViaduct({ deck = 0.13, spans = 5 }, width, height, cellWidth, lineHe
     out.cells.push(lamp);
     out.lights.push({ ...lamp, glyph: "*", color: "#f0c868" });
   }
-  // The line runs on into each hill, cut into its side; a train runs along it.
-  out.road = { from: Math.max(0, x0 - width * 0.12), to: Math.min(width, x1 + width * 0.12), y: deckY - lineHeight * 0.9, cellWidth, lineHeight };
-  for (const [from, to] of [[x0 - width * 0.12, x0], [x1, x1 + width * 0.12]]) {
-    for (let x = Math.max(0, from); x < Math.min(width, to); x += cellWidth) {
+  // The line runs on across each hill to the edge of the view, cut into its
+  // side; a train runs along it from edge to edge.
+  out.road = { from: 0, to: width, y: deckY - lineHeight * 0.9, cellWidth, lineHeight };
+  for (const [from, to] of [[0, x0], [x1, width]]) {
+    for (let x = from; x < to; x += cellWidth) {
       if (ground(x) > deckY + lineHeight) continue;
       const cell = cellAt(x, deckY + lineHeight * 0.5, cellWidth, lineHeight);
       out.cells.push({ ...cell, glyph: hash2(cell.column, 1, 5603) > 0.8 ? "-" : "=", color: winter ? "#d8e0e4" : "#8a8678" });

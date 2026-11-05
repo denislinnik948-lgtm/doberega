@@ -1450,7 +1450,7 @@ export class CanvasWaterRenderer {
     const units = [...CARRIAGE, ...CARRIAGE, ...CARRIAGE, ...CARRIAGE, ...TENDER, ...LOCO];
     if (!this.train && Math.random() < dt / 45) {
       const dir = Math.random() < 0.5 ? 1 : -1;
-      this.train = { dir, head: dir > 0 ? road.from : road.to, speed: (road.to - road.from) / 22, puff: 0, color: Math.random() < 0.5 ? "#3a5a3e" : "#6a2e26" };
+      this.train = { dir, head: dir > 0 ? road.from : road.to, speed: (road.to - road.from) / 30, puff: 0, color: Math.random() < 0.5 ? "#3a5a3e" : "#6a2e26" };
     }
     const night = this.shade > 0.35;
     this.trainLights = [];
