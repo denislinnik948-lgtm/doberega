@@ -52,6 +52,12 @@ export const FISH = {
   holavl: { min: 0.3, max: 4, pricePerKg: 45, active: { base: 0.25, peaks: [[12, 4, 1], [17, 3, 0.6]] } },
   // Steelhead: a sea-run rainbow trout, steel-backed and strong; lures only, at dawn and dusk.
   stalhead: { min: 1, max: 12, pricePerKg: 110, lure: true, active: { base: 0.15, peaks: [[5, 2.5, 1.1], [20, 2.5, 1]] } },
+  // The carp lake's own (see LOCATIONS, carplake). Mirror carp: a carp with a few big scales, heavier and keener at night.
+  dzerkalnyi: { min: 2, max: 25, pricePerKg: 50, active: { base: 0.25, peaks: [[23, 4, 1], [6, 3, 0.8], [14, 4, 0.4]] } },
+  // Bigmouth buffalo: a deep grey-olive fish of slow water, feeding by day.
+  bufalo: { min: 1, max: 20, pricePerKg: 40, active: { base: 0.2, peaks: [[12, 5, 1]] } },
+  // Channel catfish: slim, blue-grey, spotted; bites only at night.
+  kanalnyi: { min: 0.5, max: 8, pricePerKg: 60, active: { base: 0.01, peaks: [[0, 3.5, 1.3], [22, 2.5, 0.8], [3, 2.5, 0.9]] } },
   // Burbot: bites only at night and only in autumn (`season`).
   myn: { min: 0.5, max: 4, pricePerKg: 60, season: "autumn", active: { base: 0.02, peaks: [[0, 4, 1.2], [23, 3, 0.6], [3, 3, 0.8]] } },
   // Grass carp: a big, strong fish for anglers who have climbed far.
@@ -78,6 +84,7 @@ export const FISH = {
   panas: { min: 70, max: 85, pricePerKg: 0, unique: true, legend: true, active: { base: 1, peaks: [] } },
   veselka: { min: 14, max: 16, pricePerKg: 0, unique: true, legend: true, active: { base: 1, peaks: [] } },
   granitna: { min: 20, max: 24, pricePerKg: 0, unique: true, legend: true, active: { base: 1, peaks: [] } },
+  staryi: { min: 40, max: 46, pricePerKg: 0, unique: true, legend: true, active: { base: 1, peaks: [] } },
   // Not fish: now and then reeled in instead of an empty hook (see FINDS).
   boot: { min: 0.6, max: 1.4, pricePerKg: 0, junk: true, active: { base: 0, peaks: [] } },
   bottle: { min: 0.4, max: 0.7, pricePerKg: 0, junk: true, active: { base: 0, peaks: [] } },
@@ -114,6 +121,9 @@ export const NIBBLE = {
   holovach: { tempers: [4, 1, 2, 3], pace: 1.1, twitches: 0.6, strength: 1.6, window: 1.1 },
   holavl: { tempers: [3, 2, 4, 1], pace: 1, twitches: 0.9, strength: 1.1, window: 0.9 },
   stalhead: { tempers: [7, 1, 1, 1], pace: 0.8, twitches: 0.5, strength: 1.6, window: 1 },
+  dzerkalnyi: { tempers: [1, 2, 5, 2], pace: 1.3, twitches: 1.1, strength: 1.2, window: 1.1 },
+  bufalo: { tempers: [1, 3, 4, 2], pace: 1.3, twitches: 1, strength: 1, window: 1.1 },
+  kanalnyi: { tempers: [5, 2, 2, 1], pace: 0.9, twitches: 0.8, strength: 1.3, window: 1.2 },
   myn: { tempers: [2, 2, 3, 3], pace: 1.4, twitches: 0.8, strength: 1, window: 1.4 },
   amur: { tempers: [1, 2, 4, 3], pace: 1.4, twitches: 1, strength: 1.2, window: 1.1 },
   tovstolob: { tempers: [0, 1, 4, 5], pace: 1.8, twitches: 0.6, strength: 0.9, window: 1.2 },
@@ -127,7 +137,7 @@ export const NIBBLE = {
   lostlure: { tempers: [1, 0, 0, 0], pace: 1, twitches: 0, strength: 0.5, window: 1 },
 };
 // A legend bites like its kind, only harder.
-for (const [id, kind] of Object.entries({ zolotyi: "karas", syva: "shchuka", knyazha: "forel", myron: "korop", panas: "som", veselka: "raiduzhna", granitna: "shchuka" })) {
+for (const [id, kind] of Object.entries({ zolotyi: "karas", syva: "shchuka", knyazha: "forel", myron: "korop", panas: "som", veselka: "raiduzhna", granitna: "shchuka", staryi: "amur" })) {
   NIBBLE[id] = { ...NIBBLE[kind], strength: NIBBLE[kind].strength * 1.3 };
 }
 
@@ -155,6 +165,7 @@ export const LEGENDS = {
   bridge: { id: "panas", kind: "som", baits: ["frog", "livebait", "crayfish"] },
   troutfarm: { id: "veselka", kind: "raiduzhna", baits: ["spinner", "worm", "corn"] },
   quarry: { id: "granitna", kind: "shchuka", baits: ["spoon", "wobbler"] },
+  carplake: { id: "staryi", kind: "amur", baits: ["corn", "peas", "boilie"] },
 };
 export const LEGEND_CHANCE = 1 / 1500;
 
@@ -232,14 +243,14 @@ export const BAITS = {
   dough: { price: 2, size: 0.4, maxSize: 0.45, species: { karas: 4, plitka: 3, krasnopirka: 3, yorzh: 1, verkhovodka: 2 } },
   worm: { price: 3, size: 0.6, species: { plitka: 3, karas: 3, okun: 3, yorzh: 3, lyn: 2, lyasch: 1, rotan: 3, bychok: 4, yaz: 2, forel: 2, myn: 2, sterliad: 2, raiduzhna: 3, paliya: 3 } },
   maggot: { price: 4, size: 0.5, species: { plitka: 4, krasnopirka: 3, yorzh: 2, lyasch: 2, karas: 2, verkhovodka: 4, yaz: 1, raiduzhna: 2 } },
-  barley: { price: 4, size: 0.8, species: { karas: 3, lyasch: 3, plitka: 2, korop: 2, lyn: 1, yaz: 2 } },
+  barley: { price: 4, size: 0.8, species: { karas: 3, lyasch: 3, plitka: 2, korop: 2, lyn: 1, yaz: 2, bufalo: 3 } },
   bloodworm: { price: 5, size: 0.5, species: { yorzh: 3, plitka: 3, karas: 2, lyn: 3, okun: 2, bychok: 2, sterliad: 2, verkhovodka: 1, paliya: 3 } },
-  peas: { price: 6, size: 0.9, species: { lyasch: 4, korop: 3, lyn: 2, plitka: 1, yaz: 3, amur: 2 } },
-  corn: { price: 7, size: 1, species: { karas: 2, lyasch: 3, korop: 4, lyn: 2, yaz: 2, amur: 4, raiduzhna: 2, holavl: 3 } },
-  boilie: { price: 20, size: 1.6, species: { korop: 6, lyasch: 1, amur: 3, tovstolob: 0.6 } },
+  peas: { price: 6, size: 0.9, species: { lyasch: 4, korop: 3, lyn: 2, plitka: 1, yaz: 3, amur: 2, dzerkalnyi: 2, bufalo: 4 } },
+  corn: { price: 7, size: 1, species: { karas: 2, lyasch: 3, korop: 4, lyn: 2, yaz: 2, amur: 4, raiduzhna: 2, holavl: 3, dzerkalnyi: 3, bufalo: 2 } },
+  boilie: { price: 20, size: 1.6, species: { korop: 6, lyasch: 1, amur: 3, tovstolob: 0.6, dzerkalnyi: 6, kanalnyi: 3 } },
   // Live bait and crayfish: big perch and catfish (pike and zander go for the spoon).
-  livebait: { price: 25, size: 1.4, species: { okun: 4, som: 2, myn: 3, zherekh: 1, holovach: 1 } },
-  crayfish: { price: 30, size: 1.6, species: { som: 3, okun: 2, myn: 1 } },
+  livebait: { price: 25, size: 1.4, species: { okun: 4, som: 2, myn: 3, zherekh: 1, holovach: 1, kanalnyi: 4 } },
+  crayfish: { price: 30, size: 1.6, species: { som: 3, okun: 2, myn: 1, kanalnyi: 3 } },
   frog: { price: 45, size: 1.8, species: { som: 6 } },
   /*
    * Lures for the spinning reel, sold with the tackle. Each works like a hook
@@ -417,6 +428,20 @@ export const LOCATIONS = [
     traits: { type: "lake", depth: "deep", bottom: "stones", current: "none" },
     minKg: 2, typicalKg: 8, maxKg: 12, bigChance: 1 / 6, tailKg: 14, tailChance: 1 / 100, pace: 1.8, unlock: { price: 80000 },
     fish: { shchuka: 3, sudak: 2.5, stalhead: 3, holavl: 1.5, okun: 1.2 },
+  },
+  {
+    /*
+     * The carp lake «Тиха заводь», a paid water: only the big bottom feeders,
+     * from 4 kg, mostly up to 12, a big one up to 22 one bite in 7 and now and
+     * then up to 30: carp, mirror carp, grass carp, buffalo and silver carp,
+     * and the channel catfish at night. The fish come to the groundbait here
+     * far more than anywhere (`groundbaitBoost`). Being tried out (`preview`):
+     * shown only on a tester's account.
+     */
+    id: "carplake", snagChance: 0.03, kind: "carplake", water: "#3a6a50", preview: true, groundbaitBoost: 2.5,
+    traits: { type: "lake", depth: "medium", bottom: "mud", current: "none" },
+    minKg: 4, typicalKg: 12, maxKg: 22, bigChance: 1 / 7, tailKg: 30, tailChance: 1 / 100, pace: 1.4, unlock: { price: 150000 },
+    fish: { korop: 3, dzerkalnyi: 3, amur: 2, bufalo: 2, kanalnyi: 1.5, tovstolob: 0.6 },
   },
 ];
 
@@ -655,7 +680,7 @@ export function spotEntries() {
     maxKg: spot.maxKg,
     tailKg: spot.tailKg ?? null,
     unlock: spot.unlock ?? null,
-    ways: ["deep", "twilight"].filter((way) => spot[way]),
+    ways: [...["deep", "twilight"].filter((way) => spot[way]), ...(spot.groundbaitBoost ? ["groundbait"] : [])],
     bigOdds: Math.round(1 / spot.bigChance),
     pace: (spot.pace ?? 1) > 1.02 ? "fast" : (spot.pace ?? 1) < 0.9 ? "slow" : "normal",
     snags: spot.snagChance >= 0.05 ? "many" : spot.snagChance >= 0.03 ? "some" : "few",

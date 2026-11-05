@@ -391,6 +391,10 @@ export class CanvasWaterRenderer {
     const structures = createStructures(width, height, cellWidth, lineHeight, DEPTH ? { cellWidth: farWidth, lineHeight: farLine, scale: far } : null);
     this.structureCells = regrid(structures.cells);
     this.structureShapes = structures.shapes;
+    // A viaduct's railway, where a steam train passes now and then.
+    this.road = structures.road;
+    this.train = null;
+    this.smoke = [];
     this.structureMask = null;
     this.lightBatch.clear();
     this.fineLightBatch.clear();
@@ -1426,6 +1430,87 @@ export class CanvasWaterRenderer {
    * settle on the water (where `landings` lets the caller ripple it), float a
    * while and sink. Now and then in summer, often in autumn.
    */
+  /**
+   * Now and then a steam train crosses the viaduct, one way or the other: a
+   * locomotive with its tender and four carriages, small with distance,
+   * coming out of the cutting in one hill and into the other. Smoke puffs
+   * from its chimney, rises, spreads and drifts off on the wind, left
+   * hanging behind it. After dark its headlamp and the carriage windows are
+   * lit (drawn over the night shade, see renderOverlay).
+   */
+  drawTrain(ctx, time, dt) {
+    const road = this.road;
+    const size = Math.round(road.lineHeight * 2.2);
+    const step = road.cellWidth * 1.9;
+    const row = size * 0.85;
+    // The train, back to front: [upper, lower] strokes and what each column is.
+    const LOCO = [["#", "#", "cab"], ["#", "#", "cab"], ["_", "O", "boiler"], ["!", "O", "chimney"], ["_", "O", "boiler"], [" ", ">", "front"]];
+    const TENDER = [["_", "#", "tender"], ["_", "#", "tender"], [" ", "-", "gap"]];
+    const CARRIAGE = [["[", "#", "body"], ["o", "#", "window"], ["o", "#", "window"], ["o", "#", "window"], ["]", "#", "body"], [" ", "-", "gap"]];
+    const units = [...CARRIAGE, ...CARRIAGE, ...CARRIAGE, ...CARRIAGE, ...TENDER, ...LOCO];
+    if (!this.train && Math.random() < dt / 45) {
+      const dir = Math.random() < 0.5 ? 1 : -1;
+      this.train = { dir, head: dir > 0 ? road.from : road.to, speed: (road.to - road.from) / 22, puff: 0, color: Math.random() < 0.5 ? "#3a5a3e" : "#6a2e26" };
+    }
+    const night = this.shade > 0.35;
+    this.trainLights = [];
+    ctx.font = `600 ${size}px ${MONO_FONT}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const train = this.train;
+    if (train) {
+      train.head += train.dir * train.speed * dt;
+      const tail = train.head - train.dir * units.length * step;
+      if ((train.dir > 0 && tail > road.to) || (train.dir < 0 && tail < road.from)) this.train = null;
+      else {
+        units.forEach(([upper, lower, part], index) => {
+          // The last entry is the front: it leads the way.
+          const x = train.head - train.dir * (units.length - 1 - index) * step;
+          if (x < road.from || x > road.to) return;
+          const body = part === "cab" || part === "boiler" || part === "chimney" || part === "front" || part === "tender" ? "#2c2a26" : train.color;
+          if (upper !== " ") {
+            const lit = part === "window";
+            if (lit && night) this.trainLights.push({ x, y: road.y - row, glyph: "o", color: "#ffd878" });
+            else {
+              ctx.fillStyle = lit ? "#d8d0a8" : part === "chimney" ? "#1c1a18" : body;
+              ctx.fillText(upper, x, road.y - row);
+            }
+          }
+          ctx.fillStyle = part === "front" ? "#8a2a22" : part === "gap" ? "#4a4842" : body;
+          ctx.fillText(train.dir > 0 || lower !== ">" ? lower : "<", x, road.y);
+          if (part === "front" && night) this.trainLights.push({ x: x + train.dir * step * 0.6, y: road.y, glyph: "*", color: "#fff2b8" });
+          // Smoke from the chimney, a puff every so often.
+          if (part === "chimney") {
+            train.puff -= dt;
+            if (train.puff <= 0) {
+              train.puff = 0.08 + Math.random() * 0.08;
+              this.smoke.push({ x, y: road.y - row * 1.6, age: 0, life: 4 + Math.random() * 2, drift: (Math.random() - 0.5) * 6 });
+            }
+          }
+        });
+      }
+    }
+    // The smoke rises, spreads and drifts on the wind, thinning as it goes.
+    const wind = this.wind.dir * (4 + this.wind.strength * 18);
+    ctx.save();
+    for (let i = this.smoke.length - 1; i >= 0; i -= 1) {
+      const puff = this.smoke[i];
+      puff.age += dt;
+      if (puff.age > puff.life) {
+        this.smoke.splice(i, 1);
+        continue;
+      }
+      const t = puff.age / puff.life;
+      puff.x += (wind + puff.drift) * dt;
+      puff.y -= (26 - t * 14) * dt;
+      ctx.globalAlpha = (1 - t) * (night ? 0.35 : 0.8);
+      ctx.fillStyle = t < 0.25 ? "#5a5852" : "#a8a69c";
+      ctx.font = `600 ${Math.round(size * (0.9 + t * 1.6))}px ${MONO_FONT}`;
+      ctx.fillText(t < 0.15 ? "o" : t < 0.45 ? "O" : "~", puff.x, puff.y);
+    }
+    ctx.restore();
+  }
+
   drawOakLeaves(ctx, time) {
     const oak = this.oak;
     const step = Math.min(0.5, Math.max(0, time - (oak.time ?? time)));
@@ -2576,6 +2661,7 @@ export class CanvasWaterRenderer {
     this.drawDucks(ctx, time, this.ducks);
     if (this.floes?.length) this.drawFloes(ctx);
     if (this.critters) this.drawCritters(ctx, time, this.critters);
+    if (this.road) this.drawTrain(ctx, time, dt);
     if (angler && !angler.hidden) this.renderAngler(ctx, angler, "line");
 
     // Reeds are close to the viewer, so they use larger glyphs and sway harder.
@@ -2694,6 +2780,14 @@ export class CanvasWaterRenderer {
       ctx.fillStyle = `rgba(6, 10, 22, ${this.shade.toFixed(3)})`;
       ctx.fillRect(this.frame.left, 0, this.frame.width, this.height);
       ctx.globalCompositeOperation = "source-over";
+    }
+    // The train's lamp and windows shine through the dark.
+    if (this.trainLights?.length) {
+      ctx.font = `600 ${Math.round(this.road.lineHeight * 2.2)}px ${MONO_FONT}`;
+      for (const light of this.trainLights) {
+        ctx.fillStyle = light.color;
+        ctx.fillText(light.glyph, light.x, light.y);
+      }
     }
 
     // After the shade, so they shine in the dark: anything glowing, and a falling star.

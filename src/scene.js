@@ -199,6 +199,28 @@ export const SCENES = {
     nearBank: 0.05,
     foreground: { reeds: 0, rock: false, lilyPads: 0, slabs: true },
   },
+  /**
+   * The carp lake «Тиха заводь», a paid water, in the low ground between two
+   * green hills: a stone viaduct carries a road high across from one to the
+   * other, a strip of trees along the far bank below. Carp stir the mud:
+   * bubbles everywhere.
+   */
+  carplake: {
+    horizon: 0.5,
+    ridges: [
+      // The two hills, left and right, the low ground between them.
+      { top: 0.49, amplitude: 0.24, seed: 4.4, hills: [[0.12, 0.42, 1], [0.9, 0.4, 0.85]], fill: "#3e5a36", glyph: "#5e8048", texture: ",'.\"", density: 0.24, breeze: true },
+    ],
+    forest: { heightScale: 0.85, spacingScale: 1.3, broadleaf: 0.7, round: 0.5, poplar: 0.3, gaps: [[0.36, 0.64]] },
+    structures: {
+      // Bushes, trees and paths on the hills.
+      hillDecor: { count: 45, trees: 18 },
+      viaduct: { deck: 0.17, spans: 7 },
+    },
+    water: { body: "#1c3a2e", bubbles: 1.5 },
+    nearBank: 0.07,
+    foreground: { reeds: 1, rock: false, lilyPads: 3 },
+  },
 };
 
 let active = SCENES.lake;

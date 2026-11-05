@@ -330,7 +330,9 @@ export class FishingGame {
     // The floor is low so a bait no local fish wants really does go quiet.
     const pace = Math.min(2.2, Math.max(0.1, hunger * 1.2 * spotPace * this.biteBoost)) * spotMood(this.location, this.hour, this.reach());
     // Groundbait draws the fish in, and so does a school around the float.
-    return pace * (this.groundbait ? GROUNDBAIT.boost : 1) * (this.school ? TUNING.schoolBoost : 1);
+    // Some waters' fish come to the groundbait far more (`groundbaitBoost`).
+    const lure = LOCATIONS[this.location]?.groundbaitBoost ?? GROUNDBAIT.boost;
+    return pace * (this.groundbait ? lure : 1) * (this.school ? TUNING.schoolBoost : 1);
   }
 
   /** Seconds until the next bite: shorter when the local fish are feeding. */

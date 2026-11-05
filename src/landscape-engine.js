@@ -1,6 +1,6 @@
 import { clamp, hash2, valueNoise } from "./noise.js";
 import { activeScene, bankWidths, rimLift, shorelineY, view } from "./scene.js";
-import { isWinter } from "./theme.js";
+import { isAutumn, isWinter } from "./theme.js";
 
 /** Ridged fractal noise: sharp crests where the smooth noise crosses its midpoint. */
 function ridged(x, y, seed, octaves = 4) {
@@ -25,6 +25,16 @@ export function ridgeTop(ridge, x, height) {
     const ramp = to !== from ? Math.min(1, Math.max(0, (u - from) / (to - from))) ** 0.8 : 1;
     const crest = ridged(x * 0.0042, s, 100 + Math.round(s * 10), 5);
     return height * (ridge.top - ridge.amplitude * ramp * (0.25 + 0.95 * crest));
+  }
+  // `hills`: [centre, half width, height] each, as shares: smooth round hills with low ground between.
+  if (ridge.hills) {
+    const u = x / view.width;
+    const lift = Math.max(0, ...ridge.hills.map(([center, half, tall]) => {
+      const d = Math.abs(u - center) / half;
+      return d < 1 ? tall * (0.5 + 0.5 * Math.cos(Math.PI * d)) ** 0.8 : 0;
+    }));
+    const ripple = 0.03 * Math.sin(x * 0.011 + s) + 0.02 * Math.sin(x * 0.027 - s);
+    return height * (ridge.top - ridge.amplitude * (lift + ripple * lift));
   }
   const peaks = 0.55 * (1 - Math.abs(Math.sin(x * 0.0021 + s))) ** 1.4
     + 0.3 * (1 - Math.abs(Math.sin(x * 0.0057 - s * 0.7)))
@@ -332,7 +342,8 @@ export function createStructures(width, height, cellWidth, lineHeight, fine = nu
     }
   }
 
-  const out = { cells, lights, shapes, chimneys, beacons, garlands };
+  // `road`: the viaduct's railway, where a train runs (see addViaduct).
+  const out = { cells, lights, shapes, chimneys, beacons, garlands, road: null };
   if (structures.tower) addFireTower(structures.tower, width, height, cellWidth, lineHeight, out);
   // The plant at Pripyat, the castle hill and the arch bridge stand on the far
   // shore with its woods, so they are laid on its finer grid and drawn at its size.
@@ -345,6 +356,8 @@ export function createStructures(width, height, cellWidth, lineHeight, fine = nu
   if (structures.crag) onFineGrid(addCrag, structures.crag);
   if (structures.quarry) onFineGrid(addQuarry, structures.quarry);
   if (structures.archBridge) onFineGrid(addArchBridge, structures.archBridge);
+  if (structures.hillDecor) onFineGrid(addHillDecor, structures.hillDecor);
+  if (structures.viaduct) onFineGrid(addViaduct, structures.viaduct);
 
   return out;
 }
@@ -752,6 +765,163 @@ function addArchBridge({ from, to, arches }, width, height, cellWidth, lineHeigh
         color = noise > 0.6 ? "#7a7564" : noise > 0.2 ? "#686456" : "#55524a";
       }
       out.cells.push({ ...cell, glyph, color });
+    }
+  }
+}
+
+/**
+ * Bushes, lone trees and winding paths on the hills of the first ridge, in
+ * glyphs: round dark bushes lit on top, trees with a short trunk and a round
+ * crown, and a pale dotted path climbing each slope. `count` bushes in all.
+ */
+function addHillDecor({ count = 60, trees = 14 }, width, height, cellWidth, lineHeight, out) {
+  const ridge = activeScene().ridges[0];
+  const winter = isWinter();
+  const autumn = isAutumn();
+  const top = (x) => ridgeTop(ridge, x, height);
+  const shore = (x) => shorelineY(x, height);
+  // Only where the hill stands well above the water.
+  const onHill = (x, y) => y > top(x) + lineHeight * 1.5 && y < shore(x) - lineHeight * 1.5;
+  const cells = new Map();
+  const put = (x, y, glyph, color) => {
+    if (!onHill(x, y) && glyph !== "|") return;
+    const cell = cellAt(x, y, cellWidth, lineHeight);
+    cells.set(`${cell.column},${cell.row}`, { ...cell, glyph, color });
+  };
+  const leaves = (lit, noise) => {
+    if (winter) return lit && noise > 0.3 ? "#e4ebee" : "#3a4a3e";
+    if (autumn && noise > 0.75) return lit ? "#b08a3a" : "#7a5a2a";
+    return lit ? (noise > 0.5 ? "#5e8a44" : "#4a7438") : noise > 0.5 ? "#2a4a28" : "#1e3820";
+  };
+  // The paths: one up each hill, winding across the slope.
+  for (const [start, dir] of [[0.3, -1], [0.7, 1]]) {
+    for (let t = 0; t <= 1; t += 0.004) {
+      const x = width * (start + dir * (0.05 + t * 0.22) + 0.025 * Math.sin(t * 9));
+      const y = shore(x) - (shore(x) - top(x)) * t * 0.85;
+      const cell = cellAt(x, y, cellWidth, lineHeight);
+      if (hash2(cell.column, cell.row, 5701) > 0.35) put(x, y, t > 0.5 ? "." : ":", winter ? "#cfd8dc" : "#b0a47c");
+    }
+  }
+  // Bushes, then the lone trees standing over them.
+  for (let i = 0; i < count; i += 1) {
+    const x = width * hash2(i, 1, 5703);
+    const y = top(x) + (shore(x) - top(x)) * (0.15 + 0.75 * hash2(i, 2, 5705));
+    const rx = cellWidth * (3 + hash2(i, 3, 5707) * 5);
+    const ry = lineHeight * (1.5 + hash2(i, 4, 5709) * 1.5);
+    for (let dy = -ry; dy <= ry; dy += lineHeight) {
+      for (let dx = -rx; dx <= rx; dx += cellWidth) {
+        const noise = hash2(Math.round((x + dx) / cellWidth), Math.round((y + dy) / lineHeight), 5711 + i);
+        if ((dx / rx) ** 2 + (dy / ry) ** 2 > 1 - (noise - 0.5) * 0.4) continue;
+        put(x + dx, y + dy, "&%*o#"[Math.floor(noise * 5)], leaves(dy < 0, noise));
+      }
+    }
+  }
+  for (let i = 0; i < trees; i += 1) {
+    const x = width * hash2(i, 5, 5713);
+    const ground = top(x) + (shore(x) - top(x)) * (0.2 + 0.6 * hash2(i, 6, 5715));
+    if (!onHill(x, ground)) continue;
+    const tall = lineHeight * (9 + hash2(i, 7, 5717) * 6);
+    for (let y = ground; y > ground - tall * 0.4; y -= lineHeight) {
+      put(x, y, "|", "#4a3a2a");
+      put(x + cellWidth, y, "|", "#3a2c20");
+    }
+    const cy = ground - tall * 0.65;
+    const rx = cellWidth * (5 + hash2(i, 8, 5719) * 3);
+    const ry = tall * 0.38;
+    for (let dy = -ry; dy <= ry; dy += lineHeight) {
+      for (let dx = -rx; dx <= rx; dx += cellWidth) {
+        const noise = hash2(Math.round((x + dx) / cellWidth), Math.round((cy + dy) / lineHeight), 5721 + i);
+        if ((dx / rx) ** 2 + (dy / ry) ** 2 > 1 - (noise - 0.5) * 0.3) continue;
+        const cell = cellAt(x + dx, cy + dy, cellWidth, lineHeight);
+        cells.set(`${cell.column},${cell.row}`, { ...cell, glyph: "&%*o@"[Math.floor(noise * 5)], color: leaves(dy < -ry * 0.2, noise) });
+      }
+    }
+  }
+  out.cells.push(...cells.values());
+}
+
+/**
+ * A stone viaduct carrying a railway high across the low ground between two
+ * hills (the scene's first ridge): its deck runs level from one hillside to
+ * the other at `deck` (a share of the screen above the horizon), on tall
+ * piers with round arches between them, a parapet along the top with a lamp
+ * over each pier (lit after dark), and the line cut on into each hill.
+ */
+function addViaduct({ deck = 0.13, spans = 5 }, width, height, cellWidth, lineHeight, out) {
+  const scene = activeScene();
+  const ridge = scene.ridges[0];
+  const ground = (x) => Math.min(ridgeTop(ridge, x, height), shorelineY(x, height));
+  const deckY = height * (scene.horizon - deck);
+  // The bridge spans from where the hills sink below the deck to where they rise above it again.
+  const center = width * 0.5;
+  let x0 = center;
+  while (x0 > 0 && ground(x0) > deckY) x0 -= cellWidth;
+  let x1 = center;
+  while (x1 < width && ground(x1) > deckY) x1 += cellWidth;
+  const span = (x1 - x0) / spans;
+  const pierHalf = Math.max(cellWidth * 1.5, span * 0.08);
+  const deckBottom = deckY + lineHeight * 2;
+  // How far down the masonry reaches at x: to the ground under a pier, to the arch between them.
+  const bottom = (x) => {
+    const k = Math.round((x - x0) / span);
+    const pier = x - (x0 + k * span);
+    if (Math.abs(pier) <= pierHalf) return ground(x);
+    const i = Math.floor((x - x0) / span);
+    const from = x0 + i * span + pierHalf;
+    const to = x0 + (i + 1) * span - pierHalf;
+    const t = (x - from) / Math.max(1, to - from);
+    const spring = deckBottom + (ground(x0 + (i + 0.5) * span) - deckBottom) * 0.55;
+    const rise = Math.min(spring - deckBottom - lineHeight, (to - from) * 0.55);
+    return Math.min(ground(x), spring - rise * Math.sqrt(Math.max(0, 1 - (2 * t - 1) ** 2)));
+  };
+  const outline = [];
+  for (let x = x0; x <= x1; x += cellWidth / 2) outline.push([x, deckY - lineHeight * 0.6]);
+  for (let x = x1; x >= x0; x -= cellWidth / 2) outline.push([x, bottom(x)]);
+  out.shapes.push({ points: outline, color: "#4e4c44" });
+  const winter = isWinter();
+  for (let x = x0 + cellWidth / 2; x < x1; x += cellWidth) {
+    const low = bottom(x);
+    const archEdge = low < ground(x) - lineHeight * 0.5;
+    for (let y = deckY; y < low; y += lineHeight) {
+      const cell = cellAt(x, y, cellWidth, lineHeight);
+      const noise = hash2(cell.column, cell.row, 5601);
+      const row = Math.round((y - deckY) / lineHeight);
+      let glyph;
+      let color;
+      if (row === 0) {
+        // The parapet along the road.
+        glyph = winter && noise > 0.3 ? "=" : "_";
+        color = winter ? "#e2e9ec" : "#b4ae9c";
+      } else if (row === 1) {
+        // The deck's edge, a band of dressed stone.
+        glyph = "=";
+        color = noise > 0.5 ? "#a49e8c" : "#8e8878";
+      } else if (archEdge && low - y < lineHeight * 1.2) {
+        // The arch ring.
+        glyph = "#";
+        color = "#9a9482";
+      } else {
+        glyph = (row + Math.floor(cell.column / 2)) % 2 ? ":" : "=";
+        color = noise > 0.6 ? "#7e7868" : noise > 0.2 ? "#6c675a" : "#58544a";
+      }
+      out.cells.push({ ...cell, glyph, color });
+    }
+  }
+  // A lamp over each pier, lit after dark.
+  for (let k = 1; k < spans; k += 1) {
+    const x = x0 + k * span;
+    out.cells.push({ ...cellAt(x, deckY - lineHeight, cellWidth, lineHeight), glyph: "|", color: "#5a5a54" });
+    const lamp = { ...cellAt(x, deckY - lineHeight * 2, cellWidth, lineHeight), glyph: "o", color: "#6a665a" };
+    out.cells.push(lamp);
+    out.lights.push({ ...lamp, glyph: "*", color: "#f0c868" });
+  }
+  // The line runs on into each hill, cut into its side; a train runs along it.
+  out.road = { from: Math.max(0, x0 - width * 0.12), to: Math.min(width, x1 + width * 0.12), y: deckY - lineHeight * 0.9, cellWidth, lineHeight };
+  for (const [from, to] of [[x0 - width * 0.12, x0], [x1, x1 + width * 0.12]]) {
+    for (let x = Math.max(0, from); x < Math.min(width, to); x += cellWidth) {
+      if (ground(x) > deckY + lineHeight) continue;
+      const cell = cellAt(x, deckY + lineHeight * 0.5, cellWidth, lineHeight);
+      out.cells.push({ ...cell, glyph: hash2(cell.column, 1, 5603) > 0.8 ? "-" : "=", color: winter ? "#d8e0e4" : "#8a8678" });
     }
   }
 }

@@ -234,6 +234,21 @@ export const FISH_LOOKS = {
     len: 42, h: 11, peak: 0.5, back: "#2e4458", side: "#d2d8dc", belly: "#f2f2ee", fin: "#5a6a78", lowFin: "#c8b8b8", tailFin: "#4a5a68", eye: "#e8e0c8",
     dorsal: [[0.44, 0.56, 4]], anal: [0.2, 0.3, 3], tail: "square", pattern: "spots", spotColor: "#24303a", stripe: "#d8a0ac",
   },
+  // Mirror carp: a carp's deep golden body, bare but for a few big scattered scales.
+  dzerkalnyi: {
+    len: 40, h: 17, peak: 0.55, back: "#5a4418", side: "#d0a048", belly: "#f0dca0", fin: "#5e4422", lowFin: "#b0502c", tailFin: "#8a4a26", eye: "#e8c060",
+    dorsal: [[0.26, 0.66, 4, "long"]], anal: [0.2, 0.3, 3], tail: "fork", pattern: "spots", spotColor: "#9a7428", stem: 0.38, barbels: 2,
+  },
+  // Bigmouth buffalo: a deep, humped grey-olive body, a big head and a long low dorsal.
+  bufalo: {
+    len: 42, h: 17, peak: 0.6, back: "#2e3428", side: "#7a8068", belly: "#d4d2bc", fin: "#3a3e30", lowFin: "#5a5e48", tailFin: "#3a3e30", eye: "#d8d0a8",
+    dorsal: [[0.22, 0.62, 4, "long"]], anal: [0.18, 0.28, 3], tail: "fork", pattern: "scales", head: 1.3, stem: 0.4, hump: true,
+  },
+  // Channel catfish: slim and blue-grey, small dark spots, a forked tail and long whiskers.
+  kanalnyi: {
+    len: 42, h: 9, peak: 0.72, back: "#2e3a48", side: "#7a8a98", belly: "#e2e2dc", fin: "#3a4652", lowFin: "#5a6672", tailFin: "#3a4652", eye: "#d8d4c0",
+    dorsal: [[0.66, 0.74, 3]], anal: [0.08, 0.36, 3, "long"], tail: "fork", pattern: "speckle", broadHead: true, stem: 0.35, whiskers: true,
+  },
   // Burbot: long and mottled brown, one barbel, long low fins.
   myn: {
     len: 44, h: 9, peak: 0.7, back: "#2e2a18", side: "#6a5e36", belly: "#c8bc90", fin: "#4a4228", lowFin: "#5a5030", tailFin: "#4a4228", eye: "#c8b070",
@@ -432,6 +447,8 @@ Object.assign(FISH_LOOKS, {
   myron: { ...FISH_LOOKS.korop, back: "#2e2a14", side: "#8a7a34", belly: "#d8c890", fin: "#3e3a1c", lowFin: "#8a4a2a", tailFin: "#5a4220" },
   // Grandpa Panas the catfish: near black, pale-eyed.
   panas: { ...FISH_LOOKS.som, back: "#1a1c16", side: "#4a4a3a", belly: "#b8b49a", eye: "#e8e0c0" },
+  // The Old Grass Carp: huge and dark, its scales gone bronze and mossy with age.
+  staryi: { ...FISH_LOOKS.amur, back: "#22261a", side: "#6e6a3e", belly: "#c8c49a", fin: "#3a3a26", lowFin: "#5a5636", tailFin: "#3a3a26", eye: "#e8dca0" },
   // The granite pike: dark, grey as the quarry walls, pale spots like lichen.
   granitna: { ...FISH_LOOKS.shchuka, back: "#2a2e2c", side: "#6a6e66", belly: "#d8d6c8", fin: "#5a5448", lowFin: "#7a6a52", tailFin: "#5a5448", spotColor: "#b8b8a4", eye: "#f0d070" },
   // Veselka, the rainbow: a huge rainbow trout, its band gone bright as a rainbow.

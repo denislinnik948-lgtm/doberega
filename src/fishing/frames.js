@@ -404,6 +404,38 @@ function landscape(px, w, h, random, kind) {
     for (let y = front; y < h - m; y += 1) {
       for (let x = x0; x < x1; x += 1) px.set(x, y, y === front ? P.dark : (x * 3 + y * 7) % 11 === 0 ? P.mid : P.light);
     }
+  } else if (kind === "carplake") {
+    // «Тиха заводь»: two green hills, a viaduct of arches high between them, a train on it.
+    const hill = (x) => {
+      const u = (x - x0) / (w - 2 * m);
+      const bump = (c, half, tall) => (Math.abs(u - c) < half ? tall * (0.5 + 0.5 * Math.cos((Math.PI * (u - c)) / half)) : 0);
+      return Math.round(Math.max(bump(0.1, 0.45, 34), bump(0.92, 0.42, 28)) * unit);
+    };
+    for (let x = x0; x < x1; x += 1) for (let y = horizon - hill(x); y <= horizon; y += 1) px.set(x, y, (x * 3 + y) % 5 ? P.mid : P.soft);
+    const deck = horizon - Math.round(18 * unit);
+    let from = Math.round(w / 2);
+    while (from > x0 && hill(from) < horizon - deck) from -= 1;
+    let to = Math.round(w / 2);
+    while (to < x1 && hill(to) < horizon - deck) to += 1;
+    const spans = 5;
+    const span = (to - from) / spans;
+    // The deck, the piers down to the ground, and an arch between each pair.
+    px.rect(from, deck, to - from, Math.max(2, Math.round(2 * unit)), P.light);
+    for (let k = 1; k < spans; k += 1) {
+      const x = Math.round(from + k * span);
+      px.rect(x - 1, deck, 3, horizon - hill(x) - deck, P.light);
+    }
+    for (let x = from; x < to; x += 1) {
+      const t = ((x - from) % span) / span;
+      const y = deck + Math.round(2 * unit) + Math.round((1 - Math.sqrt(Math.max(0, 1 - (2 * t - 1) ** 2))) * span * 0.4);
+      if (y < horizon - hill(x)) px.set(x, y, P.light);
+    }
+    // A little train with its smoke.
+    const tx = Math.round(from + (to - from) * 0.55);
+    px.rect(tx - Math.round(10 * unit), deck - Math.round(3 * unit), Math.round(10 * unit), Math.round(3 * unit), P.ember);
+    px.rect(tx, deck - Math.round(3 * unit), Math.round(4 * unit), Math.round(3 * unit), P.ink);
+    for (let k = 0; k < 5; k += 1) px.rect(tx + Math.round((1 - k * 3) * unit), deck - Math.round((5 + k * 2) * unit), Math.round((2 + k) * unit), Math.round(2 * unit), k < 2 ? P.mid : P.light);
+    px.rect(x0, horizon, w - 2 * m, 1, P.ink);
   } else if (kind === "bridge") {
     ridge(px, x0, x1, horizon, 12 * unit, 1.3, P.dark, horizon + 1);
     for (let x = x0 + 2; x < x1; x += 3 + Math.floor(random() * 6)) {
