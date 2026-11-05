@@ -812,8 +812,10 @@ export class AnglerUI {
           element("span", { className: "tile-note", textContent: t("level.freePlace") }),
         ]);
       }
-      return element("li", { className: `tourney-cell is-place-${index + 1}${entry.user_id === this.cloud?.user?.id ? " is-me" : ""}` }, [
-        element("span", { className: "podium-place", textContent: String(index + 1) }),
+      // Ties share a place, as the prizes do: the place is one more than how many weighed more.
+      const place = rows.findIndex((row) => row.weight === entry.weight) + 1;
+      return element("li", { className: `tourney-cell is-place-${place}${entry.user_id === this.cloud?.user?.id ? " is-me" : ""}` }, [
+        element("span", { className: "podium-place", textContent: String(place) }),
         element("span", { className: "podium-avatar" }, [avatarSprite(entry.avatar ?? 0, 2)]),
         element("span", { className: "podium-name", textContent: entry.player || t("trophies.anonymous") }),
         element("span", { className: "podium-weight", textContent: formatWeight(entry.weight) }),

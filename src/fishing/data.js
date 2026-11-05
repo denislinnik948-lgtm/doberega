@@ -612,11 +612,16 @@ export function rollFish(baitId, locationIndex, random = Math.random, reach = 0.
   // The steps of this water, within what the kind grows to.
   const clampKg = (kg) => Math.min(fish.max, Math.max(fish.min, kg));
   const floor = fish.max > (location.minKg ?? 0) ? clampKg(location.minKg ?? 0) : fish.min;
-  const typical = Math.max(floor, clampKg(location.typicalKg ?? fish.max));
-  const top = Math.max(typical, clampKg(location.maxKg ?? fish.max));
-  const [from, to] = rare ? [top, Math.max(top, clampKg(location.tailKg))] : big ? [typical, top] : [floor, typical];
+  const top = Math.max(floor, clampKg(location.maxKg ?? fish.max));
+  const tail = Math.max(top, clampKg(location.tailKg ?? 0));
+  // A kind that reaches its own limit here (a rudd at the lake) would land its big
+  // ones all at exactly that weight: its big step is then the top 15% of its
+  // range instead, leaning light, so the very heaviest stays a rare stroke of luck.
+  const capped = top - Math.max(floor, clampKg(location.typicalKg ?? fish.max)) < top * 0.15;
+  const typical = capped ? Math.max(floor, top * 0.85) : Math.max(floor, clampKg(location.typicalKg ?? fish.max));
+  const [from, to] = rare && tail > top * 1.02 ? [top, tail] : big ? [typical, top] : [floor, typical];
   // Ordinary fish lean to the light end; big and rare ones spread over their step.
-  const t = big ? random() ** 1.4 : random() ** 1.7;
+  const t = big ? random() ** (capped ? 2 : 1.4) : random() ** 1.7;
   // Bread and dough only ever tempt tiddlers.
   const weight = Math.round((floor + (from - floor + (to - from) * t) * (bait.maxSize ?? 1)) * 1000) / 1000;
   // Too small for this hook or lure: it nibbles at it and moves on.
