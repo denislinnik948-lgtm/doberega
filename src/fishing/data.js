@@ -407,10 +407,9 @@ export const LOCATIONS = [
     /*
      * The trout farm «Smerekove» in the mountains, a paid water: stocked, so
      * it bites often, but the fish run even, mostly 1–3 kg, a big rainbow up
-     * to 8; nothing under 800 g. Being tried out (`preview`): shown only on a
-     * tester's account for now.
+     * to 8; nothing under 800 g.
      */
-    id: "troutfarm", snagChance: 0.03, kind: "troutfarm", water: "#2f9a86", preview: true,
+    id: "troutfarm", snagChance: 0.03, kind: "troutfarm", water: "#2f9a86",
     traits: { type: "pond", depth: "medium", bottom: "stones", current: "weak" },
     minKg: 0.8, typicalKg: 3, maxKg: 8, bigChance: 1 / 12, pace: 1.6, unlock: { price: 40000 },
     fish: { raiduzhna: 4, paliya: 2, forel: 1.5, holovach: 0.08 },
@@ -422,9 +421,9 @@ export const LOCATIONS = [
      * now and then a pike up to 14. The fish keep to the deep water out from
      * the walls (`deep`: a cast in the near third hardly ever gets a bite) and
      * feed at dawn and dusk (`twilight`), sluggish in the bright middle of the
-     * day. Being tried out (`preview`): shown only on a tester's account.
+     * day.
      */
-    id: "quarry", snagChance: 0.05, kind: "quarry", water: "#2a6a5a", preview: true, deep: true, twilight: true,
+    id: "quarry", snagChance: 0.05, kind: "quarry", water: "#2a6a5a", deep: true, twilight: true,
     traits: { type: "lake", depth: "deep", bottom: "stones", current: "none" },
     minKg: 2, typicalKg: 8, maxKg: 12, bigChance: 1 / 6, tailKg: 14, tailChance: 1 / 100, pace: 1.8, unlock: { price: 80000 },
     fish: { shchuka: 3, sudak: 2.5, stalhead: 3, holavl: 1.5, okun: 1.2 },
@@ -435,10 +434,9 @@ export const LOCATIONS = [
      * from 4 kg, mostly up to 12, a big one up to 22 one bite in 7 and now and
      * then up to 30: carp, mirror carp, grass carp, buffalo and silver carp,
      * and the channel catfish at night. The fish come to the groundbait here
-     * far more than anywhere (`groundbaitBoost`). Being tried out (`preview`):
-     * shown only on a tester's account.
+     * far more than anywhere (`groundbaitBoost`).
      */
-    id: "carplake", snagChance: 0.03, kind: "carplake", water: "#3a6a50", preview: true, groundbaitBoost: 2.5,
+    id: "carplake", snagChance: 0.03, kind: "carplake", water: "#3a6a50", groundbaitBoost: 2.5,
     traits: { type: "lake", depth: "medium", bottom: "mud", current: "none" },
     minKg: 4, typicalKg: 12, maxKg: 22, bigChance: 1 / 7, tailKg: 30, tailChance: 1 / 100, pace: 1.4, unlock: { price: 150000 },
     fish: { korop: 3, dzerkalnyi: 3, amur: 2, bufalo: 2, kanalnyi: 1.5, tovstolob: 0.6 },
