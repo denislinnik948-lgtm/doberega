@@ -26,6 +26,23 @@ export function ridgeTop(ridge, x, height) {
     const crest = ridged(x * 0.0042, s, 100 + Math.round(s * 10), 5);
     return height * (ridge.top - ridge.amplitude * ramp * (0.25 + 0.95 * crest));
   }
+  // `woods`: a far row of conifers, their spiky tops (`woods` tall, a share of the
+  // screen) along a gently rolling line, overlapping, each a little different.
+  if (ridge.woods) {
+    const base = height * (ridge.top - ridge.amplitude * (0.5 + 0.5 * Math.sin(x * 0.0016 + s)) - ridge.amplitude * 0.4 * Math.sin(x * 0.0041 - s));
+    const size = height * ridge.woods;
+    const spacing = size * 0.42;
+    const i0 = Math.floor(x / spacing);
+    let y = base;
+    for (let i = i0 - 2; i <= i0 + 2; i += 1) {
+      const tall = size * (0.55 + 0.55 * hash2(i, 1, Math.round(s * 100)));
+      const center = (i + 0.5 + (hash2(i, 2, Math.round(s * 100)) - 0.5) * 0.6) * spacing;
+      const half = tall * 0.3;
+      const d = Math.abs(x - center);
+      if (d < half) y = Math.min(y, base - tall * (1 - d / half));
+    }
+    return y;
+  }
   // `hills`: [centre, half width, height] each, as shares: smooth round hills with low ground between.
   if (ridge.hills) {
     const u = x / view.width;

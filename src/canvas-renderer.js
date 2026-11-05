@@ -2242,8 +2242,8 @@ export class CanvasWaterRenderer {
   }
 
   /**
-   * The jetty on the far shore, planks over a row of posts, and the rowing
-   * boat tied up beside it (the boat bobs: `bob` marks it for fillSurface).
+   * The jetty on the far shore, planks over a row of posts, and a rowing
+   * boat tied up beside it if it has one (the boat bobs: `bob` marks it for fillSurface).
    */
   createJetty() {
     const { width, height } = this;
@@ -2274,6 +2274,7 @@ export class CanvasWaterRenderer {
       const [sx, sy] = snap(x, shape.bottom + lineHeight * 1.6);
       foam.push({ x: sx, y: sy, noise: hash2(Math.round(x / cellWidth), 5, 1903), downstream: true });
     }
+    if (!shape.boat) return [{ stone: deck, foam }];
     // The boat: a gunwale with its seats, the hull below, a rope to the jetty.
     const boat = [];
     const { x: bx, y: by, half } = shape.boat;

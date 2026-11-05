@@ -54,24 +54,26 @@ export const SCENES = {
     foreground: { reeds: 2.2, rock: false, lilyPads: 0, oak: true },
   },
   /**
-   * Quiet lake: an old pine forest along the far shore with low blue hills
-   * beyond it. A fire lookout tower stands above the trees (its lamp glows at
-   * night); in a clearing on the bank a log cabin smokes, a wooden jetty runs
-   * out from it and a rowing boat is tied up alongside.
+   * Quiet lake: an old pine forest along the far shore, rows of far woods
+   * rising beyond it, paler and bluer in the haze. A fire lookout tower stands above the trees (its lamp glows at
+   * night); in a clearing on the bank a log cabin smokes and a short wooden
+   * jetty runs out from it.
    */
   lake: {
     horizon: 0.47,
+    // Rows of far woods behind the near forest, each higher, paler and bluer in the haze (`woods`).
     ridges: [
-      { top: 0.31, amplitude: 0.075, seed: 3.3, fill: "#3d5866", glyph: "#58737f", texture: ".'", density: 0.05 },
-      { top: 0.35, amplitude: 0.06, seed: 6.2, fill: "#2d4840", glyph: "#43614f", texture: "^.'", density: 0.12 },
+      { top: 0.29, amplitude: 0.025, woods: 0.05, seed: 3.3, fill: "#5e7a84", glyph: "#7a949c", texture: "^'.", density: 0.1 },
+      { top: 0.32, amplitude: 0.02, woods: 0.055, seed: 6.2, fill: "#46625e", glyph: "#5e7c74", texture: "^*'", density: 0.16 },
+      { top: 0.35, amplitude: 0.015, woods: 0.06, seed: 8.7, fill: "#304c40", glyph: "#46644f", texture: "^*#", density: 0.22 },
     ],
     forest: { heightScale: 1.7, spacingScale: 0.75, broadleaf: 0, gaps: [[0.365, 0.46]] },
     structures: {
       houses: { at: [0.41], scale: 1, roof: "#3b3026", walls: "#7a5636", logs: true },
       tower: { x: 0.6, tall: 0.24 },
     },
-    // The jetty runs toward us from below the cabin; the boat is tied up on its right.
-    water: { jetty: { x: 0.415, length: 0.075 } },
+    // The jetty runs a little way toward us from below the cabin (`boat`: a boat tied up beside it).
+    water: { jetty: { x: 0.415, length: 0.03 } },
     nearBank: 0.055,
     foreground: { reeds: 1, rock: true, lilyPads: 5 },
   },
@@ -342,7 +344,7 @@ export function jettyShape(width, height) {
     return { left: center - half, right: center + half };
   };
   const near = at(bottom);
-  const boat = { x: near.right + span * 2.2, y: bottom - height * 0.012, half: span * 2.2 };
+  const boat = jetty.boat ? { x: near.right + span * 2.2, y: bottom - height * 0.012, half: span * 2.2 } : null;
   return {
     top, bottom, at, boat,
     covers(px, py) {
@@ -350,7 +352,7 @@ export function jettyShape(width, height) {
         const { left, right } = at(py);
         if (px >= left && px <= right) return true;
       }
-      return Math.abs(px - boat.x) < boat.half && Math.abs(py - boat.y) < span * 0.9;
+      return Boolean(boat) && Math.abs(px - boat.x) < boat.half && Math.abs(py - boat.y) < span * 0.9;
     },
   };
 }
