@@ -367,7 +367,8 @@ export function createStructures(width, height, cellWidth, lineHeight, fine = nu
   const onFineGrid = (add, spec) => {
     const [firstCell, firstLight] = [cells.length, lights.length];
     add(spec, width, height, fine?.cellWidth ?? cellWidth, fine?.lineHeight ?? lineHeight, out, 1 / (fine?.scale ?? 1));
-    if (fine) for (const cell of [...cells.slice(firstCell), ...lights.slice(firstLight)]) cell.scale = fine.scale;
+    // A light marked `full` keeps the base size, so a far window or torch still shows.
+    if (fine) for (const cell of [...cells.slice(firstCell), ...lights.slice(firstLight)]) if (!cell.full) cell.scale = fine.scale;
   };
   if (structures.chnpp) onFineGrid(addChnpp, structures.chnpp);
   if (structures.crag) onFineGrid(addCrag, structures.crag);
@@ -1063,11 +1064,13 @@ function addCrag({ to, peak }, width, height, cellWidth, lineHeight, out, k = 1)
     return { glyph: "*&%"[Math.floor(noise * 3)], color: "#1f3a20" };
   };
 
-  // The cliff face hangs below the castle, deepest in the middle.
+  // The cliff face hangs below the castle, deepest in the middle, its foot
+  // ragged and uneven where the rock gives way to the woods.
   const cliffDepth = (x) => {
     const u = (x / width - 0.12) / 0.22;
     if (u <= 0 || u >= 1) return 0;
-    return height * peak * 0.5 * Math.sin(Math.PI * u ** 0.8) ** 0.9 * (0.75 + 0.25 * Math.sin(x * 0.07) * Math.sin(x * 0.023));
+    const ragged = 0.72 + 0.3 * valueNoise(x * 0.012, 3, 4105) + 0.12 * valueNoise(x * 0.06, 5, 4107) - 0.06 * hash2(Math.round(x / cellWidth), 9, 4109);
+    return height * peak * 0.5 * Math.sin(Math.PI * u ** 0.8) ** 0.9 * ragged;
   };
 
   const outline = [[0, horizon + lineHeight]];
@@ -1077,7 +1080,9 @@ function addCrag({ to, peak }, width, height, cellWidth, lineHeight, out, k = 1)
   const cliff = [];
   for (let x = width * 0.12; x <= width * 0.34; x += cellWidth) cliff.push([x, skyline(x) - lineHeight * 0.3]);
   for (let x = width * 0.34; x >= width * 0.12; x -= cellWidth) cliff.push([x, skyline(x) + cliffDepth(x)]);
-  out.shapes.push({ points: cliff, color: "#5c5d58" });
+  // A dark ground under the rock's glyphs: a pale one showed the tree crowns
+  // biting into its foot as a row of round arches.
+  out.shapes.push({ points: cliff, color: "#2a2b27" });
 
   // Each crown gets a solid body and a lighter cap, back rows first so nearer
   // trees overlap; crowns on the skyline give the hill a bumpy treetop edge.
@@ -1116,6 +1121,9 @@ function addCrag({ to, peak }, width, height, cellWidth, lineHeight, out, k = 1)
         // Pale limestone with vertical cracks.
         const crack = hash2(column, 0, 4111) > 0.75;
         out.cells.push({ x, y, column, row, glyph: crack ? "|" : "#%:/\\.:"[Math.floor(noise * 7)], color: noise > 0.55 ? "#b4b4aa" : noise > 0.2 ? "#8e8f86" : "#6a6b64" });
+      } else if (cliffDepth(x) > 0 && y < top + cliffDepth(x) + lineHeight * 4 && noise < 0.45 * (1 - (y - top - cliffDepth(x)) / (lineHeight * 4))) {
+        // Scree: broken rock fallen from the cliff, lying among the trees below it.
+        out.cells.push({ x, y, column, row, glyph: noise > 0.25 ? "." : noise > 0.12 ? ":" : "o", color: noise > 0.2 ? "#8e8f86" : "#6a6b64" });
       } else {
         // On a finer grid only as many leaves stir as on the base one (the rest hold
         // still in the painted layer): the hill looks as alive and costs no more a frame.
@@ -1129,10 +1137,13 @@ function addCrag({ to, peak }, width, height, cellWidth, lineHeight, out, k = 1)
   // A very old castle on the plateau: a broken curtain wall, a gutted keep and
   // a crumbling corner tower, weathered grey stone patched with ivy.
   const rowsOf = (fraction) => Math.max(2, Math.round((height * fraction) / lineHeight));
-  const stone = (column, row) => {
+  // Stone lit on the side toward the sun (the right), shaded on the left, with
+  // ivy climbing from the foot in patches.
+  const stone = (column, row, lit, low) => {
     const noise = hash2(column, row, 4301);
-    if (noise > 0.86) return "#3d5530";
-    return noise > 0.55 ? "#8a877a" : noise > 0.25 ? "#6e6b60" : "#55534a";
+    if (valueNoise(column * 0.25, row * 0.3, 4305) * (0.6 + low * 0.6) > 0.62) return noise > 0.5 ? "#4a6a34" : "#34502a";
+    if (lit) return noise > 0.5 ? "#b2ad9c" : noise > 0.15 ? "#9a9584" : "#7e7a6c";
+    return noise > 0.55 ? "#76736a" : noise > 0.2 ? "#615e56" : "#4c4a43";
   };
   // Masonry from x0 to x1 standing `rows` high, its top broken by `ruin` (0..1).
   const ruinWall = (from, to2, rows, groundY, ruin, slits = false) => {
@@ -1152,17 +1163,29 @@ function addCrag({ to, peak }, width, height, cellWidth, lineHeight, out, k = 1)
     outline.push([x1, groundY + lineHeight * 0.5]);
     out.shapes.push({ points: outline, color: "#4a4840" });
     columns.forEach((c, index) => {
+      // The right part of each wall or tower faces the sun.
+      const lit = index >= columns.length * 0.45;
       for (let r = 0; r < c.top; r += 1) {
         const cell = cellAt(c.x, groundY - r * lineHeight, cellWidth, lineHeight);
         const slit = slits && r === c.top - 2 && index % 3 === 1;
         const crest = r === c.top - 1;
-        out.cells.push({ ...cell, glyph: slit ? "|" : crest ? (c.top === rows ? "n" : "'") : (r + index) % 3 ? ":" : "=", color: slit ? "#17160f" : stone(cell.column, cell.row) });
+        // Courses of dressed stone: a bed joint every other row, the blocks staggered.
+        const glyph = slit ? "|" : crest ? (c.top === rows ? "n" : "'") : r % 2 ? "=" : (index + (r >> 1)) % 3 === 0 ? "|" : "#";
+        const made = out.cells.push({ ...cell, glyph, color: slit ? "#17160f" : stone(cell.column, cell.row, lit, 1 - r / rows) });
+        // After dark some of the slits glow, as if someone keeps a lamp in the ruin.
+        if (slit && hash2(cell.column, 11, 4307) > 0.35) out.lights.push({ ...out.cells[made - 1], glyph: ".", color: "#ffc860", flicker: true, full: true });
       }
     });
+    return columns;
   };
   const ground = plateau;
   ruinWall(0.1, 0.31, rowsOf(0.022), ground, 0.9);
-  ruinWall(0.13, 0.175, rowsOf(0.075), ground, 0.55, true);
+  const keep = ruinWall(0.13, 0.175, rowsOf(0.075), ground, 0.55, true);
+  // A torch burning on top of the keep after dark, and where the bats circle at dusk.
+  const crown = keep.reduce((high, c) => (c.top > high.top ? c : high), keep[0]);
+  const torch = { ...cellAt(crown.x, ground - crown.top * lineHeight, cellWidth, lineHeight), glyph: "*", color: "#ffb040", flicker: true, full: true };
+  out.lights.push(torch);
+  out.castle = { x: crown.x, y: ground - crown.top * lineHeight, size: (keep[keep.length - 1].x - keep[0].x) };
   ruinWall(0.205, 0.225, rowsOf(0.045), ground, 0.7, true);
   ruinWall(0.285, 0.31, rowsOf(0.055), ground + height * 0.02, 0.6, true);
 }

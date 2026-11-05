@@ -391,6 +391,8 @@ export class CanvasWaterRenderer {
     const structures = createStructures(width, height, cellWidth, lineHeight, DEPTH ? { cellWidth: farWidth, lineHeight: farLine, scale: far } : null);
     this.structureCells = regrid(structures.cells);
     this.structureShapes = structures.shapes;
+    // The castle's keep, where bats circle at dusk.
+    this.castle = structures.castle ?? null;
     // A viaduct's railway, where a steam train passes now and then.
     this.road = structures.road;
     this.train = null;
@@ -1430,6 +1432,38 @@ export class CanvasWaterRenderer {
    * settle on the water (where `landings` lets the caller ripple it), float a
    * while and sink. Now and then in summer, often in autumn.
    */
+  /**
+   * Bats over the castle keep at dusk and before dawn: a few dark wings
+   * flitting round the top of the tower, each on its own loop, flapping as
+   * they go. None in winter, when they sleep.
+   */
+  drawBats(ctx, time) {
+    const hour = this.hour ?? 12;
+    // Out at dusk and before dawn, fading in and out at either end.
+    const dusk = Math.min(1, Math.max(0, (hour - 19) / 0.6), Math.max(0, (22.5 - hour) / 0.6));
+    const dawn = Math.min(1, Math.max(0, (hour - 3.8) / 0.4), Math.max(0, (5.8 - hour) / 0.4));
+    const show = Math.max(hour > 18 ? dusk : 0, hour < 7 ? dawn : 0);
+    if (show <= 0 || isWinter()) return;
+    const { x, y, size } = this.castle;
+    const reach = Math.max(size * 1.4, this.cellWidth * 8);
+    ctx.save();
+    ctx.globalAlpha = show;
+    ctx.font = `600 ${Math.round(this.lineHeight * 1.2)}px ${MONO_FONT}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#16161c";
+    for (let i = 0; i < 7; i += 1) {
+      const speed = 0.5 + hash2(i, 1, 4501) * 0.6;
+      const angle = time * speed * (i % 2 ? 1 : -1) + i * 2.1;
+      const loop = reach * (0.5 + hash2(i, 2, 4503) * 0.6);
+      // Bats jink: a quick wobble on top of the loop.
+      const bx = x + Math.cos(angle) * loop + Math.sin(time * 5.3 + i) * reach * 0.06;
+      const by = y - reach * (0.05 + hash2(i, 3, 4505) * 0.3) + Math.sin(angle * 1.7) * loop * 0.25 + Math.cos(time * 6.1 + i * 2) * reach * 0.05;
+      ctx.fillText(Math.sin(time * 14 + i * 3) > 0 ? "v" : "^", bx, by);
+    }
+    ctx.restore();
+  }
+
   /**
    * Now and then a steam train crosses the viaduct, one way or the other: a
    * locomotive with its tender and four carriages, small with distance,
@@ -2663,6 +2697,7 @@ export class CanvasWaterRenderer {
     if (this.floes?.length) this.drawFloes(ctx);
     if (this.critters) this.drawCritters(ctx, time, this.critters);
     if (this.road) this.drawTrain(ctx, time, dt);
+    if (this.castle) this.drawBats(ctx, time);
     if (angler && !angler.hidden) this.renderAngler(ctx, angler, "line");
 
     // Reeds are close to the viewer, so they use larger glyphs and sway harder.
