@@ -452,9 +452,11 @@ function addFireTower({ x: fx, tall = 0.27 }, width, height, cellWidth, lineHeig
   const rows = Math.round((height * tall) / lineHeight);
   const cabinRows = 3;
   const legRows = rows - cabinRows - 1;
-  // Weathered, silvery wood: lighter than the pines it stands among.
-  const wood = "#b4a286";
-  const dark = "#857560";
+  // Weathered dark timber, a shade lighter on the sunny edge, so it stands out
+  // solid against the far woods rather than as a pale ghost.
+  const wood = "#7a6448";
+  const lit = "#9a8262";
+  const dark = "#4e3e2c";
   // It stands behind the pines: painted under the forest's silhouette, so
   // only what rises above the treetops shows.
   const put = (px, py, glyph, color) => {
@@ -468,20 +470,20 @@ function addFireTower({ x: fx, tall = 0.27 }, width, height, cellWidth, lineHeig
     const y = ground - r * lineHeight;
     const spread = spreadAt(r);
     const lean = spreadAt(r + 1) < spread;
-    // Each leg is a heavy timber, two glyphs thick.
-    for (const k of [0, 1]) {
-      put(x - (spread - k) * cellWidth, y, lean ? "/" : "|", wood);
-      put(x + (spread - k) * cellWidth, y, lean ? "\\" : "|", wood);
+    // Each leg is a heavy timber, three glyphs thick, its outer edge catching the light.
+    for (const k of [0, 1, 2]) {
+      put(x - (spread - k) * cellWidth, y, k === 1 ? "#" : lean ? "/" : "|", k === 0 ? lit : wood);
+      put(x + (spread - k) * cellWidth, y, k === 1 ? "#" : lean ? "\\" : "|", k === 0 ? lit : wood);
     }
     // Cross bracing every few rows, and the ladder up the middle.
     const band = r % 4;
-    if (band === 0) for (let c = -spread + 2; c < spread - 1; c += 1) put(x + c * cellWidth, y, "=", dark);
+    if (band === 0) for (let c = -spread + 3; c < spread - 2; c += 1) put(x + c * cellWidth, y, "#", dark);
     else if (spread > 1) {
-      for (let c = -spread + 2; c < spread - 1; c += 1) {
+      for (let c = -spread + 3; c < spread - 2; c += 1) {
         if (c === 0) continue;
         const along = (band - 1) / 3;
         const want = Math.round(-spread + 2 + along * (spread * 2 - 4));
-        if (Math.abs(c) === Math.abs(want)) put(x + c * cellWidth, y, c * want > 0 ? "\\" : "/", dark);
+        if (Math.abs(c) === Math.abs(want)) put(x + c * cellWidth, y, c * want > 0 ? "\\" : "/", wood);
       }
     }
     put(x, y, "H", dark);
@@ -504,7 +506,7 @@ function addFireTower({ x: fx, tall = 0.27 }, width, height, cellWidth, lineHeig
   for (let r = 0; r < 2; r += 1) {
     const y = deck - (cabinRows + r) * lineHeight;
     const span = half + 1 - r * 2;
-    for (let c = -span; c <= span; c += 1) put(x + c * cellWidth, y, c === -span ? "/" : c === span ? "\\" : "^", "#7a5a40");
+    for (let c = -span; c <= span; c += 1) put(x + c * cellWidth, y, c === -span ? "/" : c === span ? "\\" : "#", c === -span || c === span ? "#4a3424" : "#6a4a32");
   }
 }
 

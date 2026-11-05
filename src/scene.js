@@ -70,7 +70,8 @@ export const SCENES = {
     forest: { heightScale: 1.7, spacingScale: 0.75, broadleaf: 0, gaps: [[0.365, 0.46]] },
     structures: {
       houses: { at: [0.41], scale: 1, roof: "#3b3026", walls: "#7a5636", logs: true },
-      tower: { x: 0.6, tall: 0.24 },
+      // Only its cabin and the tops of its legs show over the trees.
+      tower: { x: 0.6, tall: 0.2 },
     },
     // The jetty runs a little way toward us from below the cabin (`boat`: a boat tied up beside it).
     water: { jetty: { x: 0.415, length: 0.03 } },
