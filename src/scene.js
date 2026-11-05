@@ -19,7 +19,8 @@ function riverBank(depth, side) {
   const t = Math.max(0, (depth - 0.4) / 0.6);
   // Far off the river swings right and leaves the view past the right edge.
   const center = 0.5 + 0.55 * (1 - t) ** 2.2;
-  const half = 0.15 + 0.31 * t ** 0.9;
+  // Wide, and wider still to the left: near the bridge the left bank leaves the view by its left edge.
+  const half = side < 0 ? 0.32 + 0.4 * t ** 0.9 : 0.26 + 0.24 * t ** 0.9;
   const wobble = Math.sin(depth * 31 + side) * 0.008 + Math.sin(depth * 73 + side * 2) * 0.004;
   return side < 0 ? center - half + wobble : 1 - center - half + wobble;
 }

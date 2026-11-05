@@ -452,9 +452,8 @@ function landscape(px, w, h, random, kind) {
       const t = (y - horizon) / (rail - horizon);
       // The river swings right far off and leaves the picture.
       const center = w * (0.5 + 0.55 * (1 - t) ** 2.2);
-      const half = w * (0.15 + 0.31 * t ** 0.9);
-      const left = Math.round(center - half);
-      const right = Math.round(center + half);
+      const left = Math.round(center - w * (0.32 + 0.4 * t ** 0.9));
+      const right = Math.round(center + w * (0.26 + 0.24 * t ** 0.9));
       if (left > x0) px.rect(x0, y, left - x0, 1, P.ink);
       if (right < x1) px.rect(right, y, x1 - right, 1, P.ink);
       for (let k = 0; k < 3; k += 1) {
