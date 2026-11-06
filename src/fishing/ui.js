@@ -162,7 +162,6 @@ export class AnglerUI {
     $("#keepnet-chip-sprite").replaceChildren(keepnetSprite(3));
     $("#settings-icon").replaceChildren(gearSprite(3));
     $("#pack-slot-sprite").replaceChildren(packSprite(3));
-    $("#pack-hook-sprite").replaceChildren(hookSprite(2));
     this.clockNight = null;
   }
 
@@ -627,12 +626,6 @@ export class AnglerUI {
 
     this.renderTiles();
     this.renderSpotLock();
-
-    // The hook size in use and how many are left.
-    const hooksLeft = progress.hooks[progress.hook] ?? 0;
-    $("#pack-hook-sprite").replaceChildren(hookSprite(2));
-    $("#pack-hook-count").textContent = `×${hooksLeft}`;
-    $("#pack-hook-count").closest(".chip").classList.toggle("is-empty", hooksLeft <= 0);
   }
 
   /* ---------- Tiled menu ---------- */

@@ -345,9 +345,6 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
 .bait-chip:active:not(:disabled) { transform: translateY(2px); }
 .bait-chip:disabled { cursor: default; }
 .bait-chip.is-empty { color: var(--ember); }
-.pack-hooks { margin-left: auto; color: var(--bone); }
-.pack-hooks.is-empty { color: var(--ember); }
-.sheet-heading .pack-hooks + form { margin-left: 0; }
 .catch-actions [hidden] { display: none; }
 .catch-note { margin: 6px 0 0; color: var(--gold); font-size: 18px; text-align: center; }
 .catch-note[hidden] { display: none; }
