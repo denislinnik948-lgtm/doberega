@@ -1355,8 +1355,16 @@ const EXTRA_SPRITES = {
   ], { o: P.ink, M: P.mid, L: P.light, d: P.dark, k: P.deep, G: P.gold, s: P.soft, H: P.ember }),
 };
 
-/** A tied sack of groundbait, crumbs spilling from the top. */
-export function groundbaitSprite(scale = 3) {
+/* Each groundbait in its own sack (see GROUNDBAITS): the plain one sandy, the carp one green with corn on top, the bream one pale with seeds, the predator one dark red, the trout one with pink pellets. */
+const SACKS = {
+  plain: { y: "#e0c068", T: "#c9a35a", R: P.ember, B: "#9a7a46", L: "#b8955a", b: "#6e5430" },
+  carp: { y: "#f0d040", T: "#c9a35a", R: "#f0d040", B: "#5e7a3a", L: "#7e9a4e", b: "#3e5426" },
+  bream: { y: "#e8e0b0", T: "#d8cca0", R: "#8a6a3a", B: "#b8ac84", L: "#d0c49a", b: "#867a58" },
+  predator: { y: "#c84a3a", T: "#a07050", R: "#c84a3a", B: "#6e2e26", L: "#8e3e32", b: "#4a1e1a" },
+  trout: { y: "#e88a8a", T: "#c9a35a", R: "#e88a8a", B: "#4e6a7a", L: "#6a8698", b: "#344a56" },
+};
+/** A tied sack of groundbait, crumbs spilling from the top, coloured for its kind. */
+export function groundbaitSprite(scale = 3, kind = "plain") {
   return fromRows([
     "................",
     ".......y..y.....",
@@ -1374,7 +1382,7 @@ export function groundbaitSprite(scale = 3) {
     "....obbbbbbbbo..",
     ".....oooooooo...",
     "................",
-  ], { o: P.ink, y: "#e0c068", T: "#c9a35a", R: P.ember, B: "#9a7a46", L: "#b8955a", b: "#6e5430" }).toCanvas(scale);
+  ], { o: P.ink, ...(SACKS[kind] ?? SACKS.plain) }).toCanvas(scale);
 }
 
 /** A spool of fishing line; `worn` greys the line and frays its loose end. */

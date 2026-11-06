@@ -460,13 +460,14 @@ function tryCast(x, y) {
     ui.commit();
     ui.toast(t("toast.hookSwitched", { hook: nameOf("hook", spare).toLowerCase() }), "", 1800);
   }
-  const groundbait = groundbaitLeft(LOCATIONS[progress.location].id) > 0;
+  const spotId = LOCATIONS[progress.location].id;
+  const groundbait = groundbaitLeft(spotId) > 0;
   // The wind carries the bait a little downwind in flight, the more the farther the cast.
   let target = { x: x / width, y: y / height };
   const reach = Math.min(1, Math.max(0, (TUNING.nearY - target.y) / (TUNING.nearY - TUNING.farY)));
   const blown = { x: target.x + wind.dir * wind.strength * wind.gust * 0.035 * (0.4 + reach) * (0.5 + Math.random()), y: target.y };
   if (isOnWater(blown.x * width, blown.y * height) && !renderer.onIce(blown.x * width, blown.y * height)) target = blown;
-  if (game.cast(target, progress.rod, progress.bait, { location: progress.location, extras: progress.extras, groundbait, hook: progress.hook, school: nearSchool(target) })) {
+  if (game.cast(target, progress.rod, progress.bait, { location: progress.location, extras: progress.extras, groundbait, groundbaitKind: progress.baitedKind?.[spotId] ?? null, hook: progress.hook, school: nearSchool(target) })) {
     // Get the pointer out of the way while watching the float.
     document.body.classList.add("cursor-hidden");
   }
@@ -586,6 +587,7 @@ function tickGroundbait() {
   for (const [id, until] of Object.entries(progress.baited)) {
     if (until > now) continue;
     delete progress.baited[id];
+    delete progress.baitedKind?.[id];
     if (mode === "fishing" && id === LOCATIONS[progress.location].id) ui.toast(t("toast.groundbaitOver"), "", 2200);
     ui.commit();
   }
@@ -718,7 +720,7 @@ function renderNow(now = performance.now()) {
   game.hour = dayTime * 24;
   ui.setClock(dayTime, moon);
   tickGroundbait();
-  ui.setGroundbait(mode === "fishing" ? groundbaitLeft(LOCATIONS[progress.location].id) : 0);
+  ui.setGroundbait(mode === "fishing" ? groundbaitLeft(LOCATIONS[progress.location].id) : 0, progress.baitedKind?.[LOCATIONS[progress.location].id] ?? null);
   ui.setWeather(weather.intensity, wind.strength);
   nightEvents.update(step, elapsed, dayTime);
   playLoops(step, dayTime);

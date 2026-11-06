@@ -1,4 +1,4 @@
-import { BAITS, BOOT_CHANCE, FINDS, FISH, GROUNDBAIT, HOOKS, LINE, LOCATIONS, LOST_LURES, NIBBLE, RODS, biteActivity, lineWeakness, rollFish, spotMood, straightenChance } from "./data.js";
+import { BAITS, BOOT_CHANCE, FINDS, FISH, GROUNDBAIT, GROUNDBAITS, HOOKS, LINE, LOCATIONS, LOST_LURES, NIBBLE, RODS, biteActivity, lineWeakness, rollFish, spotMood, straightenChance } from "./data.js";
 
 /**
  * Fishing state machine. Positions are normalized to the viewport (0..1) so the
@@ -137,9 +137,10 @@ export class FishingGame {
 
   /**
    * Cast toward a normalized water point with the chosen rod, bait, spot and
-   * extras; `groundbait` is whether this water is baited.
+   * extras; `groundbait` is whether this water is baited, `groundbaitKind`
+   * with which (see GROUNDBAITS; none: the plain one).
    */
-  cast(target, rodId, baitId, { location = 0, extras = [], groundbait = false, hook = "medium", school = false } = {}) {
+  cast(target, rodId, baitId, { location = 0, extras = [], groundbait = false, groundbaitKind = null, hook = "medium", school = false } = {}) {
     if (this.phase !== "ready") return false;
     this.rod = rodId;
     this.bait = baitId;
@@ -147,6 +148,8 @@ export class FishingGame {
     this.location = location;
     this.extras = extras;
     this.groundbait = groundbait;
+    // The fish the groundbait in is made for, who come to it readier.
+    this.favor = groundbait ? GROUNDBAITS[groundbaitKind]?.favors ?? null : null;
     // Cast where a school of fish is jumping: they find the bait sooner.
     this.school = school;
     this.target = { ...target };
@@ -325,7 +328,7 @@ export class FishingGame {
 
   /** How keen the fish here are right now on this bait: about 0.1 (dead) to 2.2. */
   keenness() {
-    const hunger = biteActivity(this.bait, this.location, this.hour);
+    const hunger = biteActivity(this.bait, this.location, this.hour, this.favor);
     const spotPace = LOCATIONS[this.location]?.pace ?? 1;
     // The floor is low so a bait no local fish wants really does go quiet.
     const pace = Math.min(2.2, Math.max(0.1, hunger * 1.2 * spotPace * this.biteBoost)) * spotMood(this.location, this.hour, this.reach());
@@ -385,7 +388,7 @@ export class FishingGame {
     const style = BAITS[this.bait].retrieve ?? { jerk: 1, flutter: 1, steady: 1 };
     const odds = jerking ? TUNING.strikeJerk * style.jerk : fluttering ? TUNING.strikeFlutter * style.flutter : this.pulling ? TUNING.strikeSteady * style.steady : 0;
     if (!odds || random() >= odds * this.keenness() * (this.extras.includes("sonar") ? 1.3 : 1) * dt) return;
-    const fish = rollFish(this.bait, this.location, random, this.reach(), this.hour, this.gear);
+    const fish = rollFish(this.bait, this.location, random, this.reach(), this.hour, this.gear, this.favor);
     if (!fish) return;
     // A strike: from here on it's a bite like on the float. The reel stops; pull to hook it.
     this.fish = fish;
@@ -485,7 +488,7 @@ export class FishingGame {
       case "waiting":
         this.driftFloat(dt);
         if (this.clock >= this.waitTime) {
-          this.fish = rollFish(this.bait, this.location, random, this.reach(), this.hour, this.gear);
+          this.fish = rollFish(this.bait, this.location, random, this.reach(), this.hour, this.gear, this.favor);
           if (!this.fish) {
             // Wrong bait for this water: the float just sits there.
             this.clock = 0;

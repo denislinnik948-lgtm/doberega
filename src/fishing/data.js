@@ -345,6 +345,20 @@ export const EXTRAS = {
  */
 export const GROUNDBAIT = { price: 90, hours: 24, boost: 1.7 };
 
+/**
+ * Groundbaits made for a kind of fish: the water bites as livelier as with the
+ * plain one, and the fish it is made for come to it GROUNDBAIT_FAVOR times as
+ * readily (`favors`). Kept by the bag in `progress.groundbaits`; which one is
+ * in at a water is `progress.baitedKind[spot]` (none: the plain one).
+ */
+export const GROUNDBAITS = {
+  carp: { price: 150, favors: ["korop", "dzerkalnyi", "amur", "karas", "lyn", "bufalo", "tovstolob"] },
+  bream: { price: 130, favors: ["lyasch", "plitka", "krasnopirka", "yaz", "holavl", "verkhovodka"] },
+  predator: { price: 180, favors: ["okun", "shchuka", "sudak", "som", "zherekh", "kanalnyi", "myn"] },
+  trout: { price: 160, favors: ["forel", "raiduzhna", "paliya", "stalhead"] },
+};
+export const GROUNDBAIT_FAVOR = 3;
+
 /** Milliseconds of real time in `hours` of game time (a game day lasts DAY_SECONDS). */
 export const gameHoursMs = (hours) => (hours / 24) * DAY_SECONDS * 1000;
 
@@ -481,8 +495,11 @@ export const START_STATE = {
   bait: "worm",
   extras: [],
   groundbait: 0,
-  // Game hours of groundbait left at each water, by spot id.
+  // The groundbaits made for a kind of fish, by kind (see GROUNDBAITS).
+  groundbaits: {},
+  // When the groundbait at each water wears off, by spot id, and which kind it is (none: the plain one).
   baited: {},
+  baitedKind: {},
   trophies: [],
   // Fish kept alive in the keepnet until you leave the water: sold together, or some kept as trophies.
   keepnet: [],
@@ -543,8 +560,11 @@ function pickWeighted(entries, random) {
  * up anywhere; some places are just far likelier. Returns null when no fish
  * here takes this bait.
  */
-/** Who here would take this bait, weighted by habitat, taste and hunger right now. */
-function candidates(baitId, locationIndex, hour) {
+/**
+ * Who here would take this bait, weighted by habitat, taste and hunger right
+ * now, and by the groundbait in: the fish it is made for (`favor`) come readier.
+ */
+function candidates(baitId, locationIndex, hour, favor = null) {
   const bait = BAITS[baitId];
   const location = LOCATIONS[locationIndex] ?? LOCATIONS[0];
   return Object.entries(location.fish)
@@ -555,7 +575,8 @@ function candidates(baitId, locationIndex, hour) {
       const inSeason = FISH[id].season !== "autumn" || isAutumn() ? 1 : 0;
       // A greedy fish (the rotan) takes anything, even a lure.
       const taste = bait.species[id] ?? (FISH[id].greedy ? 1.5 : bait.others ?? 0.08);
-      return [id, weight * lureFish * inSeason * taste, activity(id, hour)];
+      const drawn = favor?.includes(id) ? GROUNDBAIT_FAVOR : 1;
+      return [id, weight * lureFish * inSeason * taste * drawn, activity(id, hour)];
     })
     .filter(([, weight]) => weight > 0);
 }
@@ -565,8 +586,8 @@ function candidates(baitId, locationIndex, hour) {
  * that would take this bait here, times how much they want it. Bites come
  * sooner when it's high.
  */
-export function biteActivity(baitId, locationIndex, hour) {
-  const list = candidates(baitId, locationIndex, hour);
+export function biteActivity(baitId, locationIndex, hour, favor = null) {
+  const list = candidates(baitId, locationIndex, hour, favor);
   const total = list.reduce((sum, [, weight]) => sum + weight, 0);
   if (!total) return 0;
   const hunger = list.reduce((sum, [, weight, hunger]) => sum + weight * hunger, 0) / total;
@@ -578,10 +599,10 @@ export function biteActivity(baitId, locationIndex, hour) {
   return hunger * appeal;
 }
 
-export function rollFish(baitId, locationIndex, random = Math.random, reach = 0.5, hour = 18, gear = null) {
+export function rollFish(baitId, locationIndex, random = Math.random, reach = 0.5, hour = 18, gear = null, favor = null) {
   const bait = BAITS[baitId];
   const location = LOCATIONS[locationIndex] ?? LOCATIONS[0];
-  const entries = candidates(baitId, locationIndex, hour).map(([id, weight, hunger]) => [id, weight * hunger]);
+  const entries = candidates(baitId, locationIndex, hour, favor).map(([id, weight, hunger]) => [id, weight * hunger]);
   // Nobody here takes this bait at all.
   if (!entries.length) return null;
   // The two jokes: one in 25,000 bites each, anywhere, on anything.
