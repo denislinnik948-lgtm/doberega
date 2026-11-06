@@ -1409,6 +1409,54 @@ html.keyboard-open .sheet[open] > .account-body {
   .tiles .back-btn { min-height: 40px; font-size: 19px; }
 }
 
+/*
+ * Pages on a phone, upright or on its side: the heading stays at the top while
+ * the page scrolls under it, the title smaller; "Back" becomes an arrow at the
+ * bottom left, under the thumb, and the page ends with room for it so nothing
+ * is left beneath it. A bar along the bottom (the shop's basket) makes way for it.
+ */
+@media (max-width: 899px), (orientation: landscape) and (max-height: 500px) {
+  .tiles dialog.page { --back-room: 76px; padding-top: 0; padding-bottom: calc(var(--page-bottom) + var(--back-room)); }
+  .tiles dialog.page .sheet-heading {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    gap: 10px;
+    margin-inline: -14px;
+    padding: calc(env(safe-area-inset-top, 0px) + 8px) 14px 8px;
+    background: var(--ink);
+    box-shadow: 0 2px 0 var(--dark), 0 12px 12px -6px rgb(10 20 18 / 0.85);
+  }
+  .tiles dialog.page .title-tab { padding: 4px 12px; font-size: 22px; }
+  .tiles dialog.page .sheet-heading .chip { min-height: 34px; font-size: 17px; }
+  /* A dark strip along the bottom holds the arrow, so it never lies over the page's own buttons. */
+  .tiles dialog.page .sheet-heading form {
+    position: fixed;
+    z-index: 6;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    order: 0;
+    padding: 8px max(12px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 8px) max(12px, env(safe-area-inset-left, 0px));
+    background: var(--ink);
+    box-shadow: 0 -2px 0 var(--dark), 0 -12px 12px -6px rgb(10 20 18 / 0.85);
+  }
+  /* With the basket's bar the arrow sits beside it instead, without a strip of its own. */
+  .tiles dialog.page:has(.basket-bar) .sheet-heading form { right: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); left: max(12px, env(safe-area-inset-left, 0px)); padding: 0; background: none; box-shadow: none; }
+  .tiles dialog.page .back-btn {
+    width: 56px;
+    min-height: 56px;
+    padding: 0;
+    font-size: 30px;
+    background: var(--deep);
+    box-shadow: inset 0 0 0 2px var(--mid);
+  }
+  .tiles dialog.page .back-word { display: none; }
+  /* The basket's bar keeps clear of the arrow, beside it at the same height. */
+  .tiles dialog.page .basket-bar { margin-left: 64px; min-height: 56px; }
+  .tiles dialog.page:has(.basket-bar) { --back-room: 0px; }
+}
+
 @keyframes page-in { from { opacity: 0; } }
 /* A page opened out of sight in an idle moment, only so the browser has worked out its look (ui.warmPages). */
 .warming dialog[open] { visibility: hidden !important; animation: none !important; }

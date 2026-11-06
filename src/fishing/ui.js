@@ -688,10 +688,11 @@ export class AnglerUI {
     idle(next);
   }
 
-  /** Every window of the menu is a page: its ✕ says "Back" instead. */
+  /** Every window of the menu is a page: its ✕ says "Back" instead (on a phone only the arrow shows). */
   labelBackButtons() {
     document.querySelectorAll("dialog.page .sheet-heading form button").forEach((button) => {
-      button.textContent = `← ${t("nav.back")}`;
+      button.replaceChildren(element("span", { className: "back-arrow", textContent: "←" }), element("span", { className: "back-word", textContent: ` ${t("nav.back")}` }));
+      button.setAttribute("aria-label", t("nav.back"));
       button.classList.remove("pixel-btn-square");
       button.classList.add("back-btn");
     });
