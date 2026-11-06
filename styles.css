@@ -1309,6 +1309,88 @@ html.keyboard-open .sheet[open] > .account-body {
   .avatar-grid, .avatar-grid.has-own { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
+/*
+ * A phone on its side: too low for one column with the bar under it. The water and
+ * its button on the left, filling the height and staying put; the player, today and
+ * the tournament on the right, scrolling; the sections in a slim bar along the bottom,
+ * icon and name side by side. Clear of the notch on either side.
+ */
+@media (orientation: landscape) and (max-height: 500px) {
+  .tiles.in-menu .menu {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    grid-template-rows: auto;
+    grid-template-areas: none;
+    align-items: start;
+    gap: 8px 10px;
+    padding: 8px max(10px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 56px) max(10px, env(safe-area-inset-left, 0px));
+    overflow-y: auto;
+  }
+  .tiles .menu-top { grid-column: 1 / -1; grid-row: 1; grid-template-columns: auto auto auto; justify-content: space-between; gap: 6px; }
+  .tiles .menu-top .clock, .tiles .menu-top .chip { min-height: 36px; padding: 2px 8px 2px 6px; font-size: 18px; }
+  .tiles .menu-top h1 { padding: 4px 10px; font-size: 19px; }
+  .tiles .spot-tile { position: sticky; top: 0; grid-column: 1; grid-row: 2 / span 3; align-self: start; gap: 6px; padding: 6px 8px; }
+  #tile-profile { grid-column: 2; grid-row: 2; }
+  #tile-today { grid-column: 2; grid-row: 3; }
+  #tile-tourney { grid-column: 2; grid-row: 4; }
+  .tiles .spot-card { gap: 4px; }
+  .tiles .card-scene { padding-top: 16px; }
+  .tiles .spot-card .title-tab { padding: 3px 10px; font-size: 18px; }
+  .tiles .spot-arrow { width: 34px; min-height: 44px; font-size: 18px; }
+  /* The picture takes what the height leaves after the bars, the name, the traits and the button. */
+  .tiles .spot-picture { flex: none; height: max(80px, calc(100dvh - 252px)); }
+  .tiles .spot-traits { padding: 2px 10px; font-size: 13px; }
+  .tiles .fish-button { align-self: stretch; width: auto; min-width: 0; margin-inline: 46px; min-height: 42px; font-size: 22px; }
+  .tiles .tile { gap: 3px; padding: 8px 10px; font-size: 14px; }
+  .tiles .tile strong { font-size: 19px; }
+  .tiles .tile small, .tiles .tile-note { font-size: 12px; }
+  .tiles .tile-avatar canvas { width: 40px !important; height: 40px !important; image-rendering: pixelated; }
+  .tiles .tile-profile .tile-name { font-size: 17px; }
+  .tiles .tile-half { gap: 3px; padding: 6px 8px; }
+  .tiles .tile-art canvas { width: 56px !important; height: auto !important; image-rendering: pixelated; }
+  .tiles .tourney-cells { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .tiles .tourney-cell { padding: 4px 6px; font-size: 13px; }
+  .tiles .tourney-cell-fish { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 0 10px; }
+  .tiles .tourney-cell-art canvas { width: 48px !important; height: auto !important; image-rendering: pixelated; }
+  .tiles .podium-avatar canvas { width: 28px !important; height: 28px !important; image-rendering: pixelated; }
+  .tiles.in-menu .menu-nav {
+    position: fixed;
+    z-index: 4;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+    width: auto;
+    padding: 5px max(10px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 5px) max(10px, env(safe-area-inset-left, 0px));
+    background: var(--ink);
+    box-shadow: 0 -2px 0 var(--dark), 0 -14px 14px -6px rgb(10 20 18 / 0.9);
+  }
+  /* (A wide phone also matches the big screen's grid, which names an area for each section.) */
+  :is(#shop-button, #pack-button, #trophy-button, #collection-button, #settings-button) { grid-area: auto; }
+  .tiles .menu-item {
+    grid-column: auto;
+    grid-template-columns: auto auto;
+    grid-template-rows: none;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    min-height: 40px;
+    padding: 2px 6px;
+    font-size: 14px;
+    background: var(--deep);
+  }
+  .tiles .menu-item .menu-icon canvas { width: 24px !important; height: auto !important; image-rendering: pixelated; }
+  .tiles .menu-item > span:not(.menu-icon) { overflow: hidden; max-width: 100%; white-space: nowrap; text-overflow: ellipsis; }
+  .tiles .menu-long { display: none; }
+  .tiles .menu-short { display: block; }
+  /* Pages: clear of the notch, a little less room above and below. */
+  .tiles dialog.page { --page-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); padding: 10px max(16px, env(safe-area-inset-right, 0px)) var(--page-bottom) max(16px, env(safe-area-inset-left, 0px)); }
+  .tiles .back-btn { min-height: 40px; font-size: 19px; }
+}
+
 @keyframes page-in { from { opacity: 0; } }
 /* A page opened out of sight in an idle moment, only so the browser has worked out its look (ui.warmPages). */
 .warming dialog[open] { visibility: hidden !important; animation: none !important; }
