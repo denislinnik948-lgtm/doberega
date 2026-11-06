@@ -190,6 +190,13 @@ export class Cloud {
     await this.publishTrophies(progress);
   }
 
+  /** Take one of this player's trophies off the shared list (a trophy taken down from the wall). */
+  async deleteTrophy(id) {
+    if (!this.user) return;
+    const { error } = await this.client.from("trophies").delete().eq("user_id", this.user.id).eq("trophy_id", String(id));
+    if (error) console.warn("Trophy was not removed from the shared list:", error.message);
+  }
+
   /** Put this player's trophies on show for everyone (each only once, refreshed under a new nickname). */
   async publishTrophies(progress) {
     if (!this.user || !progress.trophies.length) return;

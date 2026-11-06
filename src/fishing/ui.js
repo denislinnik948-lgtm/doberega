@@ -1861,7 +1861,7 @@ export class AnglerUI {
     badges.textContent = released.map(([species, count]) => t("trophies.released", { fish: nameOf("fish", species), count })).join(" · ");
     if (id === "mine") {
       const { trophies } = this.progress;
-      this.fillTrophyWall(trophies, trophies.length || released.length ? "" : t("trophies.empty"));
+      this.fillTrophyWall(trophies, trophies.length || released.length ? "" : t("trophies.empty"), "", true);
       return;
     }
     const cloud = this.cloud;
@@ -2077,7 +2077,30 @@ export class AnglerUI {
   }
 
   /** Draw trophy cards, heaviest first: fish, weight, who caught it (for others), where, on what bait and when. */
-  fillTrophyWall(trophies, emptyText, hint = "") {
+  /**
+   * Take a trophy off this player's own wall: a first tap asks (for a few
+   * seconds), a second removes it here and from the other anglers' list.
+   */
+  removeTrophy(id) {
+    clearTimeout(this.trophyTimer);
+    if (this.trophyConfirm !== id) {
+      this.trophyConfirm = id;
+      this.trophyTimer = setTimeout(() => {
+        this.trophyConfirm = null;
+        this.showTrophyTab("mine");
+      }, 4000);
+      this.showTrophyTab("mine");
+      return;
+    }
+    this.trophyConfirm = null;
+    this.progress.trophies = this.progress.trophies.filter((trophy) => trophy.id !== id);
+    this.commit();
+    this.cloud?.deleteTrophy(id);
+    this.toast(t("trophies.removed"), "", 1600);
+    this.showTrophyTab("mine");
+  }
+
+  fillTrophyWall(trophies, emptyText, hint = "", removable = false) {
     trophies = [...trophies].sort((a, b) => b.weight - a.weight);
     const empty = $("#trophy-empty");
     empty.textContent = emptyText;
@@ -2105,6 +2128,13 @@ export class AnglerUI {
       const about = element("div", { className: "trophy-about" }, [
         element("small", { textContent: [spot, date].filter(Boolean).join(" · ") }),
         fish.bait && BAITS[fish.bait] ? element("small", { textContent: t("trophies.bait", { bait: nameOf("bait", fish.bait) }) }) : "",
+        // On the player's own wall a trophy can be taken down.
+        removable ? element("button", {
+          type: "button",
+          className: `link-btn trophy-remove${this.trophyConfirm === fish.id ? " is-confirm" : ""}`,
+          textContent: t(this.trophyConfirm === fish.id ? "trophies.removeConfirm" : "trophies.remove"),
+          onclick: () => this.removeTrophy(fish.id),
+        }) : "",
       ]);
       frame(board, "plaque", 500 + index * 7);
       return element("li", { className: `trophy${legend ? " is-legend" : ""}` }, [owner, board, about]);

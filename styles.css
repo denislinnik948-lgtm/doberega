@@ -511,6 +511,8 @@ html.keyboard-open .sheet[open] > .account-body {
 .trophy.is-legend .nameplate { background: var(--gold); }
 .trophy-about { display: grid; gap: 1px; }
 .trophy-about small { color: var(--light); font-size: 17px; }
+.trophy-remove { font-size: 16px; }
+.trophy-remove.is-confirm { color: var(--ember); }
 /* Whose trophy it is: a bar as wide as the board above it, the angler's name large, the rank at the other end. */
 .trophy-owner { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; margin-bottom: -2px; padding: 6px 14px; background: var(--dark); box-shadow: inset 0 0 0 2px var(--mid), inset 0 -4px 0 var(--gold-dark); text-align: left; }
 .trophy-owner-avatar { display: grid; flex: none; place-items: center; }
