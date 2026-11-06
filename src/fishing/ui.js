@@ -2128,16 +2128,20 @@ export class AnglerUI {
       const about = element("div", { className: "trophy-about" }, [
         element("small", { textContent: [spot, date].filter(Boolean).join(" · ") }),
         fish.bait && BAITS[fish.bait] ? element("small", { textContent: t("trophies.bait", { bait: nameOf("bait", fish.bait) }) }) : "",
-        // On the player's own wall a trophy can be taken down.
-        removable ? element("button", {
-          type: "button",
-          className: `link-btn trophy-remove${this.trophyConfirm === fish.id ? " is-confirm" : ""}`,
-          textContent: t(this.trophyConfirm === fish.id ? "trophies.removeConfirm" : "trophies.remove"),
-          onclick: () => this.removeTrophy(fish.id),
-        }) : "",
       ]);
+      // On the player's own wall a trophy can be taken down: a small × in the board's corner,
+      // which asks in words on the first tap.
+      const asking = this.trophyConfirm === fish.id;
+      const remove = removable ? element("button", {
+        type: "button",
+        className: `trophy-remove${asking ? " is-confirm" : ""}`,
+        textContent: asking ? t("trophies.removeConfirm") : "×",
+        title: t("trophies.remove"),
+        "aria-label": t("trophies.remove"),
+        onclick: () => this.removeTrophy(fish.id),
+      }) : "";
       frame(board, "plaque", 500 + index * 7);
-      return element("li", { className: `trophy${legend ? " is-legend" : ""}` }, [owner, board, about]);
+      return element("li", { className: `trophy${legend ? " is-legend" : ""}` }, [owner, board, about, remove]);
     }));
   }
 }

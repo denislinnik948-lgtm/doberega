@@ -498,7 +498,7 @@ html.keyboard-open .sheet[open] > .account-body {
 }
 .trophy-wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 28px 22px; }
 /* A trophy: the fish hung on a wooden board with a brass plate on it, the details in small letters under the board. */
-.trophy { display: grid; justify-items: center; align-content: start; gap: 8px; text-align: center; }
+.trophy { position: relative; display: grid; justify-items: center; align-content: start; gap: 8px; text-align: center; }
 .plaque { width: 100%; aspect-ratio: 5 / 3; }
 /* The fish as big as the board lets it over the plate, whatever its shape, with a hard shadow as if it stood off the wood. */
 .plaque > canvas.sprite { position: absolute; inset: 8% 10% 30%; width: 80% !important; height: 62% !important; object-fit: contain; image-rendering: pixelated; filter: drop-shadow(4px 5px 0 rgb(0 0 0 / 0.45)); }
@@ -511,8 +511,26 @@ html.keyboard-open .sheet[open] > .account-body {
 .trophy.is-legend .nameplate { background: var(--gold); }
 .trophy-about { display: grid; gap: 1px; }
 .trophy-about small { color: var(--light); font-size: 17px; }
-.trophy-remove { font-size: 16px; }
-.trophy-remove.is-confirm { color: var(--ember); }
+/* Taking a trophy down: a small × in the board's top corner, quiet until hovered; asking, it says so in words. */
+.trophy-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  color: var(--light);
+  font-size: 24px;
+  line-height: 30px;
+  background: rgb(10 20 18 / 0.8);
+  box-shadow: inset 0 0 0 2px var(--mid);
+  cursor: pointer;
+  opacity: 0.8;
+}
+.trophy:hover .trophy-remove, .trophy-remove:focus-visible { opacity: 1; }
+.trophy-remove:hover { color: var(--bone); }
+.trophy-remove.is-confirm { opacity: 1; color: var(--bone); background: var(--ember); box-shadow: inset 0 0 0 2px #8a3a22; font-size: 15px; }
 /* Whose trophy it is: a bar as wide as the board above it, the angler's name large, the rank at the other end. */
 .trophy-owner { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; margin-bottom: -2px; padding: 6px 14px; background: var(--dark); box-shadow: inset 0 0 0 2px var(--mid), inset 0 -4px 0 var(--gold-dark); text-align: left; }
 .trophy-owner-avatar { display: grid; flex: none; place-items: center; }
