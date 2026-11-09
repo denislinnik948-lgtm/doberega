@@ -71,6 +71,20 @@ function silhouette(sprite) {
 /** "lake (medium, sand, weed)" — a fishing spot's type, depth and bottom in words. */
 
 /** DOM side of the game: main menu, HUD, loadout, toasts and dialogs. */
+/** A page's blocks as they go in: sentences of a rule run on in one paragraph; any other block stands on its own. */
+function bookCompose(blocks) {
+  const out = [];
+  for (const block of blocks) {
+    if (!block.classList.contains("book-run")) {
+      out.push(block);
+      continue;
+    }
+    if (!out.at(-1)?.classList.contains("book-text")) out.push(element("p", { className: "book-text" }));
+    out.at(-1).append(block, " ");
+  }
+  return out;
+}
+
 export class AnglerUI {
   constructor(progress, { onFish, onExit, onSpotChange, isFishing = () => false }) {
     this.progress = progress;
@@ -147,6 +161,14 @@ export class AnglerUI {
         this.showBookPage(this.bookAt + (event.key === "ArrowRight" ? 1 : -1));
       }
     });
+    // A turned phone or a resized window changes the page: it is laid out again to fit.
+    let reflow = 0;
+    const later = () => {
+      clearTimeout(reflow);
+      reflow = setTimeout(() => this.reflowBook(), 200);
+    };
+    new ResizeObserver(later).observe($("#book-body"));
+    window.addEventListener("resize", later, { passive: true });
     let swipe = null;
     $("#book-page").addEventListener("touchstart", (event) => { swipe = [event.touches[0].clientX, event.touches[0].clientY]; }, { passive: true });
     $("#book-page").addEventListener("touchend", (event) => {
@@ -1576,9 +1598,10 @@ export class AnglerUI {
       key: `groundbait-${kind}`, art: () => groundbaitSprite(3, kind), title: nameOf("groundbait", kind), tag: `×${count}`,
       facts: this.groundbaitFacts(kind), action: [t("pack.feed"), () => this.useGroundbait(kind)],
     });
-    for (const id of progress.extras) add("pocket", {
+    // The handbook has a place of its own at the top of the backpack (see openPack).
+    for (const id of progress.extras.filter((extra) => extra !== "handbook")) add("pocket", {
       key: `extra:${id}`, art: () => extraSprite(id, 3), title: nameOf("extra", id), tag: "",
-      facts: [nameOf("extraText", id)], action: id === "handbook" ? [t("pack.readIt"), () => this.openHandbook()] : null,
+      facts: [nameOf("extraText", id)], action: null,
     });
 
     return items;
@@ -1615,9 +1638,18 @@ export class AnglerUI {
           : element("p", { className: "empty-note", textContent: t("pack.empty") }),
       ]);
     };
+    // The handbook first, on its own, so it is found at once.
+    const handbook = this.progress.extras.includes("handbook")
+      ? element("button", { className: "pack-handbook", type: "button", onclick: () => this.openHandbook() }, [
+        element("span", { className: "ware-art" }, [extraSprite("handbook", 3)]),
+        element("span", { className: "ware-name", textContent: t("handbook.title") }),
+        element("span", { className: "pack-handbook-read", textContent: `${t("pack.readIt")} ›` }),
+      ])
+      : "";
     const body = $("#pack-pockets");
     body.replaceChildren(
       element("div", { className: "pack-sections" }, [
+        handbook,
         section("rods", t("pack.rodCase"), "rod-case"),
         element("div", { className: "pack-pair" }, [
           section("box", t("pack.box"), "pack-grid"),
@@ -1798,39 +1830,51 @@ export class AnglerUI {
 
   /** Open the handbook at its contents, or at a section (fish, spots, baits, tips). */
   openHandbook(section = null) {
-    this.book = this.bookPages();
-    this.showBookPage(section ? this.book.starts[section] ?? 0 : 0);
+    // Open first: the pages are laid out to fit the page as it is on this screen.
     if (!this.handbookDialog.open) this.handbookDialog.showModal();
+    this.book = this.bookPages();
+    this.bookAt = null;
+    this.showBookPage(section ? this.book.starts[section] ?? 0 : 0);
+  }
+
+  /** The screen changed size with the book open: lay it out again, on the same page as near as can be. */
+  reflowBook() {
+    const body = $("#book-body");
+    if (!this.handbookDialog.open || !this.book || (body.clientWidth === this.book.width && body.clientHeight === this.book.height)) return;
+    const page = this.book.pages[this.bookAt];
+    this.book = this.bookPages();
+    const again = this.book.pages.findIndex((other) => other.key === page.key);
+    this.bookAt = null;
+    this.showBookPage(Math.max(0, again));
   }
 
   /**
-   * The handbook as a book, read a page at a time: the contents first, then
-   * each section (fish, waters, bait, tips) with a list of what is in it and
-   * a page for each. The pages of the first three are built from the game's
-   * own data, so a new fish, water or bait gets its page by itself. Returns
-   * { pages, starts }: each page a builder, and where each section begins.
+   * The handbook as a book, read a page at a time with nothing to scroll: the
+   * contents first, then each section (fish, waters, bait, tips) with a list
+   * of what is in it and its entries. Every page is filled to fit the page on
+   * this screen: a list takes as many as fit, an entry or a rule that is too
+   * long runs on to the next page. The first three sections are built from
+   * the game's own data, so a new fish, water or bait gets its page by itself.
+   * Returns { pages, starts }: each page's blocks, and where each section begins.
    */
   bookPages() {
     const lower = (text) => text.toLocaleLowerCase(locale());
     const list = (items) => items.join(", ");
-    // An entry: a picture, a title and subtitle, then labelled facts (one or more lines each).
-    const entry = (art, title, subtitle, facts) => () => {
-      const rows = facts.filter(([, value]) => value && (!Array.isArray(value) || value.length));
-      return [
-        art ? element("div", { className: "book-art" }, [art()]) : "",
-        element("h3", { className: "book-title", textContent: title }),
-        subtitle ? element("p", { className: "book-sub", textContent: subtitle }) : "",
-        element("dl", { className: "book-facts" }, rows.flatMap(([label, value]) => [
-          element("dt", { textContent: label }),
-          element("dd", {}, (Array.isArray(value) ? value : [value]).map((line) => element("span", { textContent: line }))),
-        ])),
-      ];
-    };
+    // An entry: a picture, a title and subtitle, then labelled facts (one or more lines each), each its own block.
+    const entry = (art, title, subtitle, facts) => () => [
+      art ? element("div", { className: "book-art" }, [art()]) : "",
+      element("h3", { className: "book-title", textContent: title }),
+      subtitle ? element("p", { className: "book-sub", textContent: subtitle }) : "",
+      ...facts.filter(([, value]) => value && (!Array.isArray(value) || value.length)).map(([label, value]) => element("dl", { className: "book-facts" }, [
+        element("dt", { textContent: label }),
+        element("dd", {}, (Array.isArray(value) ? value : [value]).map((line) => element("span", { textContent: line }))),
+      ])),
+    ].filter(Boolean);
     const sections = [
       { id: "fish", title: t("handbook.fish"), items: handbookEntries().map((fish) => ({
         name: nameOf("fish", fish.id),
         thumb: () => fishSprite(fish.id, 2),
-        build: entry(() => fishSprite(fish.id, FISH[fish.id].max < 4 ? 3 : 2), nameOf("fish", fish.id), [
+        blocks: entry(() => fishSprite(fish.id, FISH[fish.id].max < 4 ? 3 : 2), nameOf("fish", fish.id), [
           fish.protected ? t("handbook.protected", { range: fish.range }) : t("handbook.weight", { range: fish.range, price: fish.pricePerKg }),
           fish.season === "autumn" ? t("handbook.autumnOnly") : "",
         ].filter(Boolean).join(" · "), [
@@ -1851,7 +1895,7 @@ export class AnglerUI {
         return {
           name: nameOf("location", spot.id),
           thumb: () => spotPicture("book-thumb-spot"),
-          build: entry(() => spotPicture("handbook-spot"), nameOf("location", spot.id), t("handbook.spotTraits", {
+          blocks: entry(() => spotPicture("handbook-spot"), nameOf("location", spot.id), t("handbook.spotTraits", {
             type: traitValue("type", spot.traits.type), depth: lower(traitValue("depth", spot.traits.depth)),
             bottom: lower(traitValue("bottom", spot.traits.bottom)), current: lower(traitValue("current", spot.traits.current)),
           }), [
@@ -1869,74 +1913,141 @@ export class AnglerUI {
       { id: "baits", title: t("handbook.baitTab"), items: baitEntries().map((bait) => ({
         name: nameOf("bait", bait.id),
         thumb: () => baitSprite(bait.id, 3),
-        build: entry(() => baitSprite(bait.id, 3), nameOf("bait", bait.id), `${bait.free ? t("handbook.baitFree") : t("handbook.baitPrice", { price: bait.price })} · ${nameOf("baitSize", bait.size)}`, [
+        blocks: entry(() => baitSprite(bait.id, 3), nameOf("bait", bait.id), `${bait.free ? t("handbook.baitFree") : t("handbook.baitPrice", { price: bait.price })} · ${nameOf("baitSize", bait.size)}`, [
           [t("handbook.takenBy"), lower(list(bait.fish.map((fish) => nameOf("fish", fish))))],
         ]),
       })) },
       { id: "tips", title: t("handbook.tips"), items: handbookRules().map(([title, text]) => ({
         name: title,
-        build: () => [element("h3", { className: "book-title", textContent: title }), element("p", { className: "book-text", textContent: text })],
+        // A rule runs on sentence by sentence, over as many pages as it takes.
+        blocks: () => [element("h3", { className: "book-title", textContent: title }), ...text.split(/(?<=[.!?;])\s+/).map((sentence) => element("span", { className: "book-run", textContent: sentence }))],
       })) },
     ];
 
-    // Lay the pages out: the contents, then for each section its list (a few
-    // pages when it is long) and its entries, so every page number is known.
-    // A section's list: a grid of pictures with names, twelve to a page; the tips, with no pictures, ten lines.
-    const PER_GRID = 12;
-    const PER_LIST = 10;
-    const pages = [null];
+    // Laying out: all of an entry's blocks go into the page's body at once, and
+    // where each one ends shows where the pages break (one measure per entry).
+    const body = $("#book-body");
+    const style = getComputedStyle(body);
+    const room = body.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom) - 4;
+    const edges = (nodes) => {
+      const top = body.getBoundingClientRect().top + parseFloat(style.paddingTop);
+      return nodes.map((node) => {
+        const box = node.getBoundingClientRect();
+        return [box.top - top, box.bottom - top];
+      });
+    };
+    // A sentence of a rule runs on in the paragraph before it; any other block stands on its own.
+    const place = (block) => {
+      if (!block.classList.contains("book-run")) return body.append(block);
+      if (!body.lastElementChild?.classList.contains("book-text")) body.append(element("p", { className: "book-text" }));
+      body.lastElementChild.append(block, " ");
+    };
+    // How many of a list fit on a page (at most 24), whole rows of a grid.
+    const howMany = (cells, chapter, holder) => {
+      const list = holder();
+      list.append(...cells.slice(0, 24));
+      body.replaceChildren(chapter, list);
+      const fit = edges([...list.children]).filter(([, bottom]) => bottom <= room).length;
+      if (fit >= cells.length) return Math.max(1, cells.length);
+      const across = list.classList.contains("book-grid") ? getComputedStyle(list).gridTemplateColumns.split(" ").length : 1;
+      let count = Math.max(across, fit - (fit % across));
+      // Checked as it will stand, a row less while it still spills over.
+      list.replaceChildren(...cells.slice(0, count));
+      while (count > across && body.scrollHeight > body.clientHeight + 1) {
+        count -= across;
+        list.replaceChildren(...cells.slice(0, count));
+      }
+      return count;
+    };
+    // An entry's blocks, page by page: a block that would end below the page starts the next one.
+    const flow = (blocks) => {
+      body.replaceChildren();
+      blocks.forEach(place);
+      const ends = edges(blocks);
+      const pages = [];
+      let page = [];
+      let from = 0;
+      blocks.forEach((block, index) => {
+        const [top, bottom] = ends[index];
+        if (page.length && bottom - from > room) {
+          pages.push(page);
+          page = [];
+          from = top;
+        }
+        page.push(block);
+      });
+      if (page.length) pages.push(page);
+      return pages;
+    };
+
+    const pages = [{ key: "contents", section: null, blocks: [] }];
     const starts = {};
     for (const section of sections) {
-      starts[section.id] = pages.length;
       const grid = section.items.every((item) => item.thumb);
-      const per = grid ? PER_GRID : PER_LIST;
-      const listPages = Math.ceil(section.items.length / per);
-      const first = pages.length + listPages;
-      section.items.forEach((item, index) => { item.page = first + index; });
+      const chapter = () => element("h3", { className: "book-chapter", textContent: section.title });
+      const cells = section.items.map((item) => (grid ? this.bookGridCell(item) : this.bookLine(item.name, item)));
+      const holder = () => element("ol", { className: grid ? "book-grid" : "book-index" });
+      const per = howMany(cells, chapter(), holder);
+      const entries = section.items.map((item) => flow(item.blocks()));
+      starts[section.id] = pages.length;
+      const listPages = Math.ceil(cells.length / per);
+      let next = pages.length + listPages;
+      section.items.forEach((item, index) => {
+        item.page = next;
+        next += entries[index].length;
+      });
       for (let part = 0; part < listPages; part += 1) {
-        const items = section.items.slice(part * per, (part + 1) * per);
-        pages.push({ section, list: true, build: () => [
-          part === 0 ? element("h3", { className: "book-chapter", textContent: section.title }) : "",
-          grid ? this.bookGrid(items) : this.bookIndex(items.map((item) => [item.name, item.page])),
-        ] });
+        const ol = holder();
+        ol.append(...cells.slice(part * per, (part + 1) * per));
+        pages.push({ key: `${section.id}:list:${part}`, section, list: true, blocks: [part === 0 ? chapter() : "", ol].filter(Boolean) });
       }
-      for (const item of section.items) pages.push({ section, build: item.build });
+      section.items.forEach((item, index) => entries[index].forEach((blocks, part) => pages.push({ key: `${section.id}:${item.name}:${part}`, section, blocks })));
+      // The page numbers, now that they are known.
+      for (const item of section.items) item.num.textContent = String(item.page + 1);
     }
-    pages[0] = { section: null, build: () => [
+    const contents = element("ol", { className: "book-index" }, sections.map((section) => {
+      const target = { page: starts[section.id] };
+      const line = this.bookLine(section.title, target);
+      target.num.textContent = String(target.page + 1);
+      return line;
+    }));
+    pages[0].blocks = [
       element("h3", { className: "book-chapter book-cover", textContent: t("handbook.title") }),
       element("p", { className: "book-sub book-centered", textContent: t("handbook.contents") }),
-      this.bookIndex(sections.map((section) => [section.title, starts[section.id]])),
-    ] };
-    return { pages, starts };
+      contents,
+    ];
+    return { pages, starts, width: body.clientWidth, height: body.clientHeight };
   }
 
-  /** A section's entries as a grid: each a small picture, its name and page number; a tap opens that page. */
-  bookGrid(items) {
-    return element("ol", { className: "book-grid" }, items.map((item) => element("li", {}, [
+  /** A section's entry in its grid: a small picture, its name and page number (a stand-in while the pages are measured); a tap opens that page. */
+  bookGridCell(item) {
+    item.num = element("span", { className: "book-num", textContent: "0" });
+    return element("li", {}, [
       element("button", { type: "button", onclick: () => this.showBookPage(item.page) }, [
         element("span", { className: "book-thumb" }, [item.thumb()]),
         element("span", { className: "book-name", textContent: item.name }),
-        element("span", { className: "book-num", textContent: String(item.page + 1) }),
+        item.num,
       ]),
-    ])));
+    ]);
   }
 
-  /** A list of names, each with its page number after a dotted leader; a tap opens that page. */
-  bookIndex(rows) {
-    return element("ol", { className: "book-index" }, rows.map(([name, page]) => element("li", {}, [
-      element("button", { type: "button", onclick: () => this.showBookPage(page) }, [
+  /** A name with its page number (a stand-in while the pages are measured) after a dotted leader; a tap opens that page. */
+  bookLine(name, target) {
+    target.num = element("span", { className: "book-num", textContent: "0" });
+    return element("li", {}, [
+      element("button", { type: "button", onclick: () => this.showBookPage(target.page) }, [
         element("span", { className: "book-name", textContent: name }),
         element("span", { className: "book-dots" }),
-        element("span", { className: "book-num", textContent: String(page + 1) }),
+        target.num,
       ]),
-    ])));
+    ]);
   }
 
   /** Turn to a page: links back to the contents and the section's list at its head, the corner says which of how many. */
   showBookPage(index) {
     const { pages } = this.book;
     const at = Math.max(0, Math.min(pages.length - 1, index));
-    const turn = at === this.bookAt ? "" : at > (this.bookAt ?? 0) ? "turn-next" : "turn-back";
+    const turn = this.bookAt === null || at === this.bookAt ? "" : at > this.bookAt ? "turn-next" : "turn-back";
     this.bookAt = at;
     const page = pages[at];
     const sheet = $("#book-page");
@@ -1947,7 +2058,7 @@ export class AnglerUI {
       page.section && !page.list ? link(page.section.title, this.book.starts[page.section.id]) : "",
       element("span", { className: "book-count", textContent: t("handbook.page", { page: at + 1, total: pages.length }) }),
     ].filter(Boolean));
-    $("#book-body").replaceChildren(...page.build());
+    $("#book-body").replaceChildren(...bookCompose(page.blocks));
     $("#book-prev").disabled = at === 0;
     $("#book-next").disabled = at === pages.length - 1;
     sheet.classList.remove("turn-next", "turn-back");
@@ -1955,7 +2066,6 @@ export class AnglerUI {
       void sheet.offsetWidth;
       sheet.classList.add(turn);
     }
-    this.handbookDialog.scrollTop = 0;
   }
 
   /* ---------- Trophies ---------- */
