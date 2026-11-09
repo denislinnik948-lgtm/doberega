@@ -1829,6 +1829,7 @@ export class AnglerUI {
     const sections = [
       { id: "fish", title: t("handbook.fish"), items: handbookEntries().map((fish) => ({
         name: nameOf("fish", fish.id),
+        thumb: () => fishSprite(fish.id, 2),
         build: entry(() => fishSprite(fish.id, FISH[fish.id].max < 4 ? 3 : 2), nameOf("fish", fish.id), [
           fish.protected ? t("handbook.protected", { range: fish.range }) : t("handbook.weight", { range: fish.range, price: fish.pricePerKg }),
           fish.season === "autumn" ? t("handbook.autumnOnly") : "",
@@ -1839,29 +1840,35 @@ export class AnglerUI {
           [t("handbook.biteLabel"), nameOf("biteStyle", fish.style)],
         ]),
       })) },
-      { id: "spots", title: t("handbook.spots"), items: spotEntries().map((spot, index) => ({
-        name: nameOf("location", spot.id),
-        build: entry(() => {
-          const picture = element("div", { className: "handbook-spot" });
+      { id: "spots", title: t("handbook.spots"), items: spotEntries().map((spot, index) => {
+        // The water's picture, painted like the menu's: big on its page, small in the list.
+        const spotPicture = (className) => {
+          const picture = element("div", { className });
           picture.dataset.variant = LOCATIONS.find((place) => place.id === spot.id).kind;
           frame(picture, "location", 40 + index);
           return picture;
-        }, nameOf("location", spot.id), t("handbook.spotTraits", {
-          type: traitValue("type", spot.traits.type), depth: lower(traitValue("depth", spot.traits.depth)),
-          bottom: lower(traitValue("bottom", spot.traits.bottom)), current: lower(traitValue("current", spot.traits.current)),
-        }), [
-          [t("handbook.fishLabel"), lower(list(spot.fish.map((fish) => nameOf("fish", fish))))],
-          [t("handbook.sizeLabel"), t("handbook.spotSizes", {
-            from: spot.minKg ? t("handbook.spotFrom", { min: formatWeight(spot.minKg) }) : "",
-            typ: formatWeight(spot.typicalKg), max: formatWeight(spot.maxKg), odds: spot.bigOdds,
-          }) + (spot.tailKg ? t("handbook.spotTail", { tail: formatWeight(spot.tailKg) }) : "")],
-          [t("handbook.accessLabel"), this.accessText(LOCATIONS.findIndex((place) => place.id === spot.id))],
-          [t("handbook.waterLabel"), `${nameOf("pace", spot.pace)} · ${nameOf("snags", spot.snags)}`],
-          ...(spot.ways.length ? [[t("handbook.waysLabel"), spot.ways.map((way) => t(`handbook.way.${way}`)).join("; ")]] : []),
-        ]),
-      })) },
+        };
+        return {
+          name: nameOf("location", spot.id),
+          thumb: () => spotPicture("book-thumb-spot"),
+          build: entry(() => spotPicture("handbook-spot"), nameOf("location", spot.id), t("handbook.spotTraits", {
+            type: traitValue("type", spot.traits.type), depth: lower(traitValue("depth", spot.traits.depth)),
+            bottom: lower(traitValue("bottom", spot.traits.bottom)), current: lower(traitValue("current", spot.traits.current)),
+          }), [
+            [t("handbook.fishLabel"), lower(list(spot.fish.map((fish) => nameOf("fish", fish))))],
+            [t("handbook.sizeLabel"), t("handbook.spotSizes", {
+              from: spot.minKg ? t("handbook.spotFrom", { min: formatWeight(spot.minKg) }) : "",
+              typ: formatWeight(spot.typicalKg), max: formatWeight(spot.maxKg), odds: spot.bigOdds,
+            }) + (spot.tailKg ? t("handbook.spotTail", { tail: formatWeight(spot.tailKg) }) : "")],
+            [t("handbook.accessLabel"), this.accessText(LOCATIONS.findIndex((place) => place.id === spot.id))],
+            [t("handbook.waterLabel"), `${nameOf("pace", spot.pace)} · ${nameOf("snags", spot.snags)}`],
+            ...(spot.ways.length ? [[t("handbook.waysLabel"), spot.ways.map((way) => t(`handbook.way.${way}`)).join("; ")]] : []),
+          ]),
+        };
+      }) },
       { id: "baits", title: t("handbook.baitTab"), items: baitEntries().map((bait) => ({
         name: nameOf("bait", bait.id),
+        thumb: () => baitSprite(bait.id, 3),
         build: entry(() => baitSprite(bait.id, 3), nameOf("bait", bait.id), `${bait.free ? t("handbook.baitFree") : t("handbook.baitPrice", { price: bait.price })} · ${nameOf("baitSize", bait.size)}`, [
           [t("handbook.takenBy"), lower(list(bait.fish.map((fish) => nameOf("fish", fish))))],
         ]),
@@ -1874,19 +1881,23 @@ export class AnglerUI {
 
     // Lay the pages out: the contents, then for each section its list (a few
     // pages when it is long) and its entries, so every page number is known.
+    // A section's list: a grid of pictures with names, twelve to a page; the tips, with no pictures, ten lines.
+    const PER_GRID = 12;
     const PER_LIST = 10;
     const pages = [null];
     const starts = {};
     for (const section of sections) {
       starts[section.id] = pages.length;
-      const listPages = Math.ceil(section.items.length / PER_LIST);
+      const grid = section.items.every((item) => item.thumb);
+      const per = grid ? PER_GRID : PER_LIST;
+      const listPages = Math.ceil(section.items.length / per);
       const first = pages.length + listPages;
       section.items.forEach((item, index) => { item.page = first + index; });
       for (let part = 0; part < listPages; part += 1) {
-        const items = section.items.slice(part * PER_LIST, (part + 1) * PER_LIST);
+        const items = section.items.slice(part * per, (part + 1) * per);
         pages.push({ section, list: true, build: () => [
           part === 0 ? element("h3", { className: "book-chapter", textContent: section.title }) : "",
-          this.bookIndex(items.map((item) => [item.name, item.page])),
+          grid ? this.bookGrid(items) : this.bookIndex(items.map((item) => [item.name, item.page])),
         ] });
       }
       for (const item of section.items) pages.push({ section, build: item.build });
@@ -1897,6 +1908,17 @@ export class AnglerUI {
       this.bookIndex(sections.map((section) => [section.title, starts[section.id]])),
     ] };
     return { pages, starts };
+  }
+
+  /** A section's entries as a grid: each a small picture, its name and page number; a tap opens that page. */
+  bookGrid(items) {
+    return element("ol", { className: "book-grid" }, items.map((item) => element("li", {}, [
+      element("button", { type: "button", onclick: () => this.showBookPage(item.page) }, [
+        element("span", { className: "book-thumb" }, [item.thumb()]),
+        element("span", { className: "book-name", textContent: item.name }),
+        element("span", { className: "book-num", textContent: String(item.page + 1) }),
+      ]),
+    ])));
   }
 
   /** A list of names, each with its page number after a dotted leader; a tap opens that page. */

@@ -763,6 +763,17 @@ html.keyboard-open .sheet[open] > .account-body {
 .book-index button:hover .book-name { color: var(--paper-red); text-decoration: underline; text-underline-offset: 3px; }
 .book-dots { flex: 1; min-width: 12px; border-bottom: 2px dotted rgb(44 36 22 / 0.35); }
 .book-num { color: var(--paper-faint); }
+/* A section's list as a grid: a small picture, the name and the page, four across (three on a phone). */
+.book-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+.book-grid button { display: grid; grid-template-rows: 56px auto auto; justify-items: center; align-content: start; gap: 2px; width: 100%; height: 100%; padding: 6px 4px; border: 0; color: var(--paper-ink); font: inherit; text-align: center; background: rgb(44 36 22 / 0.06); box-shadow: inset 0 0 0 1px rgb(44 36 22 / 0.18); cursor: pointer; }
+.book-grid button:hover { background: rgb(44 36 22 / 0.12); }
+.book-grid button:hover .book-name { color: var(--paper-red); }
+.book-grid .book-name { font-size: 17px; line-height: 1.05; overflow-wrap: anywhere; }
+.book-grid .book-num { font-size: 15px; }
+.book-thumb { display: grid; place-items: center; width: 100%; height: 56px; overflow: hidden; }
+.book-thumb canvas { max-width: 100%; max-height: 52px; object-fit: contain; image-rendering: pixelated; }
+.book-thumb-spot { width: 76px; height: 48px; }
+@media (max-width: 520px) { .book-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; } }
 
 /* Phones held upright: bigger, evenly sized targets within thumb reach, nothing overlapping. */
 @media (max-width: 520px) {
