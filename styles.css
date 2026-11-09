@@ -1318,14 +1318,16 @@ html.keyboard-open .sheet[open] > .account-body {
   #collection-button { grid-area: collection; }
   #settings-button { grid-area: settings; }
   /* The tournament's pictures shrink to what its cells leave, so the names and weights always show on a low screen (an iPad on its side). */
-  .tiles .tourney-cell { min-height: 0; overflow: hidden; }
+  /* Each cell is a grid: its picture's row takes what the text leaves, and the picture fills that row (contained, up to 96px).
+     Laid out absolutely in its row, as Safari won't stretch a canvas to a flex item's height. */
+  .tiles .tourney-cell { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); grid-auto-rows: auto; justify-items: center; align-content: stretch; min-height: 0; overflow: hidden; }
+  .tiles .tourney-cell-fish { justify-items: start; }
+  .tiles .tourney-cell.is-free { align-content: center; }
   .tiles .tile-podium { grid-template-rows: minmax(0, 1fr); min-height: 0; }
-  .tiles :is(.tourney-cell-art, .podium-avatar) { display: flex; flex: 1 1 0; align-items: center; justify-content: center; min-height: 0; max-width: 100%; }
-  .tiles :is(.tourney-cell-art, .podium-avatar) canvas { max-width: 100%; height: 100% !important; width: auto !important; object-fit: contain; image-rendering: pixelated; }
-  .tiles .tourney-cell-art { align-self: stretch; justify-content: flex-start; }
-  .tiles .tourney-cell-art canvas { max-height: 96px; }
-  .tiles .podium-avatar canvas { max-height: 96px; }
-  .tiles .tourney-cell > :not(.tourney-cell-art, .podium-avatar, .podium-place) { flex: none; }
+  .tiles :is(.tourney-cell-art, .podium-avatar) { position: relative; align-self: stretch; justify-self: stretch; min-height: 0; }
+  .tiles :is(.tourney-cell-art, .podium-avatar) canvas { position: absolute; inset: 0; width: 100% !important; height: 100% !important; max-height: 96px; margin: auto; object-fit: contain; image-rendering: pixelated; }
+  .tiles .podium-avatar canvas { max-width: 96px; }
+  .tiles .tourney-cell-art canvas { object-position: left center; }
   /* The sections along the bottom: only the icon and the name, side by side. */
   .tiles .menu-item { grid-template-columns: auto auto; justify-content: center; min-width: 0; min-height: 0; padding: 8px 12px; font-size: clamp(18px, 2.3vh, 24px); }
   .tiles .menu-short { display: none; }
