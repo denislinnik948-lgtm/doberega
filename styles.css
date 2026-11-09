@@ -1292,7 +1292,7 @@ html.keyboard-open .sheet[open] > .account-body {
   .tiles.in-menu .menu {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    grid-template-rows: auto repeat(3, minmax(0, 1fr)) minmax(0, 0.62fr);
+    grid-template-rows: auto minmax(0, 0.95fr) minmax(0, 1.2fr) minmax(0, 0.85fr) minmax(0, 0.62fr);
     grid-template-areas:
       "top top top top top"
       "spot spot spot profile profile"
@@ -1317,6 +1317,15 @@ html.keyboard-open .sheet[open] > .account-body {
   #trophy-button { grid-area: trophy; }
   #collection-button { grid-area: collection; }
   #settings-button { grid-area: settings; }
+  /* The tournament's pictures shrink to what its cells leave, so the names and weights always show on a low screen (an iPad on its side). */
+  .tiles .tourney-cell { min-height: 0; overflow: hidden; }
+  .tiles .tile-podium { grid-template-rows: minmax(0, 1fr); min-height: 0; }
+  .tiles :is(.tourney-cell-art, .podium-avatar) { display: flex; flex: 1 1 0; align-items: center; justify-content: center; min-height: 0; max-width: 100%; }
+  .tiles :is(.tourney-cell-art, .podium-avatar) canvas { max-width: 100%; height: 100% !important; width: auto !important; object-fit: contain; image-rendering: pixelated; }
+  .tiles .tourney-cell-art { align-self: stretch; justify-content: flex-start; }
+  .tiles .tourney-cell-art canvas { max-height: 58px; }
+  .tiles .podium-avatar canvas { max-height: 48px; }
+  .tiles .tourney-cell > :not(.tourney-cell-art, .podium-avatar, .podium-place) { flex: none; }
   /* The sections along the bottom: only the icon and the name, side by side. */
   .tiles .menu-item { grid-template-columns: auto auto; justify-content: center; min-width: 0; min-height: 0; padding: 8px 12px; font-size: clamp(18px, 2.3vh, 24px); }
   .tiles .menu-short { display: none; }
