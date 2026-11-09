@@ -138,9 +138,24 @@ export class AnglerUI {
     for (const tab of document.querySelectorAll("#collection-dialog .tab")) {
       tab.addEventListener("click", () => this.showCollectionTab(tab.dataset.tab));
     }
-    for (const tab of document.querySelectorAll("#handbook-dialog .tab")) {
-      tab.addEventListener("click", () => this.showHandbookTab(tab.dataset.tab));
-    }
+    // The handbook's pages turn with the arrows at their foot, the arrow keys, or a swipe.
+    $("#book-prev").addEventListener("click", () => this.showBookPage(this.bookAt - 1));
+    $("#book-next").addEventListener("click", () => this.showBookPage(this.bookAt + 1));
+    this.handbookDialog.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        event.preventDefault();
+        this.showBookPage(this.bookAt + (event.key === "ArrowRight" ? 1 : -1));
+      }
+    });
+    let swipe = null;
+    $("#book-page").addEventListener("touchstart", (event) => { swipe = [event.touches[0].clientX, event.touches[0].clientY]; }, { passive: true });
+    $("#book-page").addEventListener("touchend", (event) => {
+      if (!swipe) return;
+      const dx = event.changedTouches[0].clientX - swipe[0];
+      const dy = event.changedTouches[0].clientY - swipe[1];
+      swipe = null;
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) this.showBookPage(this.bookAt + (dx < 0 ? 1 : -1));
+    }, { passive: true });
 
     this.applyLanguage();
   }
@@ -1781,55 +1796,57 @@ export class AnglerUI {
     }
   }
 
-  openHandbook(tab = "fish") {
-    this.showHandbookTab(tab);
+  /** Open the handbook at its contents, or at a section (fish, spots, baits, tips). */
+  openHandbook(section = null) {
+    this.book = this.bookPages();
+    this.showBookPage(section ? this.book.starts[section] ?? 0 : 0);
     if (!this.handbookDialog.open) this.handbookDialog.showModal();
   }
 
-  /** The handbook in four tabs; the first three are built from the game's own data. */
-  showHandbookTab(id) {
-    for (const tab of document.querySelectorAll("#handbook-dialog .tab")) {
-      const active = tab.dataset.tab === id;
-      tab.classList.toggle("is-active", active);
-      tab.setAttribute("aria-selected", String(active));
-    }
+  /**
+   * The handbook as a book, read a page at a time: the contents first, then
+   * each section (fish, waters, bait, tips) with a list of what is in it and
+   * a page for each. The pages of the first three are built from the game's
+   * own data, so a new fish, water or bait gets its page by itself. Returns
+   * { pages, starts }: each page a builder, and where each section begins.
+   */
+  bookPages() {
     const lower = (text) => text.toLocaleLowerCase(locale());
     const list = (items) => items.join(", ");
-    // Each page: a picture, a title and subtitle, then labelled facts (one or more lines each).
-    const page = (art, title, subtitle, facts, seed) => {
+    // An entry: a picture, a title and subtitle, then labelled facts (one or more lines each).
+    const entry = (art, title, subtitle, facts) => () => {
       const rows = facts.filter(([, value]) => value && (!Array.isArray(value) || value.length));
-      const node = element("li", { className: `handbook-page${art ? "" : " handbook-text"}` }, [
-        art ? element("div", { className: "handbook-art" }, [art]) : "",
-        element("div", { className: "handbook-body" }, [
-          element("strong", { textContent: title }),
-          subtitle ? element("small", { textContent: subtitle }) : "",
-          element("dl", { className: "handbook-facts" }, rows.flatMap(([label, value]) => [
-            element("dt", { textContent: label }),
-            element("dd", {}, (Array.isArray(value) ? value : [value]).map((line) => element("span", { textContent: line }))),
-          ])),
-        ]),
-      ]);
-      frame(node, "box", seed);
-      return node;
+      return [
+        art ? element("div", { className: "book-art" }, [art()]) : "",
+        element("h3", { className: "book-title", textContent: title }),
+        subtitle ? element("p", { className: "book-sub", textContent: subtitle }) : "",
+        element("dl", { className: "book-facts" }, rows.flatMap(([label, value]) => [
+          element("dt", { textContent: label }),
+          element("dd", {}, (Array.isArray(value) ? value : [value]).map((line) => element("span", { textContent: line }))),
+        ])),
+      ];
     };
-    let pages;
-    if (id === "fish") {
-      // Small fish are drawn bigger so all of them read at a glance.
-      pages = handbookEntries().map((entry, index) => page(fishSprite(entry.id, FISH[entry.id].max < 4 ? 3 : 2), nameOf("fish", entry.id), [
-        entry.protected ? t("handbook.protected", { range: entry.range }) : t("handbook.weight", { range: entry.range, price: entry.pricePerKg }),
-        entry.season === "autumn" ? t("handbook.autumnOnly") : "",
-      ].filter(Boolean).join(" · "), [
-        [t("handbook.livesIn"), entry.spots.map((spot) => t(spot.minKg > FISH[entry.id].min ? "handbook.spotInRange" : "handbook.spotIn", { spot: nameOf("location", spot.id), abundance: nameOf("abundance", spot.abundance), min: formatWeight(spot.minKg), kg: formatWeight(spot.maxKg) }))],
-        [t("handbook.bitesOn"), lower(list(entry.baits.map((bait) => nameOf("bait", bait))))],
-        [t("handbook.activeAt"), entry.times.map(periodName).join(", ")],
-        [t("handbook.biteLabel"), nameOf("biteStyle", entry.style)],
-      ], 700 + index));
-    } else if (id === "spots") {
-      pages = spotEntries().map((spot, index) => {
-        const picture = element("div", { className: "handbook-spot" });
-        picture.dataset.variant = LOCATIONS.find((place) => place.id === spot.id).kind;
-        frame(picture, "location", 40 + index);
-        return page(picture, nameOf("location", spot.id), t("handbook.spotTraits", {
+    const sections = [
+      { id: "fish", title: t("handbook.fish"), items: handbookEntries().map((fish) => ({
+        name: nameOf("fish", fish.id),
+        build: entry(() => fishSprite(fish.id, FISH[fish.id].max < 4 ? 3 : 2), nameOf("fish", fish.id), [
+          fish.protected ? t("handbook.protected", { range: fish.range }) : t("handbook.weight", { range: fish.range, price: fish.pricePerKg }),
+          fish.season === "autumn" ? t("handbook.autumnOnly") : "",
+        ].filter(Boolean).join(" · "), [
+          [t("handbook.livesIn"), fish.spots.map((spot) => t(spot.minKg > FISH[fish.id].min ? "handbook.spotInRange" : "handbook.spotIn", { spot: nameOf("location", spot.id), abundance: nameOf("abundance", spot.abundance), min: formatWeight(spot.minKg), kg: formatWeight(spot.maxKg) }))],
+          [t("handbook.bitesOn"), lower(list(fish.baits.map((bait) => nameOf("bait", bait))))],
+          [t("handbook.activeAt"), fish.times.map(periodName).join(", ")],
+          [t("handbook.biteLabel"), nameOf("biteStyle", fish.style)],
+        ]),
+      })) },
+      { id: "spots", title: t("handbook.spots"), items: spotEntries().map((spot, index) => ({
+        name: nameOf("location", spot.id),
+        build: entry(() => {
+          const picture = element("div", { className: "handbook-spot" });
+          picture.dataset.variant = LOCATIONS.find((place) => place.id === spot.id).kind;
+          frame(picture, "location", 40 + index);
+          return picture;
+        }, nameOf("location", spot.id), t("handbook.spotTraits", {
           type: traitValue("type", spot.traits.type), depth: lower(traitValue("depth", spot.traits.depth)),
           bottom: lower(traitValue("bottom", spot.traits.bottom)), current: lower(traitValue("current", spot.traits.current)),
         }), [
@@ -1841,24 +1858,82 @@ export class AnglerUI {
           [t("handbook.accessLabel"), this.accessText(LOCATIONS.findIndex((place) => place.id === spot.id))],
           [t("handbook.waterLabel"), `${nameOf("pace", spot.pace)} · ${nameOf("snags", spot.snags)}`],
           ...(spot.ways.length ? [[t("handbook.waysLabel"), spot.ways.map((way) => t(`handbook.way.${way}`)).join("; ")]] : []),
-        ], 760 + index);
-      });
-    } else if (id === "baits") {
-      pages = baitEntries().map((bait, index) => {
-        return page(baitSprite(bait.id, 3), nameOf("bait", bait.id), `${bait.free ? t("handbook.baitFree") : t("handbook.baitPrice", { price: bait.price })} · ${nameOf("baitSize", bait.size)}`, [
+        ]),
+      })) },
+      { id: "baits", title: t("handbook.baitTab"), items: baitEntries().map((bait) => ({
+        name: nameOf("bait", bait.id),
+        build: entry(() => baitSprite(bait.id, 3), nameOf("bait", bait.id), `${bait.free ? t("handbook.baitFree") : t("handbook.baitPrice", { price: bait.price })} · ${nameOf("baitSize", bait.size)}`, [
           [t("handbook.takenBy"), lower(list(bait.fish.map((fish) => nameOf("fish", fish))))],
-        ], 820 + index);
-      });
-    } else {
-      const rules = element("li", { className: "handbook-page handbook-rules" }, [
-        element("dl", {}, handbookRules().flatMap(([title, text]) => [element("dt", { textContent: title }), element("dd", { textContent: text })])),
-      ]);
-      frame(rules, "box", 699);
-      pages = [rules];
+        ]),
+      })) },
+      { id: "tips", title: t("handbook.tips"), items: handbookRules().map(([title, text]) => ({
+        name: title,
+        build: () => [element("h3", { className: "book-title", textContent: title }), element("p", { className: "book-text", textContent: text })],
+      })) },
+    ];
+
+    // Lay the pages out: the contents, then for each section its list (a few
+    // pages when it is long) and its entries, so every page number is known.
+    const PER_LIST = 10;
+    const pages = [null];
+    const starts = {};
+    for (const section of sections) {
+      starts[section.id] = pages.length;
+      const listPages = Math.ceil(section.items.length / PER_LIST);
+      const first = pages.length + listPages;
+      section.items.forEach((item, index) => { item.page = first + index; });
+      for (let part = 0; part < listPages; part += 1) {
+        const items = section.items.slice(part * PER_LIST, (part + 1) * PER_LIST);
+        pages.push({ section, list: true, build: () => [
+          part === 0 ? element("h3", { className: "book-chapter", textContent: section.title }) : "",
+          this.bookIndex(items.map((item) => [item.name, item.page])),
+        ] });
+      }
+      for (const item of section.items) pages.push({ section, build: item.build });
     }
-    const listNode = $("#handbook-list");
-    listNode.replaceChildren(...pages);
-    listNode.scrollTop = 0;
+    pages[0] = { section: null, build: () => [
+      element("h3", { className: "book-chapter book-cover", textContent: t("handbook.title") }),
+      element("p", { className: "book-sub book-centered", textContent: t("handbook.contents") }),
+      this.bookIndex(sections.map((section) => [section.title, starts[section.id]])),
+    ] };
+    return { pages, starts };
+  }
+
+  /** A list of names, each with its page number after a dotted leader; a tap opens that page. */
+  bookIndex(rows) {
+    return element("ol", { className: "book-index" }, rows.map(([name, page]) => element("li", {}, [
+      element("button", { type: "button", onclick: () => this.showBookPage(page) }, [
+        element("span", { className: "book-name", textContent: name }),
+        element("span", { className: "book-dots" }),
+        element("span", { className: "book-num", textContent: String(page + 1) }),
+      ]),
+    ])));
+  }
+
+  /** Turn to a page: links back to the contents and the section's list at its head, the corner says which of how many. */
+  showBookPage(index) {
+    const { pages } = this.book;
+    const at = Math.max(0, Math.min(pages.length - 1, index));
+    const turn = at === this.bookAt ? "" : at > (this.bookAt ?? 0) ? "turn-next" : "turn-back";
+    this.bookAt = at;
+    const page = pages[at];
+    const sheet = $("#book-page");
+    // Back to the contents from any page, and to the section's list from an entry.
+    const link = (text, to) => element("button", { className: "book-section", type: "button", textContent: text, onclick: () => this.showBookPage(to) });
+    $("#book-head").replaceChildren(...[
+      at ? link(`≡ ${t("handbook.contents")}`, 0) : "",
+      page.section && !page.list ? link(page.section.title, this.book.starts[page.section.id]) : "",
+      element("span", { className: "book-count", textContent: t("handbook.page", { page: at + 1, total: pages.length }) }),
+    ].filter(Boolean));
+    $("#book-body").replaceChildren(...page.build());
+    $("#book-prev").disabled = at === 0;
+    $("#book-next").disabled = at === pages.length - 1;
+    sheet.classList.remove("turn-next", "turn-back");
+    if (turn) {
+      void sheet.offsetWidth;
+      sheet.classList.add(turn);
+    }
+    this.handbookDialog.scrollTop = 0;
   }
 
   /* ---------- Trophies ---------- */

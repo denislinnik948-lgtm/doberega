@@ -233,13 +233,16 @@
         <h2 class="title-tab" id="handbook-title" data-frame="tab" data-i18n="handbook.title">Angler's handbook</h2>
         <form method="dialog"><button class="pixel-btn pixel-btn-square" type="submit" data-i18n-aria="a11y.close">✕</button></form>
       </header>
-      <div class="tabs handbook-tabs" role="tablist">
-        <button class="pixel-btn tab is-active" type="button" role="tab" aria-selected="true" data-tab="fish" data-i18n="handbook.fish">Fish</button>
-        <button class="pixel-btn tab" type="button" role="tab" aria-selected="false" data-tab="spots" data-i18n="handbook.spots">Waters</button>
-        <button class="pixel-btn tab" type="button" role="tab" aria-selected="false" data-tab="baits" data-i18n="handbook.baitTab">Bait</button>
-        <button class="pixel-btn tab" type="button" role="tab" aria-selected="false" data-tab="tips" data-i18n="handbook.tips">Tips</button>
+      <div class="book">
+        <article class="book-page" id="book-page">
+          <header class="book-head" id="book-head"></header>
+          <div class="book-body" id="book-body"></div>
+          <footer class="book-foot">
+            <button class="book-turn" id="book-prev" type="button" data-i18n-aria="handbook.prev">◀</button>
+            <button class="book-turn" id="book-next" type="button" data-i18n-aria="handbook.next">▶</button>
+          </footer>
+        </article>
       </div>
-      <ul class="handbook" id="handbook-list"></ul>
     </dialog>
 
     <dialog class="sheet sheet-wide page" id="trophy-dialog" aria-labelledby="trophy-title">
