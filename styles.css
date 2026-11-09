@@ -1143,7 +1143,7 @@ html.keyboard-open .sheet[open] > .account-body {
 .tiles .spot-tile { display: flex; flex-direction: column; gap: clamp(6px, 1.2vh, 12px); min-height: 0; padding: clamp(10px, 1.6vh, 18px); }
 .tiles .spot-slider { flex: 1; width: 100%; min-height: 0; }
 .tiles .spot-card { display: flex; flex-direction: column; align-self: stretch; gap: clamp(6px, 1.2vh, 12px); }
-.tiles .card-scene { display: flex; flex: 1; flex-direction: column; min-height: 0; }
+.tiles .spot-card .card-scene { display: flex; flex: 1; flex-direction: column; min-height: 0; }
 .tiles .spot-picture { flex: 1; height: auto; min-height: 80px; }
 .tiles .spot-traits { display: flex; flex-wrap: wrap; justify-content: center; align-self: center; gap: 2px 8px; padding: 6px 16px; font-size: clamp(16px, 1.9vh, 20px); }
 .tiles .spot-traits dd + dt::before { margin-right: 8px; color: var(--mid); content: "·"; }
@@ -1356,7 +1356,7 @@ html.keyboard-open .sheet[open] > .account-body {
   .tiles .menu-top h1 { padding: 6px 10px; font-size: 21px; }
   .tiles .spot-tile { gap: 6px; padding: 8px; }
   .tiles .spot-card { gap: 4px; }
-  .tiles .card-scene { padding-top: 18px; }
+  .tiles .spot-card .card-scene { padding-top: 18px; }
   .tiles .spot-card .title-tab { padding: 4px 10px; font-size: 19px; }
   .tiles .spot-arrow { width: 34px; min-height: 48px; font-size: 18px; }
   .tiles .spot-picture { flex: none; height: clamp(110px, 18vh, 170px); }
@@ -1457,7 +1457,7 @@ html.keyboard-open .sheet[open] > .account-body {
   #tile-today { grid-column: 2; grid-row: 3; }
   #tile-tourney { grid-column: 2; grid-row: 4; }
   .tiles .spot-card { gap: 4px; }
-  .tiles .card-scene { padding-top: 16px; }
+  .tiles .spot-card .card-scene { padding-top: 16px; }
   .tiles .spot-card .title-tab { padding: 3px 10px; font-size: 18px; }
   .tiles .spot-arrow { width: 34px; min-height: 44px; font-size: 18px; }
   /* The picture takes what the height leaves after the bars, the name, the traits and the button. */
