@@ -1932,7 +1932,8 @@ export class AnglerUI {
           })),
         };
       }),
-      { id: "spots", title: t("handbook.spots"), items: spotEntries().map((spot, index) => {
+      // The waters are few and their shots wide: bigger cells.
+      { id: "spots", title: t("handbook.spots"), wide: true, items: spotEntries().map((spot, index) => {
         // The water's shot, as in the menu (the painted picture under it for a water with none yet): big on its page, small in the list.
         const spotPicture = (className) => {
           const picture = element("div", { className: `${className} book-spot` });
@@ -2039,7 +2040,7 @@ export class AnglerUI {
         section.note ? element("p", { className: "book-sub book-centered", textContent: section.note }) : "",
       ]);
       const cells = section.items.map((item) => (grid ? this.bookGridCell(item) : this.bookLine(item.name, item)));
-      const holder = () => element("ol", { className: grid ? "book-grid" : "book-index" });
+      const holder = () => element("ol", { className: grid ? `book-grid${section.wide ? " is-wide" : ""}` : "book-index" });
       const per = howMany(cells, chapter(), holder);
       const entries = section.items.map((item) => flow(item.blocks()));
       starts[section.id] = pages.length;

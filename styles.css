@@ -800,6 +800,13 @@ html.keyboard-open .sheet[open] > .account-body {
 .book-thumb { display: grid; place-items: center; width: 100%; height: 56px; overflow: hidden; }
 .book-thumb canvas { max-width: 100%; max-height: 52px; object-fit: contain; image-rendering: pixelated; }
 .book-thumb-spot { width: 88px; height: 48px; }
+/* Wide cells (the waters): the shot as wide as the cell. */
+.book-grid.is-wide { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+.book-grid.is-wide button { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; align-items: baseline; gap: 4px 8px; padding: 6px; text-align: left; }
+.book-grid.is-wide .book-thumb { grid-column: 1 / -1; }
+.book-grid.is-wide .book-thumb { height: auto; }
+.book-grid.is-wide .book-thumb-spot { width: 100%; height: auto; aspect-ratio: 1.82; }
+.book-grid.is-wide .book-name { font-size: 19px; }
 @media (max-width: 520px) { .book-grid { gap: 6px; } }
 
 /* Phones held upright: bigger, evenly sized targets within thumb reach, nothing overlapping. */
@@ -1572,6 +1579,9 @@ html.keyboard-open .sheet[open] > .account-body {
   .tiles #handbook-dialog .book-grid button { grid-template-rows: 44px auto auto; padding: 4px; }
   .tiles #handbook-dialog .book-thumb { height: 44px; }
   .tiles #handbook-dialog .book-thumb canvas { max-height: 40px; }
+  .tiles #handbook-dialog .book-grid.is-wide { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .tiles #handbook-dialog .book-grid.is-wide button { grid-template-rows: auto auto; }
+  .tiles #handbook-dialog .book-grid.is-wide .book-thumb { height: auto; }
   /* An entry: its picture to the left, the title and the facts beside it. */
   .tiles #handbook-dialog .book-art { float: left; margin: 4px 18px 6px 0; }
   .tiles #handbook-dialog .book-title, .tiles #handbook-dialog .book-sub { text-align: left; }
