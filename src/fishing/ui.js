@@ -60,6 +60,9 @@ const reachLines = (gear) => [
   t("tackle.holds", { what: Number.isFinite(gear.holdKg) ? t("tackle.upTo", { weight: formatWeight(gear.holdKg) }) : t("tackle.anyWeight") }),
 ];
 
+/** A water's shot for the menu (see images/spots): in the season the scene is in. */
+const spotShot = (id) => `images/spots/${id}-${currentSeason()}.webp`;
+
 const countLabel = (count) => (count === Infinity ? "∞" : `×${count}`);
 
 /** A fish not found yet: only its shape, in shadow. */
@@ -1045,18 +1048,19 @@ export class AnglerUI {
     const picture = $("#spot-picture");
     picture.dataset.variant = spot.kind;
     repaint(picture);
-    // A shot of the water itself, by day in the season the scene is in; the
-    // painted picture stays under it while it loads, or for a water with none yet.
-    const src = `images/spots/${spot.id}-${currentSeason()}.jpg`;
+    // A shot of the water itself, late in the afternoon in the season the scene
+    // is in; the painted picture stays under it while it loads, or for a water with none yet.
+    const src = spotShot(spot.id);
     let shot = picture.querySelector(".spot-shot");
     if (!shot) {
-      shot = element("img", { className: "spot-shot", alt: "", decoding: "async", onerror: () => { shot.hidden = true; } });
+      shot = element("img", { className: "spot-shot", alt: "", fetchPriority: "high", onerror: () => { shot.hidden = true; } });
       picture.append(shot);
     }
     if (!shot.src.endsWith(src)) {
       shot.hidden = false;
       shot.src = src;
     }
+    this.preloadShots();
     setContent($("#spot-name"), nameOf("location", spot.id));
     setContent($("#spot-traits"), ...Object.entries(spot.traits).flatMap(([key, value]) => [
       element("dt", { textContent: traitLabel(key) }),
@@ -1073,6 +1077,14 @@ export class AnglerUI {
       onclick: () => this.shiftSpot(place - at),
     }, [element("span")])));
     this.renderSpotLock();
+  }
+
+  /** Every shown water's shot for this season, fetched ahead, so turning to another water shows it at once. */
+  preloadShots() {
+    const season = currentSeason();
+    if (this.shotSeason === season) return;
+    this.shotSeason = season;
+    this.shotCache = shownSpots().map((index) => Object.assign(new Image(), { src: spotShot(LOCATIONS[index].id) }));
   }
 
   /** How a water is entered, for the handbook: open, by a rank, or by a fee (and whether it is paid). */

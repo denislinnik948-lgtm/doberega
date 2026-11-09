@@ -23,7 +23,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         query = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
         name = os.path.basename(query.get("name", ["card.png"])[0])
-        if not name.endswith((".png", ".jpg")):
+        if not name.endswith((".png", ".jpg", ".webp")):
             name += ".png"
         data = self.rfile.read(int(self.headers["Content-Length"]))
         folder = query.get("dir", [""])[0]
