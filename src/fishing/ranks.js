@@ -1,5 +1,6 @@
 import { FISH } from "./data.js";
 import { questReward } from "./quests.js";
+import { giveGroundbaits } from "./waters.js";
 
 /*
  * Angler ranks: experience comes from every fish landed (the heavier and
@@ -76,8 +77,8 @@ export function claimRanks(progress) {
     groundbait += RANKS[rank].gift.groundbait ?? 0;
   }
   progress.money += money;
-  progress.groundbait = (progress.groundbait ?? 0) + groundbait;
   progress.rank = reached;
+  giveGroundbaits(progress, groundbait);
   return { rank: reached, from: given, money, groundbait };
 }
 

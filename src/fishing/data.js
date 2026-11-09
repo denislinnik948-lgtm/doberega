@@ -343,13 +343,14 @@ export const EXTRAS = {
  * real clock (the same for everyone), so it simply wears off at a set moment,
  * whether the game is open or not: `progress.baited[spot]` holds that moment.
  */
-export const GROUNDBAIT = { price: 90, hours: 24, boost: 1.7 };
+export const GROUNDBAIT = { hours: 24, boost: 1.7 };
 
 /**
- * Groundbaits made for a kind of fish: the water bites as livelier as with the
- * plain one, and the fish it is made for come to it GROUNDBAIT_FAVOR times as
- * readily (`favors`). Kept by the bag in `progress.groundbaits`; which one is
- * in at a water is `progress.baitedKind[spot]` (none: the plain one).
+ * Groundbaits, each made for a kind of fish: the water bites GROUNDBAIT.boost
+ * times as often, and the fish it is made for come to it GROUNDBAIT_FAVOR times
+ * as readily (`favors`). Kept by the bag in `progress.groundbaits`; which one is
+ * in at a water is `progress.baitedKind[spot]` (none: the plain one, sold once
+ * and no more, still in the water for a day after).
  */
 export const GROUNDBAITS = {
   carp: { price: 150, favors: ["korop", "dzerkalnyi", "amur", "karas", "lyn", "bufalo", "tovstolob"] },
@@ -494,8 +495,7 @@ export const START_STATE = {
   rod: "willow",
   bait: "worm",
   extras: [],
-  groundbait: 0,
-  // The groundbaits made for a kind of fish, by kind (see GROUNDBAITS).
+  // The groundbaits, by kind (see GROUNDBAITS).
   groundbaits: {},
   // When the groundbait at each water wears off, by spot id, and which kind it is (none: the plain one).
   baited: {},

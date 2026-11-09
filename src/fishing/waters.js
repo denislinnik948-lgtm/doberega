@@ -1,4 +1,4 @@
-import { LOCATIONS, access, spotShown } from "./data.js";
+import { GROUNDBAITS, LOCATIONS, access, spotShown } from "./data.js";
 import { rankAt } from "./ranks.js";
 
 /*
@@ -46,3 +46,26 @@ export function ensureOpenSpot(progress) {
   progress.location = index;
   return true;
 }
+
+/**
+ * Give groundbaits as a gift: `kind` for that one, otherwise each of a kind
+ * picked at random among those whose fish live in a water this angler may
+ * fish (no trout pellets for someone who has only the pond). Returns the
+ * bags given, by kind.
+ */
+export function giveGroundbaits(progress, count, kind = null, random = Math.random) {
+  const lives = new Set(LOCATIONS.filter((spot, index) => spotOpen(progress, index)).flatMap((spot) => Object.keys(spot.fish)));
+  const useful = Object.keys(GROUNDBAITS).filter((id) => GROUNDBAITS[id].favors.some((fish) => lives.has(fish)));
+  const kinds = useful.length ? useful : Object.keys(GROUNDBAITS);
+  const given = {};
+  progress.groundbaits ??= {};
+  for (let i = 0; i < count; i += 1) {
+    const id = GROUNDBAITS[kind] ? kind : kinds[Math.floor(random() * kinds.length)];
+    progress.groundbaits[id] = (progress.groundbaits[id] ?? 0) + 1;
+    given[id] = (given[id] ?? 0) + 1;
+  }
+  return given;
+}
+
+/** The groundbait made for a fish (the tournament's prize for its week), or null. */
+export const groundbaitFor = (fish) => Object.keys(GROUNDBAITS).find((id) => GROUNDBAITS[id].favors.includes(fish)) ?? null;

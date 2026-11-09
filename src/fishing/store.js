@@ -1,6 +1,6 @@
 import { ACHIEVEMENTS } from "./achievements.js";
 import { RANKS, pastXp } from "./ranks.js";
-import { ensureOpenSpot } from "./waters.js";
+import { ensureOpenSpot, giveGroundbaits } from "./waters.js";
 import { AVATAR_COUNT, BAITS, SPECIAL_AVATAR, EXTRAS, FISH, GROUNDBAITS, HOOKS, LOCATIONS, RETIRED_BAITS, RODS, START_STATE, gameHoursMs } from "./data.js";
 
 // The storage key keeps the game's old working name so existing saves carry over.
@@ -44,7 +44,6 @@ export function normalizeProgress(saved) {
     if (Array.isArray(saved.extras)) state.extras = saved.extras.filter((id) => EXTRAS[id]);
     // The campfire was sold for a day and taken off sale: its price goes back.
     if (Array.isArray(saved.extras) && saved.extras.includes("campfire")) state.money += 600;
-    if (Number.isFinite(saved.groundbait)) state.groundbait = Math.max(0, saved.groundbait);
     if (saved.groundbaits && typeof saved.groundbaits === "object") {
       state.groundbaits = Object.fromEntries(Object.entries(saved.groundbaits).filter(([id, count]) => GROUNDBAITS[id] && Number.isFinite(count) && count > 0));
     }
@@ -105,6 +104,8 @@ export function normalizeProgress(saved) {
   }
   // A water now shut to this angler (its rank not reached, its fee not paid): back to an open one.
   ensureOpenSpot(state);
+  // The plain groundbait is sold no more: bags still kept become ones made for a kind of fish, one for one.
+  if (Number.isFinite(saved?.groundbait) && saved.groundbait > 0) giveGroundbaits(state, Math.floor(saved.groundbait));
   return state;
 }
 

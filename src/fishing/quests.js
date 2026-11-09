@@ -1,5 +1,6 @@
 import { hash2 } from "../noise.js";
 import { FISH, HOOKS, LOCATIONS, RODS } from "./data.js";
+import { giveGroundbaits, groundbaitFor } from "./waters.js";
 
 /*
  * The daily quest: one for everyone, the same all day. Days are counted in
@@ -159,7 +160,7 @@ export function recordDay(progress, now = Date.now()) {
   const gift = { ...streakGift(count) };
   if (gift.bait) progress.baits[gift.bait] = (progress.baits[gift.bait] ?? 0) + gift.count;
   if (gift.hook && HOOKS[gift.hook]) progress.hooks[gift.hook] = (progress.hooks[gift.hook] ?? 0) + gift.count;
-  if (gift.groundbait) progress.groundbait = (progress.groundbait ?? 0) + gift.groundbait;
+  if (gift.groundbait) giveGroundbaits(progress, gift.groundbait);
   if (gift.lines) progress.lines = (progress.lines ?? 0) + gift.lines;
   if (gift.money) {
     gift.paid = Math.round(questReward(progress) * gift.money);
@@ -175,8 +176,8 @@ export function recordDay(progress, now = Date.now()) {
  * to luck and skill rather than the best rod. Results of signed-in anglers
  * go to the cloud (cloud.js); the server checks the week and the weight.
  * Prizes, paid the next time the angler comes in after the week: 3×, 2× and
- * 1× the quest reward for the top three, and two groundbaits for everyone
- * who took part.
+ * 1× the quest reward for the top three, and two groundbaits made for the
+ * week's fish for everyone who took part.
  *
  * `progress.tourney` holds { week, best, claimed }: this week's best weight,
  * and the last week whose prize has been settled.
@@ -242,7 +243,7 @@ export function settleTourney(progress, week, place) {
   const share = TOURNEY_PRIZES[place - 1] ?? 0;
   const money = Math.round(questReward(progress) * share);
   progress.money += money;
-  progress.groundbait = (progress.groundbait ?? 0) + TOURNEY_GIFT.groundbait;
+  giveGroundbaits(progress, TOURNEY_GIFT.groundbait, groundbaitFor(tourneyFish(week)));
   progress.stats ??= {};
   if (share) progress.stats.podiums = (progress.stats.podiums ?? 0) + 1;
   if (place === 1) progress.stats.wins = (progress.stats.wins ?? 0) + 1;

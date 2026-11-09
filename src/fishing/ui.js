@@ -1330,8 +1330,7 @@ export class AnglerUI {
         )),
       ],
       "extra-shop": [
-        piece("groundbait", () => groundbaitSprite(4), t("shop.groundbait"), t("shop.groundbaitText"), GROUNDBAIT.price, progress.groundbait, (qty) => { progress.groundbait += qty; }),
-        // The groundbaits made for a kind of fish, each saying which fish it draws.
+        // The groundbaits, each made for a kind of fish and saying which fish it draws.
         ...Object.entries(GROUNDBAITS).map(([kind, bag]) => piece(
           `groundbait-${kind}`, () => groundbaitSprite(4, kind), nameOf("groundbait", kind), this.groundbaitFacts(kind), bag.price, progress.groundbaits?.[kind] ?? 0,
           (qty) => { progress.groundbaits ??= {}; progress.groundbaits[kind] = (progress.groundbaits[kind] ?? 0) + qty; },
@@ -1552,10 +1551,6 @@ export class AnglerUI {
         take: locked ? null : () => { progress.bait = id; },
       });
     }
-    if (progress.groundbait > 0) add("pocket", {
-      key: "groundbait", art: () => groundbaitSprite(3), title: t("shop.groundbait"), tag: `×${progress.groundbait}`,
-      facts: [t("shop.groundbaitText")], action: [t("pack.feed"), () => this.useGroundbait()],
-    });
     for (const [kind, count] of Object.entries(progress.groundbaits ?? {})) if (count > 0) add("pocket", {
       key: `groundbait-${kind}`, art: () => groundbaitSprite(3, kind), title: nameOf("groundbait", kind), tag: `×${count}`,
       facts: this.groundbaitFacts(kind), action: [t("pack.feed"), () => this.useGroundbait(kind)],
@@ -1706,37 +1701,35 @@ export class AnglerUI {
     if (!this.baitDialog.open) this.baitDialog.showModal();
   }
 
-  /** What a groundbait made for a kind of fish does, and which fish it draws. */
+  /** What a groundbait does, and which fish it draws. */
   groundbaitFacts(kind) {
     const fish = GROUNDBAITS[kind].favors.filter((id) => fishShown(id)).map((id) => nameOf("fish", id).toLocaleLowerCase(locale()));
     return [t("shop.groundbaitDraws", { fish: fish.join(", ") })];
   }
 
   /**
-   * Bait the water you're at: 24 game hours of livelier bites (a fresh bag tops
-   * it back up). `kind`: one made for a kind of fish (see GROUNDBAITS); none, the plain one.
+   * Bait the water you're at: 24 game hours of livelier bites, the fish `kind`
+   * is made for coming readier (see GROUNDBAITS); a fresh bag tops it back up.
    */
-  useGroundbait(kind = null) {
+  useGroundbait(kind) {
     const { progress } = this;
     if (!this.isFishing()) {
       this.toast(t("toast.groundbaitWhere"), "bad", 1800);
       sounds.ui("denied");
       return;
     }
-    if (kind ? !(progress.groundbaits?.[kind] > 0) : progress.groundbait <= 0) return;
-    if (kind) progress.groundbaits[kind] -= 1;
-    else progress.groundbait -= 1;
+    if (!(progress.groundbaits?.[kind] > 0)) return;
+    progress.groundbaits[kind] -= 1;
     bump(progress, "groundbaits");
     sounds.groundbait();
     // Wears off 24 game hours from now (a fresh bag starts the count again).
     const spot = LOCATIONS[progress.location].id;
     progress.baited[spot] = Date.now() + gameHoursMs(GROUNDBAIT.hours);
     progress.baitedKind ??= {};
-    if (kind) progress.baitedKind[spot] = kind;
-    else delete progress.baitedKind[spot];
+    progress.baitedKind[spot] = kind;
     this.commit();
     this.packDialog.close();
-    this.toast(kind ? t("toast.groundbaitKindOn", { name: nameOf("groundbait", kind) }) : t("toast.groundbaitOn"), "good", 2000);
+    this.toast(t("toast.groundbaitKindOn", { name: nameOf("groundbait", kind) }), "good", 2000);
   }
 
   /** The groundbait chip by the clock: shown while this water is baited, its bar the time left. */
