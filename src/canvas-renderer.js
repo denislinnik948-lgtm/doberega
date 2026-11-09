@@ -2617,14 +2617,19 @@ export class CanvasWaterRenderer {
           ctx.fillText("><(((°>", end.x, end.y + size * 0.6);
         }
       } else if (angler.phase !== "bite" && angler.float.sink < 0.95) {
+        // Farther out the float looks smaller, as the water's glyphs do; one cast close in keeps its full size,
+        // and far out it never shrinks past what an eye can still find.
+        const far = this.waterScaleAt ? clamp(this.waterScaleAt(end.y) / this.waterScaleAt(height * 0.85), 0.5, 1) : 1;
+        const floatSize = Math.max(7, Math.round(size * far));
+        ctx.font = `600 ${floatSize}px ${MONO_FONT}`;
         const sink = angler.float.sink;
-        const below = size * 0.45 * sink;
-        this.floatMark = { x: end.x, y: end.y, below, sink, size };
+        const below = floatSize * 0.45 * sink;
+        this.floatMark = { x: end.x, y: end.y, below, sink, size: floatSize };
         // A plain float all but vanishes in the dark.
         ctx.globalAlpha = clamp(1 - (this.shade ?? 0) * 1.45, 0.12, 1);
         if (sink < 0.55) {
           ctx.fillStyle = "#e8573a";
-          ctx.fillText("|", end.x, end.y - size * 0.55 + below);
+          ctx.fillText("|", end.x, end.y - floatSize * 0.55 + below);
         }
         if (sink < 0.25) {
           ctx.fillStyle = "#f1e9d8";

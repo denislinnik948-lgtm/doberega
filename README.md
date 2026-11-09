@@ -65,7 +65,7 @@ The moon has phases (`src/moon.js`): a lunar month lasts eight game days (about 
 
 The sky texture, water palette and glint path refresh four times a second (≈1.3 ms); land and glyph lighting is a multiplier in the WebGL shaders, so the cycle costs almost nothing per frame. URL options: `?time=0.5` pins the clock (0 midnight, 0.25 dawn, 0.5 noon, 0.76 evening), `?day=60` squeezes the whole cycle into 60 seconds, keeping the phase proportions.
 
-Time of day matters for fishing: every species has its own feeding hours (`active` in `src/fishing/data.js`) — catfish at night, pike at dawn and dusk, perch by day — which weight who bites and how soon. At night the plain float is barely visible; the glowing float (shop → Різне) shines through the dark — only then: it stays a plain float by day, starts to glow as dusk falls and shines fully at night.
+Time of day matters for fishing: every species has its own feeding hours (`active` in `src/fishing/data.js`) — catfish at night, pike at dawn and dusk, perch by day — which weight who bites and how soon. The float is drawn smaller the farther out it lies, as the water's glyphs are (full size close in, down to half far out, never under 7 px). At night the plain float is barely visible; the glowing float (shop → Різне) shines through the dark — only then: it stays a plain float by day, starts to glow as dusk falls and shines fully at night.
 
 ## Weather and wildlife
 
