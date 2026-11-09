@@ -1923,11 +1923,13 @@ export class AnglerUI {
         };
       }),
       { id: "spots", title: t("handbook.spots"), items: spotEntries().map((spot, index) => {
-        // The water's picture, painted like the menu's: big on its page, small in the list.
+        // The water's shot, as in the menu (the painted picture under it for a water with none yet): big on its page, small in the list.
         const spotPicture = (className) => {
-          const picture = element("div", { className });
+          const picture = element("div", { className: `${className} book-spot` });
           picture.dataset.variant = LOCATIONS.find((place) => place.id === spot.id).kind;
           frame(picture, "location", 40 + index);
+          const shot = element("img", { className: "spot-shot", alt: "", src: spotShot(spot.id), onerror: () => { shot.hidden = true; } });
+          picture.append(shot);
           return picture;
         };
         return {
