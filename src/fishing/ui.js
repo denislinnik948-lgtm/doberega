@@ -1079,9 +1079,15 @@ export class AnglerUI {
 
   /* ---------- Gear ---------- */
 
-  /** Arriving at the water, put on the priciest bait you have (bread if nothing else). */
-  chooseBestBait() {
+  /**
+   * Arriving at the water, keep the bait put on last time while there is any
+   * left (a lure: while the spinning reel is there too); otherwise put on the
+   * priciest bait you have (bread if nothing else).
+   */
+  chooseBait() {
     const { progress } = this;
+    const last = BAITS[progress.bait];
+    if (last && baitCount(progress, progress.bait) > 0 && (!last.lure || progress.extras.includes("spinreel"))) return;
     const best = Object.entries(BAITS)
       // A lure is a deliberate choice, never put on for you.
       .filter(([id, bait]) => !bait.free && !bait.lure && baitCount(progress, id) > 0)

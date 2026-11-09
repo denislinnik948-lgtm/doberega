@@ -182,7 +182,7 @@ function setMode(next) {
 const ui = new AnglerUI(progress, {
   onFish: () => {
     const go = () => {
-      ui.chooseBestBait();
+      ui.chooseBait();
       setMode("fishing");
       track("fish");
     };
