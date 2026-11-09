@@ -587,7 +587,11 @@ html.keyboard-open .sheet[open] > .account-body {
 /* A shut water: its mark hollow, its picture dimmed under a note of what opens it. */
 .spot-dots .is-locked span { background: var(--ink); box-shadow: inset 0 0 0 2px var(--dark), 0 0 0 2px var(--ink); }
 .spot-dots .is-locked.is-active span { box-shadow: inset 0 0 0 2px var(--bone), 0 0 0 2px var(--ink); }
-.spot-picture.is-locked canvas { filter: grayscale(0.75) brightness(0.5); }
+.spot-picture.is-locked :is(canvas, .spot-shot) { filter: grayscale(0.75) brightness(0.5); }
+/* The water's shot over its painted picture, cut to fit, in a dark edge. */
+.spot-picture { position: relative; overflow: hidden; }
+.spot-shot { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 45%; }
+.spot-picture::after { content: ""; position: absolute; inset: 0; box-shadow: inset 0 0 0 2px var(--ink), inset 0 0 0 4px var(--dark); pointer-events: none; }
 .spot-lock { position: absolute; z-index: 2; bottom: 12px; left: 50%; width: max-content; max-width: calc(100% - 24px); margin: 0; padding: 6px 12px; color: var(--gold); font-size: 18px; line-height: 1.1; text-align: center; background: var(--ink); transform: translateX(-50%); }
 .fish-button.is-join { color: var(--gold); }
 

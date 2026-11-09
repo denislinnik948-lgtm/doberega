@@ -13,7 +13,7 @@ import {
   STREAK_GIFTS, TOURNEY_PRIZES, fishOfDay, questReward, questState, streakNow, streakToday, todaysQuest, tourneyFish, tourneyState, tourneyWeek, untilNextQuest, untilWeekEnd,
 } from "./quests.js";
 import { frame, frameAll, repaint, setContent } from "./frames.js";
-import { SEASONS, isWinter, season, setSeason } from "../theme.js";
+import { SEASONS, currentSeason, isWinter, season, setSeason } from "../theme.js";
 import { validNickname } from "../cloud.js";
 import { track } from "../analytics.js";
 import { baitCount, saveProgress } from "./store.js";
@@ -249,6 +249,7 @@ export class AnglerUI {
       onclick: () => {
         setSeason(id);
         this.openSettings();
+        this.renderSpot();
       },
     })));
     $("#season-hint").textContent = t(`season.${season()}Hint`);
@@ -1044,6 +1045,18 @@ export class AnglerUI {
     const picture = $("#spot-picture");
     picture.dataset.variant = spot.kind;
     repaint(picture);
+    // A shot of the water itself, by day in the season the scene is in; the
+    // painted picture stays under it while it loads, or for a water with none yet.
+    const src = `images/spots/${spot.id}-${currentSeason()}.jpg`;
+    let shot = picture.querySelector(".spot-shot");
+    if (!shot) {
+      shot = element("img", { className: "spot-shot", alt: "", decoding: "async", onerror: () => { shot.hidden = true; } });
+      picture.append(shot);
+    }
+    if (!shot.src.endsWith(src)) {
+      shot.hidden = false;
+      shot.src = src;
+    }
     setContent($("#spot-name"), nameOf("location", spot.id));
     setContent($("#spot-traits"), ...Object.entries(spot.traits).flatMap(([key, value]) => [
       element("dt", { textContent: traitLabel(key) }),
