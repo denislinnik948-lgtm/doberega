@@ -1323,8 +1323,8 @@ html.keyboard-open .sheet[open] > .account-body {
   .tiles :is(.tourney-cell-art, .podium-avatar) { display: flex; flex: 1 1 0; align-items: center; justify-content: center; min-height: 0; max-width: 100%; }
   .tiles :is(.tourney-cell-art, .podium-avatar) canvas { max-width: 100%; height: 100% !important; width: auto !important; object-fit: contain; image-rendering: pixelated; }
   .tiles .tourney-cell-art { align-self: stretch; justify-content: flex-start; }
-  .tiles .tourney-cell-art canvas { max-height: 58px; }
-  .tiles .podium-avatar canvas { max-height: 48px; }
+  .tiles .tourney-cell-art canvas { max-height: 96px; }
+  .tiles .podium-avatar canvas { max-height: 96px; }
   .tiles .tourney-cell > :not(.tourney-cell-art, .podium-avatar, .podium-place) { flex: none; }
   /* The sections along the bottom: only the icon and the name, side by side. */
   .tiles .menu-item { grid-template-columns: auto auto; justify-content: center; min-width: 0; min-height: 0; padding: 8px 12px; font-size: clamp(18px, 2.3vh, 24px); }
