@@ -452,6 +452,22 @@ const rawSounds = {
     if (!audio()) return;
     for (let i = 0; i < 18; i += 1) blup({ delay: rand(0.1, 0.45), freq: rand(700, 1600), rise: 2, length: 0.025, level: 0.04, pan: rand(-0.2, 0.2) });
   },
+  /** The feeder's load spreading on the water: a few small plops round the float. */
+  feeder() {
+    if (!audio()) return;
+    for (let i = 0; i < 6; i += 1) blup({ delay: rand(0.05, 0.35), freq: rand(800, 1500), rise: 2, length: 0.022, level: 0.025, pan: rand(-0.15, 0.15) });
+  },
+  /** The little brass bell on the rod tip: a light tinkle at a touch, a run of rings when the float goes under. */
+  jingle(strength = 1) {
+    if (!audio()) return;
+    const rings = 1 + Math.round(strength * 3);
+    for (let i = 0; i < rings; i += 1) {
+      const delay = i * vary(0.07, 0.2);
+      const level = 0.05 * Math.min(1, 0.4 + strength) * (1 - i * 0.12);
+      ping(vary(2900, 0.03), level, 0.5, { delay, pan: 0.25 });
+      ping(vary(4350, 0.03), level * 0.45, 0.32, { delay, pan: 0.25 });
+    }
+  },
   /** An old boot on the bank (lab: Ю3 "Сумний «буп»"): a wet squelch and two low notes sliding down. */
   boot() {
     if (!audio()) return;

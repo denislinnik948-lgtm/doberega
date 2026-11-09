@@ -50,6 +50,7 @@ const STRINGS = {
     "catch.free": "free",
     "catch.ok": "OK",
     "catch.toKeepnet": "Into the keepnet · worth about {price}",
+    "catch.bucket": "Into the bucket as live bait · {count} there",
     "catch.dayFish": "Fish of the day! Into the keepnet · worth about {price}",
     "today.title": "Today",
     "level.title": "Level",
@@ -502,6 +503,7 @@ const STRINGS = {
     "toast.noBait": "No bait",
     "toast.noHooks": "No hooks",
     "toast.recast": "Nothing this time. Cast again",
+    "toast.feed": "Feeder: the spot is fed ×{level}",
     "toast.needReel": "Lures need a spinning reel",
     "toast.groundbaitKindOn": "{name} is in for 24 hours",
     "toast.groundbaitWhere": "Groundbait goes in at the water",
@@ -542,7 +544,7 @@ const STRINGS = {
         glass: "Fibreglass", carbon: "Carbon", carp: "Carp rod", catfish: "Catfish rod",
       },
       extra: {
-        handbook: "Angler's handbook", glowfloat: "Glowing float", net: "Landing net", braid: "Braided line", sonar: "Fish finder", spinreel: "Spinning reel"
+        handbook: "Angler's handbook", glowfloat: "Glowing float", net: "Landing net", braid: "Braided line", sonar: "Fish finder", spinreel: "Spinning reel", bell: "Bite bell", feeder: "Feeder", bucket: "Live bait bucket"
       },
       abundance: { common: "often", regular: "sometimes", rare: "rarely" },
       biteStyle: {
@@ -561,6 +563,9 @@ const STRINGS = {
         braid: "The tension bar fills more slowly",
         sonar: "Fish find the bait sooner",
         spinreel: "Needed to fish lures: spinner, spoon, wobbler",
+        bell: "Rings at every touch; a little longer to strike",
+        feeder: "Cast to one spot again and again: it bites more there",
+        bucket: "Small fish up to 150 g become live bait",
       },
       location: {
         pond: "Village pond", lake: "Quiet lake", castle: "Castle lake", reservoir: "Pripyat", bridge: "Old bridge", troutfarm: "Smerekove", quarry: "Granite quarry", carplake: "Quiet Backwater",
@@ -593,6 +598,7 @@ const STRINGS = {
       ["Shop", "Tap a ware to put it in the basket: bait and hooks by the ten (the tag shows the price of ten), line and groundbait one at a time, a rod or an extra once (tap it again to take it out). The bar at the bottom shows how many things are in the basket and pays for them all at once; tap it to open the basket and change the counts."],
       ["Float", "The farther you cast, the smaller the float looks. A plain float is barely visible at night. A glowing float lights up as dusk falls and shines all night; by day it is an ordinary float."],
       ["Gear", "A landing net calms fish near the bank, braided line tightens more slowly, and a fish finder helps fish find the bait sooner."],
+      ["Bell, feeder, bucket", "A bell on the rod tip rings at every touch and loudest when the float goes under, so you hear a bite without watching; it also gives a quarter longer to strike. A feeder drops a little groundbait with each float cast: cast into the same spot again within three minutes and it is fed one step more, up to five, each step livening the bite there a little (up to 40%); a cast elsewhere starts a new spot. With a live bait bucket, small bleak, roach, rudd, crucian, rotan and gobies up to 150 g go into it as live bait instead of the keepnet, up to 20 at a time.", "preview"],
       ["Keepnet", "Every fish you land goes into the keepnet; the chip at the bottom left shows how many. When you leave the water, the keepnet comes up: sell everything in one go, keep any fish as a trophy, or let it go. Fish left in it wait for next time."],
       ["Red Book", "The sterlet and the huchen are protected: the sterlet bites rarely by the old bridge, the huchen at the Smerekove trout farm, at night and dawn on livebait, the spoon or the wobbler. Neither can be sold; each is let go at once. Every one you let go counts towards a badge, shown above your trophies."],
       ["Trophies", "In the keepnet, any fish can be kept as a trophy instead of sold (a trophy costs a little to mount). Signed-in anglers' trophies are on show to everyone in Trophies → Other anglers. A trophy on your own wall can be taken down (tap «×» in the board's corner twice); it goes from the other anglers' list too, and the money spent mounting it is not returned."],
@@ -651,6 +657,7 @@ const STRINGS = {
     "catch.free": "безкоштовно",
     "catch.ok": "Ок",
     "catch.toKeepnet": "У садок · коштує близько {price}",
+    "catch.bucket": "У відро на живця · там {count}",
     "catch.dayFish": "Риба дня! У садок · коштує близько {price}",
     "today.title": "Сьогодні",
     "level.title": "Рівень",
@@ -1103,6 +1110,7 @@ const STRINGS = {
     "toast.noBait": "Немає наживки",
     "toast.noHooks": "Немає гачків",
     "toast.recast": "Порожньо. Закидайте ще",
+    "toast.feed": "Годівниця: точку прикормлено ×{level}",
     "toast.needReel": "Для бльосен потрібна спінінгова котушка",
     "toast.groundbaitKindOn": "{name}: водойму прикормлено на 24 години",
     "toast.groundbaitWhere": "Прикормити можна, коли ви на воді",
@@ -1143,7 +1151,7 @@ const STRINGS = {
         glass: "Скловолоконна", carbon: "Карбонова", carp: "Коропова", catfish: "Сомова",
       },
       extra: {
-        handbook: "Довідник рибака", glowfloat: "Світний поплавок", net: "Підсак", braid: "Плетена волосінь", sonar: "Ехолот", spinreel: "Спінінгова котушка"
+        handbook: "Довідник рибака", glowfloat: "Світний поплавок", net: "Підсак", braid: "Плетена волосінь", sonar: "Ехолот", spinreel: "Спінінгова котушка", bell: "Дзвіночок", feeder: "Годівниця", bucket: "Відро для живця"
       },
       abundance: { common: "часто", regular: "іноді", rare: "рідко" },
       biteStyle: {
@@ -1162,6 +1170,9 @@ const STRINGS = {
         braid: "Шкала натягу заповнюється повільніше",
         sonar: "Риба знаходить наживку швидше",
         spinreel: "Потрібна для бльосен і воблера",
+        bell: "Дзеленчить на кожен дотик; трохи більше часу на підсічку",
+        feeder: "Закидайте в одну точку раз у раз: там клює більше",
+        bucket: "Дрібна риба до 150 г стає живцем",
       },
       location: {
         pond: "Ставок за селом", lake: "Тихе озеро", castle: "Замкове озеро", reservoir: "Прип'ять", bridge: "Старий міст", troutfarm: "Смерекове", quarry: "Гранітний кар'єр", carplake: "Тиха заводь",
@@ -1194,6 +1205,7 @@ const STRINGS = {
       ["Магазин", "Торкніться товару, щоб покласти його в кошик: наживку й гачки десятками (на цінику ціна за десяток), волосінь і прикормку по одному, вудку чи річ один раз (торкніться ще раз, щоб прибрати). Панель унизу показує, скільки товарів у кошику, і оплачує все разом; торкніться її, щоб відкрити кошик і змінити кількість."],
       ["Поплавок", "Що далі закинеш, то менший здається поплавок. Звичайний поплавок вночі майже не видно. Світний поплавок розгоряється в сутінках і світить усю ніч, а вдень це звичайний поплавок."],
       ["Спорядження", "Підсак заспокоює рибу біля берега, плетена волосінь повільніше натягується, ехолот допомагає рибі швидше знайти наживку."],
+      ["Дзвіночок, годівниця, відро", "Дзвіночок на кінчику вудки дзеленчить на кожен дотик, а найгучніше, коли поплавок іде під воду, тож кльов чути, навіть не дивлячись; ще він дає на чверть більше часу на підсічку. Годівниця з кожним закидом поплавка кидає трохи прикормки: закиньте в те саме місце знову протягом трьох хвилин, і точку прикормлено ще на крок, до п'яти, і кожен крок трохи пожвавлює кльов там (до 40%); закид деінде починає нову точку. З відром для живця дрібна верховодка, плітка, краснопірка, карась, ротан і бичок до 150 г ідуть у відро на живця замість садка, до 20 за раз.", "preview"],
       ["Садок", "Уся витягнута риба йде в садок; скільки її там, видно внизу ліворуч. Коли йдеш із водойми, відкривається садок: можна продати все разом, будь-яку рибу зберегти як трофей або відпустити. Риба, що лишилася в садку, дочекається наступного разу."],
       ["Червона книга", "Стерлядь і головач під охороною: стерлядь зрідка клює біля старого мосту, головач на форелевому «Смерекове», вночі й на світанку, на живця, коливалку чи воблер. Продати їх не можна, тож їх одразу відпускають. Кожна відпущена зараховується до значка над твоїми трофеями."],
       ["Трофеї", "У садку будь-яку рибу можна не продати, а зберегти як трофей (опудало трохи коштує). Трофеї гравців з акаунтом видно всім у «Трофеї → Інших гравців». Трофей на своїй стіні можна зняти (натисніть «×» у кутку дошки двічі); він зникне й зі списку інших гравців, а гроші за опудало не повертаються."],

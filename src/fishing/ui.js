@@ -1,5 +1,5 @@
 import {
-  BAITS, BOTTLE_MONEY, SPECIAL_AVATAR, EXTRAS, FISH, GROUNDBAIT, GROUNDBAITS, GULL, HOOKS, LEGENDS, LINE, LOCATIONS, RODS, fishShown, gameHoursMs, spotShown,
+  BAITS, BOTTLE_MONEY, SPECIAL_AVATAR, EXTRAS, FISH, LIVEBAIT, access, extraShown, GROUNDBAIT, GROUNDBAITS, GULL, HOOKS, LEGENDS, LINE, LOCATIONS, RODS, fishShown, gameHoursMs, spotShown,
   baitEntries, fishPrice, formatMoney, formatWeight, handbookEntries, peakPeriod, spotEntries, trophyCost,
 } from "./data.js";
 import {
@@ -1230,10 +1230,13 @@ export class AnglerUI {
     // A Red Book fish (the sterlet) is let go at once; that counts towards its badge.
     const guarded = Boolean(FISH[fish.species]?.protected);
     const ordinary = !unique && !junk && !guarded;
+    // With the bucket, a small fish that makes good live bait goes into it, while there's room.
+    const bucket = ordinary && progress.extras.includes("bucket") && LIVEBAIT.species.includes(fish.species)
+      && fish.weight <= LIVEBAIT.maxKg && (progress.baits.livebait ?? 0) < LIVEBAIT.keep;
     // By day a gull may snatch a small fish before it reaches the keepnet.
-    const gull = ordinary && daylight && fish.weight < GULL.maxKg && Math.random() < GULL.chance;
+    const gull = ordinary && !bucket && daylight && fish.weight < GULL.maxKg && Math.random() < GULL.chance;
     // The fish of the day sells dearer, and keeps that price in the keepnet.
-    const dayFish = ordinary && !gull && fish.species === fishOfDay();
+    const dayFish = ordinary && !gull && !bucket && fish.species === fishOfDay();
     let note;
     if (fish.legend) note = t("catch.legend");
     else if (unique) note = t("catch.toTrophies");
@@ -1243,7 +1246,10 @@ export class AnglerUI {
       note = t("catch.foundLure");
     } else if (junk) note = t("catch.junk");
     else if (guarded) note = t("catch.protected");
-    else if (gull) {
+    else if (bucket) {
+      progress.baits.livebait = (progress.baits.livebait ?? 0) + 1;
+      note = t("catch.bucket", { count: progress.baits.livebait });
+    } else if (gull) {
       bump(progress, "gullSteals");
       note = t("catch.gull");
     } else note = t(dayFish ? "catch.dayFish" : "catch.toKeepnet", { price: formatMoney(fishPrice({ ...fish, dayFish })) });
@@ -1253,7 +1259,7 @@ export class AnglerUI {
     const record = { ...fish, id: `${date}-${fish.species}-${fish.weight}`, date, spot: progress.location, bait, ...(dayFish ? { dayFish } : {}) };
     if (unique) progress.trophies.unshift(record);
     else if (guarded) progress.released[fish.species] = (progress.released[fish.species] ?? 0) + 1;
-    else if (ordinary && !gull) progress.keepnet.push(record);
+    else if (ordinary && !gull && !bucket) progress.keepnet.push(record);
     this.commit();
 
     return new Promise((resolve) => {
@@ -1405,7 +1411,7 @@ export class AnglerUI {
           `groundbait-${kind}`, () => groundbaitSprite(4, kind), nameOf("groundbait", kind), this.groundbaitFacts(kind), bag.price, progress.groundbaits?.[kind] ?? 0,
           (qty) => { progress.groundbaits ??= {}; progress.groundbaits[kind] = (progress.groundbaits[kind] ?? 0) + qty; },
         )),
-        ...Object.entries(EXTRAS).map(([id, extra]) => once(
+        ...Object.entries(EXTRAS).filter(([id]) => extraShown(id)).map(([id, extra]) => once(
           id, () => extraSprite(id, 3), nameOf("extra", id), nameOf("extraText", id), extra.price, progress.extras.includes(id),
           () => { progress.extras.push(id); },
         )),
@@ -1968,7 +1974,7 @@ export class AnglerUI {
           [t("handbook.takenBy"), bait.fish.length ? chips(bait.fish.map((fish) => [nameOf("fish", fish)])) : ""],
         ]),
       })) },
-      { id: "tips", title: t("handbook.tips"), items: handbookRules().map(([title, text]) => ({
+      { id: "tips", title: t("handbook.tips"), items: handbookRules().filter(([, , preview]) => !preview || access.tester).map(([title, text]) => ({
         name: title,
         // A rule runs on sentence by sentence, over as many pages as it takes.
         blocks: () => [element("h3", { className: "book-title", textContent: title }), ...text.split(/(?<=[.!?;])\s+/).map((sentence) => element("span", { className: "book-run", textContent: sentence }))],

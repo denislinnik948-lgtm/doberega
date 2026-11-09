@@ -1,4 +1,4 @@
-import { BAITS, BOOT_CHANCE, FINDS, FISH, GROUNDBAIT, GROUNDBAITS, HOOKS, LINE, LOCATIONS, LOST_LURES, NIBBLE, RODS, biteActivity, lineWeakness, rollFish, spotMood, straightenChance } from "./data.js";
+import { BAITS, BELL_WINDOW, BOOT_CHANCE, FEEDER, FINDS, FISH, GROUNDBAIT, GROUNDBAITS, HOOKS, LINE, LOCATIONS, LOST_LURES, NIBBLE, RODS, biteActivity, lineWeakness, rollFish, spotMood, straightenChance } from "./data.js";
 
 /**
  * Fishing state machine. Positions are normalized to the viewport (0..1) so the
@@ -113,6 +113,9 @@ export class FishingGame {
     // Set by the host: what is left of the line (0..1), and told how much each fight wears off it.
     this.lineHealth = () => 1;
     this.onLineWear = () => {};
+    // Seconds played, and the spot the feeder has been filling (kept from cast to cast).
+    this.time = 0;
+    this.feed = null;
     this.reset();
   }
 
@@ -335,7 +338,26 @@ export class FishingGame {
     // Groundbait draws the fish in, and so does a school around the float.
     // Some waters' fish come to the groundbait far more (`groundbaitBoost`).
     const lure = LOCATIONS[this.location]?.groundbaitBoost ?? GROUNDBAIT.boost;
-    return pace * (this.groundbait ? lure : 1) * (this.school ? TUNING.schoolBoost : 1);
+    return pace * (this.groundbait ? lure : 1) * (this.school ? TUNING.schoolBoost : 1) * this.feedBoost();
+  }
+
+  /** How much the feeder livens the bite where the float lies: 1 off the fed spot. */
+  feedBoost() {
+    const feed = this.feed;
+    if (!feed || this.spinning || feed.location !== this.location || !this.target) return 1;
+    if (Math.hypot(this.target.x - feed.x, this.target.y - feed.y) > FEEDER.radius) return 1;
+    return 1 + FEEDER.step * feed.level;
+  }
+
+  /** The feeder's load landed with the float: the same spot again feeds it more, anywhere else starts afresh. */
+  dropFeed() {
+    const feed = this.feed;
+    const same = feed && feed.location === this.location && this.time - feed.at <= FEEDER.keepSeconds
+      && Math.hypot(this.target.x - feed.x, this.target.y - feed.y) <= FEEDER.radius;
+    this.feed = same
+      ? { ...feed, level: Math.min(FEEDER.maxLevel, feed.level + 1), at: this.time }
+      : { x: this.target.x, y: this.target.y, location: this.location, level: 1, at: this.time };
+    this.emit("feed", { level: this.feed.level });
   }
 
   /** Seconds until the next bite: shorter when the local fish are feeding. */
@@ -438,6 +460,7 @@ export class FishingGame {
 
   update(dt) {
     this.clock += dt;
+    this.time += dt;
     const random = this.random;
 
     switch (this.phase) {
@@ -453,6 +476,7 @@ export class FishingGame {
             this.wakeClock = 0;
             this.enter("retrieving");
           } else {
+            if (this.extras.includes("feeder")) this.dropFeed();
             this.waitTime = this.nextWait();
             this.enter("waiting");
           }
@@ -498,7 +522,8 @@ export class FishingGame {
           this.timeline = this.planNibble(this.fish.species);
           // The fish leads the float off in its own direction as it plays with the bait.
           this.heading = this.random() * Math.PI * 2;
-          this.biteWindow = TUNING.biteWindow * (0.6 + this.random() * 0.8) * (NIBBLE[this.fish.species]?.window ?? 1);
+          // The bell on the rod tip gives a little longer to strike.
+          this.biteWindow = TUNING.biteWindow * (0.6 + this.random() * 0.8) * (NIBBLE[this.fish.species]?.window ?? 1) * (this.extras.includes("bell") ? BELL_WINDOW : 1);
           this.enter("nibble");
         }
         break;

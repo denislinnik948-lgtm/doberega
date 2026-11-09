@@ -296,10 +296,21 @@ function handleGameEvent(type, data) {
     else sounds.landFloat();
   } else if (type === "twitch") {
     sounds.twitch();
+    if (game.extras?.includes("bell")) sounds.jingle(0.35 * (data.strength ?? 1));
   } else if (type === "dip") {
     sounds.dip();
+    if (game.extras?.includes("bell")) sounds.jingle(0.6 * (data.strength ?? 1));
   } else if (type === "bite") {
     sounds.bite();
+    // The bell rings hard as the float goes under, and the phone buzzes.
+    if (game.extras?.includes("bell")) {
+      sounds.jingle(1);
+      navigator.vibrate?.(80);
+    }
+  } else if (type === "feed") {
+    // The feeder's load spreads where the float landed; a spot fed again and again says how full it is.
+    sounds.feeder();
+    if (data.level > 1) ui.toast(t("toast.feed", { level: data.level }), "", 1100);
   } else if (type === "hooked") {
     sounds.hookset();
     // Spray flung up where the float was.
@@ -524,6 +535,10 @@ function anglerView(elapsed) {
     rodTier: RODS[game.busy && game.rod ? game.rod : progress.rod].tier,
     hidden: mode === "menu",
     glowFloat: progress.extras.includes("glowfloat"),
+    // The bell on the rod tip, and how hard it swings: with each twitch and dip, wildly once the float is under.
+    bell: progress.extras.includes("bell"),
+    bellShake: game.phase === "nibble" ? Math.min(1, Math.max(Math.abs(game.float.offset) / 3, game.float.sink))
+      : game.phase === "bite" ? 1 : game.phase === "fight" ? 0.5 : 0,
   };
 }
 

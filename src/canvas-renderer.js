@@ -2687,6 +2687,22 @@ export class CanvasWaterRenderer {
       ctx.fillStyle = look.reel >= 3 ? "#e2b85e" : "#c6c0ae";
       ctx.fillText(look.reel >= 2 ? "@" : "o", reel.x + size * 0.5, reel.y);
     }
+    if (angler.bell) {
+      // A little brass bell hangs from the tip on a short string: still while nothing touches the bait,
+      // shivering at each twitch and swinging hard once the float is under.
+      const shake = angler.bellShake ?? 0;
+      const swing = Math.sin((angler.time ?? 0) * 38) * shake * size * 0.35;
+      const bell = { x: rod.tip.x + swing, y: rod.tip.y + size * 0.75 };
+      ctx.beginPath();
+      ctx.moveTo(rod.tip.x, rod.tip.y);
+      ctx.lineTo(bell.x, bell.y - size * 0.3);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(216, 214, 196, 0.6)";
+      ctx.stroke();
+      ctx.font = `700 ${Math.round(size * 0.85)}px ${MONO_FONT}`;
+      ctx.fillStyle = "#e2b85e";
+      ctx.fillText("A", bell.x, bell.y);
+    }
   }
 
   renderOverlay(time, angler) {

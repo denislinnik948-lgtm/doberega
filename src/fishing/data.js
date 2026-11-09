@@ -335,7 +335,30 @@ export const EXTRAS = {
   sonar: { price: 20000 },
   // Lets you fish the spoon.
   spinreel: { price: 2500 },
+  // A bell on the rod tip: it rings at every touch, and the strike window is a quarter longer (float fishing).
+  bell: { price: 3000, preview: true },
+  // A feeder on the line: each cast drops a little groundbait where it lands (see FEEDER).
+  feeder: { price: 6000, preview: true },
+  // A bucket for live bait: small fish go into it as live bait (see LIVEBAIT).
+  bucket: { price: 4000, preview: true },
 };
+
+/** Extras still being tried out (`preview`) are on sale only to a tester. */
+export const extraShown = (id) => !EXTRAS[id]?.preview || access.tester;
+
+/** The bell: how much longer the strike window is. */
+export const BELL_WINDOW = 1.25;
+
+/**
+ * The feeder: a cast that lands within `radius` (normalized) of the last one,
+ * no more than `keepSeconds` later, feeds that spot one step more, up to
+ * `maxLevel`; each step livens the bite there by `step`. Elsewhere, or later,
+ * a new spot is started.
+ */
+export const FEEDER = { radius: 0.07, keepSeconds: 180, maxLevel: 5, step: 0.08 };
+
+/** The live bait bucket: these small fish, up to `maxKg`, become live bait, up to `keep` in the bucket. */
+export const LIVEBAIT = { species: ["verkhovodka", "plitka", "krasnopirka", "karas", "rotan", "bychok"], maxKg: 0.15, keep: 20 };
 
 /**
  * Groundbait: a consumable thrown into the water you're at. For `hours` of
