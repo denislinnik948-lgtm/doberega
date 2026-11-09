@@ -239,6 +239,7 @@ function render(stats) {
   bars($("#sources"), [...sources].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value), { of: p.visitors });
   bars($("#devices"), stats.devices.map((d) => ({ label: DEVICES[d.name] ?? d.name, value: d.visitors })), { of: p.visitors });
   const when = (stamp) => (stamp ? new Date(stamp).toLocaleDateString("uk-UA", { day: "numeric", month: "short" }) : "–");
+  $("#recent-title").textContent = `Акаунти · ${stats.recentUsers.length}`;
   $("#recent").replaceChildren(
     element("thead", {}, [element("tr", {}, [element("th", { textContent: "Гравець" }), element("th", { textContent: "Створено" }), element("th", { textContent: "Заходив" })])]),
     element("tbody", {}, stats.recentUsers.length
@@ -288,7 +289,7 @@ function demo() {
     daily,
     sources: [{ name: "direct", visitors: 610 }, { name: "t.me", visitors: 240 }, { name: "ig", visitors: 150 }, { name: "instagram.com", visitors: 30 }, { name: "google.com", visitors: 64 }],
     devices: [{ name: "mobile", visitors: 820 }, { name: "desktop", visitors: 260 }, { name: "tablet", visitors: 14 }],
-    recentUsers: [{ name: "Окунь", created_at: today.toISOString(), last_seen: today.toISOString() }, { name: "an***@gmail.com", created_at: today.toISOString(), last_seen: null }],
+    recentUsers: Array.from({ length: 24 }, (_, i) => ({ name: i % 5 === 1 ? `an${i}***@gmail.com` : `Окунь ${i + 1}`, created_at: new Date(today - i * 86400000).toISOString(), last_seen: i % 4 === 3 ? null : today.toISOString() })),
   });
   $("#updated").textContent = "Демо-дані: це не справжня статистика.";
 }

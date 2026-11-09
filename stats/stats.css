@@ -81,8 +81,10 @@ main > .card { margin-top: 16px; }
 .chart .cross { stroke: var(--muted); stroke-width: 1; }
 .chart .dot { fill: var(--series); stroke: var(--surface); stroke-width: 2; }
 
+/* The accounts scroll in their card, the heading row staying put. */
+.table-scroll { max-height: 440px; overflow-y: auto; scrollbar-color: var(--line) transparent; }
 .table { width: 100%; border-collapse: collapse; font-size: 18px; }
-.table th { padding: 4px 6px; color: var(--muted); font-weight: 400; text-align: left; }
+.table th { position: sticky; top: 0; padding: 4px 6px; color: var(--muted); font-weight: 400; text-align: left; background: var(--surface); }
 .table td { padding: 4px 6px; border-top: 1px solid var(--grid); }
 .table td:not(:first-child) { color: var(--text-2); white-space: nowrap; }
 

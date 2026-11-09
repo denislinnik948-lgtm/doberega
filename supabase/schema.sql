@@ -322,12 +322,12 @@ begin
       from counted where type = 'visit' and created_at >= since
       group by 1 order by 2 desc
     ) x),
-    -- Newest accounts: nickname, or the email half hidden.
+    -- The accounts, newest first (all of them, up to 500): nickname, or the email half hidden.
     'recentUsers', (select coalesce(json_agg(r), '[]'::json) from (
       select coalesce(nullif(raw_user_meta_data->>'nickname', ''),
                       left(split_part(email, '@', 1), 2) || '***@' || split_part(email, '@', 2)) as name,
              created_at, last_seen
-      from players order by created_at desc limit 10
+      from players order by created_at desc limit 500
     ) r)
   ) into result;
   return result;
