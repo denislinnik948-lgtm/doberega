@@ -758,12 +758,29 @@ html.keyboard-open .sheet[open] > .account-body {
 .handbook-spot { width: 220px; height: 121px; }
 .book-spot { position: relative; overflow: hidden; box-shadow: 0 0 0 2px var(--paper-edge); }
 /* Facts as label / value rows, split by faint rules. */
-.book-facts { display: grid; grid-template-columns: 8.5em 1fr; gap: 0 14px; margin: 0; }
-.book-sub + .book-facts, .book-title + .book-facts { margin-top: 12px; }
-.book-facts dt, .book-facts dd { padding: 6px 0; border-top: 1px solid rgb(44 36 22 / 0.18); }
-.book-facts dt { color: var(--paper-faint); font-size: 17px; }
-.book-facts dd { display: grid; gap: 2px; margin: 0; font-size: 19px; }
-@media (max-width: 520px) { .book-facts { grid-template-columns: 1fr; } .book-facts dd { padding-top: 0; border-top: 0; } }
+/* An entry's parts: a small label with a rule running on from it, the value under it. */
+.book-part { margin-top: 12px; }
+.book-label { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; color: var(--paper-red); font-size: 16px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
+.book-label::after { content: ""; flex: 1; border-top: 1px solid rgb(44 36 22 / 0.22); }
+.book-value { margin: 0; font-size: 19px; line-height: 1.25; }
+/* Where a fish lives: the water, how often (a tag), how big, in columns. */
+.book-table { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 4px 12px; font-size: 19px; }
+.book-cell-name { min-width: 0; }
+.book-cell-size { color: var(--paper-faint); text-align: right; white-space: nowrap; }
+.book-tag { padding: 0 6px; font-size: 16px; text-align: center; white-space: nowrap; box-shadow: inset 0 0 0 1px currentColor; }
+.book-tag.is-common { color: #2f5a2a; }
+.book-tag.is-regular { color: var(--paper-faint); }
+.book-tag.is-rare { color: var(--paper-red); }
+/* Names as chips, with their picture when they have one. */
+.book-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.book-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 2px 8px; font-size: 18px; background: rgb(44 36 22 / 0.07); box-shadow: inset 0 0 0 1px rgb(44 36 22 / 0.2); }
+.book-chip canvas { max-height: 22px; width: auto !important; image-rendering: pixelated; }
+/* The parts of the day, the ones a fish feeds best in filled. */
+.book-times { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 3px; }
+.book-times span { padding: 4px 0; color: var(--paper-faint); font-size: 15px; text-align: center; box-shadow: inset 0 0 0 1px rgb(44 36 22 / 0.18); }
+.book-times .is-on { color: var(--paper); background: var(--paper-ink); box-shadow: none; }
+.book-turn:focus { outline: none; }
+.book-turn:focus-visible { outline: 2px dashed var(--paper-red); outline-offset: -4px; }
 /* Contents and a section's list: names with their page numbers after a dotted leader. */
 .book-index { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
 .book-index button { display: flex; align-items: baseline; gap: 6px; width: 100%; min-height: 36px; padding: 2px 0; border: 0; color: var(--paper-ink); font: inherit; font-size: 20px; text-align: left; background: none; cursor: pointer; }
@@ -824,9 +841,15 @@ html.keyboard-open .sheet[open] > .account-body {
   .book-page { padding: 10px 14px 4px; }
   .book-art { min-height: 0; margin-top: 0; }
   .handbook-spot { width: 160px; height: 88px; }
+  .book-art > canvas { width: auto !important; max-width: 100%; height: 60px !important; object-fit: contain; image-rendering: pixelated; }
+  .book-label { margin-bottom: 4px; font-size: 14px; }
+  .book-table { gap: 2px 10px; }
+  .book-tag { font-size: 14px; }
   .book-title { margin-top: 2px; font-size: 26px; }
-  .book-facts dt { padding: 4px 0 0; font-size: 15px; }
-  .book-facts dd { padding-bottom: 4px; font-size: 18px; }
+  .book-part { margin-top: 8px; }
+  .book-value, .book-table { font-size: 18px; }
+  .book-chip { min-height: 26px; font-size: 17px; }
+  .book-times span { font-size: 13px; }
   .book-text { font-size: 18px; }
   .book-cover { margin-top: 6px; font-size: 34px; }
   .book-centered { margin-bottom: 10px; }
@@ -1553,9 +1576,7 @@ html.keyboard-open .sheet[open] > .account-body {
   .tiles #handbook-dialog .book-art { float: left; margin: 4px 18px 6px 0; }
   .tiles #handbook-dialog .book-title, .tiles #handbook-dialog .book-sub { text-align: left; }
   .tiles #handbook-dialog .book-page { max-width: 820px; }
-  .tiles #handbook-dialog .book-facts { grid-template-columns: 1fr; }
-  .tiles #handbook-dialog .book-facts dt { padding: 4px 0 0; font-size: 15px; }
-  .tiles #handbook-dialog .book-facts dd { padding: 0 0 4px; border-top: 0; font-size: 18px; }
+  .tiles #handbook-dialog .book-part { overflow: hidden; margin-top: 6px; }
 }
 
 @keyframes page-in { from { opacity: 0; } }

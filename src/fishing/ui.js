@@ -27,7 +27,7 @@ const HOOK_SCALE = { small: 2, medium: 3, large: 4 };
 /** The handbook's fish sections, by the most a kind grows to (kg). */
 const FISH_SIZES = [{ id: "small", upTo: 1 }, { id: "medium", upTo: 5 }, { id: "large", upTo: 20 }, { id: "giant", upTo: Infinity }];
 import {
-  LANGUAGES, handbookRules, language, locale, nameOf, periodName, setLanguage, t, traitLabel, traitValue,
+  LANGUAGES, handbookRules, language, locale, nameOf, setLanguage, t, traitLabel, traitValue,
 } from "../i18n.js";
 
 const $ = (selector) => document.querySelector(selector);
@@ -1886,17 +1886,27 @@ export class AnglerUI {
    */
   bookPages() {
     const lower = (text) => text.toLocaleLowerCase(locale());
-    const list = (items) => items.join(", ");
-    // An entry: a picture, a title and subtitle, then labelled facts (one or more lines each), each its own block.
-    const entry = (art, title, subtitle, facts) => () => [
+    // An entry: a picture, a title and subtitle, then its parts, each its own block:
+    // a label over its value (a line of text, or something built for it: a table, chips, the hours).
+    const entry = (art, title, subtitle, parts) => () => [
       art ? element("div", { className: "book-art" }, [art()]) : "",
       element("h3", { className: "book-title", textContent: title }),
       subtitle ? element("p", { className: "book-sub", textContent: subtitle }) : "",
-      ...facts.filter(([, value]) => value && (!Array.isArray(value) || value.length)).map(([label, value]) => element("dl", { className: "book-facts" }, [
-        element("dt", { textContent: label }),
-        element("dd", {}, (Array.isArray(value) ? value : [value]).map((line) => element("span", { textContent: line }))),
+      ...parts.filter(([, value]) => value && (!Array.isArray(value) || value.length)).map(([label, value]) => element("section", { className: "book-part" }, [
+        element("h4", { className: "book-label", textContent: label }),
+        typeof value === "function" ? value() : element("p", { className: "book-value", textContent: value }),
       ])),
     ].filter(Boolean);
+    // Names as chips, each with its picture when it has one.
+    const chips = (items) => () => element("div", { className: "book-chips" }, items.map(([name, art]) => element("span", { className: "book-chip" }, [art ? art() : "", element("span", { textContent: name })])));
+    // Where a fish lives: a row for each water, how often and how big.
+    const waters = (fish) => () => element("div", { className: "book-table" }, fish.spots.flatMap((spot) => [
+      element("span", { className: "book-cell-name", textContent: nameOf("location", spot.id) }),
+      element("span", { className: `book-tag is-${spot.abundance}`, textContent: nameOf("abundance", spot.abundance) }),
+      element("span", { className: "book-cell-size", textContent: spot.minKg > FISH[fish.id].min ? `${formatWeight(spot.minKg)} – ${formatWeight(spot.maxKg)}` : t("handbook.sizeUpTo", { kg: formatWeight(spot.maxKg) }) }),
+    ]));
+    // The parts of the day in order, the ones a fish feeds best in marked.
+    const hours = (times) => () => element("div", { className: "book-times" }, ["dawn", "morning", "day", "evening", "dusk", "night"].map((id) => element("span", { className: times.includes(id) ? "is-on" : "", textContent: t(`handbook.time.${id}`) })));
     const sections = [
       // The fish in four sections by how big they grow, each with how big that is.
       ...FISH_SIZES.map(({ id, upTo }, index) => {
@@ -1914,9 +1924,9 @@ export class AnglerUI {
               fish.protected ? t("handbook.protected", { range: fish.range }) : t("handbook.weight", { range: fish.range, price: fish.pricePerKg }),
               fish.season === "autumn" ? t("handbook.autumnOnly") : "",
             ].filter(Boolean).join(" · "), [
-              [t("handbook.livesIn"), fish.spots.map((spot) => t(spot.minKg > FISH[fish.id].min ? "handbook.spotInRange" : "handbook.spotIn", { spot: nameOf("location", spot.id), abundance: nameOf("abundance", spot.abundance), min: formatWeight(spot.minKg), kg: formatWeight(spot.maxKg) }))],
-              [t("handbook.bitesOn"), lower(list(fish.baits.map((bait) => nameOf("bait", bait))))],
-              [t("handbook.activeAt"), fish.times.map(periodName).join(", ")],
+              [t("handbook.livesIn"), waters(fish)],
+              [t("handbook.bitesOn"), chips(fish.baits.map((bait) => [nameOf("bait", bait), () => baitSprite(bait, 2)]))],
+              [t("handbook.activeAt"), hours(fish.times)],
               [t("handbook.biteLabel"), nameOf("biteStyle", fish.style)],
             ]),
           })),
@@ -1939,7 +1949,7 @@ export class AnglerUI {
             type: traitValue("type", spot.traits.type), depth: lower(traitValue("depth", spot.traits.depth)),
             bottom: lower(traitValue("bottom", spot.traits.bottom)), current: lower(traitValue("current", spot.traits.current)),
           }), [
-            [t("handbook.fishLabel"), lower(list(spot.fish.map((fish) => nameOf("fish", fish))))],
+            [t("handbook.fishLabel"), chips(spot.fish.map((fish) => [nameOf("fish", fish)]))],
             [t("handbook.sizeLabel"), t("handbook.spotSizes", {
               from: spot.minKg ? t("handbook.spotFrom", { min: formatWeight(spot.minKg) }) : "",
               typ: formatWeight(spot.typicalKg), max: formatWeight(spot.maxKg), odds: spot.bigOdds,
@@ -1954,7 +1964,7 @@ export class AnglerUI {
         name: nameOf("bait", bait.id),
         thumb: () => baitSprite(bait.id, 3),
         blocks: entry(() => baitSprite(bait.id, 3), nameOf("bait", bait.id), `${bait.free ? t("handbook.baitFree") : t("handbook.baitPrice", { price: bait.price })} · ${nameOf("baitSize", bait.size)}`, [
-          [t("handbook.takenBy"), lower(list(bait.fish.map((fish) => nameOf("fish", fish))))],
+          [t("handbook.takenBy"), bait.fish.length ? chips(bait.fish.map((fish) => [nameOf("fish", fish)])) : ""],
         ]),
       })) },
       { id: "tips", title: t("handbook.tips"), items: handbookRules().map(([title, text]) => ({
