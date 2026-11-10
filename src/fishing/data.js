@@ -336,11 +336,11 @@ export const EXTRAS = {
   // Lets you fish the spoon.
   spinreel: { price: 2500 },
   // A bell on the rod tip: it rings at every touch, and the strike window is a quarter longer (float fishing).
-  bell: { price: 3000, preview: true },
+  bell: { price: 3000 },
   // A feeder on the line: each cast drops a little groundbait where it lands (see FEEDER).
-  feeder: { price: 6000, preview: true },
+  feeder: { price: 6000 },
   // A bucket for live bait: small fish go into it as live bait (see LIVEBAIT).
-  bucket: { price: 4000, preview: true },
+  bucket: { price: 4000 },
 };
 
 /** Extras still being tried out (`preview`) are on sale only to a tester. */
