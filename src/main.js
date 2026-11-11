@@ -455,7 +455,7 @@ function isOnWater(x, y) {
     && renderer.isOpenWater(x, y);
 }
 
-/** A tap past the farthest cast lands as far as the rod throws in that direction (or nowhere, if that's not water). */
+/** A tap on the water past the farthest cast lands as far as the rod throws in that direction (or nowhere, if that's not water). */
 function withinReach(x, y) {
   const { far } = castRange();
   if (castDistance(x, y) <= far) return { x, y };
@@ -487,6 +487,8 @@ game.isWater = (point) => isOnWater(point.x * width, point.y * height);
 game.reachAt = (point) => castReach(point.x * width, point.y * height);
 
 function tryCast(x, y) {
+  // A tap past the farthest cast still casts, but only on the water itself (not the sky or a bank).
+  if (!(y > renderer.shorelineY(x) && renderer.isOpenWater(x, y))) return;
   ({ x, y } = withinReach(x, y));
   // Winter shore ice is no place for a float.
   if (mode !== "fishing" || !isOnWater(x, y) || renderer.onIce(x, y)) return;
