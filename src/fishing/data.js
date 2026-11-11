@@ -263,7 +263,7 @@ export const BAITS = {
   // The wobbling spoon: pike and zander, best fished in jerks.
   spoon: { price: 300, lure: true, size: 1.2, others: 0, minKg: 0.3, holdKg: 8, retrieve: { jerk: 1, flutter: 1, steady: 1 }, species: { okun: 4, shchuka: 5, sudak: 4, som: 0.4, zherekh: 4, holovach: 3, raiduzhna: 2, stalhead: 4 } },
   // A wobbler: only bigger fish, which hit it as it stops in the pause.
-  wobbler: { price: 900, lure: true, size: 1.5, others: 0, minKg: 1, holdKg: Infinity, retrieve: { jerk: 0.6, flutter: 2.2, steady: 0.5 }, species: { shchuka: 6, sudak: 2.5, okun: 2, som: 0.8, zherekh: 3, holovach: 3, raiduzhna: 1.5, holavl: 3, stalhead: 4 } },
+  wobbler: { price: 900, lure: true, size: 1.5, others: 0, minKg: 1, holdKg: Infinity, retrieve: { jerk: 0.5, flutter: 1.85, steady: 0.45 }, species: { shchuka: 6, sudak: 2.5, okun: 2, som: 0.8, zherekh: 3, holovach: 3, raiduzhna: 1.5, holavl: 3, stalhead: 4 } },
 };
 
 /** Baits taken out of the game, with their price: a save that still holds some is paid back. */
@@ -461,7 +461,7 @@ export const LOCATIONS = [
      */
     id: "troutfarm", snagChance: 0.03, kind: "troutfarm", water: "#2f9a86",
     traits: { type: "pond", depth: "medium", bottom: "stones", current: "weak" },
-    minKg: 0.8, typicalKg: 3, maxKg: 8, bigChance: 1 / 12, pace: 1.6, unlock: { price: 40000 },
+    minKg: 0.8, typicalKg: 3, maxKg: 8, bigChance: 1 / 12, pace: 2, unlock: { price: 40000 },
     fish: { raiduzhna: 4, paliya: 2, forel: 1.5, holovach: 0.08 },
   },
   {
