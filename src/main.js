@@ -755,7 +755,7 @@ function renderNow(now = performance.now()) {
   game.biteBoost = weather.biteBoost * moonBite(Date.now() / 1000, (dayTime * 24) % 24) * windBite(wind.strength);
   // Ducks only come out between 6:00 and 20:00.
   const hour = (dayTime * 24) % 24;
-  ducks.update(step, elapsed, width, height, renderer.shorelineY(width / 2), (x, y) => renderer.isDuckWater(x, y), hour >= 6 && hour < 20);
+  ducks.update(step, elapsed, width, height, renderer.shorelineY(width / 2), (x, y) => renderer.isDuckWater(x, y), hour >= 6 && hour < 20, renderer.frame);
   critters.update(step, elapsed, width, height, renderer.frame, renderer.shorelineY(width / 2), (x, y) => renderer.isDuckWater(x, y), {
     hour,
     rain: weather.intensity,

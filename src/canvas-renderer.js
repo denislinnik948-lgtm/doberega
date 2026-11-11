@@ -2501,7 +2501,6 @@ export class CanvasWaterRenderer {
     const size = clamp(this.reedSize * 0.8, 12, 22);
 
     if (phase === "line") {
-      this.floatMark = null;
       // A fresh wake for every fight.
       if (angler.phase !== "fight") this.fishTrail = null;
       // Float or hooked fish at the end of the line.
@@ -2624,7 +2623,6 @@ export class CanvasWaterRenderer {
         ctx.font = `600 ${floatSize}px ${MONO_FONT}`;
         const sink = angler.float.sink;
         const below = floatSize * 0.45 * sink;
-        this.floatMark = { x: end.x, y: end.y, below, sink, size: floatSize };
         // A plain float all but vanishes in the dark.
         ctx.globalAlpha = clamp(1 - (this.shade ?? 0) * 1.45, 0.12, 1);
         if (sink < 0.55) {
@@ -2636,6 +2634,18 @@ export class CanvasWaterRenderer {
           ctx.fillText("o", end.x, end.y + below);
         }
         ctx.globalAlpha = 1;
+        // A glowing float shines through the dark: off by day, fading in at dusk, full at night.
+        // Drawn here with the plain one, so the rod, the reeds and the bank still pass in front of it.
+        const glow = clamp(((this.shade ?? 0) - 0.2) / 0.25, 0, 1);
+        if (angler.glowFloat && sink < 0.55 && glow > 0.02) {
+          const pulse = 0.75 + 0.25 * Math.sin(angler.time * 3);
+          ctx.save();
+          ctx.shadowColor = `rgba(170, 255, 140, ${(0.9 * glow).toFixed(3)})`;
+          ctx.shadowBlur = (10 + 6 * pulse) * glow;
+          ctx.fillStyle = `rgba(214, 255, 160, ${((0.85 + 0.15 * pulse) * glow).toFixed(3)})`;
+          ctx.fillText("|", end.x, end.y - floatSize * 0.55 + below);
+          ctx.restore();
+        }
       }
       return;
     }
@@ -2851,21 +2861,6 @@ export class CanvasWaterRenderer {
     this.drawParticles(ctx, dt, true);
     this.drawMeteor(ctx, time, dt);
 
-    // A glowing float shines through the dark: off by day, fading in at dusk, full at night.
-    const mark = this.floatMark;
-    const glow = clamp((this.shade - 0.2) / 0.25, 0, 1);
-    if (angler && !angler.hidden && angler.glowFloat && mark && mark.sink < 0.55 && glow > 0.02) {
-      const pulse = 0.75 + 0.25 * Math.sin(time * 3);
-      ctx.save();
-      ctx.font = `600 ${mark.size}px ${MONO_FONT}`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.shadowColor = `rgba(170, 255, 140, ${(0.9 * glow).toFixed(3)})`;
-      ctx.shadowBlur = (10 + 6 * pulse) * glow;
-      ctx.fillStyle = `rgba(214, 255, 160, ${((0.85 + 0.15 * pulse) * glow).toFixed(3)})`;
-      ctx.fillText("|", mark.x, mark.y - mark.size * 0.55 + mark.below);
-      ctx.restore();
-    }
   }
 
   /** Slanted rain streaks over everything, and drops splashing on the water. */
