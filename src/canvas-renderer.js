@@ -3298,56 +3298,147 @@ export class CanvasWaterRenderer {
       }
     }
     if (heron) {
-      const size = 19;
+      // In fine glyphs: a body shaded pale to dark with the black shoulder patch
+      // and wing edge, a long S of a neck streaked down its front, a black crest
+      // trailing back, a yellow dagger of a beak and long legs. Mirrored glyph by
+      // glyph when it faces left.
+      const size = 14;
       ctx.font = `700 ${size}px ${MONO_FONT}`;
       const step = size * 0.6;
       const line = size * 0.95;
       const right = heron.heading > 0;
-      const put = (column, row, text, color) => glyph(text, heron.x + (right ? column : -column) * step, heron.y + row * line, color);
-      const grey = "#8e9aa4";
+      const mirror = { "/": "\\", "\\": "/", "(": ")", ")": "(", "<": ">", ">": "<", "`": "'", "'": "`" };
+      const put = (column, row, text, color) => {
+        const shown = right ? text : (mirror[text] ?? text);
+        const x = heron.x + (right ? column : -column) * step;
+        const y = heron.y + row * line;
+        ctx.lineWidth = 2.6;
+        ctx.strokeStyle = "#141109";
+        ctx.strokeText(shown, x, y);
+        ctx.fillStyle = color;
+        ctx.fillText(shown, x, y);
+      };
+      const black = "#24292d";
       const dark = "#4e575e";
-      const pale = "#d8dcd6";
-      const beak = "#d4a640";
+      const grey = "#7f8b95";
+      const light = "#a9b3ba";
+      const pale = "#e1e4de";
+      const beak = "#dcab38";
       if (heron.state === "stand") {
-        // Standing in the shallows; on a stab the neck shoots forward and down to the water.
-        const stab = heron.stab > 0 ? Math.sin((1 - heron.stab / 0.7) * Math.PI) : 0;
-        put(-1.6, -1.5, right ? "\\" : "/", dark);
-        put(-0.7, -1.6, "#", dark);
-        put(0.2, -1.6, "#", grey);
-        put(1.1, -1.7, right ? ")" : "(", grey);
-        put(0, -0.6, "|", dark);
-        put(0.3, 0.2, "|", dark);
-        if (stab > 0.3) {
-          put(1.6, -1.2, right ? "\\" : "/", pale);
-          put(2.4, -0.3, "o", pale);
-          put(3.2, 0.1, heron.catch > 0 && stab > 0.8 ? "~" : right ? "\\" : "/", beak);
-        } else {
-          put(1.3, -2.5, right ? "/" : "\\", pale);
-          put(1.1, -3.4, "o", pale);
-          put(2, -3.4, "=", beak);
-          put(2.8, -3.4, "-", beak);
-          // A fish caught, wriggling in the beak.
-          if (heron.catch > 0) put(3.4, -3.3, Math.sin(time * 18) > 0 ? "<" : "~", "#c8d0c4");
+        // Standing in the shallows; on a stab the neck uncoils forward and down to the water.
+        const k = heron.stab > 0 ? Math.sin((1 - heron.stab / 0.7) * Math.PI) : 0;
+        const lerp = (from, to) => from + (to - from) * k;
+        put(-0.2, -0.15, "|", dark);
+        put(0.5, -0.2, "|", dark);
+        put(-0.15, -0.85, "|", dark);
+        put(0.5, -0.9, "|", dark);
+        // The body, tilted up toward the shoulders, the plumes hanging over the tail.
+        put(-3.4, -1.25, "\\", black);
+        put(-2.8, -1.45, "\\", dark);
+        put(-2.0, -1.55, "'", grey);
+        put(-1.2, -1.6, ":", pale);
+        put(-0.4, -1.6, ":", pale);
+        put(0.4, -1.65, ".", pale);
+        put(-2.6, -2.15, "%", dark);
+        put(-1.8, -2.2, "#", grey);
+        put(-1.0, -2.25, "#", grey);
+        put(-0.2, -2.3, "%", light);
+        put(0.6, -2.3, ":", pale);
+        put(1.25, -2.2, ")", pale);
+        put(-1.9, -2.85, "=", dark);
+        put(-1.1, -2.9, "#", grey);
+        put(-0.3, -3.0, "%", light);
+        put(0.45, -3.05, "@", black);
+        put(1.15, -2.95, "(", pale);
+        put(-0.9, -3.5, "-", dark);
+        put(-0.1, -3.6, "~", light);
+        // The neck: a curve from the shoulders to the head, each glyph slanted along it.
+        const p0 = { x: 1.1, y: -3.5 };
+        const p1 = { x: lerp(3.4, 2.6), y: lerp(-3.9, -3.4) };
+        const p2 = { x: lerp(-0.3, 3.4), y: lerp(-5.4, -2.3) };
+        const head = { x: lerp(1.5, 4.0), y: lerp(-6.4, -1.0) };
+        const at = (t) => {
+          const u = 1 - t;
+          return {
+            x: u * u * u * p0.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * head.x,
+            y: u * u * u * p0.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * head.y,
+          };
+        };
+        for (const t of [0.1, 0.24, 0.38, 0.52, 0.66, 0.8, 0.92]) {
+          const a = at(t - 0.06);
+          const b = at(t + 0.06);
+          const point = at(t);
+          const dx = (b.x - a.x) * step;
+          const dy = (b.y - a.y) * line;
+          const slope = (Math.atan2(Math.abs(dy), Math.abs(dx)) * 180) / Math.PI;
+          put(point.x, point.y, slope > 65 ? "|" : slope < 25 ? "-" : (dy < 0) === (dx > 0) ? "/" : "\\", pale);
+          // The dark streaks down the front of the neck.
+          if (t > 0.3 && t < 0.7) put(point.x + 0.55, point.y + 0.05, ".", black);
         }
-        // Rings round its legs.
+        put(head.x, head.y, "o", pale);
+        put(head.x + 0.15, head.y - 0.05, "\u00b7", black);
+        put(head.x - 0.75, head.y - 0.25, "-", black);
+        put(head.x - 1.5, head.y - 0.15, "~", black);
+        // The beak: level at rest, pointing down into the water on a stab.
+        const angle = k;
+        const along = (distance) => ({ x: head.x + Math.cos(angle) * distance, y: head.y + (Math.sin(angle) * distance * step) / line });
+        const tilt = angle > 0.5 ? "\\" : null;
+        const tip = along(0.95);
+        const end = along(1.8);
+        put(tip.x, tip.y, tilt ?? "=", beak);
+        put(end.x, end.y, tilt ?? "-", beak);
+        // A fish caught, wriggling in the beak.
+        if (heron.catch > 0 && (k < 0.3 || k > 0.8)) {
+          const fish = along(2.6);
+          put(fish.x, fish.y, Math.sin(time * 18) > 0 ? "<" : "~", "#c8d0c4");
+        }
+        // Rings round its legs, and a splash where the beak goes in.
         ctx.fillStyle = "rgba(190, 210, 206, 0.45)";
-        ctx.fillText("~", heron.x - step * 0.6, heron.y + line * 0.9);
-        ctx.fillText("~", heron.x + step * 0.9, heron.y + line * 0.9);
+        ctx.fillText("~", heron.x - step * 0.9, heron.y + line * 0.5);
+        ctx.fillText("~", heron.x + step * 1.3, heron.y + line * 0.5);
+        ctx.fillText("-", heron.x + step * 0.2, heron.y + line * 0.75);
+        if (k > 0.6) ctx.fillText("o", heron.x + (right ? 1 : -1) * step * 5.8, heron.y - line * 0.4);
       } else {
-        // In flight: neck tucked in, legs trailing, the big wings beating slowly.
-        const up = Math.sin(time * 4.2) > 0;
-        put(-2.4, 0, "-", dark);
-        put(-1.5, 0, "=", grey);
-        put(-0.5, 0, "=", grey);
-        put(0.5, 0, "o", pale);
-        put(1.4, 0, ">", beak);
-        if (up) {
-          put(-1, -0.9, right ? "\\" : "/", grey);
-          put(-0.2, -1.6, right ? "\\" : "/", dark);
-          put(-0.6, -0.9, right ? "/" : "\\", grey);
-        } else {
-          put(-1, 0.9, right ? "/" : "\\", grey);
-          put(-0.2, 1.6, right ? "/" : "\\", dark);
+        // In flight: neck drawn back into the shoulders, legs trailing, broad wings with black tips.
+        const flap = Math.sin(time * 4.2);
+        put(-2.2, 0.05, "=", dark);
+        put(-1.4, 0, "#", grey);
+        put(-0.6, -0.05, "#", grey);
+        put(0.2, -0.05, "%", light);
+        put(0.95, 0.05, ")", pale);
+        put(-1.3, 0.55, "-", pale);
+        put(-0.4, 0.55, "-", pale);
+        put(1.6, -0.35, "(", pale);
+        put(1.9, 0.05, ".", black);
+        put(2.3, -0.6, "o", pale);
+        put(1.55, -0.85, "~", black);
+        put(3.15, -0.55, "=", beak);
+        put(3.95, -0.5, ">", beak);
+        put(-3.0, 0.15, "-", dark);
+        put(-3.8, 0.2, "-", dark);
+        put(-4.6, 0.25, "~", dark);
+        // The wing up or down: a broad grey arm and black fingers; level, seen edge on.
+        const wing = (dir) => {
+          const slant = dir < 0 ? "\\" : "/";
+          const tipMark = dir < 0 ? "'" : "`";
+          put(-0.3, 0.8 * dir, "#", light);
+          put(-1.1, 0.85 * dir, "%", grey);
+          put(-0.5, 1.6 * dir, slant, grey);
+          put(-1.3, 1.6 * dir, "#", grey);
+          put(-2.0, 1.5 * dir, slant, dark);
+          put(-0.8, 2.4 * dir, slant, black);
+          put(-1.6, 2.35 * dir, slant, black);
+          put(-2.3, 2.2 * dir, tipMark, black);
+          put(-1.1, 3.1 * dir, tipMark, black);
+        };
+        if (flap > 0.35) wing(-1);
+        else if (flap < -0.35) wing(1);
+        else {
+          put(-0.3, -0.6, "=", light);
+          put(-1.2, -0.65, "=", grey);
+          put(-2.1, -0.7, "=", dark);
+          put(-2.9, -0.75, "-", black);
+          put(-0.5, 0.6, "~", grey);
         }
       }
     }
