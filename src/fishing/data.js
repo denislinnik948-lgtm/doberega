@@ -141,6 +141,27 @@ for (const [id, kind] of Object.entries({ zolotyi: "karas", syva: "shchuka", kny
   NIBBLE[id] = { ...NIBBLE[kind], strength: NIBBLE[kind].strength * 1.3 };
 }
 
+/*
+ * How hard each kind fights on the line: carp, grass carp, asp and trout make
+ * long runs and veer off to the side, pike and catfish surge and shake their
+ * heads, while bream, ruffe and bleak come in like a wet sack. Kinds not
+ * listed fight middling (0.5); a legend fights like its kind, only harder.
+ */
+export const FIGHT = {
+  yorzh: 0.1, plitka: 0.35, krasnopirka: 0.4, karas: 0.6, okun: 0.7, lyn: 0.9, lyasch: 0.15, korop: 1.4,
+  shchuka: 1.1, sudak: 0.6, som: 1.2, verkhovodka: 0.1, rotan: 0.25, bychok: 0.2, yaz: 0.9, zherekh: 1.3,
+  forel: 1.2, raiduzhna: 1.3, paliya: 1, holovach: 1.3, holavl: 1, stalhead: 1.5, dzerkalnyi: 1.3, bufalo: 1,
+  kanalnyi: 1, myn: 0.4, amur: 1.5, tovstolob: 1, sterliad: 0.6, boot: 0, bottle: 0, lostlure: 0,
+};
+for (const [id, kind] of Object.entries({ zolotyi: "karas", syva: "shchuka", knyazha: "forel", myron: "korop", panas: "som", veselka: "raiduzhna", granitna: "shchuka", staryi: "amur" })) {
+  FIGHT[id] = FIGHT[kind] * 1.3;
+}
+
+/** How much fight a fish has in it: its kind's spirit times its heft (a 100 g fish hardly any, 4 kg in full, 10 kg and up half as much again). */
+export function fightVigor(species, weight) {
+  return Math.min(2, (FIGHT[species] ?? 0.5) * Math.min(1.6, Math.max(0.1, Math.sqrt(weight) / 2)));
+}
+
 /** How much less a lure predator (pike, zander) wants a float bait than the spoon. */
 export const FLOAT_PREDATOR = 0.02;
 

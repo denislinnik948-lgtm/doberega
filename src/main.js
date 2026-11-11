@@ -573,7 +573,7 @@ function anglerView(elapsed) {
     fish: game.phase === "fight" ? toScreen(game.fishPosition()) : null,
     // How big the fish on the line is, and whether it's running, for the show.
     fishWeight: game.phase === "fight" && game.fish ? game.fish.weight : 0,
-    running: game.phase === "fight" && !game.pulling && (game.behavior ?? 0) > 1,
+    running: game.phase === "fight" && ((!game.pulling && (game.behavior ?? 0) > 1) || game.surge > 0),
     tension: game.tension,
     pulling: game.pulling,
     snag: game.snag,
@@ -680,11 +680,11 @@ function playLoops(step, dayTime) {
     }
   }
   // Let go while the fish runs, and line goes out through the drag, in bursts.
-  if (mode === "fishing" && game.phase === "fight" && !game.pulling && !game.snag && !game.fish?.junk && game.behavior > 0.15) {
+  if (mode === "fishing" && game.phase === "fight" && !game.pulling && !game.snag && !game.fish?.junk && (game.behavior > 0.15 || game.surge > 0)) {
     dragClock -= step;
     if (dragClock <= 0) {
       dragClock = 0.6;
-      sounds.drag(Math.min(1, game.behavior), 0.6);
+      sounds.drag(Math.min(1, Math.max(game.behavior, game.surge > 0 ? 1 : 0)), 0.6);
     }
   } else {
     dragClock = 0;

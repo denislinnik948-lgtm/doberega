@@ -1,4 +1,4 @@
-import { BAITS, BELL_WINDOW, BOOT_CHANCE, FEEDER, FINDS, FISH, GROUNDBAIT, GROUNDBAITS, HOOKS, LINE, LOCATIONS, LOST_LURES, NIBBLE, RODS, biteActivity, lineWeakness, rodGiveChance, rollFish, spotMood, straightenChance } from "./data.js";
+import { BAITS, BELL_WINDOW, BOOT_CHANCE, FEEDER, FINDS, FISH, GROUNDBAIT, GROUNDBAITS, fightVigor, HOOKS, LINE, LOCATIONS, LOST_LURES, NIBBLE, RODS, biteActivity, lineWeakness, rodGiveChance, rollFish, spotMood, straightenChance } from "./data.js";
 
 /**
  * Fishing state machine. Positions are normalized to the viewport (0..1) so the
@@ -61,6 +61,10 @@ export const TUNING = {
   strikeSteady: 0.04,
   // A cast into the school that keeps jumping in one place (see main.js) bites this much faster.
   schoolBoost: 1.3,
+  // How often a fish that fights surges off (per second, times its vigor), and
+  // how far to the side it can take the line (normalized, at full distance).
+  surgeRate: 0.08,
+  sideSwing: 0.12,
 };
 
 /** Rates for a fish of `weight` kg on a rod; exported for balance tests. */
@@ -264,6 +268,14 @@ export class FishingGame {
     this.behavior = 0;
     this.behaviorClock = 0;
     this.splashClock = 0;
+    // How hard it fights back (FIGHT in data.js), a run under way and where it has veered to.
+    this.vigor = this.fish.junk ? 0 : fightVigor(this.fish.species, this.fish.weight);
+    this.surge = 0;
+    this.surgePower = 0;
+    this.side = 0;
+    this.sideTarget = 0;
+    // One with spirit often bolts the moment it feels the hook.
+    this.firstRun = this.vigor > 0.15 && this.random() < Math.min(0.8, this.vigor * 0.5) ? 0.3 + this.random() * 0.7 : null;
     this.float.sink = 1;
     this.enter("fight");
     this.emit("hooked", { fish: this.fish, onDip });
@@ -325,8 +337,10 @@ export class FishingGame {
   fishPosition() {
     const landing = this.landing();
     const t = 1 - this.distance;
+    // A fish that veered off pulls the line out to the side, less so as it nears the bank.
+    const aside = (this.side ?? 0) * TUNING.sideSwing * (0.35 + 0.65 * this.distance);
     return {
-      x: this.target.x + (landing.x - this.target.x) * t,
+      x: this.target.x + (landing.x - this.target.x) * t + aside,
       y: this.target.y + (landing.y - this.target.y) * t,
     };
   }
@@ -611,19 +625,46 @@ export class FishingGame {
 
     // The landing net calms the fish in the last stretch to the bank.
     const calm = rates.net && this.distance < 0.25 ? 0.6 : 1;
+    // A fish with fight in it surges off now and then: it takes line even
+    // against the pull, loading the rod hard, and veers off to a side.
+    const vigor = this.vigor ?? 0;
+    if (this.firstRun !== null) this.firstRun -= dt;
+    if (this.surge > 0) this.surge -= dt;
+    else if (vigor > 0.15 && this.distance > 0.1 && ((this.firstRun !== null && this.firstRun <= 0) || random() < TUNING.surgeRate * vigor * dt)) {
+      this.firstRun = null;
+      this.surge = 0.8 + random() * 1.5 * Math.min(1.5, vigor);
+      this.surgePower = 0.5 + random() * 0.5;
+      this.sideTarget = Math.max(-1, Math.min(1, this.side + (random() < 0.5 ? -1 : 1) * (0.4 + random() * 0.6)));
+      this.emit("surge", { power: this.surgePower * vigor });
+    }
+    const surging = this.surge > 0;
+    const run = surging ? rates.reel * (0.4 + 0.5 * this.surgePower) * Math.min(1, 0.3 + 0.5 * vigor) * calm : 0;
     if (this.pulling) {
       this.tension += rates.fill * calm * dt;
-      this.distance -= rates.reel * dt;
+      if (surging) this.tension += TUNING.fillRate * 0.5 * this.surgePower * Math.min(1.5, vigor) * calm * dt;
+      this.distance = Math.min(1, this.distance - (rates.reel - run) * dt);
       if (random() < rates.jerkRate * dt) this.tension += 0.04 + random() * 0.1 * Math.min(1.5, rates.strain);
+      // It shakes its head on the line.
+      if (random() < 0.6 * vigor * dt) this.tension += 0.02 + random() * 0.05 * vigor;
     } else {
       this.tension = Math.max(0, this.tension - rates.drain * dt);
-      if (!rates.still) this.distance = Math.min(1, this.distance + rates.escape * this.behavior * calm * dt);
+      if (!rates.still) this.distance = Math.min(1, this.distance + (rates.escape * this.behavior * calm + run) * dt);
       // The fish may change pace mid-run: stop, slow down or bolt.
       this.behaviorClock += dt;
       if (this.behaviorClock > 0.8) {
         this.behaviorClock = 0;
         if (random() < 0.35) this.behavior = pickBehavior(rates.strain, random);
       }
+    }
+
+    // Off to the side on a run, drifting back in line as it tires; never onto a bank.
+    if (!surging) this.sideTarget *= Math.max(0, 1 - 0.3 * dt);
+    const before = this.side;
+    const gap = this.sideTarget - this.side;
+    this.side += Math.sign(gap) * Math.min(Math.abs(gap), (surging ? 0.7 : 0.15) * dt);
+    if (this.side !== before && !this.isWater(this.fishPosition())) {
+      this.side = before;
+      this.sideTarget = -this.sideTarget * 0.5;
     }
 
     // The line wears with the strain on it.

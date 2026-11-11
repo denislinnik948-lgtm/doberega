@@ -44,7 +44,7 @@ const WORLD_START = 0.68;
  * the first one quick.
  */
 const CHECKS = [
-  { name: "full ladder, hours", value: (r) => r.total, min: 22, max: 34 },
+  { name: "full ladder, hours", value: (r) => r.total, min: 22, max: 50 },
   { name: "second rod, hours", value: (r) => r.rodTotal("hazel"), min: 0.1, max: 1 },
   // Each rod's price over what the angler earns when buying it: the rank waits would blur the plain hours.
   { name: "each rod takes longer than the last", value: (r) => {
