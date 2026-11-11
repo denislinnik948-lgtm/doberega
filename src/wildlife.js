@@ -1,9 +1,11 @@
 /**
- * Ducks. Now and then, by day, a small group paddles out from the bank,
- * wanders the water toward a couple of random spots and leaves; at dusk any
- * ducks still out head for the edge. They always enter and leave across a
- * screen edge (a side or the bottom). Positions are in screen
- * pixels; `isWater(x, y)` keeps them off banks and rocks.
+ * Ducks. Now and then, by day, a small group paddles in along the bank,
+ * keeps close under it for a couple of short stretches and leaves the way it
+ * came; at dusk any ducks still out head for the edge. They never wander out
+ * into open water: every spot they make for lies near a bank (`nearBank`),
+ * a short paddle from the last. They always enter and leave across a screen
+ * edge (a side or the bottom). Positions are in screen pixels; `isWater(x, y)`
+ * keeps them off banks and rocks.
  */
 export class Ducks {
   constructor({ random = Math.random } = {}) {
@@ -22,20 +24,41 @@ export class Ducks {
   }
 
   /**
-   * A point just off-screen where open water meets the edge: left, right or
-   * bottom. Sides are skipped where a bank or cliff runs to the edge.
+   * Whether open water at (x, y) lies close under a bank: land or rock within
+   * `reach` px of it in some direction (the screen's own edges don't count).
+   */
+  nearBank(x, y, width, height, horizonY, isWater) {
+    if (!isWater(x, y)) return false;
+    const reach = (height - horizonY) * 0.09;
+    for (let i = 0; i < 12; i += 1) {
+      const angle = (i / 12) * Math.PI * 2;
+      for (const step of [0.5, 1]) {
+        const px = x + Math.cos(angle) * reach * 1.8 * step;
+        const py = y + Math.sin(angle) * reach * step;
+        if (px < 0 || px > width || py > height) continue;
+        if (!isWater(px, py)) return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * A point just off-screen where open water under a bank meets the edge:
+   * left, right or bottom. Sides are skipped where a bank or cliff runs to
+   * the edge, or the water there is all open.
    */
   edgePoint(side, width, height, horizonY, isWater) {
     const random = this.random;
-    for (let attempt = 0; attempt < 12; attempt += 1) {
+    const near = (x, y) => this.nearBank(x, y, width, height, horizonY, isWater);
+    for (let attempt = 0; attempt < 24; attempt += 1) {
       if (side === "bottom") {
-        const x = width * (0.2 + random() * 0.6);
+        const x = width * (0.05 + random() * 0.9);
         // Only where the water itself runs to the bottom edge (no bank of ours in the way).
-        if (isWater(x, height * 0.92) && isWater(x, height - 2)) return { x, y: height + 30, side };
+        if (isWater(x, height - 2) && near(x, height * 0.92)) return { x, y: height + 30, side };
       } else {
-        const y = horizonY + (height - horizonY) * (0.15 + random() * 0.5);
+        const y = horizonY + (height - horizonY) * (0.05 + random() * 0.9);
         const probeX = side === "left" ? width * 0.03 : width * 0.97;
-        if (isWater(probeX, y)) return { x: side === "left" ? -30 : width + 30, y, side };
+        if (near(probeX, y)) return { x: side === "left" ? -30 : width + 30, y, side };
       }
     }
     return null;
@@ -53,20 +76,23 @@ export class Ducks {
     }
     if (!entry) return;
 
+    // A couple of short stretches along the bank, each a little way on from the last.
     const waypoints = [];
-    for (let i = 0, wanted = 1 + Math.floor(random() * 2); i < 20 && waypoints.length < wanted; i += 1) {
-      const point = { x: width * (0.15 + random() * 0.7), y: horizonY + (height - horizonY) * (0.15 + random() * 0.5) };
-      if (isWater(point.x, point.y)) waypoints.push(point);
+    const stretch = Math.min(width * 0.22, (height - horizonY) * 0.9);
+    let from = { x: Math.min(width, Math.max(0, entry.x)), y: Math.min(height, entry.y) };
+    for (let i = 0, wanted = 1 + Math.floor(random() * 2); i < 60 && waypoints.length < wanted; i += 1) {
+      const angle = random() * Math.PI * 2;
+      const distance = stretch * (0.4 + random() * 0.6);
+      const point = { x: from.x + Math.cos(angle) * distance, y: from.y + Math.sin(angle) * distance * 0.6 };
+      if (point.x < width * 0.04 || point.x > width * 0.96 || point.y > height * 0.97) continue;
+      if (this.nearBank(point.x, point.y, width, height, horizonY, isWater)) {
+        waypoints.push(point);
+        from = point;
+      }
     }
-    // Finally leave past an edge — preferably a different one.
-    const exitSides = ["left", "right", "bottom"].filter((side) => side !== entry.side).sort(() => random() - 0.5);
-    let exit = null;
-    for (const side of [...exitSides, entry.side]) {
-      exit = this.edgePoint(side, width, height, horizonY, isWater);
-      if (exit) break;
-    }
-    // Aim well past the edge so the whole flock, trailing the leader, slips out of view.
-    const out = exit ?? entry;
+    // Finally leave the way they came, along the bank, and well past the edge
+    // so the whole flock, trailing the leader, slips out of view.
+    const out = entry;
     waypoints.push({
       x: out.side === "left" ? -180 : out.side === "right" ? width + 180 : out.x,
       y: out.side === "bottom" ? height + 180 : out.y,
