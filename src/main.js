@@ -420,10 +420,53 @@ function switchBaitIfEmpty() {
   progress.bait = Object.keys(BAITS).find((id) => !BAITS[id].free && (progress.baits[id] ?? 0) > 0) ?? "bread";
 }
 
+/*
+ * How far a point on the water is from the angler, who sits at the bottom
+ * middle of the view: measured with the water's own perspective (its glyphs
+ * shrink toward the horizon, see waterScaleAt), so a cast reaches as far
+ * to the side as straight out, and the farthest casts make an arc on screen,
+ * not a straight line. In pixels as they would be at full glyph size.
+ */
+function castDistance(x, y) {
+  const scale = renderer.waterScaleAt ?? (() => 1);
+  const steps = 24;
+  let depth = 0;
+  for (let i = 0; i < steps; i += 1) {
+    const at = y + ((height - y) * (i + 0.5)) / steps;
+    depth += (height - y) / steps / scale(at);
+  }
+  const { left, width: span } = renderer.frame;
+  return Math.hypot((x - (left + span / 2)) / scale(y), depth);
+}
+
+/** The farthest cast (straight out to the far edge), and the nearest. */
+const castRange = () => ({ near: castDistance(renderer.frame.left + renderer.frame.width / 2, height * TUNING.nearY), far: castDistance(renderer.frame.left + renderer.frame.width / 2, height * TUNING.farY) });
+
+/** How far out a cast lands, 0 by the bank to 1 at the farthest. */
+function castReach(x, y) {
+  const { near, far } = castRange();
+  return Math.min(1, Math.max(0, (castDistance(x, y) - near) / (far - near)));
+}
+
 function isOnWater(x, y) {
   return y > Math.max(renderer.shorelineY(x) + height * 0.04, height * TUNING.farY)
     && y < height * TUNING.nearY
+    && castDistance(x, y) <= castRange().far + 0.5
     && renderer.isOpenWater(x, y);
+}
+
+/** A tap past the farthest cast lands as far as the rod throws in that direction (or nowhere, if that's not water). */
+function withinReach(x, y) {
+  const { far } = castRange();
+  if (castDistance(x, y) <= far) return { x, y };
+  const origin = { x: renderer.frame.left + renderer.frame.width / 2, y: height };
+  let [inside, outside] = [0, 1];
+  for (let i = 0; i < 20; i += 1) {
+    const mid = (inside + outside) / 2;
+    if (castDistance(origin.x + (x - origin.x) * mid, origin.y + (y - origin.y) * mid) <= far) inside = mid;
+    else outside = mid;
+  }
+  return { x: origin.x + (x - origin.x) * inside, y: origin.y + (y - origin.y) * inside };
 }
 
 // Every fight wears the line; saying so once as it gets weak, when there's no spare to put on.
@@ -441,8 +484,10 @@ game.currentAt = (x, y) => {
   return push ? { x: flow.x + push, y: flow.y } : flow;
 };
 game.isWater = (point) => isOnWater(point.x * width, point.y * height);
+game.reachAt = (point) => castReach(point.x * width, point.y * height);
 
 function tryCast(x, y) {
+  ({ x, y } = withinReach(x, y));
   // Winter shore ice is no place for a float.
   if (mode !== "fishing" || !isOnWater(x, y) || renderer.onIce(x, y)) return;
   if (ui.baitCount <= 0) {
@@ -475,7 +520,7 @@ function tryCast(x, y) {
   const groundbait = groundbaitLeft(spotId) > 0;
   // The wind carries the bait a little downwind in flight, the more the farther the cast.
   let target = { x: x / width, y: y / height };
-  const reach = Math.min(1, Math.max(0, (TUNING.nearY - target.y) / (TUNING.nearY - TUNING.farY)));
+  const reach = castReach(x, y);
   const blown = { x: target.x + wind.dir * wind.strength * wind.gust * 0.035 * (0.4 + reach) * (0.5 + Math.random()), y: target.y };
   if (isOnWater(blown.x * width, blown.y * height) && !renderer.onIce(blown.x * width, blown.y * height)) target = blown;
   if (game.cast(target, progress.rod, progress.bait, { location: progress.location, extras: progress.extras, groundbait, groundbaitKind: progress.baitedKind?.[spotId] ?? null, hook: progress.hook, school: nearSchool(target) })) {
@@ -485,7 +530,7 @@ function tryCast(x, y) {
 }
 
 // `?debug` exposes the game for manual testing from the console.
-if (params.has("debug")) window.doberega = { game, progress, ui, cloud, nightEvents, renderNow, renderer, config, ripples, weather, ducks, critters, school: () => school };
+if (params.has("debug")) window.doberega = { game, progress, ui, cloud, nightEvents, renderNow, renderer, config, ripples, weather, ducks, critters, school: () => school, isOnWater, castReach };
 
 const pullable = () => ["waiting", "retrieving", "nibble", "bite", "fight"].includes(game.phase);
 

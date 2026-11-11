@@ -109,6 +109,7 @@ export class FishingGame {
     // open water the float can drift onto.
     this.currentAt = () => ({ x: 0, y: 0 });
     this.isWater = () => true;
+    this.reachAt = null;
     // Where a hooked fish is brought in: the middle of what's on screen.
     this.landingX = 0.5;
     // Set by the host: what is left of the line (0..1), and told how much each fight wears off it.
@@ -328,6 +329,8 @@ export class FishingGame {
 
   /** How far out the cast landed: 0 by the shore, 1 at the far edge. */
   reach() {
+    // The host measures it round the angler (see castReach in main.js); without one, straight out.
+    if (this.reachAt && this.target) return this.reachAt(this.target);
     const y = this.target?.y ?? TUNING.nearY;
     return Math.min(1, Math.max(0, (TUNING.nearY - y) / (TUNING.nearY - TUNING.farY)));
   }
