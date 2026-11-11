@@ -70,7 +70,8 @@ export const TUNING = {
 /** Rates for a fish of `weight` kg on a rod; exported for balance tests. */
 export function fightRates(weight, rodId, extras = [], junk = false) {
   const rod = RODS[rodId];
-  const strain = weight / rod.maxKg;
+  // The strongest rod has no limit: a fish past its rating is only as hard as one at it.
+  const strain = rod.holdsAny ? Math.min(1, weight / rod.maxKg) : weight / rod.maxKg;
   // Past the rod's rated weight the bar fills much faster.
   const overload = Math.max(0, strain - 1);
   const pace = TUNING.fillRate * (1 + 2.5 * overload) * (extras.includes("braid") ? 0.85 : 1);

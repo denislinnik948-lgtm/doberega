@@ -292,8 +292,9 @@ export const RETIRED_BAITS = { potato: 5, liver: 12, fishstrip: 15 };
 
 /*
  * `maxKg` is the weight a rod is rated for: heavier fish fill the tension bar
- * fast, and past it the rod almost never holds (see gearHolds). The catfish
- * rod, the strongest, never gives: a fish over its rating is just a long fight.
+ * fast, and past it the rod almost never holds (see giveChance). The catfish
+ * rod, the strongest, has no limit (`holdsAny`): it never gives, and a fish
+ * past its rating fights it no harder than one at it.
  */
 export const RODS = {
   willow: { tier: 1, maxKg: 0.6, price: 0, reel: 0.95 },

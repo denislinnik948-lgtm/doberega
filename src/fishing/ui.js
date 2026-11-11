@@ -59,6 +59,8 @@ const reachLines = (gear) => [
   t("tackle.takes", { what: gear.minKg ? t("tackle.from", { weight: formatWeight(gear.minKg) }) : t("tackle.any") }),
   t("tackle.holds", { what: Number.isFinite(gear.holdKg) ? t("tackle.upTo", { weight: formatWeight(gear.holdKg) }) : t("tackle.anyWeight") }),
 ];
+// The weight a rod is rated for, or that it has no limit (the strongest).
+const rodRating = (id) => (RODS[id].holdsAny ? t("shop.noLimit") : t("shop.upTo", { weight: formatWeight(RODS[id].maxKg) }));
 
 /** A water's shot for the menu (see images/spots): in the season the scene is in. */
 const spotShot = (id) => `images/spots/${id}-${currentSeason()}.webp`;
@@ -659,7 +661,7 @@ export class AnglerUI {
     $("#bait-chip-count").textContent = countLabel(this.baitCount);
     chip.classList.toggle("is-empty", this.baitCount <= 0);
     chip.setAttribute("aria-label", `${t("a11y.chooseBait")}: ${nameOf("bait", progress.bait)}, ${countLabel(this.baitCount)}`);
-    this.packSlot.setAttribute("aria-label", `${t("menu.pack")}: ${nameOf("rod", progress.rod)}, ${t("shop.upTo", { weight: formatWeight(rod.maxKg) })}`);
+    this.packSlot.setAttribute("aria-label", `${t("menu.pack")}: ${nameOf("rod", progress.rod)}, ${rodRating(progress.rod)}`);
 
     // The keepnet chip, bottom left: how many fish are in it (hidden while empty).
     const netCount = progress.keepnet.length;
@@ -1389,7 +1391,7 @@ export class AnglerUI {
         10,
       )),
       "rod-shop": Object.entries(RODS).map(([id, rod]) => once(
-        id, () => rodArt(id, 3), nameOf("rod", id), t("shop.upTo", { weight: formatWeight(rod.maxKg) }), rod.price, progress.rods.includes(id),
+        id, () => rodArt(id, 3), nameOf("rod", id), rodRating(id), rod.price, progress.rods.includes(id),
         () => { progress.rods.push(id); progress.rod = id; },
       )),
       "tackle-shop": [
@@ -1601,8 +1603,8 @@ export class AnglerUI {
     const items = [];
     const add = (section, item) => items.push({ section, ...item });
     for (const id of progress.rods) add("rods", {
-      key: `rod:${id}`, art: () => rodArt(id, 2), title: nameOf("rod", id), tag: formatWeight(RODS[id].maxKg),
-      facts: [t("shop.upTo", { weight: formatWeight(RODS[id].maxKg) })], on: id === progress.rod, status: t("pack.inHand"),
+      key: `rod:${id}`, art: () => rodArt(id, 2), title: nameOf("rod", id), tag: RODS[id].holdsAny ? "∞" : formatWeight(RODS[id].maxKg),
+      facts: [rodRating(id)], on: id === progress.rod, status: t("pack.inHand"),
       take: () => { progress.rod = id; },
     });
     for (const [id, hook] of Object.entries(HOOKS)) {
