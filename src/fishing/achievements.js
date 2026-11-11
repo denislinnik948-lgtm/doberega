@@ -157,7 +157,8 @@ export function recordCatch(progress, fish, { spot, bait, lure, hour, rain, rodM
   if (hour < 5 || hour >= 21.5) bump(progress, "nightCatches");
   if (hour >= 4.5 && hour < 6.5) bump(progress, "dawnCatches");
   if (rain > 0.3) bump(progress, "rainCatches");
-  if (rodMaxKg && fish.weight >= rodMaxKg * 2) bump(progress, "overweight");
+  // A fish at the edge of what the rod is rated for (the stat keeps its old name, saves count it).
+  if (rodMaxKg && fish.weight >= rodMaxKg * 0.9) bump(progress, "overweight");
   bump(progress, "streak");
   best(progress, "bestStreak", stats.streak);
 }
