@@ -69,16 +69,20 @@ export function fightRates(weight, rodId, extras = [], junk = false) {
   const strain = weight / rod.maxKg;
   // Past the rod's rated weight the bar fills much faster.
   const overload = Math.max(0, strain - 1);
-  const fill = TUNING.fillRate * (1 + 2.5 * overload) * (extras.includes("braid") ? 0.85 : 1);
-  // How many full bars of pulling it takes to bring the fish in.
+  const pace = TUNING.fillRate * (1 + 2.5 * overload) * (extras.includes("braid") ? 0.85 : 1);
+  // A fish well under the rating hardly loads the rod: the bar fills slower
+  // (a quarter of the pace at a tenth of the rating, the full pace from the
+  // rating on) while the fish comes in just as fast.
+  const load = Math.min(1, 0.15 + 0.85 * strain ** 0.8);
+  // How many full bars of pulling it would take at the full pace.
   const pulls = Math.max(1, 5.2 * strain ** 1.3) / rod.reel;
   return {
     strain,
     pulls,
-    fill,
-    drain: fill * TUNING.drainRatio,
-    reel: (fill * 1.04) / pulls,
-    escape: (0.5 * fill) / pulls,
+    fill: pace * load,
+    drain: pace * TUNING.drainRatio,
+    reel: (pace * 1.04) / pulls,
+    escape: (0.5 * pace) / pulls,
     // Bigger fish jerk the line, spiking the bar.
     // Junk is dead weight: no jerks, never swims off.
     jerkRate: !junk && strain > 0.25 ? 0.7 * Math.min(1.6, strain) : 0,
