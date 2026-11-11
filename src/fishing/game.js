@@ -1,4 +1,4 @@
-import { BAITS, BELL_WINDOW, BOOT_CHANCE, FEEDER, FINDS, FISH, GROUNDBAIT, GROUNDBAITS, HOOKS, LINE, LOCATIONS, LOST_LURES, NIBBLE, RODS, biteActivity, lineWeakness, rollFish, spotMood, straightenChance } from "./data.js";
+import { BAITS, BELL_WINDOW, BOOT_CHANCE, FEEDER, FINDS, FISH, GROUNDBAIT, GROUNDBAITS, HOOKS, LINE, LOCATIONS, LOST_LURES, NIBBLE, RODS, biteActivity, lineWeakness, rodGiveChance, rollFish, spotMood, straightenChance } from "./data.js";
 
 /**
  * Fishing state machine. Positions are normalized to the viewport (0..1) so the
@@ -21,9 +21,10 @@ import { BAITS, BELL_WINDOW, BOOT_CHANCE, FEEDER, FINDS, FISH, GROUNDBAIT, GROUN
  * the spoon reaches the bank untouched, it's simply cast again.
  *
  * Tackle: the rod decides how hard a fish is to bring in (how fast the bar
- * fills); the hook (or, spinning, the lure) decides who can take it at all
- * and whether it holds: past its hold weight it may bend straight in the
- * fight. See HOOKS and the lures in data.js.
+ * fills) and past its rated weight the line nearly always snaps; the hook
+ * (or, spinning, the lure) decides who can take it at all and whether it
+ * holds: past its hold weight it nearly always bends straight in the fight.
+ * See RODS, HOOKS and the lures in data.js.
  *
  * Reeling in an empty line (to recast, or after a fish got away with the
  * bait) isn't instant: the float or spoon skims back across the water to the
@@ -251,6 +252,8 @@ export class FishingGame {
     this.wearRate = LINE.wear * (1 + this.fish.weight ** 0.8) * (this.extras.includes("braid") ? 0.5 : 1);
     // Too heavy for the hook: it may bend straight somewhere on the way in.
     this.giveAt = !this.fish.junk && this.random() < straightenChance(this.gear, this.fish.weight) ? 0.2 + this.random() * 0.6 : null;
+    // Too heavy for the rod: the line snaps somewhere on the way in.
+    this.snapAt = !this.fish.junk && this.random() < rodGiveChance(this.rod, this.fish.weight) ? 0.1 + this.random() * 0.6 : null;
     this.tension = 0;
     this.distance = 1;
     this.behavior = 0;
@@ -622,6 +625,11 @@ export class FishingGame {
     if (this.giveAt !== null && 1 - this.distance >= this.giveAt) {
       // The hook (or the lure's hook) bends straight: the fish is gone, and so is the hook.
       this.escape("straightened", true, "straightened");
+      return;
+    }
+    if (this.snapAt !== null && 1 - this.distance >= this.snapAt) {
+      this.onLineWear(LINE.snapWear);
+      this.escape("overweight", true, "rodSnap");
       return;
     }
 

@@ -269,24 +269,28 @@ export const BAITS = {
 /** Baits taken out of the game, with their price: a save that still holds some is paid back. */
 export const RETIRED_BAITS = { potato: 5, liver: 12, fishstrip: 15 };
 
-/** `maxKg` is the weight a rod handles comfortably; heavier fish strain it fast. */
+/*
+ * `maxKg` is the weight a rod is rated for: heavier fish fill the tension bar
+ * fast, and past it the rod almost never holds (see gearHolds). The catfish
+ * rod, the strongest, never gives: a fish over its rating is just a long fight.
+ */
 export const RODS = {
   willow: { tier: 1, maxKg: 0.6, price: 0, reel: 0.95 },
   hazel: { tier: 2, maxKg: 1.2, price: 300, reel: 1 },
   bamboo: { tier: 3, maxKg: 2, price: 1500, reel: 1 },
-  telescope: { tier: 4, maxKg: 3.5, price: 5000, reel: 1.05 },
-  glass: { tier: 5, maxKg: 6, price: 14000, reel: 1.05 },
-  carbon: { tier: 6, maxKg: 10, price: 38000, reel: 1.1 },
-  carp: { tier: 7, maxKg: 18, price: 85000, reel: 1.15 },
-  catfish: { tier: 8, maxKg: 40, price: 220000, reel: 1.2 },
+  telescope: { tier: 4, maxKg: 4, price: 5000, reel: 1.05 },
+  glass: { tier: 5, maxKg: 10, price: 14000, reel: 1.05 },
+  carbon: { tier: 6, maxKg: 14, price: 38000, reel: 1.1 },
+  carp: { tier: 7, maxKg: 25, price: 85000, reel: 1.15 },
+  catfish: { tier: 8, maxKg: 40, price: 220000, reel: 1.2, holdsAny: true },
 };
 
 /*
  * Hooks, by size: consumables, lost when a big fish snaps the line or bends
  * the hook straight. `minKg`: a fish lighter than this can hardly take the
  * hook (the edge is soft, and now and then a small one still manages);
- * `holdKg`: up to this weight the hook holds for sure, past it there is a
- * rising chance it bends straight in the fight and the fish is gone.
+ * `holdKg`: up to this weight the hook holds for sure; past it, it bends
+ * straight in the fight almost every time (see gearHolds).
  */
 export const HOOKS = {
   small: { price: 4, minKg: 0, holdKg: 1 },
@@ -304,12 +308,20 @@ export function takesHook(gear, weight, random = Math.random) {
   return random() < 0.03 + 0.97 * fit * fit;
 }
 
-/** The chance a hook bends straight on a fish this heavy (0 up to its hold, then rising, at most 90%). */
-export function straightenChance(gear, weight) {
-  const hold = gear?.holdKg ?? Infinity;
-  if (!Number.isFinite(hold) || weight <= hold) return 0;
-  return Math.min(0.9, 0.2 * (weight / hold - 1));
-}
+/** How often tackle still holds a fish heavier than it is rated for. */
+export const HOLD_LUCK = 0.03;
+
+/** The chance tackle rated for `limit` kg gives on a fish this heavy: none up to it, then nearly always. */
+export const giveChance = (limit, weight) => (Number.isFinite(limit) && weight > limit ? 1 - HOLD_LUCK : 0);
+
+/** The chance a hook (or a lure's hook) bends straight on a fish this heavy. */
+export const straightenChance = (gear, weight) => giveChance(gear?.holdKg ?? Infinity, weight);
+
+/** The chance a rod's line snaps on a fish this heavy. */
+export const rodGiveChance = (rodId, weight) => (RODS[rodId]?.holdsAny ? 0 : giveChance(RODS[rodId]?.maxKg ?? Infinity, weight));
+
+/** Now and then a fish outgrows its kind: up to `extra` past the most it grows, `chance` per bite (before bait and cast distance). */
+export const OVERSIZE = { chance: 1 / 400, extra: 0.1 };
 
 /*
  * The fishing line wears out: every fight takes a little off it, more the
@@ -664,11 +676,15 @@ export function rollFish(baitId, locationIndex, random = Math.random, reach = 0.
   const [from, to] = rare && tail > top * 1.02 ? [top, tail] : big ? [typical, top] : [floor, typical];
   // Ordinary fish lean to the light end; big and rare ones spread over their step.
   const t = big ? random() ** (capped ? 2 : 1.4) : random() ** 1.7;
-  // Bread and dough only ever tempt tiddlers.
-  const weight = Math.round((floor + (from - floor + (to - from) * t) * (bait.maxSize ?? 1)) * 1000) / 1000;
+  // Bread and dough only ever tempt tiddlers. Where the kind grows to its full
+  // size, now and then one outgrows it a little.
+  const oversize = !bait.maxSize && tail >= fish.max && random() < OVERSIZE.chance * scale;
+  const weight = oversize
+    ? Math.round(fish.max * (1 + OVERSIZE.extra * random() ** 1.5) * 1000) / 1000
+    : Math.round((floor + (from - floor + (to - from) * t) * (bait.maxSize ?? 1)) * 1000) / 1000;
   // Too small for this hook or lure: it nibbles at it and moves on.
   if (!takesHook(gear, weight, random)) return null;
-  return { species, weight, big: big && !bait.maxSize };
+  return { species, weight, big: (big || oversize) && !bait.maxSize };
 }
 
 /*
