@@ -275,9 +275,11 @@ export function settleTourney(progress, week, place) {
   const share = TOURNEY_PRIZES[place - 1] ?? 0;
   const money = Math.round(questReward(progress) * share);
   progress.money += money;
-  // The gift only for having really taken part: a few of the week's fish
-  // (an older save that didn't count them yet is given the benefit of the doubt).
-  const landed = state.previous?.week === week ? state.previous.count : TOURNEY_GIFT.minFish;
+  // The gift only for having really taken part: a few of the week's fish. The fish
+  // weren't counted before the new rules (and an older save may not count them
+  // yet): those weeks are given the benefit of the doubt.
+  const counted = week >= TOURNEY_RULES_FROM && state.previous?.week === week;
+  const landed = counted ? state.previous.count : TOURNEY_GIFT.minFish;
   const gift = landed >= TOURNEY_GIFT.minFish ? TOURNEY_GIFT : null;
   if (gift) giveGroundbaits(progress, gift.groundbait, groundbaitFor(tourneyFish(week)));
   progress.stats ??= {};
