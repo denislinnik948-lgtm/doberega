@@ -263,6 +263,14 @@ export class Cloud {
     return error ? { error: error.message } : { rows: data };
   }
 
+  /** Every week this angler has a result in: [{ week, species, weight }]. */
+  async myTournamentRows() {
+    if (!this.user) return null;
+    const { data, error } = await this.client.from("tournament").select("week, species, weight").eq("user_id", this.user.id);
+    if (error) throw error;
+    return data;
+  }
+
   /** Who won a week (every angler sharing the top weight): their user ids, or null when it can't be told. */
   async tournamentWinners(week, species) {
     if (!this.client) return null;

@@ -924,6 +924,11 @@ export class AnglerUI {
     this.notify(t(key, { place, money: formatMoney(money), gift: present }));
   }
 
+  /** Cups for past tournaments put on the trophy wall. */
+  cupsGiven(count) {
+    this.notify(t("tourney.cupsGiven", { count }));
+  }
+
   /** Someone has gone past this angler on the week's board. */
   tourneyOvertaken(place) {
     this.notify(t("tourney.overtaken", { place }));

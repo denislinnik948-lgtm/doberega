@@ -108,6 +108,7 @@ export function normalizeProgress(saved) {
       };
       if (tourney.previous && Number.isFinite(tourney.previous.week)) state.tourney.previous = { week: tourney.previous.week, count: Math.max(0, Math.floor(Number(tourney.previous.count) || 0)) };
     }
+    if (saved.cupsBackfilled === true) state.cupsBackfilled = true;
     // Tournament cups (see settleTourney).
     if (Array.isArray(saved.cups)) {
       state.cups = saved.cups.filter((cup) => cup && Number.isFinite(cup.week) && FISH[cup.species] && [1, 2, 3].includes(cup.place))

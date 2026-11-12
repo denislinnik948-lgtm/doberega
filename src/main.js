@@ -17,7 +17,7 @@ import { ambienceTick, jumpSound, musicTick, nightSound, sounds, thunderClap } f
 import { AnglerUI } from "./fishing/ui.js";
 import { breakStreak, bump, recordCatch } from "./fishing/achievements.js";
 import { XP, fishXp, gainXp, rankPending } from "./fishing/ranks.js";
-import { recordDay, recordQuest, recordTourney, settleTourney, tourneyFish, tourneyState, tourneyWeek } from "./fishing/quests.js";
+import { recordDay, recordQuest, recordTourney, settleTourney, tourneyFish, tourneyFormat, tourneyState, tourneyWeek } from "./fishing/quests.js";
 import { warmFishPortraits } from "./fishing/sprites.js";
 import { ensureOpenSpot } from "./fishing/waters.js";
 
@@ -247,6 +247,7 @@ const cloud = new Cloud({
     const week = tourneyWeek();
     const state = tourneyState(progress, week);
     if (state.best > 0) cloud.submitTournament(tourneyFish(week), state.best).then(() => checkTourneyPlace());
+    await backfillCups(week);
     if ((state.claimed ?? -1) >= week - 1) return;
     try {
       const result = await cloud.tournamentPlace(week - 1, tourneyFish(week - 1));
@@ -261,6 +262,33 @@ const cloud = new Cloud({
   },
 });
 ui.setCloud(cloud);
+
+/*
+ * Cups came in after the first tournaments: once per save, every earlier
+ * week this angler finished in the top three gets its cup (only the cup; the
+ * prize was paid then). Weeks not yet settled are left to settleTourney.
+ */
+async function backfillCups(week) {
+  if (progress.cupsBackfilled) return;
+  try {
+    const rows = await cloud.myTournamentRows();
+    if (!rows) return;
+    const settled = tourneyState(progress, week).claimed ?? week - 1;
+    const cups = [...(progress.cups ?? [])];
+    for (const row of rows) {
+      if (row.week >= week || row.week > settled || cups.some((cup) => cup.week === row.week)) continue;
+      const result = await cloud.tournamentPlace(row.week, row.species);
+      if (result?.place && result.place <= 3) cups.push({ week: row.week, species: row.species, format: tourneyFormat(row.week), place: result.place });
+    }
+    const added = cups.length - (progress.cups?.length ?? 0);
+    progress.cups = cups;
+    progress.cupsBackfilled = true;
+    ui.commit();
+    if (added > 0) ui.cupsGiven(added);
+  } catch (error) {
+    console.warn("Past tournament cups could not be checked:", error.message);
+  }
+}
 
 /*
  * Where this angler stands in the week's tournament, checked after their own
