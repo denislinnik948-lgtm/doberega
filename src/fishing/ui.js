@@ -122,9 +122,8 @@ export class AnglerUI {
     frameAll();
     this.paintIcons();
 
-    this.packSlot.addEventListener("click", () => {
-      if (!this.busy) this.openPack();
-    });
+    // The backpack opens with the line out too; what is taken from it goes on with the next cast.
+    this.packSlot.addEventListener("click", () => this.openPack());
     this.baitButton.addEventListener("click", () => {
       if (!this.busy) this.openBait();
     });
@@ -639,10 +638,9 @@ export class AnglerUI {
     return baitCount(this.progress, this.progress.bait);
   }
 
-  /** Lock gear changes and leaving while a line is in the water. */
+  /** Lock the bait button and leaving while a line is in the water (the backpack stays open to look in). */
   setBusy(busy) {
     this.busy = busy;
-    this.packSlot.disabled = busy;
     this.baitButton.disabled = busy;
     $("#exit-button").disabled = busy;
   }
@@ -1226,6 +1224,7 @@ export class AnglerUI {
 
   showFight(visible) {
     this.fightHud.hidden = !visible;
+    this.fighting = visible;
   }
 
   updateFight(tension) {
@@ -1747,6 +1746,8 @@ export class AnglerUI {
     if (item.take && !item.on) {
       item.take();
       this.commit();
+      // The line is out: the rod, hook or bait in hand only change with the next cast.
+      if (this.busy) this.toast(t("pack.nextCast"), "", 1800);
     } else sounds.ui("select");
     this.packPick = closing ? null : key;
     // What is in use and what is picked, marked again in place so nothing jumps.
@@ -1798,6 +1799,12 @@ export class AnglerUI {
       return false;
     }
     if (now ? progress.line >= 0.995 : progress.line > 0.001) return false;
+    // Not with a fish pulling on the old one.
+    if (now && this.fighting) {
+      this.toast(t("line.notNow"), "bad", 1800);
+      sounds.ui("denied");
+      return false;
+    }
     progress.lines -= 1;
     progress.line = 1;
     sounds.ui("select");

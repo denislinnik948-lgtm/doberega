@@ -297,7 +297,7 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
   bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(12px, 3vh, 24px));
   transition: opacity 200ms steps(4), transform 200ms steps(4);
 }
-.is-fishing :is(.loadout, .pack-hud) { opacity: 0.4; transform: translateY(6px); }
+.is-fishing .loadout { opacity: 0.4; transform: translateY(6px); }
 
 .slot {
   position: relative;
