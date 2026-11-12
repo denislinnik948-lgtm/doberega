@@ -62,9 +62,9 @@ export const TUNING = {
   // A cast into the school that keeps jumping in one place (see main.js) bites this much faster.
   schoolBoost: 1.3,
   // How often a fish that fights surges off (per second, times its vigor), and
-  // how far to the side it can take the line (normalized, at full distance).
+  // how far to the side it can take the line (normalized, at full distance by the bank; less far out, see scaleAt).
   surgeRate: 0.06,
-  sideSwing: 0.12,
+  sideSwing: 0.17,
 };
 
 /** Rates for a fish of `weight` kg on a rod; exported for balance tests. */
@@ -120,6 +120,10 @@ export class FishingGame {
     this.currentAt = () => ({ x: 0, y: 0 });
     this.isWater = () => true;
     this.reachAt = null;
+    // Set by the host: how big the water looks at a height (normalized y), 1 by
+    // the bank below the rod and less toward the horizon. Everything moving on
+    // the water goes by it, so the same pace looks slower far out.
+    this.scaleAt = () => 1;
     // Where a hooked fish is brought in: the middle of what's on screen.
     this.landingX = 0.5;
     // Set by the host: what is left of the line (0..1), and told how much each fight wears off it.
@@ -325,7 +329,9 @@ export class FishingGame {
 
   /** Nudge the float, unless that would push it onto a bank or out of the water. */
   moveFloat(dx, dy) {
-    const next = { x: this.target.x + dx, y: this.target.y + dy };
+    // A nudge on the water: smaller on screen the farther out it is.
+    const scale = this.scaleAt(this.target.y);
+    const next = { x: this.target.x + dx * scale, y: this.target.y + dy * scale };
     if (this.isWater(next)) this.target = next;
   }
 
@@ -335,16 +341,35 @@ export class FishingGame {
     if (flow.x || flow.y) this.moveFloat(flow.x * dt, flow.y * dt);
   }
 
+  /**
+   * The point `t` of the way from `from` to `to` as measured on the water, not
+   * on screen: far out a stretch of water looks shorter, so something coming in
+   * at an even pace creeps at first and speeds up on screen as it nears the bank.
+   */
+  along(from, to, t) {
+    const steps = 24;
+    const lengths = [];
+    let total = 0;
+    for (let i = 0; i < steps; i += 1) {
+      const y = from.y + ((to.y - from.y) * (i + 0.5)) / steps;
+      total += 1 / Math.max(0.05, this.scaleAt(y));
+      lengths.push(total);
+    }
+    const goal = Math.min(1, Math.max(0, t)) * total;
+    let i = 0;
+    while (i < steps - 1 && lengths[i] < goal) i += 1;
+    const before = i ? lengths[i - 1] : 0;
+    const u = (i + (goal - before) / (lengths[i] - before || 1)) / steps;
+    return { x: from.x + (to.x - from.x) * u, y: from.y + (to.y - from.y) * u };
+  }
+
   /** Where the hooked fish is: it moves from the cast point toward the angler, up to the water's edge. */
   fishPosition() {
-    const landing = this.landing();
-    const t = 1 - this.distance;
-    // A fish that veered off pulls the line out to the side, less so as it nears the bank.
-    const aside = (this.side ?? 0) * TUNING.sideSwing * (0.35 + 0.65 * this.distance);
-    return {
-      x: this.target.x + (landing.x - this.target.x) * t + aside,
-      y: this.target.y + (landing.y - this.target.y) * t,
-    };
+    const at = this.along(this.target, this.landing(), 1 - this.distance);
+    // A fish that veered off pulls the line out to the side, less so as it nears
+    // the bank, and the same swing looks narrower far out.
+    const aside = (this.side ?? 0) * TUNING.sideSwing * (0.35 + 0.65 * this.distance) * this.scaleAt(at.y);
+    return { x: at.x + aside, y: at.y };
   }
 
   /** How far out the cast landed: 0 by the shore, 1 at the far edge. */
@@ -368,10 +393,15 @@ export class FishingGame {
   }
 
   /** How much the feeder livens the bite where the float lies: 1 off the fed spot. */
+  /** The fed patch is the same size on the water, so it looks smaller far out (never under 0.6 of the size by the bank, to stay hittable). */
+  feedRadius(feed) {
+    return FEEDER.radius * Math.max(0.6, this.scaleAt(feed.y));
+  }
+
   feedBoost() {
     const feed = this.feed;
     if (!feed || this.spinning || feed.location !== this.location || !this.target) return 1;
-    if (Math.hypot(this.target.x - feed.x, this.target.y - feed.y) > FEEDER.radius) return 1;
+    if (Math.hypot(this.target.x - feed.x, this.target.y - feed.y) > this.feedRadius(feed)) return 1;
     return 1 + FEEDER.step * feed.level;
   }
 
@@ -379,7 +409,7 @@ export class FishingGame {
   dropFeed() {
     const feed = this.feed;
     const same = feed && feed.location === this.location && this.time - feed.at <= FEEDER.keepSeconds
-      && Math.hypot(this.target.x - feed.x, this.target.y - feed.y) <= FEEDER.radius;
+      && Math.hypot(this.target.x - feed.x, this.target.y - feed.y) <= this.feedRadius(feed);
     this.feed = same
       ? { ...feed, level: Math.min(FEEDER.maxLevel, feed.level + 1), at: this.time }
       : { x: this.target.x, y: this.target.y, location: this.location, level: 1, at: this.time };
@@ -406,10 +436,7 @@ export class FishingGame {
       this.jerkAge += dt;
       this.retrieved = Math.min(1, this.retrieved + TUNING.retrieveSpeed * dt);
       const end = this.landing();
-      this.target = {
-        x: this.lureFrom.x + (end.x - this.lureFrom.x) * this.retrieved,
-        y: this.lureFrom.y + (end.y - this.lureFrom.y) * this.retrieved,
-      };
+      this.target = this.along(this.lureFrom, end, this.retrieved);
       this.wakeClock -= dt;
       if (this.wakeClock <= 0) {
         this.wakeClock = 0.35;
@@ -518,7 +545,7 @@ export class FishingGame {
         const skim = Math.min(1, this.reelProgress / TUNING.reelSkim);
         const eased = skim * skim * (3 - 2 * skim);
         const end = this.landing();
-        this.target = { x: this.reelFrom.x + (end.x - this.reelFrom.x) * eased, y: this.reelFrom.y + (end.y - this.reelFrom.y) * eased };
+        this.target = this.along(this.reelFrom, end, eased);
         // At the bank the rig leaves the water.
         if (skim >= 1 && !this.lifted) {
           this.lifted = true;

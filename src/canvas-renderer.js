@@ -2546,9 +2546,10 @@ export class CanvasWaterRenderer {
           y: angler.target.y + (hang.y - angler.target.y) * s - Math.sin(s * Math.PI) * height * 0.03,
         };
       } else {
-        // The float rides the surface plus a slow bob of its own on still water.
+        // The float rides the surface plus a slow bob of its own on still water, smaller far out.
+        const depth = this.waterScaleAt ? clamp(this.waterScaleAt(angler.target.y) / this.waterScaleAt(height * 0.85), 0.5, 1) : 1;
         const drift = Math.sin(angler.time * 1.7) * 0.8;
-        end = { x: angler.target.x + angler.bob.x, y: angler.target.y + angler.bob.y + angler.float.offset + drift };
+        end = { x: angler.target.x + angler.bob.x, y: angler.target.y + angler.bob.y + (angler.float.offset + drift) * depth };
       }
 
       const taut = angler.phase === "fight" ? Math.min(1, angler.tension * 1.6 + (angler.pulling ? 0.4 : 0))
@@ -2564,7 +2565,11 @@ export class CanvasWaterRenderer {
       ctx.strokeStyle = `rgba(${226 + sing * 20}, ${232 + sing * 14}, ${222 + sing * 20}, ${0.32 + taut * 0.3 + sing * 0.2})`;
       ctx.stroke();
 
-      ctx.font = `600 ${size}px ${MONO_FONT}`;
+      // Farther out everything on the water looks smaller, as the water's glyphs do; close in it keeps
+      // its full size, and far out it never shrinks past what an eye can still find.
+      const far = this.waterScaleAt ? clamp(this.waterScaleAt(end.y) / this.waterScaleAt(height * 0.85), 0.5, 1) : 1;
+      const onWater = Math.max(7, Math.round(size * far));
+      ctx.font = `600 ${onWater}px ${MONO_FONT}`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       if (angler.lure && (angler.phase === "retrieving" || angler.phase === "bite")) {
@@ -2573,10 +2578,10 @@ export class CanvasWaterRenderer {
           ctx.fillStyle = "#e6efe9";
           for (let i = 0; i < 4; i += 1) {
             const a = angler.time * 9 + i * 1.6;
-            ctx.fillText(i % 2 ? "*" : "~", end.x + Math.cos(a) * size * 0.6, end.y + Math.sin(a * 1.4) * size * 0.25);
+            ctx.fillText(i % 2 ? "*" : "~", end.x + Math.cos(a) * onWater * 0.6, end.y + Math.sin(a * 1.4) * onWater * 0.25);
           }
         } else if (angler.pulling) {
-          this.drawLureInWater(ctx, angler, end, size);
+          this.drawLureInWater(ctx, angler, end, onWater);
         } else if (angler.lureId === "wobbler") {
           // Paused, the wobbler floats up and hangs still just under the surface.
           ctx.fillStyle = "rgba(122, 170, 110, 0.7)";
@@ -2587,6 +2592,7 @@ export class CanvasWaterRenderer {
           ctx.fillText(".", end.x, end.y);
         }
       } else if (angler.lure && angler.phase !== "fight") {
+        ctx.font = `600 ${size}px ${MONO_FONT}`;
         this.drawLureInAir(ctx, angler, end, size);
       } else if (angler.phase === "fight" && (angler.snag || angler.junk)) {
         // A snag or an old boot doesn't thrash: the line just goes tight.
@@ -2598,28 +2604,26 @@ export class CanvasWaterRenderer {
         for (let i = 0; i < count; i += 1) {
           const a = angler.time * (5 + i) + i * 1.7;
           ctx.fillStyle = i % 2 ? "#cfe0da" : "#8fb3ad";
-          ctx.fillText(i % 3 === 2 ? "*" : i % 2 ? "~" : "^", end.x + Math.cos(a) * size * 0.7 * thrash, end.y + Math.sin(a * 1.3) * size * 0.25 * (1 + heft * 0.5));
+          ctx.fillText(i % 3 === 2 ? "*" : i % 2 ? "~" : "^", end.x + Math.cos(a) * onWater * 0.7 * thrash, end.y + Math.sin(a * 1.3) * onWater * 0.25 * (1 + heft * 0.5));
         }
         // A running fish leaves a wake behind it.
         const trail = (this.fishTrail ??= []);
-        if (!trail.length || Math.hypot(trail[0].x - end.x, trail[0].y - end.y) > 4) trail.unshift({ x: end.x, y: end.y });
+        if (!trail.length || Math.hypot(trail[0].x - end.x, trail[0].y - end.y) > 4 * far) trail.unshift({ x: end.x, y: end.y });
         if (trail.length > 10) trail.length = 10;
         if (angler.running && (angler.fishWeight ?? 0) >= 1) {
           trail.forEach((point, i) => {
             if (i < 1) return;
             ctx.fillStyle = `rgba(200, 220, 214, ${0.6 - i * 0.055})`;
-            ctx.fillText(i % 2 ? "~" : "-", point.x + Math.sin(i * 2.1) * 3, point.y);
+            ctx.fillText(i % 2 ? "~" : "-", point.x + Math.sin(i * 2.1) * 3 * far, point.y);
           });
         }
         if (angler.distance < 0.25) {
           ctx.fillStyle = "#c9d6c6";
-          ctx.fillText("><(((°>", end.x, end.y + size * 0.6);
+          ctx.fillText("><(((°>", end.x, end.y + onWater * 0.6);
         }
       } else if (angler.phase !== "bite" && angler.float.sink < 0.95) {
-        // Farther out the float looks smaller, as the water's glyphs do; one cast close in keeps its full size,
-        // and far out it never shrinks past what an eye can still find.
-        const far = this.waterScaleAt ? clamp(this.waterScaleAt(end.y) / this.waterScaleAt(height * 0.85), 0.5, 1) : 1;
-        const floatSize = Math.max(7, Math.round(size * far));
+        // The float shrinks with the distance like the rest (see `far` above).
+        const floatSize = onWater;
         ctx.font = `600 ${floatSize}px ${MONO_FONT}`;
         const sink = angler.float.sink;
         const below = floatSize * 0.45 * sink;
@@ -3069,11 +3073,13 @@ export class CanvasWaterRenderer {
 
   /** The float struck: a burst of spray flung up and falling back. */
   splash(x, y, power = 1) {
-    const size = clamp(this.reedSize * 0.7, 10, 18);
+    // Farther out the spray is smaller and flies less far on screen.
+    const far = this.waterScaleAt ? clamp(this.waterScaleAt(y) / this.waterScaleAt(this.height * 0.85), 0.5, 1) : 1;
+    const size = Math.max(7, clamp(this.reedSize * 0.7, 10, 18) * far);
     for (let i = 0; i < 9 + Math.round(power * 6); i += 1) {
       const angle = -Math.PI / 2 + (Math.random() - 0.5) * 2.2;
-      const speed = (60 + Math.random() * 90) * (0.7 + power * 0.4);
-      this.addParticle({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, gravity: 320, life: 0.5 + Math.random() * 0.35, glyphs: ["*", "'", ".", "."], color: Math.random() > 0.4 ? "#e4eeea" : "#a9c6c2", size });
+      const speed = (60 + Math.random() * 90) * (0.7 + power * 0.4) * far;
+      this.addParticle({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, gravity: 320 * far, life: 0.5 + Math.random() * 0.35, glyphs: ["*", "'", ".", "."], color: Math.random() > 0.4 ? "#e4eeea" : "#a9c6c2", size });
     }
   }
 
@@ -3281,7 +3287,7 @@ export class CanvasWaterRenderer {
       // A long V of a wake behind the head.
       beaver.wake.forEach((point, i) => {
         if (i < 1) return;
-        const spread = i * 3.2;
+        const spread = i * 3.2 * (this.waterScaleAt ? this.waterScaleAt(beaver.y) / this.waterScaleAt(this.height * 0.85) : 1);
         ctx.fillStyle = `rgba(190, 210, 206, ${0.5 - i * 0.035})`;
         ctx.fillText(beaver.heading > 0 ? "\\" : "/", point.x, point.y - spread * 0.5);
         ctx.fillText(beaver.heading > 0 ? "/" : "\\", point.x, point.y + spread * 0.5);

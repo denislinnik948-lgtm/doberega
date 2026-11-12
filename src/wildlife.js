@@ -13,6 +13,9 @@ export class Ducks {
     this.random = random;
     this.flocks = [];
     this.timer = 25 + random() * 40;
+    // Set by the host: how big the water looks at a screen height, 1 by the bank;
+    // a duck farther out covers less of the screen at the same pace.
+    this.scaleAt = () => 1;
   }
 
   get all() {
@@ -131,12 +134,13 @@ export class Ducks {
         const leader = flock.ducks[0];
         // A follower that got stuck behind a rock makes its own way out instead.
         const own = duck.solo;
-        const tx = own ? own.x : index === 0 ? goal.x : leader.x - leader.heading * index * 30;
-        const ty = own ? own.y : index === 0 ? goal.y : leader.y + (index % 2 ? 10 : -8);
+        const scale = this.scaleAt(duck.y);
+        const tx = own ? own.x : index === 0 ? goal.x : leader.x - leader.heading * index * 30 * scale;
+        const ty = own ? own.y : index === 0 ? goal.y : leader.y + (index % 2 ? 10 : -8) * scale;
         const dx = tx - duck.x;
         const dy = ty - duck.y;
         const distance = Math.hypot(dx, dy) || 1;
-        const speed = flock.speed * (index === 0 ? 1 : Math.min(1.4, distance / 30));
+        const speed = flock.speed * scale * (index === 0 ? 1 : Math.min(1.4, distance / (30 * scale)));
         let nx = duck.x + (dx / distance) * speed * dt;
         let ny = duck.y + (dy / distance) * speed * dt + Math.sin(time * 1.3 + duck.phase) * 3 * dt;
         // Steer around banks and rocks instead of walking over them.
@@ -221,6 +225,8 @@ export class Critters {
   constructor({ random = Math.random, onEvent = () => {} } = {}) {
     this.random = random;
     this.onEvent = onEvent;
+    // Set by the host, as for the ducks: the beaver swims slower on screen far out.
+    this.scaleAt = () => 1;
     this.reset();
   }
 
@@ -468,7 +474,7 @@ export class Critters {
       if (beaver.under > 1.2) this.beaver = null;
       return;
     }
-    const nx = beaver.x + beaver.heading * beaver.speed * dt;
+    const nx = beaver.x + beaver.heading * beaver.speed * this.scaleAt(beaver.y) * dt;
     const onScreen = nx > frame.left && nx < frame.left + frame.width;
     if (onScreen && !isWater(nx, beaver.y)) beaver.dive = 0;
     else beaver.x = nx;

@@ -485,6 +485,13 @@ game.currentAt = (x, y) => {
 };
 game.isWater = (point) => isOnWater(point.x * width, point.y * height);
 game.reachAt = (point) => castReach(point.x * width, point.y * height);
+// How big the water looks at a height, 1 at the nearest cast (see waterScaleAt).
+game.scaleAt = (y) => {
+  const scale = renderer.waterScaleAt;
+  return scale ? scale(y * height) / scale(height * TUNING.nearY) : 1;
+};
+// The same for the ducks and the beaver, in screen pixels.
+ducks.scaleAt = critters.scaleAt = (y) => game.scaleAt(y / height);
 
 function tryCast(x, y) {
   // A tap past the farthest cast still casts, but only on the water itself (not the sky or a bank).
@@ -607,12 +614,15 @@ function moveSchool(elapsed) {
   school = point ? { x: point.x / width, y: point.y / height, until: elapsed + 70 + Math.random() * 90, splash: elapsed + 3 + Math.random() * 8 } : null;
 }
 
-/** Whether a normalized point on the water is within reach of the school (an ellipse, flatter with distance). */
+/** How far the school's patch reaches at its spot: the same on the water, so smaller far out (never under 0.6 of it by the bank, to stay hittable). */
+const schoolReach = () => SCHOOL_REACH * Math.max(0.6, game.scaleAt(school.y));
+
+/** Whether a normalized point on the water is within reach of the school (a flat ellipse). */
 function nearSchool(point) {
   if (!school) return false;
   const dx = (point.x - school.x) * (width / height);
   const dy = (point.y - school.y) * 2.2;
-  return Math.hypot(dx, dy) < SCHOOL_REACH;
+  return Math.hypot(dx, dy) < schoolReach();
 }
 
 // Now and then a fish breaks the surface out on the water, mostly where the school is.
@@ -621,8 +631,10 @@ function maybeJumpFish(elapsed) {
   if (school && elapsed >= school.splash) {
     school.splash = elapsed + 14 + Math.random() * 22;
     const jump = (delay) => {
-      const x = (school.x + (Math.random() - 0.5) * SCHOOL_REACH * (height / width)) * width;
-      const y = (school.y + (Math.random() - 0.5) * SCHOOL_REACH * 0.4) * height;
+      // The school keeps to a patch of water, which looks smaller farther out.
+      const spread = schoolReach();
+      const x = (school.x + (Math.random() - 0.5) * spread * (height / width)) * width;
+      const y = (school.y + (Math.random() - 0.5) * spread * 0.4) * height;
       addRipple({ ...renderer.screenToPlane(x, y), time: elapsed + delay, strength: 0.7, size: 0.45 + Math.random() * 0.35, ambient: true });
       if (mode === "fishing") setTimeout(() => jumpSound(((x - renderer.frame.left) / renderer.frame.width) * 2 - 1), delay * 1000);
     };
