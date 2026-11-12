@@ -73,7 +73,8 @@ function chooseSpecies(seed, layerIndex, broadleaf) {
 function createTrees(width, height, sunX) {
   const trees = [];
   const { heightScale = 1, spacingScale = 1, broadleaf, gaps = [], poplar = 0, lift = 1, onRim = false } = activeScene().forest;
-  const inGap = (x) => gaps.some(([from, to]) => x > from * width && x < to * width);
+  // A gap reaching a screen edge runs on past it, so no tree just off the edge pokes in.
+  const inGap = (x) => gaps.some(([from, to]) => (from <= 0 || x > from * width) && (to >= 1 || x < to * width));
 
   FOREST_LAYERS.forEach((layer, layerIndex) => {
     let index = 0;

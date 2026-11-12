@@ -95,7 +95,11 @@ export function alpineSample(ridge, x, y, height, column = alpineColumn(ridge, x
   const slope = terrain(x - 3) - terrain(x + 3);
   const { top, crestSlope } = column;
   const nearCrest = Math.exp(-(y - top) / (height * 0.04));
-  const light = Math.round(clamp(0.5 + slope * 9 + crestSlope * 1.2 * nearCrest + (here - 0.45) * 0.5, 0, 1) * 3) / 3;
+  // `relief`: big spurs running down and away from the peaks, each with a sunlit face and a
+  // shaded one, so a whole mountain reads as a solid form and not one flat wall.
+  const spur = (px) => ridged((px + (y - top) * 0.6) * f * 0.22, y * f * 0.12, seed + 7, 3);
+  const faces = ridge.relief ? (spur(x - 8) - spur(x + 8)) * 40 * ridge.relief : 0;
+  const light = Math.round(clamp(0.5 + slope * 9 + faces + crestSlope * 1.2 * nearCrest + (here - 0.45) * 0.5, 0, 1) * 3) / 3;
   const snowline = ridge.snowline ? height * (ridge.snowline + (1 - here) * 0.07 + (valueNoise(x * 0.02, 3, seed) - 0.5) * 0.03) : -1;
   // Woods climb to just under the snow, or most of the way up a lower ridge,
   // or as high as the ridge's own `treeline` (a share of the screen height).
@@ -118,9 +122,12 @@ export function alpineColor(ridge, sample, depth) {
   const base = mixRgb(shade, lit, sample.light);
   // `pale`: a light limestone rather than dark granite.
   const rock = sample.material === "rock" && ridge.pale ? mixRgb(base, LIMESTONE, ridge.pale) : base;
-  // `cool`: [colour, share] drawn toward a cold blue shade, the hazy light of a cool day.
-  const cooled = ridge.cool && sample.material !== "snow" ? mixRgb(rock, ridge.cool[0], ridge.cool[1]) : rock;
-  return mixRgb(cooled, HAZE, (ridge.haze ?? 0.22) + depth * 0.12);
+  // `cool`: [colour, share] drawn toward a cold blue shade, the hazy light of a cool day: mostly
+  // in the shade, so the faces turned to the sun stay lighter and the mountain keeps its form.
+  const cooled = ridge.cool && sample.material !== "snow" ? mixRgb(rock, ridge.cool[0], ridge.cool[1] * (1 - sample.light * 0.75)) : rock;
+  // `relief`: the sunlit faces lifted a little more, the shaded ones sunk.
+  const shaped = ridge.relief ? mixRgb(cooled, sample.light > 0.5 ? [236, 230, 214] : [8, 12, 20], ridge.relief * Math.abs(sample.light - 0.5) * 2) : cooled;
+  return mixRgb(shaped, HAZE, (ridge.haze ?? 0.22) + depth * 0.12);
 }
 
 /** Per-column values of an alpine ridge, shared by every pixel below the crest. */
@@ -1045,10 +1052,11 @@ function livingCrowns(cellWidth, lineHeight, k, seed, { poplars = 0.3, size = 1 
     const [gap, shade, mid, lit, sun] = best.tone;
     const light = -best.nx * 0.55 - best.ny * 0.85;
     if (best.d > 0.78 && best.ny > -0.1) return { glyph: "%&#"[Math.floor(noise * 3)], color: gap };
-    if (light > 0.7) return { glyph: best.poplar ? "^" : noise > 0.5 ? "o" : "@", color: sun };
-    if (light > 0.3) return { glyph: best.poplar ? "|" : "oO&"[Math.floor(noise * 3)], color: lit };
-    if (light > -0.15) return { glyph: best.poplar ? ":" : "&%*"[Math.floor(noise * 3)], color: mid };
-    return { glyph: "*&%#"[Math.floor(noise * 4)], color: shade };
+    // Leaves, not beads: a mix of strokes, the brightest marks only here and there.
+    if (light > 0.75) return { glyph: best.poplar ? "^" : noise > 0.6 ? "o" : noise > 0.3 ? "*" : "&", color: sun };
+    if (light > 0.3) return { glyph: best.poplar ? "^*"[Math.floor(noise * 2)] : "&*%o"[Math.floor(noise * 4)], color: lit };
+    if (light > -0.15) return { glyph: best.poplar ? "*&"[Math.floor(noise * 2)] : "&%*#"[Math.floor(noise * 4)], color: mid };
+    return { glyph: "%&#*"[Math.floor(noise * 4)], color: shade };
   };
 }
 
