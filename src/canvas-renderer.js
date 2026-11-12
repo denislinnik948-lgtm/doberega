@@ -106,6 +106,58 @@ const TRAIN_UNITS = (() => {
 })();
 const TRAIN_MIRROR = { "/": "\\", "\\": "/", "(": ")", ")": "(", "[": "]", "]": "[", ">": "<", "<": ">" };
 
+/**
+ * One glyph of a rod (tier 1..8) at step `i` of `steps`, `t` of the way from
+ * the butt to the tip, `stroke` the slant glyph that follows its curve:
+ * [glyph, colour, size factor]. The handle is the first fifth or so.
+ */
+function rodGlyph(tier, i, t, stroke, steps) {
+  const node = (every) => i % Math.max(2, Math.round((steps * every) / 26)) === 0;
+  switch (tier) {
+    // A willow switch: crooked bark, a knot now and then.
+    case 1:
+      if (t < 0.15) return [stroke, "#6a4c28"];
+      if (i % 7 === 3) return ["-", "#5a3e20"];
+      return [stroke, i % 3 === 0 ? "#6a4c28" : "#8a6a3c"];
+    // Hazel: nodes along it, the handle bound with thread.
+    case 2:
+      if (t < 0.2) return [i % 2 ? "x" : "+", "#d8c890"];
+      if (node(5)) return ["=", "#7a5a30"];
+      return [stroke, "#a07a48"];
+    // Bamboo: pale yellow with its joints.
+    case 3:
+      if (t < 0.2) return [i % 2 ? "x" : "+", "#5a4a28"];
+      if (node(4)) return ["=", "#8a7a3a"];
+      return [stroke, i % 2 ? "#d8c27a" : "#c8b068"];
+    // A telescope: the joins of its sections show.
+    case 4:
+      if (t < 0.2) return ["#", "#2a2a26"];
+      if ([0.32, 0.5, 0.68, 0.84].some((at) => Math.abs(t - at) < 0.5 / steps)) return ["]", "#c6c0ae"];
+      return [stroke, "#6e9a8c"];
+    // Fibreglass: white, a cork handle, plain rings.
+    case 5:
+      if (t < 0.22) return ["#", i % 2 ? "#b8905a" : "#a07a48", 1.05];
+      if (t > 0.25 && node(5)) return ["o", "#9aaaaa"];
+      return [stroke, i % 3 ? "#e8e8d8" : "#c8c8b8"];
+    // Carbon: matt black with its weave.
+    case 6:
+      if (t < 0.22) return ["#", "#1a1a1a"];
+      if (t > 0.25 && node(5)) return ["o", "#c0c0c0"];
+      return [t > 0.25 && i % 2 ? "x" : stroke, i % 2 ? "#2c2c2c" : "#444444"];
+    // The carp rod: dark green, big rings.
+    case 7:
+      if (t < 0.24) return ["#", "#141414"];
+      if (t > 0.25 && node(5)) return ["O", "#b8b8a8"];
+      return [stroke, i % 2 ? "#2e4a2e" : "#3c5e3a"];
+    // The catfish rod: thick and dark, gold rings and whippings.
+    default:
+      if (t < 0.24) return ["#", "#141414"];
+      if (t > 0.25 && node(4)) return ["O", "#e2b85e"];
+      if (t > 0.25 && i % 4 === 2) return ["=", "#e2b85e"];
+      return [stroke, i % 2 ? "#3a2a1a" : "#4a3622"];
+  }
+}
+
 export class CanvasWaterRenderer {
   constructor(canvas) {
     this.canvas = canvas;
@@ -2751,53 +2803,62 @@ export class CanvasWaterRenderer {
       return;
     }
 
-    // The rod itself, in front of everything; its look depends on the tier.
-    const look = ROD_LOOKS[(angler.rodTier ?? 1) - 1];
+    // The rod itself, in front of everything: each one drawn in its own glyphs
+    // (see rodGlyph), thick at the butt and fine at the tip, over only a thin
+    // dark line, with its own handle and reel.
     const tier = angler.rodTier ?? 1;
     ctx.lineCap = "round";
+    ctx.lineJoin = "round";
     ctx.beginPath();
     ctx.moveTo(rod.base.x, rod.base.y);
     ctx.quadraticCurveTo(rod.control.x, rod.control.y, rod.tip.x, rod.tip.y);
-    ctx.lineWidth = Math.max(2.5, width * (0.0025 + tier * 0.0003));
-    ctx.strokeStyle = "#0a110e";
+    ctx.lineWidth = Math.max(1.2, size * 0.09);
+    ctx.strokeStyle = "rgba(10, 17, 14, 0.8)";
     ctx.stroke();
-    ctx.lineWidth = 1 + tier * 0.12;
-    ctx.strokeStyle = look.blank;
-    ctx.globalAlpha = 0.55;
-    ctx.stroke();
-    ctx.globalAlpha = 1;
 
-    ctx.font = `600 ${size}px ${MONO_FONT}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     const point = (t) => ({
       x: (1 - t) ** 2 * rod.base.x + 2 * (1 - t) * t * rod.control.x + t * t * rod.tip.x,
       y: (1 - t) ** 2 * rod.base.y + 2 * (1 - t) * t * rod.control.y + t * t * rod.tip.y,
     });
-    const steps = Math.max(6, Math.round(Math.hypot(rod.tip.x - rod.base.x, rod.tip.y - rod.base.y) / (size * 0.9)));
-    const guideEvery = look.guides ? Math.max(2, Math.round(steps / (look.guides + 1))) : Infinity;
+    const length = Math.hypot(rod.tip.x - rod.base.x, rod.tip.y - rod.base.y);
+    const steps = Math.max(10, Math.round(length / (size * 0.62)));
+    // The heavy rods (carp, catfish) are a little thicker all along.
+    const heavy = tier >= 7 ? 1.15 : 1;
+    const outlined = (glyph, x, y, color, px) => {
+      ctx.font = `700 ${Math.round(px)}px ${MONO_FONT}`;
+      ctx.lineWidth = Math.max(1.5, px * 0.17);
+      ctx.strokeStyle = "#0a110e";
+      ctx.strokeText(glyph, x, y);
+      ctx.fillStyle = color;
+      ctx.fillText(glyph, x, y);
+    };
     for (let i = 1; i < steps; i += 1) {
       const t = i / steps;
       const a = point(t);
       const b = point(t + 1 / steps);
       const slope = (b.x - a.x) / (a.y - b.y);
-      let glyph = Math.abs(slope) < 0.25 ? "|" : slope > 0 ? "/" : "\\";
-      let color = look.blank;
-      if (t < 0.2) {
-        glyph = look.reel ? "#" : glyph;
-        color = look.handle;
-      } else if (t > 0.3 && i % guideEvery === 0) {
-        glyph = "o";
-        color = "#d8d6c4";
-      }
-      ctx.fillStyle = color;
-      ctx.fillText(glyph, a.x, a.y);
+      const stroke = Math.abs(slope) < 0.25 ? "|" : slope > 0 ? "/" : "\\";
+      const [glyph, color, grow = 1] = rodGlyph(tier, i, t, stroke, steps);
+      outlined(glyph, a.x, a.y, color, size * (1 - 0.45 * t) * heavy * grow);
     }
-    if (look.reel) {
-      const reel = point(0.24);
-      ctx.fillStyle = look.reel >= 3 ? "#e2b85e" : "#c6c0ae";
-      ctx.fillText(look.reel >= 2 ? "@" : "o", reel.x + size * 0.5, reel.y);
-    }
+    // The tip: a leaf left on the willow switch, a gold bead on the catfish rod.
+    if (tier === 1) outlined("&", rod.tip.x - size * 0.25, rod.tip.y - size * 0.25, "#6a9a4a", size * 0.7);
+    if (tier === 8) outlined("o", rod.tip.x, rod.tip.y, "#e2b85e", size * 0.6);
+    // The reel, hanging under the rod a little above the handle: a plain one, a
+    // spinning reel with its handle, a big baitrunner with its red lever, or a
+    // multiplier sitting on top.
+    const reel = point(0.25);
+    const side = size * 0.65;
+    if (tier >= 3 && tier <= 4) outlined("(o)", reel.x + side, reel.y + size * 0.15, "#b0aa98", size * 0.8);
+    else if (tier <= 6 && tier >= 5) {
+      outlined("@", reel.x + side, reel.y + size * 0.3, "#c8c8c0", size * 1.1);
+      outlined("-", reel.x + side * 1.9, reel.y + size * 0.15, "#888880", size * 0.8);
+    } else if (tier === 7) {
+      outlined("@", reel.x + side, reel.y + size * 0.35, "#2a2a2a", size * 1.3);
+      outlined("=", reel.x + side, reel.y - size * 0.35, "#c84a3a", size * 0.8);
+    } else if (tier === 8) outlined("[@]", reel.x + side * 0.8, reel.y - size * 0.5, "#e2b85e", size * 0.95);
     if (angler.bell) {
       // A little brass bell hangs from the tip on a short string: still while nothing touches the bait,
       // shivering at each twitch and swinging hard once the float is under.
