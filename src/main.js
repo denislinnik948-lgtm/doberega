@@ -7,7 +7,7 @@ import { moonAt, moonBite } from "./moon.js";
 import { windAt, windBite } from "./wind.js";
 import { Critters, Ducks } from "./wildlife.js";
 import { FishingGame, TUNING } from "./fishing/game.js";
-import { BAITS, FISH, GROUNDBAIT, HOOKS, LINE, LOCATIONS, RODS, SPECIAL_AVATAR, access } from "./fishing/data.js";
+import { BAITS, FISH, GROUNDBAIT, HOOKS, LINE, LOCATIONS, RODS, SPECIAL_AVATAR, access, FLOAT_SKINS } from "./fishing/data.js";
 import { baitCount, loadProgress, onProgressSaved, replaceProgress, saveProgress } from "./fishing/store.js";
 import { Cloud } from "./cloud.js";
 import { currentSeason, isWinter, onSeasonChange } from "./theme.js";
@@ -644,6 +644,8 @@ function anglerView(elapsed) {
     rodTier: RODS[game.busy && game.rod ? game.rod : progress.rod].tier,
     hidden: mode === "menu",
     glowFloat: progress.extras.includes("glowfloat"),
+    // The float's skin, for its glyphs on the water.
+    floatRows: FLOAT_SKINS[progress.float]?.rows,
     // The bell on the rod tip, and how hard it swings: with each twitch and dip, wildly once the float is under.
     bell: progress.extras.includes("bell"),
     bellShake: game.phase === "nibble" ? Math.min(1, Math.max(Math.abs(game.float.offset) / 3, game.float.sink))

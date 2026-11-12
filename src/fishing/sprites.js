@@ -1542,6 +1542,37 @@ export function hookSprite(scale = 3, size = "medium") {
   return fromRows(HOOK_ROWS[size] ?? HOOK_ROWS.medium, { o: P.ink, ...(HOOK_METALS[size] ?? HOOK_METALS.medium) }).toCanvas(scale);
 }
 
+/**
+ * A float skin (see FLOAT_SKINS) for the shop and the backpack: its glyphs
+ * stacked as on the water, each outlined dark, over a short ripple.
+ */
+export function floatSprite(rows, scale = 3) {
+  const size = 16 * scale;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  // As big as fits: the stack of rows (each 0.62 of a glyph above the last) within three quarters of the square.
+  const px = Math.round(Math.min(size * 0.5, (size * 0.72) / (1 + 0.62 * (rows.length - 1))));
+  ctx.font = `700 ${px}px "SFMono-Regular", Menlo, Consolas, monospace`;
+  ctx.lineWidth = Math.max(2, scale);
+  ctx.strokeStyle = P.ink;
+  const step = px * 0.62;
+  const waterline = size * 0.8;
+  ctx.fillStyle = P.soft;
+  ctx.fillText("~", size * 0.25, waterline + px * 0.35);
+  ctx.fillText("~", size * 0.75, waterline + px * 0.35);
+  rows.forEach(([glyph, color], index) => {
+    const y = waterline - (rows.length - 1 - index) * step;
+    ctx.strokeText(glyph, size / 2, y);
+    ctx.fillStyle = color;
+    ctx.fillText(glyph, size / 2, y);
+  });
+  return canvas;
+}
+
 /** Small sun / moon for the clock; at night the moon in its phase (`moon` from moonAt). */
 export function clockSprite(night, scale = 2, moon = null) {
   const grid = new Grid(11, 11);

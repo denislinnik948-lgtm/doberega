@@ -1,9 +1,9 @@
 import {
-  BAITS, BOTTLE_MONEY, SPECIAL_AVATAR, EXTRAS, FISH, LIVEBAIT, access, extraShown, GROUNDBAIT, GROUNDBAITS, GULL, HOOKS, LEGENDS, LINE, LOCATIONS, RODS, fishShown, gameHoursMs, spotShown,
+  BAITS, BOTTLE_MONEY, SPECIAL_AVATAR, EXTRAS, FISH, FLOAT_SKINS, LIVEBAIT, access, extraShown, GROUNDBAIT, GROUNDBAITS, GULL, HOOKS, LEGENDS, LINE, LOCATIONS, RODS, fishShown, gameHoursMs, spotShown,
   baitEntries, fishPrice, formatMoney, formatWeight, handbookEntries, peakPeriod, spotEntries, trophyCost,
 } from "./data.js";
 import {
-  AVATARS, atlasSprite, avatarSprite, bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, groundbaitSprite, hookSprite, keepnetSprite, lineSprite, medalSprite, packSprite, rodSprite, windSprite,
+  AVATARS, atlasSprite, avatarSprite, bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, floatSprite, groundbaitSprite, hookSprite, keepnetSprite, lineSprite, medalSprite, packSprite, rodSprite, windSprite,
 } from "./sprites.js";
 import { P } from "./palette.js";
 import { GROUPS, bump, evaluate, shownAchievements } from "./achievements.js";
@@ -1455,6 +1455,11 @@ export class AnglerUI {
           id, () => extraSprite(id, 3), nameOf("extra", id), nameOf("extraText", id), extra.price, progress.extras.includes(id),
           () => { progress.extras.push(id); },
         )),
+        // Float skins, only for the look: bought once, put on the line at once.
+        ...Object.entries(FLOAT_SKINS).filter(([, skin]) => skin.price).map(([id, skin]) => once(
+          `float-${id}`, () => floatSprite(skin.rows, 3), t(`float.${id}`), t("float.text"), skin.price, progress.floats.includes(id),
+          () => { progress.floats.push(id); progress.float = id; },
+        )),
       ],
     };
   }
@@ -1667,6 +1672,12 @@ export class AnglerUI {
         take: locked ? null : () => { progress.bait = id; },
       });
     }
+    // The float skins: more than the classic one, pick which is on the line.
+    if (progress.floats.length > 1) for (const id of progress.floats) add("box", {
+      key: `float:${id}`, art: () => floatSprite(FLOAT_SKINS[id].rows, 3), title: t(`float.${id}`), tag: "",
+      facts: [t("float.text")], on: id === progress.float, status: t("float.on"),
+      take: () => { progress.float = id; },
+    });
     for (const [kind, count] of Object.entries(progress.groundbaits ?? {})) if (count > 0) add("pocket", {
       key: `groundbait-${kind}`, art: () => groundbaitSprite(3, kind), title: nameOf("groundbait", kind), tag: `×${count}`,
       facts: this.groundbaitFacts(kind), action: [t("pack.feed"), () => this.useGroundbait(kind)],
