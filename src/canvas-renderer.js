@@ -2367,11 +2367,12 @@ export class CanvasWaterRenderer {
         for (let y = waterline, r = 0; y >= part.y; y -= lineHeight, r += 1) {
           const noise = hash2(Math.round(x / cellWidth), r, 3301);
           const fromTop = (y - part.y) / lineHeight;
-          let glyph = r % 2 ? (c % 3 === 0 ? "|" : "=") : (c % 3 === 1 ? "|" : "=");
+          // Dressed stone: dense glyphs, a course line every few rows.
+          let glyph = r % 4 === 3 ? (noise > 0.5 ? "=" : "-") : "#%&#8"[Math.floor(noise * 5)];
           let color = shaded ? SHADE[Math.floor(noise * 2)] : STONE[Math.floor(noise * 4)];
           if (r < 2) [glyph, color] = [noise > 0.5 ? "%" : "#", noise > 0.6 ? 0x5e5848 : 0x4a4438];
           else if (part.kind === "wall" && fromTop < 1) [glyph, color] = [c % 2 ? "_" : "#", c % 2 ? 0xc8b47c : STONE[1]];
-          else if (part.kind === "hall" && r > 3 && fromTop > 1 && r % 3 === 0 && c % 3 === 1) [glyph, color] = ["#", WINDOW];
+          else if (part.kind === "hall" && r > 3 && fromTop > 1 && r % 3 === 1 && c % 3 === 1) [glyph, color] = ["#", WINDOW];
           else if (part.kind === "keep" && fromTop > 2 && r % 5 === 0 && c === Math.floor(columns / 2)) [glyph, color] = ["#", WINDOW];
           else if (part.kind === "wall" && r >= 2 && r <= 3 && Math.abs(x - cx - unit * 6) < cellWidth) [glyph, color] = ["#", WINDOW];
           put(x, y, glyph, color);

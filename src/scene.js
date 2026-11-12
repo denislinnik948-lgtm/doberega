@@ -233,23 +233,26 @@ export const SCENES = {
    * away on the right snowy peaks over hazy blue mountains, wide blue water.
    */
   mountain: {
-    horizon: 0.55,
+    horizon: 0.62,
     focus: 0.4,
     ridges: [
-      // The snowy range far away on the right, low on the left behind the big mountain.
-      { top: 0.44, amplitude: 0.26, seed: 6.3, jagged: true, alpine: true, rise: [0.45, 0.78], snowline: 0.34, haze: 0.3, fill: "#5d7084", glyph: "#8193a5", texture: ".'", density: 0.05 },
-      // Hazy blue mountains in front of it, wooded.
-      { top: 0.53, amplitude: 0.14, seed: 2.2, jagged: true, alpine: true, rise: [0.55, 0.95], treeline: 0, haze: 0.42, fill: "#2e4458", glyph: "#46607a", texture: ".'", density: 0.05 },
-      // The big wooded mountain on the left, rising past the top of the view, its slope running down to the right.
-      { top: 0.55, amplitude: 0.62, seed: 3.8, hills: [[0, 0.82, 1.65]], alpine: true, treeline: 0, haze: 0.04, spruce: [[20, 60, 30], [74, 136, 60]], fill: "#1f3a28", glyph: "#3e6a40", texture: "&%", density: 0.42 },
+      // A broad snowy massif far away on the right, the clouds' home.
+      { top: 0.5, amplitude: 0.3, seed: 6.3, jagged: true, alpine: true, rise: [0.4, 0.66], snowline: 0.42, haze: 0.24, fill: "#5d7084", glyph: "#8193a5", texture: ".'", density: 0.05 },
+      // Hazy blue mountains under it, rising on the right: with the big mountain they make a V of a valley.
+      { top: 0.62, amplitude: 0.36, seed: 2.2, jagged: true, alpine: true, rise: [0.62, 1], treeline: 0, haze: 0.5, fill: "#2e4458", glyph: "#46607a", texture: ".'", density: 0.05 },
+      // The big wooded mountain on the left, its crest past the top of the view, a shoulder halfway down its long slope to the right.
+      { top: 0.62, amplitude: 0.62, seed: 3.8, hills: [[0, 0.82, 1.45], [0.36, 0.2, 0.62]], alpine: true, treeline: 0, haze: 0.03, spruce: [[22, 66, 30], [86, 150, 64]], fill: "#1f3a28", glyph: "#3e6a40", texture: "&%", density: 0.42 },
     ],
-    // No trees where the castle stands.
-    forest: { heightScale: 1.2, spacingScale: 0.7, broadleaf: 0.8, round: 0.7, gaps: [[0.19, 0.4]] },
-    structures: {},
-    // Wide blue water; the castle stands at its edge (see castleShape).
+    // Trees only on the left, by the castle; a small town along the far shore on the right.
+    forest: { heightScale: 1.1, spacingScale: 0.7, broadleaf: 0.85, round: 0.7, gaps: [[0.2, 1]] },
+    structures: {
+      houses: { from: 0.58, to: 0.99, count: 12, scale: 0.35, roof: "#8a4a34", walls: "#d6cfbc" },
+    },
+    // Wide blue water; the castle stands at its edge, near us on the left (see castleShape).
     water: { body: "#1c4a6a", mirror: 0.7, castle: { x: 0.3 } },
-    nearBank: 0.05,
-    foreground: { reeds: 0.25, rock: false, lilyPads: 0 },
+    // Seen from above: hardly any bank of our own.
+    nearBank: 0.015,
+    foreground: { reeds: 0, rock: false, lilyPads: 0 },
   },
 };
 
@@ -361,17 +364,22 @@ export function wreckShape(width, height) {
 export function castleShape(width, height) {
   const spec = active.water.castle;
   if (!spec) return null;
-  const unit = Math.min(height * 0.011, view.frameWidth * 0.008);
+  // Near us: big, its foot well below the far shore.
+  const unit = Math.min(height * 0.0115, view.frameWidth * 0.008);
   const cx = view.left + spec.x * view.frameWidth;
-  const waterline = active.horizon * height + height * 0.035;
-  // [from, to, top, roof]: `roof` "pyramid", "cone", "gable" or none; all in units.
+  const waterline = active.horizon * height + height * 0.05;
+  // [from, to, top]: `roof` "pyramid", "cone", "gable" or none; all in units, left to right.
+  const ROOF = { pyramid: 7, cone: 5, gable: 4 };
   const parts = [
-    { from: -15, to: 13, top: 8, kind: "wall" },
-    { from: -14, to: -9.5, top: 14, roof: "cone", kind: "tower" },
-    { from: -6.5, to: 0.5, top: 23, roof: "pyramid", kind: "keep" },
-    { from: 1.5, to: 12, top: 14, roof: "gable", kind: "hall" },
-    { from: 9, to: 10.6, top: 19, roof: "cone", kind: "turret" },
-  ].map((part) => ({ ...part, x0: cx + part.from * unit, x1: cx + part.to * unit, y: waterline - part.top * unit, roofTop: waterline - (part.top + (part.roof === "pyramid" ? 6 : part.roof ? 4.5 : 0)) * unit }));
+    { from: -21, to: 17, top: 6, kind: "wall" },
+    { from: -22, to: -16.5, top: 12, roof: "cone", kind: "tower" },
+    { from: -16.5, to: -8, top: 11, roof: "gable", kind: "hall" },
+    { from: -8.5, to: -1, top: 24, roof: "pyramid", kind: "keep" },
+    { from: -1, to: 8, top: 13, roof: "gable", kind: "hall" },
+    { from: 3, to: 5, top: 17, roof: "cone", kind: "turret" },
+    { from: 8, to: 16.5, top: 15.5, roof: "gable", kind: "hall" },
+    { from: 14.5, to: 16.2, top: 20, roof: "cone", kind: "turret" },
+  ].map((part) => ({ ...part, x0: cx + part.from * unit, x1: cx + part.to * unit, y: waterline - part.top * unit, roofTop: waterline - (part.top + (ROOF[part.roof] ?? 0)) * unit }));
   const covers = (x, y) => y < waterline + 2 && parts.some((part) => {
     if (x < part.x0 || x > part.x1) return false;
     if (y >= part.y) return true;
