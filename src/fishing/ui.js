@@ -3,7 +3,7 @@ import {
   baitEntries, fishPrice, formatMoney, formatWeight, handbookEntries, peakPeriod, spotEntries, trophyCost,
 } from "./data.js";
 import {
-  AVATARS, atlasSprite, avatarSprite, bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, floatSprite, groundbaitSprite, hookSprite, keepnetSprite, lineSprite, medalSprite, packSprite, rodSprite, windSprite,
+  AVATARS, atlasSprite, avatarSprite, bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, floatSprite, groundbaitSprite, hookSprite, keepnetSprite, lineSprite, medalSprite, packSprite, rodGlyphSprite, windSprite,
 } from "./sprites.js";
 import { P } from "./palette.js";
 import { GROUPS, bump, evaluate, shownAchievements } from "./achievements.js";
@@ -39,7 +39,8 @@ function element(tag, props = {}, children = []) {
   return node;
 }
 
-const rodArt = (id, scale) => rodSprite(RODS[id].tier, scale);
+// Each rod drawn in its own glyphs, as on the water.
+const rodArt = (id, scale) => rodGlyphSprite(RODS[id].tier, scale);
 
 /** The account server's usual complaints in plain words; anything else as it came. */
 function friendlyError(message) {
@@ -1677,7 +1678,7 @@ export class AnglerUI {
       });
     }
     // The float skins: more than the classic one, pick which is on the line.
-    if (progress.floats.length > 1) for (const id of progress.floats) add("box", {
+    if (progress.floats.length > 1) for (const id of progress.floats) add("looks", {
       key: `float:${id}`, art: () => floatSprite(FLOAT_SKINS[id].rows, 3), title: t(`float.${id}`), tag: "",
       facts: [t("float.text")], on: id === progress.float, status: t("float.on"),
       take: () => { progress.float = id; },
@@ -1744,6 +1745,8 @@ export class AnglerUI {
           section("bait", t("pack.bait"), "pack-grid"),
         ]),
         section("pocket", t("pack.pocket"), "pack-grid"),
+        // What is only for the look, apart from the gear that does something.
+        ...(items.some((item) => item.section === "looks") ? [section("looks", t("pack.looks"), "pack-grid")] : []),
       ]),
     );
     body.querySelectorAll(".pack-pocket").forEach((pocket, index) => frame(pocket, "well", 520 + index));

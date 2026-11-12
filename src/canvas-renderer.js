@@ -10,7 +10,7 @@ import { GlyphBatch, createBackend } from "./glyph-backend.js";
 import { createAmbient, fillAmbient } from "./ambient-engine.js";
 import { currentSeason, GRADE_MATRIX, gradeHex, gradeInt, gradeSky, isAutumn, isSpring, isWinter, seasonDeep, seasonWater, snowHex, snowImageData } from "./theme.js";
 import { createGrass, fillGrass } from "./grass-engine.js";
-import { ROD_LOOKS } from "./fishing/sprites.js";
+import { ROD_LOOKS, rodGlyph } from "./fishing/sprites.js";
 
 // A little sparser than solid: dark water shows between the strokes.
 const WATER_RAMP = "     ..,:;~-=+*#%@W";
@@ -105,58 +105,6 @@ const TRAIN_UNITS = (() => {
   return { LOCO, TENDER, CAR, BOX, TANK, COAL, LOGS };
 })();
 const TRAIN_MIRROR = { "/": "\\", "\\": "/", "(": ")", ")": "(", "[": "]", "]": "[", ">": "<", "<": ">" };
-
-/**
- * One glyph of a rod (tier 1..8) at step `i` of `steps`, `t` of the way from
- * the butt to the tip, `stroke` the slant glyph that follows its curve:
- * [glyph, colour, size factor]. The handle is the first fifth or so.
- */
-function rodGlyph(tier, i, t, stroke, steps) {
-  const node = (every) => i % Math.max(2, Math.round((steps * every) / 26)) === 0;
-  switch (tier) {
-    // A willow switch: crooked bark, a knot now and then.
-    case 1:
-      if (t < 0.15) return [stroke, "#6a4c28"];
-      if (i % 7 === 3) return ["-", "#5a3e20"];
-      return [stroke, i % 3 === 0 ? "#6a4c28" : "#8a6a3c"];
-    // Hazel: nodes along it, the handle bound with thread.
-    case 2:
-      if (t < 0.2) return [i % 2 ? "x" : "+", "#d8c890"];
-      if (node(5)) return ["=", "#7a5a30"];
-      return [stroke, "#a07a48"];
-    // Bamboo: pale yellow with its joints.
-    case 3:
-      if (t < 0.2) return [i % 2 ? "x" : "+", "#5a4a28"];
-      if (node(4)) return ["=", "#8a7a3a"];
-      return [stroke, i % 2 ? "#d8c27a" : "#c8b068"];
-    // A telescope: the joins of its sections show.
-    case 4:
-      if (t < 0.2) return ["#", "#2a2a26"];
-      if ([0.32, 0.5, 0.68, 0.84].some((at) => Math.abs(t - at) < 0.5 / steps)) return ["]", "#c6c0ae"];
-      return [stroke, "#6e9a8c"];
-    // Fibreglass: white, a cork handle, plain rings.
-    case 5:
-      if (t < 0.22) return ["#", i % 2 ? "#b8905a" : "#a07a48", 1.05];
-      if (t > 0.25 && node(5)) return ["o", "#9aaaaa"];
-      return [stroke, i % 3 ? "#e8e8d8" : "#c8c8b8"];
-    // Carbon: matt black with its weave.
-    case 6:
-      if (t < 0.22) return ["#", "#1a1a1a"];
-      if (t > 0.25 && node(5)) return ["o", "#c0c0c0"];
-      return [t > 0.25 && i % 2 ? "x" : stroke, i % 2 ? "#2c2c2c" : "#444444"];
-    // The carp rod: dark green, big rings.
-    case 7:
-      if (t < 0.24) return ["#", "#141414"];
-      if (t > 0.25 && node(5)) return ["O", "#b8b8a8"];
-      return [stroke, i % 2 ? "#2e4a2e" : "#3c5e3a"];
-    // The catfish rod: thick and dark, gold rings and whippings.
-    default:
-      if (t < 0.24) return ["#", "#141414"];
-      if (t > 0.25 && node(4)) return ["O", "#e2b85e"];
-      if (t > 0.25 && i % 4 === 2) return ["=", "#e2b85e"];
-      return [stroke, i % 2 ? "#3a2a1a" : "#4a3622"];
-  }
-}
 
 export class CanvasWaterRenderer {
   constructor(canvas) {

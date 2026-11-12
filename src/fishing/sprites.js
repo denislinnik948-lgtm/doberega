@@ -588,36 +588,115 @@ export const ROD_LOOKS = [
   { blank: P.gold, handle: P.ink, reel: 3, guides: 5 },
 ];
 
-export function rodSprite(tier, scale = 3) {
-  const look = ROD_LOOKS[tier - 1];
-  const grid = new Grid(22, 22);
-  for (let i = 0; i <= 19; i += 1) {
-    // The willow switch bows; manufactured rods are straight.
-    const bow = look.reel ? 0 : Math.round(Math.sin((i / 19) * Math.PI) * 1.5);
-    const x = 1 + i;
-    const y = 20 - i - bow;
-    if (i < 5) {
-      grid.set(x, y, i % 2 ? look.handle : shade(look.handle, 0.8));
-      grid.set(x + 1, y, shade(look.handle, 0.65));
-    } else {
-      grid.set(x, y, i > 16 ? shade(look.blank, 1.25) : look.blank);
-      if (i < 12 && look.reel) grid.set(x + 1, y, shade(look.blank, 0.6));
-    }
+/**
+ * One glyph of a rod (tier 1..8) at step `i` of `steps`, `t` of the way from
+ * the butt to the tip, `stroke` the slant glyph that follows its curve:
+ * [glyph, colour, size factor]. The handle is the first fifth or so.
+ */
+export function rodGlyph(tier, i, t, stroke, steps) {
+  const node = (every) => i % Math.max(2, Math.round((steps * every) / 26)) === 0;
+  switch (tier) {
+    // A willow switch: crooked bark, a knot now and then.
+    case 1:
+      if (t < 0.15) return [stroke, "#6a4c28"];
+      if (i % 7 === 3) return ["-", "#5a3e20"];
+      return [stroke, i % 3 === 0 ? "#6a4c28" : "#8a6a3c"];
+    // Hazel: nodes along it, the handle bound with thread.
+    case 2:
+      if (t < 0.2) return [i % 2 ? "x" : "+", "#d8c890"];
+      if (node(5)) return ["=", "#7a5a30"];
+      return [stroke, "#a07a48"];
+    // Bamboo: pale yellow with its joints.
+    case 3:
+      if (t < 0.2) return [i % 2 ? "x" : "+", "#5a4a28"];
+      if (node(4)) return ["=", "#8a7a3a"];
+      return [stroke, i % 2 ? "#d8c27a" : "#c8b068"];
+    // A telescope: the joins of its sections show.
+    case 4:
+      if (t < 0.2) return ["#", "#2a2a26"];
+      if ([0.32, 0.5, 0.68, 0.84].some((at) => Math.abs(t - at) < 0.5 / steps)) return ["]", "#c6c0ae"];
+      return [stroke, "#6e9a8c"];
+    // Fibreglass: white, a cork handle, plain rings.
+    case 5:
+      if (t < 0.22) return ["#", i % 2 ? "#b8905a" : "#a07a48", 1.05];
+      if (t > 0.25 && node(5)) return ["o", "#9aaaaa"];
+      return [stroke, i % 3 ? "#e8e8d8" : "#c8c8b8"];
+    // Carbon: matt black with its weave.
+    case 6:
+      if (t < 0.22) return ["#", "#1a1a1a"];
+      if (t > 0.25 && node(5)) return ["o", "#c0c0c0"];
+      return [t > 0.25 && i % 2 ? "x" : stroke, i % 2 ? "#2c2c2c" : "#444444"];
+    // The carp rod: dark green, big rings.
+    case 7:
+      if (t < 0.24) return ["#", "#141414"];
+      if (t > 0.25 && node(5)) return ["O", "#b8b8a8"];
+      return [stroke, i % 2 ? "#2e4a2e" : "#3c5e3a"];
+    // The catfish rod: thick and dark, gold rings and whippings.
+    default:
+      if (t < 0.24) return ["#", "#141414"];
+      if (t > 0.25 && node(4)) return ["O", "#e2b85e"];
+      if (t > 0.25 && i % 4 === 2) return ["=", "#e2b85e"];
+      return [stroke, i % 2 ? "#3a2a1a" : "#4a3622"];
   }
-  if (look.reel) {
-    const r = Math.min(2, look.reel);
-    for (let dx = -r; dx <= r; dx += 1) {
-      for (let dy = -r; dy <= r; dy += 1) {
-        if (dx * dx + dy * dy <= r * r + 0.5) grid.set(7 + dx, 17 + dy, look.reel >= 3 ? P.gold : dx + dy < 0 ? P.bone : P.soft);
-      }
-    }
-    grid.set(7, 17, P.ink);
-  }
-  [9, 12, 14, 16, 18].slice(0, look.guides).forEach((i) => grid.set(1 + i, 19 - i, P.bone));
-  for (let k = 1; k <= 4; k += 1) grid.set(20, 1 + k + (look.reel ? 0 : 1), P.light);
-  grid.set(20, look.reel ? 6 : 7, P.ember);
-  return grid.outline(P.ink).toCanvas(scale);
 }
+
+/**
+ * A rod for the shop and the backpack, drawn as on the water (see rodGlyph):
+ * its glyphs from the butt at the bottom left to the tip at the top right,
+ * thick to fine, each outlined dark, with its reel and its tip.
+ */
+export function rodGlyphSprite(tier, scale = 3) {
+  const size = 22 * scale;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.lineJoin = "round";
+  const px = size * 0.27;
+  const from = { x: size * 0.12, y: size * 0.88 };
+  const to = { x: size * 0.9, y: size * 0.1 };
+  // On the dark shelf a black blank would vanish: dark colours are lifted toward grey.
+  const lift = (color) => {
+    const n = parseInt(color.slice(1), 16);
+    const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    if (0.3 * r + 0.59 * g + 0.11 * b > 70) return color;
+    const mix = (v) => Math.round(v + (150 - v) * 0.45);
+    return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`;
+  };
+  // The willow switch bows; the rest are straight.
+  const bow = tier === 1 ? size * 0.08 : 0;
+  const point = (t) => ({ x: from.x + (to.x - from.x) * t + Math.sin(t * Math.PI) * bow, y: from.y + (to.y - from.y) * t + Math.sin(t * Math.PI) * bow });
+  const glyph = (text, x, y, color, height) => {
+    ctx.font = `700 ${Math.round(height)}px "SFMono-Regular", Menlo, Consolas, monospace`;
+    ctx.lineWidth = Math.max(2, height * 0.2);
+    ctx.strokeStyle = P.ink;
+    ctx.strokeText(text, x, y);
+    ctx.fillStyle = lift(color);
+    ctx.fillText(text, x, y);
+  };
+  const steps = 10;
+  const heavy = tier >= 7 ? 1.15 : 1;
+  for (let i = 1; i < steps; i += 1) {
+    const t = i / steps;
+    const at = point(t);
+    const [text, color, grow = 1] = rodGlyph(tier, i, t, "/", steps);
+    glyph(text, at.x, at.y, color, px * (1 - 0.4 * t) * heavy * grow);
+  }
+  const tip = point(1);
+  if (tier === 1) glyph("&", tip.x - px * 0.2, tip.y - px * 0.1, "#6a9a4a", px * 0.75);
+  if (tier === 8) glyph("o", tip.x, tip.y, P.gold, px * 0.6);
+  const reel = point(0.25);
+  if (tier >= 3 && tier <= 4) glyph("(o)", reel.x + px * 0.55, reel.y + px * 0.5, "#b0aa98", px * 0.7);
+  else if (tier >= 5 && tier <= 6) glyph("@", reel.x + px * 0.6, reel.y + px * 0.55, "#c8c8c0", px * 0.95);
+  else if (tier === 7) {
+    glyph("@", reel.x + px * 0.65, reel.y + px * 0.6, "#2a2a2a", px * 1.1);
+    glyph("=", reel.x + px * 0.65, reel.y - px * 0.05, "#c84a3a", px * 0.7);
+  } else if (tier === 8) glyph("[@]", reel.x - px * 0.1, reel.y - px * 0.55, P.gold, px * 0.8);
+  return canvas;
+}
+
 
 /* ---------- Bait ---------- */
 
