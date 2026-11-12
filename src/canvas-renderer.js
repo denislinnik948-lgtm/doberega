@@ -700,7 +700,7 @@ export class CanvasWaterRenderer {
       ctx.lineTo(width, horizon + height * 0.03);
       ctx.lineTo(0, horizon + height * 0.03);
       ctx.closePath();
-      if (ridge.alpine) {
+      if (ridge.alpine || ridge.canopy) {
         // A dark ground under each glyph cell, clipped to the ridgeline.
         ctx.save();
         ctx.clip();
@@ -719,7 +719,7 @@ export class CanvasWaterRenderer {
       for (const cell of this.ridgeCells) {
         // Breezy meadows are drawn every frame by the ambient layer instead.
         if (cell.ridge !== index || !cell.glyph || this.ambient.breezyRidges.has(index)) continue;
-        if (ridge.alpine) ctx.fillStyle = cell.color;
+        if (ridge.alpine || ridge.canopy) ctx.fillStyle = cell.color;
         this.glyphFont(ctx, cell.y, this.hillScale);
         ctx.fillText(cell.glyph, cell.x, cell.y);
       }

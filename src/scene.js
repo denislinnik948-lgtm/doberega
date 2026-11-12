@@ -240,16 +240,15 @@ export const SCENES = {
       { top: 0.5, amplitude: 0.3, seed: 6.3, jagged: true, alpine: true, rise: [0.4, 0.66], snowline: 0.42, haze: 0.24, fill: "#5d7084", glyph: "#8193a5", texture: ".'", density: 0.05 },
       // Hazy blue mountains under it, rising on the right: with the big mountain they make a V of a valley.
       { top: 0.62, amplitude: 0.36, seed: 2.2, jagged: true, alpine: true, rise: [0.62, 1], treeline: 0, haze: 0.5, fill: "#2e4458", glyph: "#46607a", texture: ".'", density: 0.05 },
-      // The big wooded mountain on the left, its crest past the top of the view, a shoulder halfway down its long slope to the right.
-      { top: 0.62, amplitude: 0.62, seed: 3.8, hills: [[0, 0.82, 1.45], [0.36, 0.2, 0.62]], alpine: true, treeline: 0, haze: 0.03, spruce: [[22, 66, 30], [86, 150, 64]], fill: "#1f3a28", glyph: "#3e6a40", texture: "&%", density: 0.42 },
+      // The big mountain on the left under living broadleaf woods (`canopy`: dark, mid and lit greens), its crest past the top of the view, sloping down to the right.
+      { top: 0.62, amplitude: 0.62, seed: 3.8, hills: [[0, 0.82, 1.45], [0.36, 0.2, 0.62]], canopy: [[16, 46, 22], [58, 122, 46], [150, 204, 84]], haze: 0.12, fill: "#1f3a28", glyph: "#3e6a40", texture: "&%", density: 0.42 },
     ],
-    // Trees only on the left, by the castle; a small town along the far shore on the right.
+    // Trees only on the left, under the mountain.
     forest: { heightScale: 1.1, spacingScale: 0.7, broadleaf: 0.85, round: 0.7, gaps: [[0.2, 1]] },
-    structures: {
-      houses: { from: 0.58, to: 0.99, count: 12, scale: 0.35, roof: "#8a4a34", walls: "#d6cfbc" },
-    },
+    structures: {},
     // Wide blue water; the castle stands at its edge, near us on the left (see castleShape).
-    water: { body: "#1c4a6a", mirror: 0.7, castle: { x: 0.3 } },
+    // The castle (`castle: { x }`, see castleShape) is left out for now.
+    water: { body: "#1c4a6a", mirror: 0.7 },
     // Seen from above: hardly any bank of our own.
     nearBank: 0.015,
     foreground: { reeds: 0, rock: false, lilyPads: 0 },

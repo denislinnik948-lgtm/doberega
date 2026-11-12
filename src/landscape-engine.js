@@ -51,7 +51,9 @@ export function ridgeTop(ridge, x, height) {
       return d < 1 ? tall * (0.5 + 0.5 * Math.cos(Math.PI * d)) ** 0.8 : 0;
     }));
     const ripple = 0.03 * Math.sin(x * 0.011 + s) + 0.02 * Math.sin(x * 0.027 - s);
-    return height * (ridge.top - ridge.amplitude * (lift + ripple * lift));
+    // A wooded crest (`canopy`) is the tops of its trees: a run of little round crowns.
+    const crowns = ridge.canopy ? height * 0.016 * (valueNoise(x * 0.04, 1, Math.round(s * 10)) + 0.6 * valueNoise(x * 0.12, 2, Math.round(s * 10))) : 0;
+    return height * (ridge.top - ridge.amplitude * (lift + ripple * lift)) - crowns;
   }
   const peaks = 0.55 * (1 - Math.abs(Math.sin(x * 0.0021 + s))) ** 1.4
     + 0.3 * (1 - Math.abs(Math.sin(x * 0.0057 - s * 0.7)))
@@ -158,6 +160,53 @@ export function createRidgeGlyphs(width, height, cellWidth, lineHeight) {
           if (noise < Math.max(ridge.density, 0.75) * fade) {
             glyph = ridge.texture[Math.floor(hash2(column, row, 13) * ridge.texture.length)];
           }
+        }
+
+        if (ridge.canopy) {
+          // A mountain under broadleaf woods, crown by crown: round crowns on a
+          // jittered grid, each lit on its upper left (the sun's side) and shaded
+          // on its lower right, a green of its own; the dark between them; the
+          // odd pale crag showing through; a little haze toward the top.
+          const seed = Math.round(ridge.seed * 10) + 400;
+          const [dark, mid, light] = ridge.canopy;
+          // Crowns as big as they look from across the lake: larger low on the slope, smaller up high.
+          const near = 0.55 + 0.45 * Math.min(1, Math.max(0, y / (height * 0.62)));
+          const sx = height * 0.05 * near;
+          const sy = height * 0.032 * near;
+          const gy = Math.floor(y / sy);
+          let best = null;
+          for (let j = gy - 1; j <= gy + 1; j += 1) {
+            const shift = (j % 2) * sx * 0.5;
+            const gx = Math.floor((x - shift) / sx);
+            for (let i = gx - 1; i <= gx + 1; i += 1) {
+              const cxw = (i + 0.5 + (hash2(i, j, seed) - 0.5) * 0.9) * sx + shift;
+              const cyw = (j + 0.5 + (hash2(i, j, seed + 1) - 0.5) * 0.7) * sy;
+              const r = 0.55 + 0.45 * hash2(i, j, seed + 2);
+              const d = Math.hypot((x - cxw) / sx, (y - cyw) / sy) / r;
+              if (!best || d < best.d) best = { d, dx: (x - cxw) / (sx * r), dy: (y - cyw) / (sy * r), tone: hash2(i, j, seed + 3) };
+            }
+          }
+          const crag = valueNoise(x * 0.02, y * 0.012, seed + 4) > 0.83 && y - top > lineHeight * 6;
+          const haze = Math.max(0, 1 - (y - top) / (height * 0.4)) * (ridge.haze ?? 0.12);
+          const pick = (set) => set[Math.floor(noise * set.length)];
+          let base;
+          let mark;
+          if (crag) {
+            base = mixRgb([156, 150, 128], [214, 206, 180], noise);
+            mark = pick("#%=/");
+          } else if (best.d > 0.95) {
+            // Between the crowns: deep shade.
+            base = mixRgb(dark, [6, 14, 8], 0.3);
+            mark = pick(",;:.");
+          } else {
+            // Light on the upper left of the crown, shade on the lower right.
+            const sun = Math.min(1, Math.max(0, 0.5 - best.dx * 0.55 - best.dy * 0.65));
+            const own = mixRgb(mid, [mid[0] * 0.8, mid[1] * 1.08, mid[2] * 0.7], best.tone);
+            base = sun > 0.6 ? mixRgb(own, light, (sun - 0.6) * 2.5) : mixRgb(dark, own, sun / 0.6);
+            mark = sun > 0.7 ? pick("o@O&") : sun > 0.35 ? pick("&%@#") : pick("#%&");
+          }
+          cells.push({ x, y, column, row, glyph: y - top < lineHeight ? "o" : mark, color: toHexRgb(mixRgb(base, HAZE, haze)), fill: toHexRgb(mixRgb(dark, [6, 14, 8], 0.5)), ridge: ridgeIndex });
+          continue;
         }
 
         if (ridge.alpine) {
