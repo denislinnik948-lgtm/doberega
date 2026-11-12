@@ -422,25 +422,24 @@ function switchBaitIfEmpty() {
 
 /*
  * How far a point on the water is from the angler, who sits at the bottom
- * middle of the view: measured with the water's own perspective (its glyphs
- * shrink toward the horizon, see waterScaleAt), so a cast reaches as far
- * to the side as straight out, and the farthest casts make an arc on screen,
- * not a straight line. In pixels as they would be at full glyph size.
+ * middle of the view, as a share of the farthest cast: the casts reach out to
+ * a wide arc fitted to the screen, its top a little way below the far bank
+ * (CAST_ARC.top of the water) and its sides running off the edges of what is
+ * on screen about three quarters of the way down. So it reaches farther to the
+ * sides than straight out, and fits a phone as well as a wide screen.
  */
+const CAST_ARC = { top: 0.14, side: 1.15 };
+
 function castDistance(x, y) {
-  const scale = renderer.waterScaleAt ?? (() => 1);
-  const steps = 24;
-  let depth = 0;
-  for (let i = 0; i < steps; i += 1) {
-    const at = y + ((height - y) * (i + 0.5)) / steps;
-    depth += (height - y) / steps / scale(at);
-  }
   const { left, width: span } = renderer.frame;
-  return Math.hypot((x - (left + span / 2)) / scale(y), depth);
+  const horizon = activeScene().horizon;
+  const out = (1 - horizon) * (1 - CAST_ARC.top) * height;
+  const across = (span / 2) * CAST_ARC.side;
+  return Math.hypot((x - (left + span / 2)) / across, (height - y) / out);
 }
 
-/** The farthest cast (straight out to the far edge), and the nearest. */
-const castRange = () => ({ near: castDistance(renderer.frame.left + renderer.frame.width / 2, height * TUNING.nearY), far: castDistance(renderer.frame.left + renderer.frame.width / 2, height * TUNING.farY) });
+/** The farthest cast (the arc), and the nearest. */
+const castRange = () => ({ near: castDistance(renderer.frame.left + renderer.frame.width / 2, height * TUNING.nearY), far: 1 });
 
 /** How far out a cast lands, 0 by the bank to 1 at the farthest. */
 function castReach(x, y) {
@@ -451,7 +450,7 @@ function castReach(x, y) {
 function isOnWater(x, y) {
   return y > Math.max(renderer.shorelineY(x) + height * 0.04, height * TUNING.farY)
     && y < height * TUNING.nearY
-    && castDistance(x, y) <= castRange().far + 0.5
+    && castDistance(x, y) <= castRange().far + 0.001
     && renderer.isOpenWater(x, y);
 }
 
