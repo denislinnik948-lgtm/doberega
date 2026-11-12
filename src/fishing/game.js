@@ -32,6 +32,9 @@ import { BAITS, BELL_WINDOW, BOOT_CHANCE, FEEDER, FINDS, FISH, GROUNDBAIT, GROUN
  * you cast again.
  */
 
+/** How likely a fish that comes to a bare hook still bites (the bait was taken by a bite nobody struck). */
+export const BARE_HOOK_BITE = 0.005;
+
 export const TUNING = {
   // A short cast close in is swung underhand; a long one goes overhead. Both unhurried.
   castUnder: 1.4,
@@ -151,6 +154,8 @@ export class FishingGame {
     this.timeline = [];
     // How far in the fish gets before a too-small hook bends straight (null: it holds).
     this.giveAt = null;
+    // The bait was taken off the hook by a bite nobody struck: the float stays out, the hook is bare.
+    this.bare = false;
   }
 
   get busy() {
@@ -202,6 +207,11 @@ export class FishingGame {
         this.jerkAge = 0;
         break;
       case "waiting": {
+        // A bare hook: only reeling in shows the bait was taken.
+        if (this.bare) {
+          this.escape("eaten", false, "eaten");
+          break;
+        }
         // Reeling in an empty line: usually just a recast, rarely a snag, a boot, a bottle or a lost lure.
         const roll = this.random();
         const snagChance = LOCATIONS[this.location]?.snagChance ?? 0.02;
@@ -569,6 +579,8 @@ export class FishingGame {
         this.driftFloat(dt);
         if (this.clock >= this.waitTime) {
           this.fish = rollFish(this.bait, this.location, random, this.reach(), this.hour, this.gear, this.favor);
+          // On a bare hook a fish only rarely takes anything (BARE_HOOK_BITE).
+          if (this.bare && random() >= BARE_HOOK_BITE) this.fish = null;
           if (!this.fish) {
             // Wrong bait for this water: the float just sits there.
             this.clock = 0;
@@ -619,7 +631,19 @@ export class FishingGame {
         // Once it takes, the fish drags the sunk float steadily away.
         this.driftFloat(dt);
         this.moveFloat(Math.cos(this.heading) * 0.006 * dt, Math.sin(this.heading) * 0.0035 * dt);
-        if (this.clock >= (this.biteWindow ?? TUNING.biteWindow)) this.escape("late");
+        if (this.clock >= (this.biteWindow ?? TUNING.biteWindow)) {
+          if (this.spinning) {
+            this.escape("late");
+            break;
+          }
+          // Not struck in time: the fish is off with the bait, and the float simply comes
+          // back up and sits there. Nothing says so until the line is reeled in.
+          this.bare = true;
+          this.fish = null;
+          this.float.sink = 0;
+          this.enter("waiting");
+          this.waitTime = this.nextWait();
+        }
         break;
 
       case "fight":

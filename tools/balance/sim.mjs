@@ -117,6 +117,8 @@ function session({ rod, spot, bait, hook, hours, seed, extras = [] }) {
       if (phase === "bite") react = random() < 0.8 ? 0.3 + random() * 0.9 : Infinity;
       if (phase === "landed") pause = 3 + random() * 2;
       if (phase === "ready" && previous) pause = Math.max(pause, 1 + random());
+      // A missed bite leaves the hook bare: the angler sees the float come back up and reels in a few seconds later.
+      if (phase === "waiting" && previous === "bite") pause = 2 + random() * 4;
       previous = phase;
     }
     if (phase === "ready") {
@@ -139,9 +141,12 @@ function session({ rod, spot, bait, hook, hours, seed, extras = [] }) {
       const beat = (elapsed * 1000) % 800;
       if (beat < 250) game.press();
       else game.release();
+    } else if (phase === "waiting" && game.bare) {
+      pause -= 0.05;
+      if (pause <= 0) game.press();
     } else if (game.pulling) game.release();
     // Waiting for a bite needs no fine steps.
-    const dt = phase === "waiting" && game.clock < game.waitTime - 0.3 ? 0.25 : 0.05;
+    const dt = phase === "waiting" && !game.bare && game.clock < game.waitTime - 0.3 ? 0.25 : 0.05;
     game.update(dt);
     elapsed += dt;
     epoch += dt;
