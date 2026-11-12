@@ -2746,8 +2746,8 @@ export class CanvasWaterRenderer {
           ctx.shadowColor = `rgba(170, 255, 140, ${(0.9 * glow).toFixed(3)})`;
           ctx.shadowBlur = (10 + 6 * pulse) * glow;
           ctx.fillStyle = `rgba(214, 255, 160, ${((0.85 + 0.15 * pulse) * glow).toFixed(3)})`;
-          // The tip glows, whatever the skin.
-          ctx.fillText(rows[0][0], end.x, end.y - rise(0) * floatSize * 0.55 + below);
+          // The tip glows the same on every skin: a bright stick of light at the top, whatever glyph the skin has there.
+          ctx.fillText("|", end.x, end.y - rise(0) * floatSize * 0.55 + below);
           ctx.restore();
         }
       }
