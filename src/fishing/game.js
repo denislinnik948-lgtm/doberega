@@ -65,6 +65,9 @@ export const TUNING = {
   // how far to the side it can take the line (normalized, at full distance by the bank; less far out, see scaleAt).
   surgeRate: 0.06,
   sideSwing: 0.17,
+  // How much of a run's pace takes line while the rod is held tight, and while the line is let go.
+  runHeld: 0.35,
+  runSlack: 1.25,
 };
 
 /** Rates for a fish of `weight` kg on a rod; exported for balance tests. */
@@ -672,13 +675,14 @@ export class FishingGame {
     if (this.pulling) {
       this.tension += rates.fill * calm * dt;
       if (surging) this.tension += TUNING.fillRate * 0.5 * this.surgePower * Math.min(1.5, vigor) * calm * dt;
-      this.distance = Math.min(1, this.distance - (rates.reel - run) * dt);
+      // Held tight, a running fish takes little line; let go, it runs freely (see TUNING.runHeld, runSlack).
+      this.distance = Math.min(1, this.distance - (rates.reel - run * TUNING.runHeld) * dt);
       if (random() < rates.jerkRate * dt) this.tension += 0.04 + random() * 0.1 * Math.min(1.5, rates.strain);
       // It shakes its head on the line.
       if (random() < 0.6 * vigor * dt) this.tension += 0.02 + random() * 0.05 * vigor;
     } else {
       this.tension = Math.max(0, this.tension - rates.drain * dt);
-      if (!rates.still) this.distance = Math.min(1, this.distance + (rates.escape * this.behavior * calm + run) * dt);
+      if (!rates.still) this.distance = Math.min(1, this.distance + (rates.escape * this.behavior * calm + run * TUNING.runSlack) * dt);
       // The fish may change pace mid-run: stop, slow down or bolt.
       this.behaviorClock += dt;
       if (this.behaviorClock > 0.8) {
@@ -691,7 +695,8 @@ export class FishingGame {
     if (!surging) this.sideTarget *= Math.max(0, 1 - 0.3 * dt);
     const before = this.side;
     const gap = this.sideTarget - this.side;
-    this.side += Math.sign(gap) * Math.min(Math.abs(gap), (surging ? 0.7 : 0.15) * dt);
+    // Held tight it veers off slower too.
+    this.side += Math.sign(gap) * Math.min(Math.abs(gap), (surging ? 0.7 : 0.15) * (this.pulling ? 0.5 : 1) * dt);
     if (this.side !== before && !this.isWater(this.fishPosition())) {
       this.side = before;
       this.sideTarget = -this.sideTarget * 0.5;
