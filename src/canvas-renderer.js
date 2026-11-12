@@ -1,6 +1,6 @@
 import { sampleWater } from "./water-engine.js";
 import { createForestGlyphs } from "./forest-engine.js";
-import { activeScene, bankWidths, currentAt, deckShape, isOpenWater, jettyShape, nearBankY, setScene, shorelineY, lakeShape, sunPosition, view, wreckShape } from "./scene.js";
+import { activeScene, bankWidths, currentAt, deckShape, isOpenWater, jettyShape, nearBankY, setScene, shorelineY, castleShape, sunPosition, view, wreckShape } from "./scene.js";
 import { skyAt, toHex, toInt } from "./daycycle.js";
 import { clamp, hash01, hash2, hexToInt, mixColor, valueNoise } from "./noise.js";
 import { createBankGlyphs, createRidgeGlyphs, createShoreGlyphs, createStructures, ridgeTop } from "./landscape-engine.js";
@@ -143,7 +143,7 @@ export class CanvasWaterRenderer {
     this.forestBatch = new GlyphBatch();
     this.waterBatch = new GlyphBatch(32768);
     this.surfaceBatch = new GlyphBatch();
-    // Woodwork standing on the water (the mountain lake's raft and dam), lit like the land rather than tinted as water.
+    // Stone standing at the water (the mountain lake's castle), lit like the land rather than tinted as water.
     this.ruinBatch = new GlyphBatch();
     // Winter: steam rising off the open water in the frost.
     this.steamBatch = new GlyphBatch();
@@ -798,6 +798,7 @@ export class CanvasWaterRenderer {
 
     this.paintWaterBody(ctx);
     this.paintWreckHull(ctx);
+    this.paintCastleGround(ctx);
 
     // Still water (`mirror`): the far shore painted upside down beneath the
     // water's glyphs, clear by the shore and fading into the water's own dark
@@ -895,6 +896,23 @@ export class CanvasWaterRenderer {
   }
 
   /** A dark hull under the wreck's glyphs, so the ship reads as one solid shape on the water. */
+  /** A dark ground under the lake castle's glyphs, so it reads as one solid building (see createCastle). */
+  paintCastleGround(ctx) {
+    const castle = castleShape(this.width, this.height);
+    if (!castle) return;
+    ctx.fillStyle = "#1e1a14";
+    for (const part of castle.parts) {
+      ctx.fillRect(part.x0, part.y, part.x1 - part.x0, castle.waterline - part.y + 2);
+      if (!part.roof) continue;
+      ctx.beginPath();
+      ctx.moveTo(part.x0, part.y);
+      ctx.lineTo((part.x0 + part.x1) / 2, part.roofTop);
+      ctx.lineTo(part.x1, part.y);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
   paintWreckHull(ctx) {
     const ship = wreckShape(this.width, this.height);
     if (!ship) return;
@@ -2124,7 +2142,7 @@ export class CanvasWaterRenderer {
       return { stone, foam };
     });
     if (wreck) rocks.push(this.createWreck());
-    if (activeScene().water.raft || activeScene().water.klyauza) rocks.push(...this.createLakeWood());
+    if (activeScene().water.castle) rocks.push(this.createCastle());
     if (activeScene().water.jetty) rocks.push(...this.createJetty());
     return rocks;
   }
@@ -2317,54 +2335,72 @@ export class CanvasWaterRenderer {
   }
 
   /**
-   * The mountain lake's woodwork on the water (see lakeShape), in glyphs on
-   * grids as fine as the water round each: a raft of logs lashed together,
-   * its pole standing up, rocking gently; and the rafters' dam by the right
-   * shore, a wall of logs with its gate and the walkway along the top.
+   * The castle at the mountain lake's edge (see castleShape), in glyphs on a
+   * grid as fine as the water at its foot: sunlit pale stone in courses, a
+   * dark rocky plinth at the waterline, crenels along the wall, the tall keep
+   * under a pyramid roof with a flagpole, a round tower and a turret under
+   * cone roofs, the hall under its gable with rows of dark windows, a gate.
+   * Lit like the land (`ruin`), so it stands out of the water.
    */
-  createLakeWood() {
+  createCastle() {
     const { width, height } = this;
-    const shape = lakeShape(width, height);
-    const WOOD = [0xc89a68, 0xb08254, 0x9a6e44, 0xdcae78];
-    const pieces = [];
-    const piece = (waterline, bob = false) => {
-      const { cellWidth, lineHeight } = this.gridAt(waterline);
-      const stone = [];
-      const foam = [];
-      const put = (x, y, glyph, color) => stone.push((Math.floor(x / cellWidth) + 0.5) * cellWidth, (Math.floor(y / lineHeight) + 0.52) * lineHeight, glyph, color);
-      pieces.push({ stone, foam, ruin: true, bob });
-      const lap = (from, to, y) => {
-        for (let x = from - cellWidth; x <= to + cellWidth; x += cellWidth) foam.push({ x: (Math.floor(x / cellWidth) + 0.5) * cellWidth, y: (Math.floor((y + lineHeight * 0.6) / lineHeight) + 0.52) * lineHeight, noise: hash2(Math.round(x), 8, 3201), downstream: false });
-      };
-      return { cellWidth, lineHeight, put, lap };
+    const { cx, waterline, unit, parts } = castleShape(width, height);
+    const { cellWidth, lineHeight } = this.gridAt(waterline);
+    const stone = [];
+    const foam = [];
+    const snap = (x, y) => [(Math.floor(x / cellWidth) + 0.5) * cellWidth, (Math.floor(y / lineHeight) + 0.52) * lineHeight];
+    const put = (x, y, glyph, color) => {
+      const [sx, sy] = snap(x, y);
+      stone.push(sx, sy, glyph, color);
     };
-    if (shape.raft) {
-      const { cx, waterline, half } = shape.raft;
-      const { cellWidth, lineHeight, put, lap } = piece(waterline, true);
-      // Three rows of logs, their ends showing round at the sides, lashed across.
-      for (let x = cx - half, c = 0; x <= cx + half; x += cellWidth, c += 1) {
-        const end = c === 0 || x + cellWidth > cx + half;
-        for (let r = 0; r < 3; r += 1) put(x, waterline - r * lineHeight, end ? "o" : c % 6 === 3 ? "#" : "=", end ? 0xe8c08a : WOOD[(c + r) % 4]);
-      }
-      // The rafter's pole, standing up at the back.
-      for (let r = 3; r < 9; r += 1) put(cx - half * 0.6, waterline - r * lineHeight, "|", WOOD[3]);
-      lap(cx - half, cx + half, waterline);
-    }
-    if (shape.dam) {
-      const { cx, waterline, half, height: tall } = shape.dam;
-      const { cellWidth, lineHeight, put, lap } = piece(waterline);
-      const rows = Math.max(3, Math.round(tall / lineHeight));
-      for (let x = cx - half, c = 0; x <= cx + half; x += cellWidth, c += 1) {
-        const gate = Math.abs(x - cx) < half * 0.18;
-        for (let r = 0; r < rows; r += 1) {
-          const y = waterline - r * lineHeight;
-          if (r === rows - 1) put(x, y, c % 4 === 0 ? "+" : "_", WOOD[3]);
-          else put(x, y, gate ? (r === 0 ? "~" : "#") : c % 3 === 0 ? "|" : "=", gate ? (r === 0 ? 0xd8e4e8 : 0x4a3420) : WOOD[(c + r) % 3]);
+    const STONE = [0xe6d6a0, 0xd4c088, 0xbca872, 0xa08c5c];
+    const SHADE = [0xa89466, 0x8e7c54];
+    const ROOF = [0x8a5638, 0x6e4430, 0xa0683f];
+    const WINDOW = 0x241a12;
+    for (const part of parts) {
+      const columns = Math.round((part.x1 - part.x0) / cellWidth);
+      for (let c = 0; c <= columns; c += 1) {
+        const x = part.x0 + c * cellWidth;
+        const u = c / Math.max(1, columns);
+        // The far side of a round tower turns away from the light.
+        const shaded = part.kind === "tower" || part.kind === "turret" ? u > 0.6 : u > 0.92;
+        for (let y = waterline, r = 0; y >= part.y; y -= lineHeight, r += 1) {
+          const noise = hash2(Math.round(x / cellWidth), r, 3301);
+          const fromTop = (y - part.y) / lineHeight;
+          let glyph = r % 2 ? (c % 3 === 0 ? "|" : "=") : (c % 3 === 1 ? "|" : "=");
+          let color = shaded ? SHADE[Math.floor(noise * 2)] : STONE[Math.floor(noise * 4)];
+          if (r < 2) [glyph, color] = [noise > 0.5 ? "%" : "#", noise > 0.6 ? 0x5e5848 : 0x4a4438];
+          else if (part.kind === "wall" && fromTop < 1) [glyph, color] = [c % 2 ? "_" : "#", c % 2 ? 0xc8b47c : STONE[1]];
+          else if (part.kind === "hall" && r > 3 && fromTop > 1 && r % 3 === 0 && c % 3 === 1) [glyph, color] = ["#", WINDOW];
+          else if (part.kind === "keep" && fromTop > 2 && r % 5 === 0 && c === Math.floor(columns / 2)) [glyph, color] = ["#", WINDOW];
+          else if (part.kind === "wall" && r >= 2 && r <= 3 && Math.abs(x - cx - unit * 6) < cellWidth) [glyph, color] = ["#", WINDOW];
+          put(x, y, glyph, color);
+        }
+        // The roof: a pyramid or cone narrowing to its tip, or a gable.
+        if (part.roof) {
+          const mid = (part.x0 + part.x1) / 2;
+          const half = (part.x1 - part.x0) / 2;
+          for (let y = part.y - lineHeight; y >= part.roofTop; y -= lineHeight) {
+            const reach = half * ((y - part.roofTop) / (part.y - part.roofTop)) + cellWidth * 0.3;
+            if (Math.abs(x - mid) > reach) continue;
+            const edge = Math.abs(x - mid) > reach - cellWidth;
+            put(x, y, edge ? (x < mid ? "/" : "\\") : part.roof === "gable" ? "=" : "^", ROOF[Math.floor(hash2(c, Math.round(y), 3302) * 3)]);
+          }
         }
       }
-      lap(cx - half, cx + half, waterline);
+      // A flagpole on the keep, a spike on the turret.
+      if (part.kind === "keep" || part.kind === "turret") {
+        const mid = (part.x0 + part.x1) / 2;
+        for (let r = 1; r <= (part.kind === "keep" ? 4 : 2); r += 1) put(mid, part.roofTop - r * lineHeight, "|", 0x9a9282);
+      }
     }
-    return pieces;
+    // Foam lapping at the foot of the walls.
+    const wall = parts[0];
+    for (let x = wall.x0 - cellWidth * 2; x <= wall.x1 + cellWidth * 2; x += cellWidth) {
+      const [sx, sy] = snap(x, waterline + lineHeight * 0.6);
+      foam.push({ x: sx, y: sy, noise: hash2(Math.round(x / cellWidth), 3, 3303), downstream: false });
+    }
+    return { stone, foam, ruin: true };
   }
 
   /**
@@ -3729,7 +3765,8 @@ export class CanvasWaterRenderer {
     backend.drawGlyphs(this.waterBatch, water, this.waterPerspective);
     backend.drawGlyphs(this.glintBatch, undefined, this.waterPerspective);
     backend.drawGlyphs(this.surfaceBatch, water, this.waterPerspective);
-    if (this.ruinBatch.count) backend.drawGlyphs(this.ruinBatch, land, this.waterPerspective);
+    // At the size of the grid it was laid on, not shrunk with the water's perspective (its towers stand above the horizon).
+    if (this.ruinBatch.count) backend.drawGlyphs(this.ruinBatch, land);
     // Pale against the dark water, lit like the land (dim at night).
     if (this.steamBatch.count) backend.drawGlyphs(this.steamBatch, [...land.map((value) => Math.min(1.2, value * 1.25)), 0.85], this.waterPerspective);
     this.fillWreckGlow(time, sky.stars);

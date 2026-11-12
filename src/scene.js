@@ -226,30 +226,28 @@ export const SCENES = {
     foreground: { reeds: 1, rock: false, lilyPads: 3 },
   },
   /**
-   * The last and dearest water, after a photo of a Carpathian lake: still
-   * water in a bowl of spruce-covered mountains, a high wooded slope on the
-   * left, a round peak in the middle with the ruins of an old castle on its
-   * top, mirrored in the water with the clouds; a raft of logs on the water
-   * and the rafters' wooden dam (`klyauza`) on the right shore; a heavy mist
-   * on the water in the morning.
+   * The last and dearest water, after a photo of a castle on a great alpine
+   * lake: on the left a steep wooded mountain rising past the top of the
+   * view, at its foot by the water a castle (a tall keep under a pyramid
+   * roof, round towers with cone roofs, a hall with its rows of windows), and
+   * away on the right snowy peaks over hazy blue mountains, wide blue water.
    */
   mountain: {
-    horizon: 0.5,
-    focus: 0.55,
+    horizon: 0.55,
+    focus: 0.4,
     ridges: [
-      // The wooded mountains: a long high slope on the left, the round peak in the middle, lower on the right.
-      // Spruce all the way up (`alpine` woods with `treeline` 0), lit from the left, a little hazy.
-      { top: 0.47, amplitude: 0.34, seed: 3.8, hills: [[0, 0.5, 1], [0.57, 0.2, 0.9], [1, 0.35, 0.55]], alpine: true, treeline: 0, haze: 0.06, spruce: [[16, 44, 28], [46, 96, 56]], fill: "#1f3a28", glyph: "#3e6a40", texture: "A^*", density: 0.42 },
+      // The snowy range far away on the right, low on the left behind the big mountain.
+      { top: 0.44, amplitude: 0.26, seed: 6.3, jagged: true, alpine: true, rise: [0.45, 0.78], snowline: 0.34, haze: 0.3, fill: "#5d7084", glyph: "#8193a5", texture: ".'", density: 0.05 },
+      // Hazy blue mountains in front of it, wooded.
+      { top: 0.53, amplitude: 0.14, seed: 2.2, jagged: true, alpine: true, rise: [0.55, 0.95], treeline: 0, haze: 0.42, fill: "#2e4458", glyph: "#46607a", texture: ".'", density: 0.05 },
+      // The big wooded mountain on the left, rising past the top of the view, its slope running down to the right.
+      { top: 0.55, amplitude: 0.62, seed: 3.8, hills: [[0, 0.82, 1.65]], alpine: true, treeline: 0, haze: 0.04, spruce: [[20, 60, 30], [74, 136, 60]], fill: "#1f3a28", glyph: "#3e6a40", texture: "&%", density: 0.42 },
     ],
-    forest: { heightScale: 1.6, spacingScale: 0.6, broadleaf: 0.05 },
-    structures: {
-      // The castle ruin on the peak's top.
-      peakRuin: { x: 0.57 },
-    },
-    // Deep, still and blue, everything above mirrored in it; the raft and the dam stand in it (see lakeShape).
-    water: { body: "#183c5a", mirror: 1, raft: { x: 0.68, y: 0.6 }, klyauza: { x: 0.93, y: 0.515 } },
-    // A thick mist lies on the water in the morning (`mist`, see ambient-engine.js).
-    mist: { rows: 6, morning: 1.6 },
+    // No trees where the castle stands.
+    forest: { heightScale: 1.2, spacingScale: 0.7, broadleaf: 0.8, round: 0.7, gaps: [[0.19, 0.4]] },
+    structures: {},
+    // Wide blue water; the castle stands at its edge (see castleShape).
+    water: { body: "#1c4a6a", mirror: 0.7, castle: { x: 0.3 } },
     nearBank: 0.05,
     foreground: { reeds: 0.25, rock: false, lilyPads: 0 },
   },
@@ -355,22 +353,34 @@ export function wreckShape(width, height) {
 }
 
 /**
- * What stands in the mountain lake's water, in scene pixels: a raft of logs
- * out on the water and the rafters' wooden dam (`klyauza`) by the right
- * shore, placed across the visible slice so a phone shows them too.
- * `covers(x, y)` keeps the water off them.
+ * The castle at the mountain lake's edge, in scene pixels: its parts as
+ * boxes on a unit of the screen height, left to right from its centre (`u`
+ * across, heights up from the waterline), placed across the visible slice so
+ * a phone shows it too. `covers(x, y)` keeps the water off it.
  */
-export function lakeShape(width, height) {
-  const { raft: r, klyauza: k } = active.water;
-  if (!r && !k) return null;
-  const at = (fx) => view.left + fx * view.frameWidth;
-  const raft = r && { cx: at(r.x), waterline: r.y * height, half: Math.min(view.frameWidth * 0.08, height * 0.14) };
-  const dam = k && { cx: at(k.x), waterline: k.y * height, half: Math.min(view.frameWidth * 0.06, height * 0.1), height: height * 0.035 };
-  return {
-    raft, dam,
-    covers: (x, y) => (raft && Math.abs(x - raft.cx) < raft.half && y > raft.waterline - height * 0.02 && y < raft.waterline + 2)
-      || (dam && Math.abs(x - dam.cx) < dam.half && y > dam.waterline - dam.height && y < dam.waterline + 2),
-  };
+export function castleShape(width, height) {
+  const spec = active.water.castle;
+  if (!spec) return null;
+  const unit = Math.min(height * 0.011, view.frameWidth * 0.008);
+  const cx = view.left + spec.x * view.frameWidth;
+  const waterline = active.horizon * height + height * 0.035;
+  // [from, to, top, roof]: `roof` "pyramid", "cone", "gable" or none; all in units.
+  const parts = [
+    { from: -15, to: 13, top: 8, kind: "wall" },
+    { from: -14, to: -9.5, top: 14, roof: "cone", kind: "tower" },
+    { from: -6.5, to: 0.5, top: 23, roof: "pyramid", kind: "keep" },
+    { from: 1.5, to: 12, top: 14, roof: "gable", kind: "hall" },
+    { from: 9, to: 10.6, top: 19, roof: "cone", kind: "turret" },
+  ].map((part) => ({ ...part, x0: cx + part.from * unit, x1: cx + part.to * unit, y: waterline - part.top * unit, roofTop: waterline - (part.top + (part.roof === "pyramid" ? 6 : part.roof ? 4.5 : 0)) * unit }));
+  const covers = (x, y) => y < waterline + 2 && parts.some((part) => {
+    if (x < part.x0 || x > part.x1) return false;
+    if (y >= part.y) return true;
+    if (!part.roof || y < part.roofTop) return false;
+    const mid = (part.x0 + part.x1) / 2;
+    const half = (part.x1 - part.x0) / 2;
+    return Math.abs(x - mid) <= half * ((y - part.roofTop) / (part.y - part.roofTop));
+  });
+  return { cx, waterline, unit, parts, covers };
 }
 
 /**
@@ -442,7 +452,7 @@ export function isOpenWater(x, y, width, height) {
     if (((x - rock.x * width) / r) ** 2 + ((y - rock.y * height) / (r * 0.45)) ** 2 < 1.4) return false;
   }
   if (wreckShape(width, height)?.covers(x, y)) return false;
-  if (lakeShape(width, height)?.covers(x, y)) return false;
+  if (castleShape(width, height)?.covers(x, y)) return false;
   if (jettyShape(width, height)?.covers(x, y)) return false;
   return true;
 }
