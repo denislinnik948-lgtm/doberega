@@ -601,7 +601,7 @@ const STRINGS = {
         bucket: "Small fish up to 150 g become live bait",
       },
       location: {
-        pond: "Village pond", lake: "Quiet lake", castle: "Castle lake", reservoir: "Pripyat", bridge: "Old bridge", troutfarm: "Smerekove", quarry: "Granite quarry", carplake: "Quiet Backwater",
+        pond: "Village pond", lake: "Quiet lake", castle: "Castle lake", reservoir: "Pripyat", bridge: "Old bridge", troutfarm: "Smerekove", quarry: "Granite quarry", carplake: "Quiet Backwater", temple: "Flooded Temple",
       },
     },
     rules: [
@@ -1244,7 +1244,7 @@ const STRINGS = {
         bucket: "Дрібна риба до 150 г стає живцем",
       },
       location: {
-        pond: "Ставок за селом", lake: "Тихе озеро", castle: "Замкове озеро", reservoir: "Прип'ять", bridge: "Старий міст", troutfarm: "Смерекове", quarry: "Гранітний кар'єр", carplake: "Тиха заводь",
+        pond: "Ставок за селом", lake: "Тихе озеро", castle: "Замкове озеро", reservoir: "Прип'ять", bridge: "Старий міст", troutfarm: "Смерекове", quarry: "Гранітний кар'єр", carplake: "Тиха заводь", temple: "Затоплений храм",
       },
     },
     rules: [

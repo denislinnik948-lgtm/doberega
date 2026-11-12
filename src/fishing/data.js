@@ -26,7 +26,7 @@ export const FISH = {
   korop: { min: 1, max: 18, pricePerKg: 40, active: { base: 0.25, peaks: [[7, 3, 0.9], [14, 4, 0.8], [23, 3, 0.6]] } },
   shchuka: { min: 1, max: 14, pricePerKg: 45, lure: true, active: { base: 0.2, peaks: [[9, 3, 1], [17, 3, 0.9]] } },
   sudak: { min: 0.8, max: 10, pricePerKg: 70, lure: true, active: { base: 0.15, peaks: [[11, 3, 0.5], [20, 3, 0.9], [5, 3, 0.7]] } },
-  som: { min: 5, max: 70, pricePerKg: 40, active: { base: 0.1, peaks: [[14, 4, 0.65], [1, 4, 0.6], [22, 3, 0.35]] } },
+  som: { min: 5, max: 110, pricePerKg: 40, active: { base: 0.1, peaks: [[14, 4, 0.65], [1, 4, 0.6], [22, 3, 0.35]] } },
   // Bleak: tiny silver surface fish in shoals, biting fast and often by day.
   verkhovodka: { min: 0.01, max: 0.06, pricePerKg: 14, active: { base: 0.5, peaks: [[9, 4, 0.6], [15, 4, 0.6]] } },
   // Amur sleeper: greedy, takes anything at all, even a lure (`greedy`).
@@ -61,9 +61,9 @@ export const FISH = {
   // Burbot: bites only at night and only in autumn (`season`).
   myn: { min: 0.5, max: 4, pricePerKg: 85, season: "autumn", active: { base: 0.02, peaks: [[0, 4, 1.2], [23, 3, 0.6], [3, 3, 0.8]] } },
   // Grass carp: a big, strong fish for anglers who have climbed far.
-  amur: { min: 3, max: 25, pricePerKg: 42, active: { base: 0.15, peaks: [[11, 4, 0.8], [16, 4, 0.8]] } },
+  amur: { min: 3, max: 50, pricePerKg: 42, active: { base: 0.15, peaks: [[11, 4, 0.8], [16, 4, 0.8]] } },
   // Silver carp: a giant that hardly ever takes a hook.
-  tovstolob: { min: 5, max: 30, pricePerKg: 90, active: { base: 0.1, peaks: [[13, 5, 0.6]] } },
+  tovstolob: { min: 5, max: 55, pricePerKg: 90, active: { base: 0.1, peaks: [[13, 5, 0.6]] } },
   // Sterlet: in the Red Book. It can't be sold, only let go, and that earns a badge (`protected`).
   sterliad: { min: 0.5, max: 3, pricePerKg: 0, protected: true, active: { base: 0.15, peaks: [[4, 3, 0.6], [21, 3, 0.6]] } },
   // The third joke: a two-headed perch, only at Pripyat. Priceless, trophy only.
@@ -552,6 +552,20 @@ export const LOCATIONS = [
     traits: { type: "lake", depth: "medium", bottom: "mud", current: "none" },
     minKg: 4, typicalKg: 12, maxKg: 22, bigChance: 1 / 7, tailKg: 30, tailChance: 1 / 100, pace: 1.4, unlock: { price: 150000 },
     fish: { korop: 3, dzerkalnyi: 3, amur: 2, bufalo: 2, kanalnyi: 1.5, tovstolob: 0.6 },
+  },
+  {
+    /*
+     * The Flooded Temple, the last and dearest water, still being tried out
+     * (`preview`: a tester only): giants from 45 kg, mostly up to 70, a big
+     * one up to 100, now and then up to 110. Its own fish, the weekly ticket
+     * and the fish's strength are still to come.
+     */
+    id: "temple", snagChance: 0.03, kind: "temple", water: "#2e5a4a", preview: true,
+    traits: { type: "lake", depth: "veryDeep", bottom: "stones", current: "none" },
+    minKg: 45, typicalKg: 70, maxKg: 100, bigChance: 1 / 6, tailKg: 110, tailChance: 1 / 60, pace: 0.5,
+    // Entry by a 7-day ticket, and only with the catfish rod (to come); not a once-paid fee, so off the rod ladder.
+    unlock: { pass: 130000, rod: "catfish" },
+    fish: { som: 3, amur: 1, tovstolob: 1 },
   },
 ];
 

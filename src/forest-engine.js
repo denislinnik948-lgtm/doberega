@@ -167,6 +167,8 @@ function createTrees(width, height, sunX) {
  * are bare (see bareGlyph).
  */
 function seasonalPalette(tree, broad) {
+  // A jungle stays green the year round.
+  if (activeScene().forest.evergreen) return null;
   const season = currentSeason();
   if (season === "winter") return null;
   if (activeScene().forest.dry && season !== "spring") return autumnPalette(tree, DRY);
@@ -222,7 +224,7 @@ function coniferGlyph(tree, localX, progress, x, y, cellWidth) {
   else glyph = ["*", "#", "+", "x"][Math.floor(noise * 4)];
 
   // Winter: snow lies along the top of each tier of branches, brightest on the sunny side.
-  if (isWinter() && (tierProgress < 0.34 || (lit && noise > 0.55)) && noise > 0.22) {
+  if (isWinter() && !activeScene().forest.evergreen && (tierProgress < 0.34 || (lit && noise > 0.55)) && noise > 0.22) {
     return { glyph: tierProgress < 0.2 ? (edge ? glyph : "^") : glyph, color: lit || !shadow ? SNOW : SNOW_SHADE, ...makeSway(tree, progress, cellWidth) };
   }
 
@@ -278,7 +280,7 @@ function broadleafGlyph(tree, localX, progress, x, y, cellWidth) {
   const inside = edgeDistance < 1 + undulation;
   if (!inside) return null;
 
-  if (isWinter()) return bareGlyph(tree, normalizedX, normalizedY, noise, progress, cellWidth);
+  if (isWinter() && !activeScene().forest.evergreen) return bareGlyph(tree, normalizedX, normalizedY, noise, progress, cellWidth);
   const isEdge = edgeDistance > 0.63 + undulation * 0.35;
   if (!isEdge && noise < [0.12, 0.085, 0.065][tree.layer]) return null;
   const sunwardX = -normalizedX * tree.lightSide;
@@ -332,7 +334,7 @@ function bankTreeGlyph(tree, localX, progress, x, y, cellWidth) {
     const ragged = 1 + (noise - 0.5) * 0.28;
     if (dx * dx + dy * dy < ragged * ragged) front = { clump, dx, dy };
   }
-  if (front && isWinter()) return bareGlyph(tree, nx, front.dy * front.clump.r - 0.2, noise, progress, cellWidth);
+  if (front && isWinter() && !activeScene().forest.evergreen) return bareGlyph(tree, nx, front.dy * front.clump.r - 0.2, noise, progress, cellWidth);
   if (front) {
     const { clump, dx, dy } = front;
     // Light from above and the sun's side; clumps low in the crown sit in shade.

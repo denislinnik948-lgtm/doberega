@@ -225,6 +225,30 @@ export const SCENES = {
     nearBank: 0.07,
     foreground: { reeds: 1, rock: false, lilyPads: 3 },
   },
+  /**
+   * The Flooded Temple, the last and dearest water: a jungle lake that has
+   * swallowed an old temple. Its stepped pyramid rises from the far shallows,
+   * columns stand in the water (some broken, two still carrying a lintel), the
+   * great stone head of an idol looks out of the water, lianas hang from it
+   * all; tropical forest all round, mist on the water, fireflies after dark.
+   * We sit on the broken slabs of the temple's terrace.
+   */
+  temple: {
+    horizon: 0.47,
+    focus: 0.45,
+    ridges: [
+      // Jungle hills behind, rising in hazy rows.
+      { top: 0.3, amplitude: 0.06, seed: 2.7, fill: "#3c5a4a", glyph: "#5a7c62", texture: "&%*o", density: 0.34 },
+      { top: 0.37, amplitude: 0.04, seed: 5.9, fill: "#24402e", glyph: "#3e6644", texture: "&%@o", density: 0.4 },
+    ],
+    // Broadleaf jungle, green the year round (`evergreen`), a gap where the pyramid stands.
+    forest: { heightScale: 1.25, spacingScale: 0.6, broadleaf: 1, round: 0.85, evergreen: true, gaps: [[0.25, 0.43]] },
+    structures: {},
+    // Deep, still, dark green; the ruins stand in it (`temple`, see templeShape).
+    water: { body: "#163a32", mirror: 0.6, temple: true },
+    nearBank: 0.05,
+    foreground: { reeds: 0.35, rock: false, lilyPads: 4, slabs: true },
+  },
 };
 
 let active = SCENES.lake;
@@ -327,6 +351,53 @@ export function wreckShape(width, height) {
 }
 
 /**
+ * The ruins standing in the Flooded Temple's water, in scene pixels: the
+ * stepped pyramid in the far shallows, the columns (some broken, two still
+ * carrying a lintel) and the idol's head. Placed across the visible slice so
+ * a phone shows them too. `covers(x, y)` keeps the water off them.
+ */
+export function templeShape(width, height) {
+  if (!active.water.temple) return null;
+  const left = view.left;
+  const span = view.frameWidth;
+  const at = (fx) => left + fx * span;
+  const horizon = active.horizon * height;
+  // The pyramid: five tiers on the far shore, its foot in the water.
+  const pyramid = { cx: at(0.34), base: horizon + height * 0.012, half: Math.min(span * 0.16, height * 0.32), height: height * 0.16, tiers: 5 };
+  // Columns: [x, foot (water line), height, width], all as screen fractions; `broken` ones end in a jagged stump.
+  const columns = [
+    { x: 0.08, foot: 0.62, h: 0.24, w: 0.042 },
+    { x: 0.17, foot: 0.58, h: 0.11, w: 0.036, broken: true },
+    { x: 0.6, foot: 0.555, h: 0.15, w: 0.032 },
+    { x: 0.69, foot: 0.56, h: 0.155, w: 0.032 },
+    { x: 0.86, foot: 0.64, h: 0.27, w: 0.046 },
+    { x: 0.94, foot: 0.6, h: 0.09, w: 0.038, broken: true },
+  ].map((c) => ({ ...c, cx: at(c.x), foot: c.foot * height, top: (c.foot - c.h) * height, half: Math.max(3, (c.w * Math.min(span, height * 1.4)) / 2) }));
+  // The lintel across the two columns of the gate.
+  const gate = [columns[2], columns[3]];
+  // The idol's head looking out of the water, its chin under.
+  const idol = { cx: at(0.47), waterline: height * 0.72, half: Math.min(span * 0.1, height * 0.17), height: height * 0.2 };
+  const inColumn = (x, y) => columns.some((c) => y > c.top - 2 && y < c.foot + 3 && Math.abs(x - c.cx) < c.half + 1);
+  const inPyramid = (x, y) => {
+    if (y > pyramid.base + 3 || y < pyramid.base - pyramid.height - height * 0.035) return false;
+    const tier = Math.floor((pyramid.base - y) / (pyramid.height / pyramid.tiers));
+    const half = tier >= pyramid.tiers ? pyramid.half * 0.16 : pyramid.half * (1 - tier * 0.16);
+    return Math.abs(x - pyramid.cx) < half;
+  };
+  const inIdol = (x, y) => {
+    const u = (x - idol.cx) / idol.half;
+    const v = (idol.waterline - y) / idol.height;
+    const outline = v > 0.7 ? Math.sqrt(Math.max(0, 1 - ((v - 0.7) / 0.32) ** 2)) : v < 0.2 ? 0.86 + v * 0.7 : 1;
+    return v > -0.05 && v < 1 && Math.abs(u) < outline;
+  };
+  const inLintel = (x, y) => y > gate[0].top - height * 0.02 && y < gate[0].top + 2 && x > gate[0].cx - gate[0].half * 2 && x < gate[1].cx + gate[1].half * 2;
+  return {
+    pyramid, columns, gate, idol,
+    covers: (x, y) => inPyramid(x, y) || inColumn(x, y) || inIdol(x, y) || inLintel(x, y),
+  };
+}
+
+/**
  * The wooden jetty on the far shore and the boat tied up beside it, in scene
  * pixels: the deck narrows away from us (`left`/`right` at a screen y between
  * `top` and `bottom`), and the boat lies alongside its near end.
@@ -395,6 +466,7 @@ export function isOpenWater(x, y, width, height) {
     if (((x - rock.x * width) / r) ** 2 + ((y - rock.y * height) / (r * 0.45)) ** 2 < 1.4) return false;
   }
   if (wreckShape(width, height)?.covers(x, y)) return false;
+  if (templeShape(width, height)?.covers(x, y)) return false;
   if (jettyShape(width, height)?.covers(x, y)) return false;
   return true;
 }
