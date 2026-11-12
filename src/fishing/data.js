@@ -322,12 +322,17 @@ export const HOOKS = {
 
 /**
  * Whether a fish of `weight` takes the hook (or lure) at all: always above
- * `minKg`, fading out below it, and never quite impossible.
+ * `minKg`, fading out below it (from 70% of it), and never quite impossible:
+ * one just short of it (from half of it) now and then manages, 3 times in 100,
+ * but one less than half of it hardly ever, 3 times in 1000.
  */
+export const HOOK_SHORT = { near: 0.03, far: 0.003 };
 export function takesHook(gear, weight, random = Math.random) {
   if (!gear?.minKg || weight >= gear.minKg) return true;
-  const fit = Math.max(0, Math.min(1, (weight / gear.minKg - 0.7) / 0.3));
-  return random() < 0.03 + 0.97 * fit * fit;
+  const share = weight / gear.minKg;
+  const fit = Math.max(0, Math.min(1, (share - 0.7) / 0.3));
+  const floor = share >= 0.5 ? HOOK_SHORT.near : HOOK_SHORT.far;
+  return random() < floor + (1 - floor) * fit * fit;
 }
 
 /** How often tackle still holds a fish heavier than it is rated for. */
