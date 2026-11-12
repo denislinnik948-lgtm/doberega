@@ -22,7 +22,12 @@ export function ridgeTop(ridge, x, height) {
     const u = x / view.width;
     // `rise` [from, to]: low at `from`, full height from `to` on (to the left when `to` < `from`).
     const [from, to] = ridge.rise ?? [0, 0];
-    const ramp = to !== from ? Math.min(1, Math.max(0, (u - from) / (to - from))) ** 0.8 : 1;
+    let ramp = to !== from ? Math.min(1, Math.max(0, (u - from) / (to - from))) ** 0.8 : 1;
+    // `peaks`: [centre, half width, height] each: separate massifs with low ground between.
+    if (ridge.peaks) ramp = Math.max(0.12, ...ridge.peaks.map(([center, half, tall]) => {
+      const d = Math.abs(u - center) / half;
+      return d < 1 ? tall * (0.5 + 0.5 * Math.cos(Math.PI * d)) ** 0.7 : 0;
+    }));
     const crest = ridged(x * 0.0042, s, 100 + Math.round(s * 10), 5);
     return height * (ridge.top - ridge.amplitude * ramp * (0.25 + 0.95 * crest));
   }
@@ -96,7 +101,8 @@ export function alpineSample(ridge, x, y, height, column = alpineColumn(ridge, x
   // or as high as the ridge's own `treeline` (a share of the screen height).
   const woodsTop = ridge.treeline ?? (ridge.snowline ? ridge.snowline + 0.13 : ridge.top - ridge.amplitude * 0.7);
   const treeline = height * (woodsTop + (valueNoise(x * 0.015, 9, seed) - 0.5) * 0.03);
-  const material = y < snowline && Math.abs(slope) < 0.065 ? "snow" : y > treeline ? "woods" : "rock";
+  // A `snowy` range keeps its snow on all but the sheerest rock.
+  const material = y < snowline && Math.abs(slope) < (ridge.snowy ? 0.2 : 0.065) ? "snow" : y > treeline ? "woods" : "rock";
   return { material, light, slope, crest: y - top < height * 0.012 };
 }
 
@@ -112,7 +118,9 @@ export function alpineColor(ridge, sample, depth) {
   const base = mixRgb(shade, lit, sample.light);
   // `pale`: a light limestone rather than dark granite.
   const rock = sample.material === "rock" && ridge.pale ? mixRgb(base, LIMESTONE, ridge.pale) : base;
-  return mixRgb(rock, HAZE, (ridge.haze ?? 0.22) + depth * 0.12);
+  // `cool`: [colour, share] drawn toward a cold blue shade, the hazy light of a cool day.
+  const cooled = ridge.cool && sample.material !== "snow" ? mixRgb(rock, ridge.cool[0], ridge.cool[1]) : rock;
+  return mixRgb(cooled, HAZE, (ridge.haze ?? 0.22) + depth * 0.12);
 }
 
 /** Per-column values of an alpine ridge, shared by every pixel below the crest. */
@@ -1053,12 +1061,13 @@ function addCastleHill({ from, peak, castle }, width, height, cellWidth, lineHei
         if (d < 1 && (!best || cy > best.cy)) best = { nx, ny, d, cy, conifer };
       }
     }
-    if (!best) return { glyph: noise > 0.5 ? "." : ",", color: "#141e1c" };
+    // Almost a silhouette in the hazy light, as in the photo: deep blue-greens.
+    if (!best) return { glyph: noise > 0.5 ? "." : ",", color: "#0e1618" };
     const light = -best.nx * 0.6 - best.ny * 0.8;
-    if (best.d > 0.72 && best.ny > -0.2) return { glyph: "%&#"[Math.floor(noise * 3)], color: "#16221e" };
-    if (light > 0.45) return { glyph: best.conifer ? "^" : noise > 0.5 ? "o" : "O", color: noise > 0.4 ? "#4e6e52" : "#405e46" };
-    if (light > 0) return { glyph: best.conifer ? "*" : "o*&"[Math.floor(noise * 3)], color: "#30483a" };
-    return { glyph: "*&%"[Math.floor(noise * 3)], color: "#1e302a" };
+    if (best.d > 0.72 && best.ny > -0.2) return { glyph: "%&#"[Math.floor(noise * 3)], color: "#121c1e" };
+    if (light > 0.45) return { glyph: best.conifer ? "^" : noise > 0.5 ? "o" : "O", color: noise > 0.4 ? "#3a5450" : "#304844" };
+    if (light > 0) return { glyph: best.conifer ? "*" : "o*&"[Math.floor(noise * 3)], color: "#243634" };
+    return { glyph: "*&%"[Math.floor(noise * 3)], color: "#182624" };
   };
   for (let column = Math.floor((width * from) / cellWidth); column * cellWidth < width; column += 1) {
     const x = (column + 0.5) * cellWidth;

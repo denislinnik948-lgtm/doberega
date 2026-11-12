@@ -238,19 +238,20 @@ export const SCENES = {
     horizon: 0.64,
     focus: 0.55,
     ridges: [
-      // Snowy peaks far off in the middle and on the right.
-      { top: 0.52, amplitude: 0.2, seed: 6.9, jagged: true, alpine: true, rise: [0.25, 0.55], snowline: 0.53, haze: 0.36, fill: "#5d7084", glyph: "#8193a5", texture: ".'", density: 0.05 },
-      // Hazy blue ridges under them.
-      { top: 0.62, amplitude: 0.09, seed: 2.4, jagged: true, alpine: true, treeline: 0, haze: 0.55, fill: "#2e4458", glyph: "#46607a", texture: ".'", density: 0.05 },
-      // The big dark mountain on the left: woods below, grey cliffs above, sloping down to the lake.
-      { top: 0.64, amplitude: 0.5, seed: 3.6, jagged: true, alpine: true, rise: [0.58, 0.12], treeline: 0.4, pale: 0.08, haze: 0.1, fill: "#24343a", glyph: "#3a4e56", texture: ".'", density: 0.05 },
+      // Two snowy massifs far off in the middle and on the right, a lower one at the edge, valleys between (`peaks`).
+      { top: 0.55, amplitude: 0.26, seed: 6.9, jagged: true, alpine: true, peaks: [[0.47, 0.14, 0.85], [0.77, 0.15, 1], [0.98, 0.07, 0.55]], snowline: 0.5, snowy: true, cool: [[60, 78, 112], 0.35], haze: 0.24, fill: "#5d7084", glyph: "#8193a5", texture: ".'", density: 0.05 },
+      // Dark slate-blue ridges under them.
+      { top: 0.62, amplitude: 0.1, seed: 2.4, jagged: true, alpine: true, treeline: 0, cool: [[34, 46, 70], 0.6], haze: 0.2, fill: "#2e4458", glyph: "#46607a", texture: ".'", density: 0.05 },
+      // The big mountain on the left, deep blue-green: woods below, grey cliffs above, sloping down to the lake.
+      { top: 0.64, amplitude: 0.5, seed: 3.6, jagged: true, alpine: true, rise: [0.58, 0.12], treeline: 0.4, pale: 0.06, cool: [[22, 34, 48], 0.55], haze: 0.06, fill: "#24343a", glyph: "#3a4e56", texture: ".'", density: 0.05 },
     ],
     // A few trees on the far left shore; the right is the castle hill's own (see `castleHill`).
     forest: { heightScale: 1.4, spacingScale: 0.8, broadleaf: 0.3, gaps: [[0.12, 1]] },
     structures: {
       castleHill: { from: 0.6, peak: 0.1, castle: 0.79 },
     },
-    water: { body: "#2c4a66", mirror: 0.35 },
+    // Steel-blue water, silver where it catches the light.
+    water: { body: "#3a5a7a", mirror: 0.35 },
     nearBank: 0.015,
     foreground: { reeds: 0, rock: false, lilyPads: 0 },
   },
