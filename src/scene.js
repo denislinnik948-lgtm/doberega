@@ -247,14 +247,16 @@ export const SCENES = {
       // The big mountain on the left, deep blue-green: woods below, grey cliffs above, sloping down to the lake.
       { top: 0.64, amplitude: 0.5, seed: 3.6, jagged: true, alpine: true, rise: [0.58, 0.12], treeline: 0.4, pale: 0.06, cool: [[22, 34, 48], 0.55], haze: 0.06, fill: "#24343a", glyph: "#3a4e56", texture: ".'", density: 0.05 },
     ],
-    // A few trees on the far left shore; the right is the castle hill's own (see `castleHill`).
-    forest: { heightScale: 1.4, spacingScale: 0.8, broadleaf: 0.3, gaps: [[0.12, 1]] },
+    // No forest of the usual kind: a living grove on the left (`grove`), the castle hill's woods on the right.
+    forest: { heightScale: 1.4, spacingScale: 0.8, broadleaf: 0.3, gaps: [[0, 1]] },
     structures: {
       castleHill: { from: 0.6, peak: 0.1, castle: 0.79 },
+      grove: { to: 0.15 },
     },
     // Steel-blue water, silver where it catches the light.
     water: { body: "#3a5a7a", mirror: 0.35 },
-    nearBank: 0.015,
+    // Seen from above the water: no bank of our own.
+    nearBank: 0,
     foreground: { reeds: 0, rock: false, lilyPads: 0 },
   },
 };

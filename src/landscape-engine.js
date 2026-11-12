@@ -381,6 +381,7 @@ export function createStructures(width, height, cellWidth, lineHeight, fine = nu
   if (structures.chnpp) onFineGrid(addChnpp, structures.chnpp);
   if (structures.crag) onFineGrid(addCrag, structures.crag);
   if (structures.castleHill) onFineGrid(addCastleHill, structures.castleHill);
+  if (structures.grove) onFineGrid(addGrove, structures.grove);
   if (structures.quarry) onFineGrid(addQuarry, structures.quarry);
   if (structures.archBridge) onFineGrid(addArchBridge, structures.archBridge);
   if (structures.hillDecor) onFineGrid(addHillDecor, structures.hillDecor);
@@ -1011,64 +1012,105 @@ const mixHex = (a, b, t) => {
 };
 
 /**
- * A wooded hill rising from the far shore to a sheer grey cliff, with a
- * castle of pale walls and red roofs perched on top.
+ * Living woods for the last water, in glyphs: crowns on a jittered grid,
+ * round broadleaf ones and tall narrow poplars, each lit on its upper left
+ * (its top catching the sun bright), a green of its own, shaded below and
+ * dark in the gaps between them. `crownGlyph(x, y, noise)` gives the glyph and
+ * colour at a point; `k` cells to a base cell keeps the crowns' size on screen.
  */
+function livingCrowns(cellWidth, lineHeight, k, seed, { poplars = 0.3, size = 1 } = {}) {
+  const crownW = cellWidth * 4.2 * k * size;
+  const crownH = lineHeight * 2.6 * k * size;
+  // Greens from deep shade to the sunlit tops, a little different crown to crown.
+  const GREENS = [["#0f1a14", "#1c3324", "#2f5236", "#4f7c46", "#82ae5c"], ["#101a16", "#1e3628", "#335a3c", "#5a8a50", "#96bc68"], ["#0f1814", "#1a3026", "#2c4c38", "#476e46", "#73a05a"]];
+  return (x, y, noise) => {
+    const i0 = Math.floor(x / crownW);
+    const j0 = Math.floor(y / crownH);
+    let best = null;
+    for (let j = j0 - 1; j <= j0 + 2; j += 1) {
+      for (let i = i0 - 1; i <= i0 + 1; i += 1) {
+        const poplar = hash2(i, j, seed + 5) < poplars;
+        const cx = (i + 0.5 + (j % 2) * 0.5 + (hash2(i, j, seed) - 0.5) * 0.6) * crownW;
+        const cy = (j + 0.5 + (hash2(i, j, seed + 1) - 0.5) * 0.5) * crownH;
+        const rx = crownW * (poplar ? 0.32 : 0.62 + 0.2 * hash2(i, j, seed + 2));
+        const ry = crownH * (poplar ? 1.5 : 0.62 + 0.18 * hash2(i, j, seed + 3));
+        const nx = (x - cx) / rx;
+        const ny = (y - cy) / ry;
+        const d = nx * nx + ny * ny;
+        // The lower crown stands in front.
+        if (d < 1 && (!best || cy > best.cy)) best = { nx, ny, d, cy, poplar, tone: GREENS[Math.floor(hash2(i, j, seed + 4) * GREENS.length)] };
+      }
+    }
+    if (!best) return { glyph: noise > 0.5 ? "." : ",", color: "#0c1410" };
+    const [gap, shade, mid, lit, sun] = best.tone;
+    const light = -best.nx * 0.55 - best.ny * 0.85;
+    if (best.d > 0.78 && best.ny > -0.1) return { glyph: "%&#"[Math.floor(noise * 3)], color: gap };
+    if (light > 0.7) return { glyph: best.poplar ? "^" : noise > 0.5 ? "o" : "@", color: sun };
+    if (light > 0.3) return { glyph: best.poplar ? "|" : "oO&"[Math.floor(noise * 3)], color: lit };
+    if (light > -0.15) return { glyph: best.poplar ? ":" : "&%*"[Math.floor(noise * 3)], color: mid };
+    return { glyph: "*&%#"[Math.floor(noise * 4)], color: shade };
+  };
+}
+
+/**
+ * A grove of living trees on the far shore at the left edge (`grove.to`, the
+ * share of the scene across): round crowns and tall poplars standing over
+ * the water, the poplars' tips making a ragged skyline.
+ */
+function addGrove({ to }, width, height, cellWidth, lineHeight, out, k = 1) {
+  const horizon = activeScene().horizon * height;
+  const crown = livingCrowns(cellWidth, lineHeight, k, 4501, { poplars: 0.35 });
+  const skyline = (x) => horizon - height * (0.07 + 0.05 * valueNoise(x * 0.03, 1, 4503) + 0.04 * Math.max(0, valueNoise(x * 0.09, 2, 4505) - 0.5)) * Math.min(1, ((to * width - x) / (width * 0.03)) ** 0.5);
+  const outline = [[0, horizon + lineHeight]];
+  for (let x = 0; x <= width * to; x += cellWidth) outline.push([x, skyline(x)]);
+  outline.push([width * to, horizon + lineHeight]);
+  out.shapes.push({ points: outline, color: "#0c1410" });
+  for (let column = 0; column * cellWidth < width * to; column += 1) {
+    const x = (column + 0.5) * cellWidth;
+    const top = skyline(x);
+    const shore = shorelineY(x, height);
+    for (let row = Math.floor(top / lineHeight); (row + 0.5) * lineHeight < shore; row += 1) {
+      const y = (row + 0.5) * lineHeight;
+      if (y < top) continue;
+      // On a finer grid only as many leaves stir as on the base one (see addCrag).
+      out.cells.push({ x, y, column, row, rustle: k <= 1 || hash2(column, row, 4509) < 1 / (k * k), ...crown(x, y, hash2(column, row, 4507)) });
+    }
+  }
+}
+
 /**
  * A low wooded hill on the right of the view reaching out into the water,
  * with a rocky knoll and an old castle on it (`castleHill`: the hill starts
  * at `from` across the scene, `peak` its height over the water as a share of
- * the screen, the castle at `castle`): crowns of trees on a jittered grid in
- * the cool shade of the hazy day, grey rock round the knoll, and on top a
- * tall square keep with its battlements and arrow slits, a curtain wall
- * stepping down the rock either side of it, a small corner tower; dressed
- * grey stone lit on the left, over one dark ground each.
+ * the screen, the castle at `castle`), after a mountain castle photo: living
+ * woods on the slopes, grey rock tufted with green round the knoll, and on
+ * top a tall square keep, battered at its foot, under a corbelled parapet of
+ * battlements, with a few narrow windows; curtain walls following the rock
+ * down either side, crenellated, and a lower tower flying a little flag. The
+ * stone in varied weathered glyphs, lit pale on the sun's side, dark on the
+ * other, streaked by rain and green with moss at the foot. Glyphs only over
+ * the hill's one dark ground.
  */
 function addCastleHill({ from, peak, castle }, width, height, cellWidth, lineHeight, out, k = 1) {
   const horizon = activeScene().horizon * height;
   const knoll = castle * width;
-  const knollHalf = width * 0.06;
+  const knollHalf = width * 0.07;
   // The hill's skyline: rising from the water at `from`, a knoll under the castle, easing off to the right edge.
   const skyline = (x) => {
     const u = x / width;
     if (u < from) return horizon + lineHeight;
     const rise = Math.min(1, (u - from) / 0.1) ** 0.7;
-    const bump = Math.max(0, 1 - Math.abs(x - knoll) / knollHalf) ** 1.5;
+    const bump = Math.max(0, 1 - Math.abs(x - knoll) / knollHalf) ** 1.4;
     const roll = 0.06 * Math.sin(x * 0.02) + 0.04 * valueNoise(x * 0.05, 2, 4401);
-    return horizon - height * peak * (rise * (0.62 + roll) + 0.38 * bump);
+    return horizon - height * peak * (rise * (0.6 + roll) + 0.45 * bump);
   };
-  // Grey rock round the knoll, more of it toward the top.
-  const rockDepth = (x) => Math.max(0, 1 - Math.abs(x - knoll) / (knollHalf * 1.15)) * height * peak * 0.55 * (0.7 + 0.3 * valueNoise(x * 0.04, 3, 4403));
+  // Grey rock round the knoll, more of it toward the top, green tufts in its ledges.
+  const rockDepth = (x) => Math.max(0, 1 - Math.abs(x - knoll) / (knollHalf * 1.1)) * height * peak * 0.6 * (0.7 + 0.3 * valueNoise(x * 0.04, 3, 4403));
   const outline = [[width * from, horizon + lineHeight]];
   for (let x = width * from; x <= width + cellWidth; x += cellWidth) outline.push([x, skyline(x)]);
   outline.push([width + cellWidth, horizon + lineHeight]);
-  out.shapes.push({ points: outline, color: "#0e1614" });
-  // Crowns on a jittered grid, lit on the upper left, in the cool light of the haze.
-  const crownW = cellWidth * 4.5 * k;
-  const crownH = lineHeight * 2.6 * k;
-  const crownGlyph = (x, y, noise) => {
-    const i0 = Math.floor(x / crownW);
-    const j0 = Math.floor(y / crownH);
-    let best = null;
-    for (let j = j0 - 1; j <= j0 + 1; j += 1) {
-      for (let i = i0 - 1; i <= i0 + 1; i += 1) {
-        const cx = (i + 0.5 + (j % 2) * 0.5 + (hash2(i, j, 4405) - 0.5) * 0.5) * crownW;
-        const cy = (j + 0.5 + (hash2(i, j, 4407) - 0.5) * 0.4) * crownH;
-        const conifer = hash2(i, j, 4409) > 0.55;
-        const nx = (x - cx) / (crownW * 0.68);
-        const ny = (y - cy) / (crownH * 0.66);
-        const d = conifer ? Math.abs(nx) / Math.max(0.05, (ny + 1) / 2) + Math.max(0, ny) ** 2 : nx * nx + ny * ny;
-        if (d < 1 && (!best || cy > best.cy)) best = { nx, ny, d, cy, conifer };
-      }
-    }
-    // Almost a silhouette in the hazy light, as in the photo: deep blue-greens.
-    if (!best) return { glyph: noise > 0.5 ? "." : ",", color: "#0e1618" };
-    const light = -best.nx * 0.6 - best.ny * 0.8;
-    if (best.d > 0.72 && best.ny > -0.2) return { glyph: "%&#"[Math.floor(noise * 3)], color: "#121c1e" };
-    if (light > 0.45) return { glyph: best.conifer ? "^" : noise > 0.5 ? "o" : "O", color: noise > 0.4 ? "#3a5450" : "#304844" };
-    if (light > 0) return { glyph: best.conifer ? "*" : "o*&"[Math.floor(noise * 3)], color: "#243634" };
-    return { glyph: "*&%"[Math.floor(noise * 3)], color: "#182624" };
-  };
+  out.shapes.push({ points: outline, color: "#0c1410" });
+  const crown = livingCrowns(cellWidth, lineHeight, k, 4405, { poplars: 0.25 });
   for (let column = Math.floor((width * from) / cellWidth); column * cellWidth < width; column += 1) {
     const x = (column + 0.5) * cellWidth;
     const top = skyline(x);
@@ -1078,48 +1120,105 @@ function addCastleHill({ from, peak, castle }, width, height, cellWidth, lineHei
       if (y < top) continue;
       const noise = hash2(column, row, 4411);
       if (y < top + rockDepth(x)) {
-        out.cells.push({ x, y, column, row, glyph: "#%:/\\.:"[Math.floor(noise * 7)], color: noise > 0.55 ? "#8a8e8c" : noise > 0.2 ? "#6c706e" : "#50544f" });
+        const tuft = valueNoise(x * 0.08, y * 0.12, 4415) > 0.62;
+        out.cells.push({ x, y, column, row, glyph: tuft ? ",;\"'"[Math.floor(noise * 4)] : "#%:/\\.:"[Math.floor(noise * 7)], color: tuft ? (noise > 0.5 ? "#5a8a48" : "#3e6a3a") : noise > 0.55 ? "#9a9c94" : noise > 0.2 ? "#787a74" : "#5a5c58" });
       } else {
-        out.cells.push({ x, y, column, row, ...crownGlyph(x, y, noise) });
+        out.cells.push({ x, y, column, row, rustle: k <= 1 || hash2(column, row, 4419) < 1 / (k * k), ...crown(x, y, noise) });
       }
     }
   }
-  // The castle on the knoll.
-  const rowsOf = (fraction) => Math.max(2, Math.round((height * fraction) / lineHeight));
-  const stone = (column, row, lit) => {
-    const noise = hash2(column, row, 4413);
-    if (lit) return noise > 0.5 ? "#b8b6aa" : noise > 0.15 ? "#a2a094" : "#8a887c";
-    return noise > 0.55 ? "#7c7a70" : noise > 0.2 ? "#686660" : "#54524c";
+
+  // The castle.
+  const put = (x, y, glyph, color) => {
+    const cell = cellAt(x, y, cellWidth, lineHeight);
+    out.cells.push({ ...cell, glyph, color });
+    return out.cells[out.cells.length - 1];
   };
-  // Masonry from x0 to x1 standing `rows` high on the ground below it, in glyphs only (no ground of its
-  // own: the hill's plain dark one shows between them); `battlements` crenellate its top.
-  const wall = (x0, x1, rows, { battlements = false, slits = false, foot = 0 } = {}) => {
+  // Weathered stone: pale on the sun's side (left), dark on the other, streaked by rain, mossy at the foot.
+  // Darker than the snowfields behind it, so the castle stands out against them.
+  const STONE_LIT = ["#aaa596", "#98938a", "#868076", "#746e64"];
+  const STONE_DARK = ["#5e5a52", "#4e4a44", "#403d38", "#33312d"];
+  const stone = (column, row, lit, fromFoot) => {
+    const noise = hash2(column, row, 4413);
+    if (fromFoot < 2 && noise > 0.45) return { glyph: ",%"[Math.floor(noise * 2)], color: noise > 0.7 ? "#5a7a44" : "#46603a" };
+    const streak = hash2(column, 3, 4417) > 0.8 && noise > 0.3;
+    const tones = lit ? STONE_LIT : STONE_DARK;
+    return { glyph: streak ? "|" : "#%&8$#"[Math.floor(noise * 6)], color: streak ? (lit ? "#8a877c" : "#3e3c37") : tones[Math.floor(noise * tones.length)] };
+  };
+  const rowsOf = (fraction) => Math.max(3, Math.round((height * fraction) / lineHeight));
+  /*
+   * Masonry from x0 to x1 standing `rows` above the ground (the rock under
+   * each column, plus `sink` rows into it), lit on its left part; options:
+   * battlements on top, a corbelled parapet wider by a cell, a battered foot,
+   * windows at given rows.
+   */
+  const tower = (x0, x1, rows, { sink = 1, battlements = true, corbels = false, batter = false, windows = [], litShare = 0.55 } = {}) => {
     const columns = [];
     for (let x = x0 + cellWidth / 2; x < x1; x += cellWidth) columns.push(x);
-    const groundAt = (x) => skyline(x) + foot;
-    const tops = columns.map((x) => groundAt(x) - rows * lineHeight);
+    const groundOf = (x) => skyline(x) + sink * lineHeight;
+    // Its top is level, set from the highest ground under it.
+    const top = Math.min(...columns.map(groundOf)) - rows * lineHeight;
     columns.forEach((x, index) => {
-      const lit = index < columns.length * 0.55;
-      const ground = groundAt(x);
-      for (let y = ground, r = 0; y > tops[index]; y -= lineHeight, r += 1) {
-        const cell = cellAt(x, y, cellWidth, lineHeight);
-        const crest = y - lineHeight <= tops[index];
-        const slit = slits && r > 2 && r % 4 === 3 && index % 4 === 2;
-        let glyph = slit ? "|" : r % 2 ? "=" : (index + (r >> 1)) % 3 === 0 ? "|" : "#";
-        if (crest) glyph = battlements ? (index % 2 ? " " : "n") : "_";
-        if (glyph === " ") continue;
-        out.cells.push({ ...cell, glyph, color: slit ? "#17160f" : stone(cell.column, cell.row, lit) });
+      const lit = index < columns.length * litShare;
+      const cellColumn = cellAt(x, 0, cellWidth, lineHeight).column;
+      let r = 0;
+      for (let y = groundOf(x); y > top; y -= lineHeight, r += 1) {
+        const fromTop = Math.round((y - top) / lineHeight);
+        const window = windows.some((at) => fromTop === at) && index === Math.floor(columns.length / 2);
+        const { glyph, color } = stone(cellColumn, r, lit, r);
+        put(x, y, window ? "|" : glyph, window ? "#14130f" : color);
       }
+      if (battlements) put(x, top - lineHeight * (corbels ? 1 : 0), index % 2 ? "n" : "#", lit ? STONE_LIT[1] : STONE_DARK[1]);
+    });
+    if (corbels) {
+      // The parapet stands out a cell either side on its corbels, crenellated along the top.
+      for (const [x, lit] of [[columns[0] - cellWidth, true], [columns[columns.length - 1] + cellWidth, false]]) {
+        put(x, top, "=", lit ? STONE_LIT[2] : STONE_DARK[2]);
+        put(x, top - lineHeight, "n", lit ? STONE_LIT[1] : STONE_DARK[1]);
+      }
+      columns.forEach((x, index) => put(x, top, index % 2 ? "=" : "-", index < columns.length * litShare ? STONE_LIT[3] : STONE_DARK[0]));
+    }
+    if (batter) {
+      // The foot spreads a cell either side, sloping.
+      for (let r = 0; r < 3; r += 1) {
+        put(columns[0] - cellWidth, groundOf(columns[0]) - r * lineHeight, r === 2 ? "/" : "#", STONE_LIT[2]);
+        put(columns[columns.length - 1] + cellWidth, groundOf(columns[columns.length - 1]) - r * lineHeight, r === 2 ? "\\" : "#", STONE_DARK[2]);
+      }
+    }
+    return { top, x0: columns[0], x1: columns[columns.length - 1] };
+  };
+  // A wall following the rock down: each column its own height over the ground under it, crenellated.
+  const curtain = (x0, x1, rows, litShare = 0.5) => {
+    const columns = [];
+    for (let x = x0 + cellWidth / 2; x < x1; x += cellWidth) columns.push(x);
+    columns.forEach((x, index) => {
+      const ground = skyline(x) + lineHeight;
+      const lit = index < columns.length * litShare;
+      const cellColumn = cellAt(x, 0, cellWidth, lineHeight).column;
+      for (let r = 0; r < rows; r += 1) {
+        const { glyph, color } = stone(cellColumn, r, lit, r);
+        put(x, ground - r * lineHeight, glyph, color);
+      }
+      if (index % 2 === 0) put(x, ground - rows * lineHeight, "n", lit ? STONE_LIT[1] : STONE_DARK[1]);
     });
   };
-  const u = width * 0.012;
-  // The curtain wall stepping down the rock on either side, the keep, a corner tower.
-  wall(knoll - u * 7, knoll - u * 2, rowsOf(0.022), { battlements: true, foot: lineHeight });
-  wall(knoll + u * 1.5, knoll + u * 6.5, rowsOf(0.026), { battlements: true, foot: lineHeight });
-  wall(knoll + u * 5.5, knoll + u * 7.5, rowsOf(0.036), { battlements: true, slits: true, foot: lineHeight * 2 });
-  wall(knoll - u * 2.5, knoll + u * 2, rowsOf(0.075), { battlements: true, slits: true });
+  const u = width * 0.0105;
+  curtain(knoll - u * 9, knoll - u * 2.4, rowsOf(0.034), 0.6);
+  curtain(knoll + u * 2.6, knoll + u * 7, rowsOf(0.038), 0.3);
+  // The lower tower on the right, a little flag on it.
+  const small = tower(knoll + u * 6.2, knoll + u * 9, rowsOf(0.055), { windows: [3], litShare: 0.35 });
+  const pole = (small.x0 + small.x1) / 2;
+  put(pole, small.top - lineHeight, "|", "#6a675e");
+  put(pole, small.top - lineHeight * 2, "|", "#6a675e");
+  put(pole + cellWidth, small.top - lineHeight * 2, ">", "#c0402e");
+  // The keep: tall and square, battered foot, corbelled battlements, narrow windows.
+  tower(knoll - u * 2.8, knoll + u * 2.8, rowsOf(0.085), { sink: 0, corbels: true, batter: true, windows: [4, 9] });
 }
 
+/**
+ * A wooded hill rising from the far shore to a sheer grey cliff, with a
+ * castle of pale walls and red roofs perched on top.
+ */
 function addCrag({ to, peak }, width, height, cellWidth, lineHeight, out, k = 1) {
   const horizon = activeScene().horizon * height;
   const plateau = horizon - height * peak;
