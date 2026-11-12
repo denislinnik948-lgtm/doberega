@@ -77,7 +77,8 @@ const KEYFRAMES = [
  * No two sunsets alike: each evening (and each dawn) takes one of these moods,
  * picked by the day's number, so the same evening glows the same for everyone.
  * A mood replaces the colours of its keyframes; the plain "golden" sunset and
- * "peach" dawn keep the ones above. Weights say how often each comes up.
+ * "peach" dawn keep the ones above. Weights say how often each comes up: about
+ * half the evenings keep a plain sky and light only the clouds ("amber", "blush").
  */
 const MOODS = {
   dusk: [
@@ -101,6 +102,17 @@ const MOODS = {
       id: "lilac", weight: 12,
       evening: { sky: ["#1a1c38", "#3e3a6c", "#8e6aa0", "#dc9aac"], glow: [225, 170, 235, 0.42], cloudLit: "#dca6e6", glint: ["#a07cb8", "#eed0f4"] },
       dusk: { sky: ["#0a0e1e", "#1c1c3c", "#4a3a6c", "#82587e"], glow: [190, 140, 210, 0.24], cloudLit: "#80609a", glint: ["#6a4e86", "#b490c8"] },
+    },
+    // A plain evening sky, blue going dark, and only the clouds lit: orange, or pink.
+    {
+      id: "amber", weight: 45,
+      evening: { sky: ["#1c3450", "#3a5c7c", "#7a98ac", "#b8c4c2"], glow: [255, 190, 130, 0.3], cloudShade: "#b8664a", cloudLit: "#ffb066", glint: ["#d8884a", "#ffd2a0"] },
+      dusk: { sky: ["#0c1626", "#1a2c44", "#34506a", "#5a6e80"], glow: [230, 140, 90, 0.18], cloudShade: "#6a3a34", cloudLit: "#e0703a", glint: ["#a0603a", "#e0a070"] },
+    },
+    {
+      id: "blush", weight: 45,
+      evening: { sky: ["#1c3450", "#3a5c7c", "#7a98ac", "#b8c4c2"], glow: [255, 190, 200, 0.28], cloudShade: "#b05c84", cloudLit: "#ffa6c8", glint: ["#d07a9a", "#ffd0e0"] },
+      dusk: { sky: ["#0c1626", "#1a2c44", "#34506a", "#5a6e80"], glow: [225, 130, 170, 0.18], cloudShade: "#62344e", cloudLit: "#d0609a", glint: ["#94506e", "#d890b0"] },
     },
     {
       id: "pale", weight: 13,
@@ -137,7 +149,7 @@ for (const list of Object.values(MOODS)) {
   for (const mood of list) {
     for (const [name, frame] of Object.entries(mood)) {
       if (typeof frame !== "object") continue;
-      mood[name] = { ...frame, sky: frame.sky.map(hex), cloudLit: hex(frame.cloudLit), glint: frame.glint.map(hex) };
+      mood[name] = { ...frame, sky: frame.sky.map(hex), cloudLit: hex(frame.cloudLit), glint: frame.glint.map(hex), ...(frame.cloudShade ? { cloudShade: hex(frame.cloudShade) } : {}) };
     }
   }
 }
