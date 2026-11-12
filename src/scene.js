@@ -236,6 +236,8 @@ export const SCENES = {
    */
   mountain: {
     horizon: 0.64,
+    // Glyphs over as few solid grounds as possible: each ridge over one plain dark ground, no ground per cell.
+    glyphsOnly: true,
     focus: 0.55,
     ridges: [
       // Two snowy massifs far off in the middle and on the right, a lower one at the edge, valleys between (`peaks`).

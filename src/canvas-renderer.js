@@ -698,7 +698,7 @@ export class CanvasWaterRenderer {
       ctx.lineTo(width, horizon + height * 0.03);
       ctx.lineTo(0, horizon + height * 0.03);
       ctx.closePath();
-      if (ridge.alpine) {
+      if (ridge.alpine && !scene.glyphsOnly) {
         // A dark ground under each glyph cell, clipped to the ridgeline.
         ctx.save();
         ctx.clip();

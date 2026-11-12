@@ -1091,16 +1091,13 @@ function addCastleHill({ from, peak, castle }, width, height, cellWidth, lineHei
     if (lit) return noise > 0.5 ? "#b8b6aa" : noise > 0.15 ? "#a2a094" : "#8a887c";
     return noise > 0.55 ? "#7c7a70" : noise > 0.2 ? "#686660" : "#54524c";
   };
-  // Masonry from x0 to x1 standing `rows` high on the ground below it; `battlements` crenellate its top.
+  // Masonry from x0 to x1 standing `rows` high on the ground below it, in glyphs only (no ground of its
+  // own: the hill's plain dark one shows between them); `battlements` crenellate its top.
   const wall = (x0, x1, rows, { battlements = false, slits = false, foot = 0 } = {}) => {
     const columns = [];
     for (let x = x0 + cellWidth / 2; x < x1; x += cellWidth) columns.push(x);
     const groundAt = (x) => skyline(x) + foot;
     const tops = columns.map((x) => groundAt(x) - rows * lineHeight);
-    const outline = [];
-    columns.forEach((x, i) => outline.push([x - cellWidth / 2, tops[i] - lineHeight * 0.5], [x + cellWidth / 2, tops[i] - lineHeight * 0.5]));
-    for (let i = columns.length - 1; i >= 0; i -= 1) outline.push([columns[i] + cellWidth / 2, groundAt(columns[i]) + lineHeight], [columns[i] - cellWidth / 2, groundAt(columns[i]) + lineHeight]);
-    out.shapes.push({ points: outline, color: "#3a3934" });
     columns.forEach((x, index) => {
       const lit = index < columns.length * 0.55;
       const ground = groundAt(x);
