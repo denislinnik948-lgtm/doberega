@@ -98,7 +98,20 @@ export function normalizeProgress(saved) {
     }
     // The weekly tournament (see quests.js): this week's best and the last week settled.
     if (saved.tourney && Number.isFinite(saved.tourney.week)) {
-      state.tourney = { week: saved.tourney.week, best: Math.max(0, Number(saved.tourney.best) || 0), claimed: Number.isFinite(saved.tourney.claimed) ? saved.tourney.claimed : saved.tourney.week - 1 };
+      const tourney = saved.tourney;
+      state.tourney = {
+        week: tourney.week,
+        best: Math.max(0, Number(tourney.best) || 0),
+        count: Math.max(0, Math.floor(Number(tourney.count) || 0)),
+        place: Number.isFinite(tourney.place) ? tourney.place : null,
+        claimed: Number.isFinite(tourney.claimed) ? tourney.claimed : tourney.week - 1,
+      };
+      if (tourney.previous && Number.isFinite(tourney.previous.week)) state.tourney.previous = { week: tourney.previous.week, count: Math.max(0, Math.floor(Number(tourney.previous.count) || 0)) };
+    }
+    // Tournament cups (see settleTourney).
+    if (Array.isArray(saved.cups)) {
+      state.cups = saved.cups.filter((cup) => cup && Number.isFinite(cup.week) && FISH[cup.species] && [1, 2, 3].includes(cup.place))
+        .map(({ week, species, format, place }) => ({ week, species, format: ["heaviest", "marathon", "night"].includes(format) ? format : "heaviest", place }));
     }
     // Experience and the last rank whose gift was given (see ranks.js); a save
     // from before ranks gets its experience worked out from its stats.

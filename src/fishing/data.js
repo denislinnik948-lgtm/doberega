@@ -589,6 +589,8 @@ export const START_STATE = {
   location: 0,
   // The paid waters whose membership fee is paid, by spot id (see waters.js).
   waters: [],
+  // Tournament cups, one for each place in the top three (see settleTourney in quests.js).
+  cups: [],
 };
 
 /** The fish of the day (see quests.js) sells for this much more, if it was caught that day. */

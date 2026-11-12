@@ -537,6 +537,15 @@ html.keyboard-open .sheet[open] > .account-body {
 .trophy-hint { margin-top: 0; font-size: 18px; }
 .trophy-badges { margin: 0; color: var(--gold); font-size: 20px; text-align: center; }
 .trophy-badges[hidden] { display: none; }
+/* Tournament cups on a shelf above the player's own wall, and last week's winner's cup by a name. */
+.cup-shelf { display: grid; gap: 8px; }
+.cup-shelf[hidden] { display: none; }
+.cup-shelf h3 { margin: 0; color: var(--gold); font-size: 20px; text-align: center; }
+.cup-list { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 0; padding: 0; list-style: none; }
+.cup { display: grid; justify-items: center; gap: 4px; width: 112px; text-align: center; }
+.cup small { color: var(--light); font-size: 15px; line-height: 1.1; }
+.champion-badge { display: inline-flex; margin-left: 4px; vertical-align: middle; }
+.champion-badge canvas { width: 16px; height: 16px; image-rendering: pixelated; }
 .trophy-hint[hidden], #trophy-empty[hidden] { display: none; }
 .empty-note { margin: 0; color: var(--light); font-size: 22px; text-align: center; }
 .empty-note[hidden] { display: none; }

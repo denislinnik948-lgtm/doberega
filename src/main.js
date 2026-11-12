@@ -246,7 +246,7 @@ const cloud = new Cloud({
   onSynced: async () => {
     const week = tourneyWeek();
     const state = tourneyState(progress, week);
-    if (state.best > 0) cloud.submitTournament(tourneyFish(week), state.best);
+    if (state.best > 0) cloud.submitTournament(tourneyFish(week), state.best).then(() => checkTourneyPlace());
     if ((state.claimed ?? -1) >= week - 1) return;
     try {
       const result = await cloud.tournamentPlace(week - 1, tourneyFish(week - 1));
@@ -261,6 +261,33 @@ const cloud = new Cloud({
   },
 });
 ui.setCloud(cloud);
+
+/*
+ * Where this angler stands in the week's tournament, checked after their own
+ * result goes up, on coming back to the game and every few minutes while it
+ * is open: having slipped down since last time, they are told so (`tell`).
+ */
+let placeChecked = 0;
+async function checkTourneyPlace(tell = true) {
+  const week = tourneyWeek();
+  const state = tourneyState(progress, week);
+  if (!cloud.user || !(state.best > 0)) return;
+  placeChecked = Date.now();
+  try {
+    const result = await cloud.tournamentPlace(week, tourneyFish(week));
+    if (!result?.place || tourneyWeek() !== week) return;
+    if (tell && state.place && result.place > state.place) ui.tourneyOvertaken(result.place);
+    if (state.place !== result.place) {
+      state.place = result.place;
+      ui.commit();
+    }
+  } catch (error) {
+    console.warn("The tournament place could not be checked:", error.message);
+  }
+}
+setInterval(() => {
+  if (!document.hidden && Date.now() - placeChecked > 5 * 60000) checkTourneyPlace();
+}, 60000);
 // A new season repaints the woods and the grass.
 onSeasonChange(() => {
   renderer.lightKey = null;
@@ -365,11 +392,12 @@ function handleGameEvent(type, data) {
       const quest = recordQuest(progress, data.fish, progress.location);
       if (quest) ui.questDone(quest);
       gainXp(progress, fishXp(data.fish) + (fresh ? XP.newSpecies : 0) + (quest ? XP.quest : 0));
-      // A new best for the week's tournament goes up to the board (signed in).
-      const best = recordTourney(progress, data.fish);
+      // A new score in the week's tournament goes up to the board (signed in);
+      // a marathon's kilos grow with every fish, so they are not announced each time.
+      const best = recordTourney(progress, data.fish, game.hour % 24);
       if (best) {
-        ui.tourneyBest(best, Boolean(cloud.user));
-        cloud.submitTournament(best.species, best.weight);
+        if (best.format !== "marathon") ui.tourneyBest(best, Boolean(cloud.user));
+        cloud.submitTournament(best.species, best.weight).then(() => checkTourneyPlace(false));
       }
       // The first fish of a day counts towards the run of days in a row, with its gift.
       if (!FISH[data.fish.species]?.junk) {
@@ -1054,8 +1082,10 @@ document.addEventListener("visibilitychange", () => {
   } else if (hiddenAt !== null) {
     pauseDuration += performance.now() - hiddenAt;
     hiddenAt = null;
-    // Back after a while away: the cloud may hold what was done on another device since.
+    // Back after a while away: the cloud may hold what was done on another device since,
+    // and others may have overtaken this angler in the tournament.
     if (cloud.user && !game.busy) cloud.reconcile();
+    if (Date.now() - placeChecked > 60000) checkTourneyPlace();
     cancelAnimationFrame(animationFrame);
     animationFrame = requestAnimationFrame(draw);
   }

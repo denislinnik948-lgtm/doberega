@@ -263,6 +263,15 @@ export class Cloud {
     return error ? { error: error.message } : { rows: data };
   }
 
+  /** Who won a week (every angler sharing the top weight): their user ids, or null when it can't be told. */
+  async tournamentWinners(week, species) {
+    if (!this.client) return null;
+    const { data, error } = await this.client.from("tournament").select("user_id, weight").eq("week", week).eq("species", species).order("weight", { ascending: false }).limit(5);
+    if (error) return null;
+    const top = data[0]?.weight;
+    return data.filter((row) => row.weight === top).map((row) => row.user_id);
+  }
+
   /** This angler's result for a week and their place (ties share it); place is null without a result. */
   async tournamentPlace(week, species) {
     if (!this.user) return null;

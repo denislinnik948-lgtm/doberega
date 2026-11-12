@@ -10,7 +10,7 @@ import { GROUPS, bump, evaluate, shownAchievements } from "./achievements.js";
 import { RANKS, XP, claimRanks, rankAt } from "./ranks.js";
 import { joinWater, opensWithRank, shownSpots, spotLock } from "./waters.js";
 import {
-  STREAK_GIFTS, TOURNEY_PRIZES, fishOfDay, questReward, questState, streakNow, streakToday, todaysQuest, tourneyFish, tourneyState, tourneyWeek, untilNextQuest, untilWeekEnd,
+  STREAK_GIFTS, TOURNEY_PRIZES, fishOfDay, questReward, questState, streakNow, streakToday, todaysQuest, tourneyFish, tourneyFormat, tourneyState, tourneyWeek, tourneyWeekStart, untilNextQuest, untilWeekEnd,
 } from "./quests.js";
 import { frame, frameAll, repaint, setContent } from "./frames.js";
 import { SEASONS, currentSeason, isWinter, season, setSeason } from "../theme.js";
@@ -773,17 +773,18 @@ export class AnglerUI {
     // Up top a card: the week's fish, the time left, your best, and the prizes.
     const week = tourneyWeek();
     const species = tourneyFish(week);
+    const format = tourneyFormat(week);
     const best = tourneyState(this.progress, week).best;
     const reward = questReward(this.progress);
     const fact = (label, value) => element("div", {}, [element("dt", { textContent: label }), element("dd", { textContent: value })]);
     const card = element("div", { className: "tourney-card" }, [
       element("span", { className: "tourney-fish" }, [fishSprite(species, 4, nameOf("fish", species))]),
       element("div", { className: "tourney-goal" }, [
-        element("small", { textContent: t("tourney.heaviest") }),
+        element("small", { textContent: t(`tourney.goal.${format}`) }),
         element("strong", { textContent: nameOf("fish", species) }),
         element("dl", {}, [
           fact(t("tourney.endsIn"), this.weekLeft()),
-          fact(t("tourney.yours"), best ? formatWeight(best) : t("tourney.none")),
+          fact(t(format === "marathon" ? "tourney.yoursTotal" : "tourney.yours"), best ? formatWeight(best) : t("tourney.none")),
           fact(t("tourney.prizes"), TOURNEY_PRIZES.map((share) => formatMoney(Math.round(reward * share))).join(" / ")),
           fact(t("tourney.everyone"), t("tourney.gift")),
         ]),
@@ -839,11 +840,12 @@ export class AnglerUI {
     $("#tile-tourney-fish").replaceChildren(
       element("span", { className: "tourney-cell-art" }, [fishSprite(species, 2)]),
       element("strong", { textContent: nameOf("fish", species) }),
+      element("span", { className: "tile-note", textContent: t(`tourney.short.${tourneyFormat(week)}`) }),
       element("span", { className: "tile-note", textContent: this.weekLeft() }),
       element("span", { className: "tile-note", textContent: best > 0 ? t("level.yourBest", { weight: formatWeight(best) }) : t("level.noBest") }),
     );
     const board = $("#tile-tourney-board");
-    const podium = (rows = []) => board.replaceChildren(...[0, 1, 2].map((index) => {
+    const podium = (rows = [], champions = null) => board.replaceChildren(...[0, 1, 2].map((index) => {
       const entry = rows[index];
       if (!entry) {
         return element("li", { className: "tourney-cell is-free" }, [
@@ -856,7 +858,7 @@ export class AnglerUI {
       return element("li", { className: `tourney-cell is-place-${place}${entry.user_id === this.cloud?.user?.id ? " is-me" : ""}` }, [
         element("span", { className: "podium-place", textContent: String(place) }),
         element("span", { className: "podium-avatar" }, [avatarSprite(entry.avatar ?? 0, 2)]),
-        element("span", { className: "podium-name", textContent: entry.player || t("trophies.anonymous") }),
+        element("span", { className: "podium-name" }, [entry.player || t("trophies.anonymous"), this.championBadge(champions, entry.user_id)]),
         element("span", { className: "podium-weight", textContent: formatWeight(entry.weight) }),
       ]);
     }));
@@ -866,9 +868,14 @@ export class AnglerUI {
     // The board is asked again at most once a minute.
     if (this.tileBoard?.week === week && Date.now() - this.tileBoard.at < 60000) return;
     this.tileBoard = { week, at: Date.now() };
-    cloud.tournamentBoard(week, species, 3).then((result) => {
+    Promise.all([cloud.tournamentBoard(week, species, 3), this.champions()]).then(([result, champions]) => {
       if (result.error || this.tileBoard?.week !== week) return;
-      podium(result.rows);
+      podium(result.rows, champions);
+      // Last week's winner wears the cup by their rank on the profile tile too.
+      const rank = $("#tile-profile-rank");
+      rank.querySelector(".champion-badge")?.remove();
+      const badge = this.championBadge(champions, cloud.user?.id);
+      if (badge) rank.append(badge);
     });
   }
 
@@ -912,8 +919,37 @@ export class AnglerUI {
 
   /** Last week's tournament settled: a prize for the top three, a gift for taking part. */
   tourneyPrize({ place, money, gift }) {
-    const present = this.giftText(gift);
-    this.notify(money ? t("tourney.prize", { place, money: formatMoney(money), gift: present }) : t("tourney.thanks", { place, gift: present }));
+    const present = gift ? this.giftText(gift) : "";
+    const key = money ? (present ? "tourney.prize" : "tourney.prizeOnly") : present ? "tourney.thanks" : "tourney.placeOnly";
+    this.notify(t(key, { place, money: formatMoney(money), gift: present }));
+  }
+
+  /** Someone has gone past this angler on the week's board. */
+  tourneyOvertaken(place) {
+    this.notify(t("tourney.overtaken", { place }));
+  }
+
+  /**
+   * Who won last week's tournament (a Set of user ids, empty when unknown),
+   * asked once a week: they wear a little cup by their name until the next.
+   */
+  champions() {
+    const week = tourneyWeek() - 1;
+    if (this.championsFor?.week !== week) {
+      const request = this.cloud?.enabled ? this.cloud.tournamentWinners(week, tourneyFish(week)).then((ids) => {
+        // Not connected yet (or the board didn't answer): ask again next time.
+        if (!ids && this.championsFor?.request === request) this.championsFor = null;
+        return new Set(ids ?? []);
+      }) : Promise.resolve(new Set());
+      this.championsFor = { week, request };
+    }
+    return this.championsFor.request;
+  }
+
+  /** The little cup by a name, for last week's winner (nothing for anyone else). */
+  championBadge(champions, userId) {
+    if (!userId || !champions?.has(userId)) return "";
+    return element("span", { className: "champion-badge", title: t("tourney.champion"), "aria-label": t("tourney.champion") }, [cupSprite(1)]);
   }
 
   /** "3 d 4 h" until the tournament week ends. */
@@ -2158,6 +2194,7 @@ export class AnglerUI {
     const released = Object.entries(this.progress.released ?? {});
     badges.hidden = id !== "mine" || !released.length;
     badges.textContent = released.map(([species, count]) => t("trophies.released", { fish: nameOf("fish", species), count })).join(" · ");
+    this.fillCups(id === "mine");
     if (id === "mine") {
       const { trophies } = this.progress;
       this.fillTrophyWall(trophies, trophies.length || released.length ? "" : t("trophies.empty"), "", true);
@@ -2169,8 +2206,8 @@ export class AnglerUI {
       return;
     }
     this.fillTrophyWall([], t("trophies.loading"));
-    const request = (this.trophyRequest = cloud.otherTrophies());
-    request.then((result) => {
+    const request = (this.trophyRequest = Promise.all([cloud.otherTrophies(), this.champions()]));
+    request.then(([result, champions]) => {
       // Ignore a slow answer if the player has moved on to another tab.
       if (request !== this.trophyRequest || !$("#trophy-dialog .tab[data-tab='others']").classList.contains("is-active")) return;
       if (result.error) return this.fillTrophyWall([], t("trophies.othersError"));
@@ -2183,7 +2220,9 @@ export class AnglerUI {
         player: row.player || t("trophies.anonymous"),
         rank: row.angler_rank,
         avatar: row.avatar,
+        userId: row.user_id,
       })).filter((trophy) => FISH[trophy.species]);
+      this.trophyChampions = champions;
       this.fillTrophyWall(trophies, trophies.length ? "" : t("trophies.othersEmpty"), !cloud.user ? t("trophies.shareHint") : "");
     });
   }
@@ -2301,16 +2340,17 @@ export class AnglerUI {
     const cloud = this.cloud;
     if (!cloud?.enabled) return say(t("trophies.othersOff"));
     say(t("trophies.loading"));
-    const request = (this.tourneyRequest = Promise.all([cloud.tournamentBoard(week, species), cloud.tournamentPlace(week, species).catch(() => null)]));
-    request.then(([result, mine]) => {
+    const request = (this.tourneyRequest = Promise.all([cloud.tournamentBoard(week, species), cloud.tournamentPlace(week, species).catch(() => null), this.champions()]));
+    request.then(([result, mine, champions]) => {
       if (request !== this.tourneyRequest || !shown()) return;
       if (result.error) return say(t("trophies.othersError"));
       const me = cloud.user?.id;
-      const row = (place, player, weight, isMe, rank, avatar) => element("li", { className: `tourney-row${isMe ? " is-me" : ""}${place <= 3 ? ` is-top is-top-${place}` : ""}` }, [
+      const row = (place, player, weight, isMe, rank, avatar, userId) => element("li", { className: `tourney-row${isMe ? " is-me" : ""}${place <= 3 ? ` is-top is-top-${place}` : ""}` }, [
         element("span", { className: "tourney-place", textContent: String(place) }),
         element("span", { className: "tourney-avatar" }, [avatarSprite(avatar ?? 0, 2)]),
         element("span", { className: "tourney-player" }, [
           player || t("trophies.anonymous"),
+          this.championBadge(champions, userId),
           Number.isFinite(rank) ? element("small", { textContent: ` · ${this.rankName(rank)}` }) : "",
         ]),
         element("span", { className: "tourney-weight", textContent: formatWeight(weight) }),
@@ -2321,10 +2361,10 @@ export class AnglerUI {
       const rows = result.rows.map((entry, index) => {
         if (entry.weight !== last) place = index + 1;
         last = entry.weight;
-        return row(place, entry.player, entry.weight, entry.user_id === me, entry.angler_rank, entry.avatar);
+        return row(place, entry.player, entry.weight, entry.user_id === me, entry.angler_rank, entry.avatar, entry.user_id);
       });
       if (mine?.place && !result.rows.some((entry) => entry.user_id === me)) {
-        rows.push(element("li", { className: "tourney-gap", textContent: "…" }), row(mine.place, cloud.user.user_metadata?.nickname, mine.weight, true, this.progress.rank ?? 0, this.progress.avatar));
+        rows.push(element("li", { className: "tourney-gap", textContent: "…" }), row(mine.place, cloud.user.user_metadata?.nickname, mine.weight, true, this.progress.rank ?? 0, this.progress.avatar, me));
       }
       board.replaceChildren(...rows);
       const note = !rows.length ? t("tourney.empty") : !cloud.user ? t("tourney.signIn") : !mine?.place ? t("tourney.notYet") : "";
@@ -2399,6 +2439,23 @@ export class AnglerUI {
     this.showTrophyTab("mine");
   }
 
+  /** The tournament cups on a shelf above the player's own wall, newest first. */
+  fillCups(shown) {
+    const cups = [...(this.progress.cups ?? [])].sort((a, b) => b.week - a.week);
+    const shelf = $("#cup-shelf");
+    shelf.hidden = !shown || !cups.length;
+    if (shelf.hidden) return;
+    const metal = ["gold", "silver", "bronze"];
+    shelf.replaceChildren(element("h3", { textContent: t("trophies.cups") }), element("ul", { className: "cup-list" }, cups.map((cup) => {
+      const date = tourneyWeekStart(cup.week).toLocaleDateString(locale(), { day: "numeric", month: "short", year: "numeric" });
+      const label = t("trophies.cup", { place: cup.place, fish: nameOf("fish", cup.species), format: t(`tourney.short.${cup.format}`), date });
+      return element("li", { className: `cup cup-${metal[cup.place - 1]}`, title: label }, [
+        cupSprite(3, metal[cup.place - 1]),
+        element("small", { textContent: label }),
+      ]);
+    })));
+  }
+
   fillTrophyWall(trophies, emptyText, hint = "", removable = false) {
     trophies = [...trophies].sort((a, b) => b.weight - a.weight);
     const empty = $("#trophy-empty");
@@ -2421,7 +2478,7 @@ export class AnglerUI {
       const date = fish.date ? new Date(fish.date).toLocaleDateString(locale(), { day: "numeric", month: "short", year: "numeric" }) : null;
       const owner = fish.player ? element("div", { className: "trophy-owner" }, [
         element("span", { className: "trophy-owner-avatar" }, [avatarSprite(fish.avatar ?? 0, 2)]),
-        element("strong", { textContent: fish.player }),
+        element("strong", {}, [fish.player, this.championBadge(this.trophyChampions, fish.userId)]),
         Number.isFinite(fish.rank) ? element("small", { textContent: this.rankName(fish.rank) }) : "",
       ]) : "";
       const about = element("div", { className: "trophy-about" }, [

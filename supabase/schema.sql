@@ -78,6 +78,10 @@ create table if not exists public.tournament (
   primary key (user_id, week, species)
 );
 
+-- A marathon's score is the week's kilos in all: far more than one fish weighs.
+alter table public.tournament drop constraint if exists tournament_weight_check;
+alter table public.tournament add constraint tournament_weight_check check (weight > 0 and weight < 1000);
+
 alter table public.tournament add column if not exists angler_rank smallint not null default 0;
 alter table public.tournament add column if not exists avatar smallint not null default 0;
 
@@ -98,7 +102,20 @@ as $$
   select floor(((now() at time zone 'Europe/Kiev')::date - date '1970-01-01' + 3) / 7.0)::int;
 $$;
 
--- A new best for the signed-in angler; the heaviest each fish can grow is the limit.
+-- The week's format, as in the game (TOURNEY_FORMATS in src/fishing/quests.js):
+-- the heaviest fish every other week, a marathon and a night one in between,
+-- from the week starting 16 November 2026 (TOURNEY_RULES_FROM).
+create or replace function public.tournament_format(w int)
+returns text
+language sql
+immutable
+as $$
+  select case when w < 2968 then 'heaviest' else case ((w % 4) + 4) % 4 when 1 then 'marathon' when 3 then 'night' else 'heaviest' end end;
+$$;
+
+-- A new score for the signed-in angler. The limit is the heaviest each fish can
+-- grow, a tenth over its kind's top (a fish can outgrow its kind, OVERSIZE in
+-- src/fishing/data.js); in a marathon week, the kilos of a week's fishing.
 -- `lvl` is the angler's rank and `pic` their picture, both shown by their name.
 drop function if exists public.submit_tournament(text, real);
 drop function if exists public.submit_tournament(text, real, int);
@@ -110,11 +127,15 @@ set search_path = public
 as $$
 declare
   cap real := case fish
-    when 'karas' then 1.5 when 'okun' then 1.8 when 'lyn' then 3.5
-    when 'lyasch' then 5 when 'plitka' then 0.6 when 'krasnopirka' then 0.7
+    when 'karas' then 1.651 when 'okun' then 1.981 when 'lyn' then 3.851
+    when 'lyasch' then 5.501 when 'plitka' then 0.661 when 'krasnopirka' then 0.771
+    when 'shchuka' then 15.401 when 'sudak' then 11.001
   end;
   nickname text;
 begin
+  if cap is not null and public.tournament_format(public.tournament_week()) = 'marathon' then
+    cap := 400;
+  end if;
   if auth.uid() is null or cap is null or kg is null or kg <= 0 or kg > cap then
     return;
   end if;

@@ -871,7 +871,10 @@ export function bagSprite(scale = 3) {
 }
 
 /** Two-handled cup: the trophy room. */
-export function cupSprite(scale = 3) {
+/** A tournament cup's metal by place: gold, silver, bronze ([body, shade, shine]). */
+export const CUP_METALS = { gold: [P.gold, P.goldDark, P.bone], silver: ["#c8ccd0", "#727880", "#f2f4f6"], bronze: ["#c88a50", "#74461f", "#ecc49a"] };
+export function cupSprite(scale = 3, metal = "gold") {
+  const [Y, d, g] = CUP_METALS[metal] ?? CUP_METALS.gold;
   return fromRows([
     "................",
     "...oooooooooo...",
@@ -889,7 +892,7 @@ export function cupSprite(scale = 3) {
     "...oMLMMMMMMo...",
     "...oooooooooo...",
     "................",
-  ], { o: P.ink, Y: P.gold, g: P.bone, d: P.goldDark, M: P.mid, L: P.light }).toCanvas(scale);
+  ], { o: P.ink, Y, g, d, M: P.mid, L: P.light }).toCanvas(scale);
 }
 
 /** An achievement badge: a gold medal on a ribbon, the ribbon's colour by group. */
