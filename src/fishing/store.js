@@ -1,7 +1,7 @@
 import { ACHIEVEMENTS } from "./achievements.js";
 import { RANKS, pastXp } from "./ranks.js";
 import { ensureOpenSpot, giveGroundbaits } from "./waters.js";
-import { AVATAR_COUNT, BAITS, SPECIAL_AVATAR, EXTRAS, FISH, GROUNDBAITS, HOOKS, LOCATIONS, RETIRED_BAITS, RODS, START_STATE, gameHoursMs } from "./data.js";
+import { AVATAR_COUNT, BAITS, SPECIAL_AVATAR, EXTRAS, FISH, GROUNDBAITS, HOOKS, LOCATIONS, OLD_GROUNDBAITS, RETIRED_BAITS, RODS, START_STATE, gameHoursMs } from "./data.js";
 
 // The storage key keeps the game's old working name so existing saves carry over.
 const KEY = "stillwater.fishing.v2";
@@ -45,7 +45,12 @@ export function normalizeProgress(saved) {
     // The campfire was sold for a day and taken off sale: its price goes back.
     if (Array.isArray(saved.extras) && saved.extras.includes("campfire")) state.money += 600;
     if (saved.groundbaits && typeof saved.groundbaits === "object") {
-      state.groundbaits = Object.fromEntries(Object.entries(saved.groundbaits).filter(([id, count]) => GROUNDBAITS[id] && Number.isFinite(count) && count > 0));
+      // The older kinds (carp, bream, trout, predator) became the basic and the predator one.
+      state.groundbaits = {};
+      for (const [old, count] of Object.entries(saved.groundbaits)) {
+        const id = GROUNDBAITS[old] ? old : OLD_GROUNDBAITS[old];
+        if (id && Number.isFinite(count) && count > 0) state.groundbaits[id] = (state.groundbaits[id] ?? 0) + count;
+      }
     }
     // Each baited water: the moment its groundbait wears off. Older saves kept
     // game hours left instead (a small number): those start counting from now.
@@ -56,7 +61,9 @@ export function normalizeProgress(saved) {
         .map(([id, value]) => [id, value < 1e9 ? now + gameHoursMs(value) : value])
         .filter(([, until]) => until > now));
       if (saved.baitedKind && typeof saved.baitedKind === "object") {
-        state.baitedKind = Object.fromEntries(Object.entries(saved.baitedKind).filter(([id, kind]) => state.baited[id] && GROUNDBAITS[kind]));
+        state.baitedKind = Object.fromEntries(Object.entries(saved.baitedKind)
+          .map(([id, kind]) => [id, GROUNDBAITS[kind] ? kind : OLD_GROUNDBAITS[kind]])
+          .filter(([id, kind]) => state.baited[id] && kind));
       }
     }
     // Every trophy needs a stable id so it is published to the cloud only once.

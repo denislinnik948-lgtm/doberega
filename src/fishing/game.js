@@ -1,4 +1,4 @@
-import { BAITS, BELL_WINDOW, BOOT_CHANCE, FEEDER, FINDS, FISH, GROUNDBAIT, GROUNDBAITS, fightVigor, HOOKS, LINE, LOCATIONS, LOST_LURES, NIBBLE, RODS, biteActivity, lineWeakness, rodGiveChance, rollFish, spotMood, straightenChance } from "./data.js";
+import { BAITS, BELL_WINDOW, BOOT_CHANCE, FEEDER, FINDS, FISH, GROUNDBAITS, fightVigor, groundbaitBoost, HOOKS, LINE, LOCATIONS, LOST_LURES, NIBBLE, RODS, biteActivity, lineWeakness, rodGiveChance, rollFish, spotMood, straightenChance } from "./data.js";
 
 /**
  * Fishing state machine. Positions are normalized to the viewport (0..1) so the
@@ -176,7 +176,8 @@ export class FishingGame {
     this.extras = extras;
     this.groundbait = groundbait;
     // The fish the groundbait in is made for, who come to it readier.
-    this.favor = groundbait ? GROUNDBAITS[groundbaitKind]?.favors ?? null : null;
+    this.favor = groundbait ? GROUNDBAITS[groundbaitKind] ?? null : null;
+    this.groundbaitKind = groundbait ? groundbaitKind : null;
     // Cast where a school of fish is jumping: they find the bait sooner.
     this.school = school;
     this.target = { ...target };
@@ -400,8 +401,8 @@ export class FishingGame {
     // The floor is low so a bait no local fish wants really does go quiet.
     const pace = Math.min(2.2, Math.max(0.1, hunger * 1.2 * spotPace * this.biteBoost)) * spotMood(this.location, this.hour, this.reach());
     // Groundbait draws the fish in, and so does a school around the float.
-    // Some waters' fish come to the groundbait far more (`groundbaitBoost`).
-    const lure = LOCATIONS[this.location]?.groundbaitBoost ?? GROUNDBAIT.boost;
+    // Each groundbait livens the water by its own measure, some waters' fish far more (see groundbaitBoost).
+    const lure = groundbaitBoost(this.groundbaitKind, this.location);
     return pace * (this.groundbait ? lure : 1) * (this.school ? TUNING.schoolBoost : 1) * this.feedBoost();
   }
 

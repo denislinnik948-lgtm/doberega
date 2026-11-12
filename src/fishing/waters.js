@@ -55,8 +55,9 @@ export function ensureOpenSpot(progress) {
  */
 export function giveGroundbaits(progress, count, kind = null, random = Math.random) {
   const lives = new Set(LOCATIONS.filter((spot, index) => spotOpen(progress, index)).flatMap((spot) => Object.keys(spot.fish)));
-  const useful = Object.keys(GROUNDBAITS).filter((id) => GROUNDBAITS[id].favors.some((fish) => lives.has(fish)));
-  const kinds = useful.length ? useful : Object.keys(GROUNDBAITS);
+  const giftable = Object.keys(GROUNDBAITS).filter((id) => GROUNDBAITS[id].gift !== false);
+  const useful = giftable.filter((id) => GROUNDBAITS[id].favors.some((fish) => lives.has(fish)));
+  const kinds = useful.length ? useful : giftable;
   const given = {};
   progress.groundbaits ??= {};
   for (let i = 0; i < count; i += 1) {
@@ -68,4 +69,4 @@ export function giveGroundbaits(progress, count, kind = null, random = Math.rand
 }
 
 /** The groundbait made for a fish (the tournament's prize for its week), or null. */
-export const groundbaitFor = (fish) => Object.keys(GROUNDBAITS).find((id) => GROUNDBAITS[id].favors.includes(fish)) ?? null;
+export const groundbaitFor = (fish) => Object.keys(GROUNDBAITS).find((id) => GROUNDBAITS[id].gift !== false && GROUNDBAITS[id].favors.includes(fish)) ?? null;

@@ -20,12 +20,12 @@ export const FISH = {
   plitka: { min: 0.05, max: 0.6, pricePerKg: 20, active: { base: 0.35, peaks: [[7, 3, 1], [13, 4, 0.6], [18, 3, 0.8]] } },
   krasnopirka: { min: 0.05, max: 0.7, pricePerKg: 20, active: { base: 0.3, peaks: [[13, 4, 1]] } },
   karas: { min: 0.1, max: 1.5, pricePerKg: 30, active: { base: 0.3, peaks: [[6, 3, 1], [12, 4, 0.6], [19, 3, 1]] } },
-  okun: { min: 0.1, max: 1.8, pricePerKg: 40, active: { base: 0.25, peaks: [[10, 4, 1], [16, 3, 0.8]] } },
-  lyn: { min: 0.3, max: 3.5, pricePerKg: 50, active: { base: 0.2, peaks: [[6, 3, 1], [13, 4, 0.5], [21, 2.5, 0.7]] } },
-  lyasch: { min: 0.4, max: 5, pricePerKg: 35, active: { base: 0.25, peaks: [[5, 3, 0.8], [12, 4, 0.7], [22, 3, 0.7]] } },
-  korop: { min: 1, max: 18, pricePerKg: 45, active: { base: 0.25, peaks: [[7, 3, 0.9], [14, 4, 0.8], [23, 3, 0.6]] } },
+  okun: { min: 0.1, max: 1.8, pricePerKg: 35, active: { base: 0.25, peaks: [[10, 4, 1], [16, 3, 0.8]] } },
+  lyn: { min: 0.3, max: 3.5, pricePerKg: 60, active: { base: 0.2, peaks: [[6, 3, 1], [13, 4, 0.5], [21, 2.5, 0.7]] } },
+  lyasch: { min: 0.4, max: 5, pricePerKg: 30, active: { base: 0.25, peaks: [[5, 3, 0.8], [12, 4, 0.7], [22, 3, 0.7]] } },
+  korop: { min: 1, max: 18, pricePerKg: 40, active: { base: 0.25, peaks: [[7, 3, 0.9], [14, 4, 0.8], [23, 3, 0.6]] } },
   shchuka: { min: 1, max: 14, pricePerKg: 45, lure: true, active: { base: 0.2, peaks: [[9, 3, 1], [17, 3, 0.9]] } },
-  sudak: { min: 0.8, max: 10, pricePerKg: 55, lure: true, active: { base: 0.15, peaks: [[11, 3, 0.5], [20, 3, 0.9], [5, 3, 0.7]] } },
+  sudak: { min: 0.8, max: 10, pricePerKg: 70, lure: true, active: { base: 0.15, peaks: [[11, 3, 0.5], [20, 3, 0.9], [5, 3, 0.7]] } },
   som: { min: 5, max: 70, pricePerKg: 40, active: { base: 0.1, peaks: [[14, 4, 0.65], [1, 4, 0.6], [22, 3, 0.35]] } },
   // Bleak: tiny silver surface fish in shoals, biting fast and often by day.
   verkhovodka: { min: 0.01, max: 0.06, pricePerKg: 14, active: { base: 0.5, peaks: [[9, 4, 0.6], [15, 4, 0.6]] } },
@@ -36,16 +36,16 @@ export const FISH = {
   // Ide: strong and wary, ponders over the bait.
   yaz: { min: 0.3, max: 4, pricePerKg: 38, active: { base: 0.2, peaks: [[6, 3, 0.9], [20, 3, 0.8]] } },
   // Asp: a predator hitting the surface hard, lures only.
-  zherekh: { min: 1, max: 8, pricePerKg: 50, lure: true, active: { base: 0.2, peaks: [[8, 3, 1], [18, 3, 1]] } },
+  zherekh: { min: 1, max: 8, pricePerKg: 70, lure: true, active: { base: 0.2, peaks: [[8, 3, 1], [18, 3, 1]] } },
   // Trout: clear cold water, the dearest by the kilo; spinner or worm.
   forel: { min: 0.3, max: 4, pricePerKg: 90, active: { base: 0.25, peaks: [[7, 3, 1], [19, 3, 0.8]] } },
   /*
    * The trout farm's own (see LOCATIONS, troutfarm). Rainbow trout: stocked,
    * silver with a pink band, keen in the morning and the evening.
    */
-  raiduzhna: { min: 0.3, max: 10, pricePerKg: 80, active: { base: 0.3, peaks: [[8, 3, 1], [19, 3, 0.9]] } },
+  raiduzhna: { min: 0.3, max: 10, pricePerKg: 65, active: { base: 0.3, peaks: [[8, 3, 1], [19, 3, 0.9]] } },
   // Brook trout (char): small and bright, an orange belly; dawn and dusk.
-  paliya: { min: 0.2, max: 3, pricePerKg: 80, active: { base: 0.2, peaks: [[5, 2.5, 1], [21, 2.5, 1]] } },
+  paliya: { min: 0.2, max: 3, pricePerKg: 95, active: { base: 0.2, peaks: [[5, 2.5, 1], [21, 2.5, 1]] } },
   // Huchen: the mountain rivers' great salmon, in the Red Book; let go, never sold. Night and dawn.
   holovach: { min: 2, max: 20, pricePerKg: 0, protected: true, active: { base: 0.1, peaks: [[2, 3, 0.9], [5, 2, 1]] } },
   // The quarry's own (see LOCATIONS, quarry). Chub: a wary, broad-headed fish of clear water, keen by day.
@@ -57,13 +57,13 @@ export const FISH = {
   // Bigmouth buffalo: a deep grey-olive fish of slow water, feeding by day.
   bufalo: { min: 1, max: 20, pricePerKg: 40, active: { base: 0.2, peaks: [[12, 5, 1]] } },
   // Channel catfish: slim, blue-grey, spotted; bites only at night.
-  kanalnyi: { min: 0.5, max: 8, pricePerKg: 60, active: { base: 0.01, peaks: [[0, 3.5, 1.3], [22, 2.5, 0.8], [3, 2.5, 0.9]] } },
+  kanalnyi: { min: 0.5, max: 8, pricePerKg: 75, active: { base: 0.01, peaks: [[0, 3.5, 1.3], [22, 2.5, 0.8], [3, 2.5, 0.9]] } },
   // Burbot: bites only at night and only in autumn (`season`).
-  myn: { min: 0.5, max: 4, pricePerKg: 60, season: "autumn", active: { base: 0.02, peaks: [[0, 4, 1.2], [23, 3, 0.6], [3, 3, 0.8]] } },
+  myn: { min: 0.5, max: 4, pricePerKg: 85, season: "autumn", active: { base: 0.02, peaks: [[0, 4, 1.2], [23, 3, 0.6], [3, 3, 0.8]] } },
   // Grass carp: a big, strong fish for anglers who have climbed far.
   amur: { min: 3, max: 25, pricePerKg: 42, active: { base: 0.15, peaks: [[11, 4, 0.8], [16, 4, 0.8]] } },
   // Silver carp: a giant that hardly ever takes a hook.
-  tovstolob: { min: 5, max: 30, pricePerKg: 35, active: { base: 0.1, peaks: [[13, 5, 0.6]] } },
+  tovstolob: { min: 5, max: 30, pricePerKg: 90, active: { base: 0.1, peaks: [[13, 5, 0.6]] } },
   // Sterlet: in the Red Book. It can't be sold, only let go, and that earns a badge (`protected`).
   sterliad: { min: 0.5, max: 3, pricePerKg: 0, protected: true, active: { base: 0.15, peaks: [[4, 3, 0.6], [21, 3, 0.6]] } },
   // The third joke: a two-headed perch, only at Pripyat. Priceless, trophy only.
@@ -396,26 +396,46 @@ export const LIVEBAIT = { species: ["verkhovodka", "plitka", "krasnopirka", "kar
 
 /**
  * Groundbait: a consumable thrown into the water you're at. For `hours` of
- * game time that water bites `boost` times as often. Game time runs with the
- * real clock (the same for everyone), so it simply wears off at a set moment,
- * whether the game is open or not: `progress.baited[spot]` holds that moment.
+ * game time that water bites more often. Game time runs with the real clock
+ * (the same for everyone), so it simply wears off at a set moment, whether the
+ * game is open or not: `progress.baited[spot]` holds that moment. `boost` is
+ * the plain bag sold once, still in the water for a day after.
  */
-export const GROUNDBAIT = { hours: 24, boost: 1.7 };
+export const GROUNDBAIT = { hours: 24, boost: 1.35 };
+
+/*
+ * The fish that are hard to come by: few of them bite even on their own bait
+ * at their own water, or only at night, at dawn and dusk or in autumn. They
+ * fetch more by the kilo, only they can be the fish of the day (see quests.js),
+ * and the premium groundbait draws them.
+ */
+export const RARE_FISH = ["lyn", "sudak", "zherekh", "forel", "paliya", "kanalnyi", "stalhead", "myn", "tovstolob", "shchuka"];
 
 /**
- * Groundbaits, each made for a kind of fish: the water bites GROUNDBAIT.boost
- * times as often, and the fish it is made for come to it GROUNDBAIT_FAVOR times
- * as readily (`favors`). Kept by the bag in `progress.groundbaits`; which one is
- * in at a water is `progress.baitedKind[spot]` (none: the plain one, sold once
- * and no more, still in the water for a day after).
+ * Groundbaits (Shop → Groundbait): the water bites `boost` times as often, and
+ * the fish in `favors` come to it `favor` times as readily. The basic one is
+ * for the peaceful fish, the predator one for the hunters; the premium one,
+ * dear, livens the whole water most and draws the rare fish. Kept by the bag
+ * in `progress.groundbaits`; which one is in at a water is
+ * `progress.baitedKind[spot]`. `gift: false`: never given away.
  */
 export const GROUNDBAITS = {
-  carp: { price: 150, favors: ["korop", "dzerkalnyi", "amur", "karas", "lyn", "bufalo", "tovstolob"] },
-  bream: { price: 130, favors: ["lyasch", "plitka", "krasnopirka", "yaz", "holavl", "verkhovodka"] },
-  predator: { price: 180, favors: ["okun", "shchuka", "sudak", "som", "zherekh", "kanalnyi", "myn"] },
-  trout: { price: 160, favors: ["forel", "raiduzhna", "paliya", "stalhead"] },
+  basic: { price: 120, boost: 1.35, favor: 2, favors: ["korop", "dzerkalnyi", "amur", "karas", "lyn", "bufalo", "tovstolob", "lyasch", "plitka", "krasnopirka", "yaz", "holavl", "verkhovodka", "forel", "raiduzhna", "paliya"] },
+  predator: { price: 200, boost: 1.35, favor: 3, favors: ["okun", "shchuka", "sudak", "som", "zherekh", "kanalnyi", "myn", "stalhead"] },
+  premium: { price: 3000, boost: 1.9, favor: 2.5, favors: RARE_FISH, gift: false },
 };
-export const GROUNDBAIT_FAVOR = 3;
+/** Older saves' groundbaits, by what they became. */
+export const OLD_GROUNDBAITS = { carp: "basic", bream: "basic", trout: "basic", predator: "predator" };
+
+/**
+ * How many times as often this water bites with `kind` in (null: the plain
+ * bag). Some waters' fish come to groundbait far more (`groundbaitPull`
+ * multiplies what it adds).
+ */
+export function groundbaitBoost(kind, locationIndex) {
+  const boost = GROUNDBAITS[kind]?.boost ?? GROUNDBAIT.boost;
+  return 1 + (boost - 1) * (LOCATIONS[locationIndex]?.groundbaitPull ?? 1);
+}
 
 /** Milliseconds of real time in `hours` of game time (a game day lasts DAY_SECONDS). */
 export const gameHoursMs = (hours) => (hours / 24) * DAY_SECONDS * 1000;
@@ -506,9 +526,9 @@ export const LOCATIONS = [
      * from 4 kg, mostly up to 12, a big one up to 22 one bite in 7 and now and
      * then up to 30: carp, mirror carp, grass carp, buffalo and silver carp,
      * and the channel catfish at night. The fish come to the groundbait here
-     * far more than anywhere (`groundbaitBoost`).
+     * far more than anywhere (`groundbaitPull`, see groundbaitBoost).
      */
-    id: "carplake", snagChance: 0.03, kind: "carplake", water: "#3a6a50", groundbaitBoost: 2.5,
+    id: "carplake", snagChance: 0.03, kind: "carplake", water: "#3a6a50", groundbaitPull: 2.2,
     traits: { type: "lake", depth: "medium", bottom: "mud", current: "none" },
     minKg: 4, typicalKg: 12, maxKg: 22, bigChance: 1 / 7, tailKg: 30, tailChance: 1 / 100, pace: 1.4, unlock: { price: 150000 },
     fish: { korop: 3, dzerkalnyi: 3, amur: 2, bufalo: 2, kanalnyi: 1.5, tovstolob: 0.6 },
@@ -580,9 +600,23 @@ export const DAY_FISH_BONUS = 1.5;
  * A fish caught as the fish of the day (`dayFish`) fetches DAY_FISH_BONUS times as much.
  */
 export function fishPrice(fish) {
+  const kind = FISH[fish.species];
   // A one-of-a-kind or a protected fish isn't for sale.
-  if (FISH[fish.species].unique || FISH[fish.species].protected) return 0;
-  return Math.round((fish.weight ** 0.88 * FISH[fish.species].pricePerKg + 2) * (fish.dayFish ? DAY_FISH_BONUS : 1));
+  if (kind.unique || kind.protected) return 0;
+  return Math.round((fish.weight ** 0.88 * kind.pricePerKg + 2) * sizeBonus(fish) * (fish.dayFish ? DAY_FISH_BONUS : 1));
+}
+
+/**
+ * A big fish (the heavy end of what its water gives) fetches BIG_BONUS times
+ * its price, one past its kind's own limit OVERSIZE_BONUS times: weight alone
+ * pays a heavy fish less per kilo, and a rare specimen should be worth the hunt.
+ */
+export const BIG_BONUS = 1.3;
+export const OVERSIZE_BONUS = 1.6;
+export function sizeBonus(fish) {
+  const kind = FISH[fish.species];
+  if (kind.legend || kind.junk) return 1;
+  return fish.weight > kind.max ? OVERSIZE_BONUS : fish.big ? BIG_BONUS : 1;
 }
 
 /** A unique fish is mounted for free; the fish of the day costs no more to mount than any other. */
@@ -632,7 +666,7 @@ function candidates(baitId, locationIndex, hour, favor = null) {
       const inSeason = FISH[id].season !== "autumn" || isAutumn() ? 1 : 0;
       // A greedy fish (the rotan) takes anything, even a lure.
       const taste = bait.species[id] ?? (FISH[id].greedy ? 1.5 : bait.others ?? 0.08);
-      const drawn = favor?.includes(id) ? GROUNDBAIT_FAVOR : 1;
+      const drawn = favor?.favors.includes(id) ? favor.favor : 1;
       return [id, weight * lureFish * inSeason * taste * drawn, activity(id, hour)];
     })
     .filter(([, weight]) => weight > 0);
@@ -765,7 +799,7 @@ export function spotEntries() {
     maxKg: spot.maxKg,
     tailKg: spot.tailKg ?? null,
     unlock: spot.unlock ?? null,
-    ways: [...["deep", "twilight"].filter((way) => spot[way]), ...(spot.groundbaitBoost ? ["groundbait"] : [])],
+    ways: [...["deep", "twilight"].filter((way) => spot[way]), ...(spot.groundbaitPull ? ["groundbait"] : [])],
     bigOdds: Math.round(1 / spot.bigChance),
     pace: (spot.pace ?? 1) > 1.02 ? "fast" : (spot.pace ?? 1) < 0.9 ? "slow" : "normal",
     snags: spot.snagChance >= 0.05 ? "many" : spot.snagChance >= 0.03 ? "some" : "few",

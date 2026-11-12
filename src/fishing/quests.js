@@ -1,5 +1,5 @@
 import { hash2 } from "../noise.js";
-import { FISH, HOOKS, LOCATIONS, RODS } from "./data.js";
+import { FISH, HOOKS, LOCATIONS, RARE_FISH, RODS } from "./data.js";
 import { giveGroundbaits, groundbaitFor } from "./waters.js";
 
 /*
@@ -104,11 +104,11 @@ export function recordQuest(progress, fish, spotIndex, now = Date.now()) {
 
 /*
  * The fish of the day: one species, the same for everyone, that sells for
- * DAY_FISH_BONUS times its price when caught that day. Any fish sold at the
- * market can be it, but not the burbot (only in autumn) or the silver carp
- * (hardly ever bites), so it is always worth trying for.
+ * DAY_FISH_BONUS times its price when caught that day. Only a fish that is
+ * hard to come by (RARE_FISH) can be it, so the bonus is worth a hunt, but
+ * not the burbot (only in autumn) or the silver carp (hardly ever bites).
  */
-const DAY_FISH = Object.keys(FISH).filter((id) => FISH[id].pricePerKg > 0 && !FISH[id].unique && !FISH[id].junk && !FISH[id].season && id !== "tovstolob");
+const DAY_FISH = RARE_FISH.filter((id) => FISH[id].pricePerKg > 0 && !FISH[id].season && id !== "tovstolob");
 
 export function fishOfDay(day = questDay()) {
   return DAY_FISH[Math.floor(hash2(day, 7, 9127) * DAY_FISH.length) % DAY_FISH.length];

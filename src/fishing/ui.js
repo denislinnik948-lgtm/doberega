@@ -1407,12 +1407,12 @@ export class AnglerUI {
           lure.price, progress.baits[id] ?? 0, (qty) => { progress.baits[id] = (progress.baits[id] ?? 0) + qty; },
         )),
       ],
+      // The groundbaits on a shelf of their own, each saying how much it livens the water and which fish it draws.
+      "groundbait-shop": Object.entries(GROUNDBAITS).map(([kind, bag]) => piece(
+        `groundbait-${kind}`, () => groundbaitSprite(4, kind), nameOf("groundbait", kind), this.groundbaitFacts(kind), bag.price, progress.groundbaits?.[kind] ?? 0,
+        (qty) => { progress.groundbaits ??= {}; progress.groundbaits[kind] = (progress.groundbaits[kind] ?? 0) + qty; },
+      )),
       "extra-shop": [
-        // The groundbaits, each made for a kind of fish and saying which fish it draws.
-        ...Object.entries(GROUNDBAITS).map(([kind, bag]) => piece(
-          `groundbait-${kind}`, () => groundbaitSprite(4, kind), nameOf("groundbait", kind), this.groundbaitFacts(kind), bag.price, progress.groundbaits?.[kind] ?? 0,
-          (qty) => { progress.groundbaits ??= {}; progress.groundbaits[kind] = (progress.groundbaits[kind] ?? 0) + qty; },
-        )),
         ...Object.entries(EXTRAS).filter(([id]) => extraShown(id)).map(([id, extra]) => once(
           id, () => extraSprite(id, 3), nameOf("extra", id), nameOf("extraText", id), extra.price, progress.extras.includes(id),
           () => { progress.extras.push(id); },
@@ -1791,8 +1791,10 @@ export class AnglerUI {
 
   /** What a groundbait does, and which fish it draws. */
   groundbaitFacts(kind) {
-    const fish = GROUNDBAITS[kind].favors.filter((id) => fishShown(id)).map((id) => nameOf("fish", id).toLocaleLowerCase(locale()));
-    return [t("shop.groundbaitDraws", { fish: fish.join(", ") })];
+    const bag = GROUNDBAITS[kind];
+    const fish = bag.favors.filter((id) => fishShown(id)).map((id) => nameOf("fish", id).toLocaleLowerCase(locale()));
+    const times = (value) => value.toLocaleString(locale(), { maximumFractionDigits: 2 });
+    return [t("shop.groundbaitDraws", { boost: times(bag.boost), favor: times(bag.favor), fish: fish.join(", ") })];
   }
 
   /**
