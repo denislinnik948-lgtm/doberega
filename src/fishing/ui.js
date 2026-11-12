@@ -3,7 +3,7 @@ import {
   baitEntries, fishPrice, formatMoney, formatWeight, handbookEntries, peakPeriod, spotEntries, trophyCost,
 } from "./data.js";
 import {
-  AVATARS, atlasSprite, avatarSprite, bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, floatSprite, groundbaitSprite, hookSprite, keepnetSprite, lineSprite, medalSprite, packSprite, rodGlyphSprite, windSprite,
+  AVATARS, atlasSprite, avatarSprite, bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, floatSprite, groundbaitSprite, hookSprite, keepnetSprite, lineSprite, medalSprite, packSprite, rodSprite, windSprite,
 } from "./sprites.js";
 import { P } from "./palette.js";
 import { GROUPS, bump, evaluate, shownAchievements } from "./achievements.js";
@@ -39,8 +39,7 @@ function element(tag, props = {}, children = []) {
   return node;
 }
 
-// Each rod drawn in its own glyphs, as on the water.
-const rodArt = (id, scale) => rodGlyphSprite(RODS[id].tier, scale);
+const rodArt = (id, scale) => rodSprite(RODS[id].tier, scale);
 
 /** The account server's usual complaints in plain words; anything else as it came. */
 function friendlyError(message) {
