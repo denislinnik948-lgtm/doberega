@@ -226,30 +226,31 @@ export const SCENES = {
     foreground: { reeds: 1, rock: false, lilyPads: 3 },
   },
   /**
-   * The last and dearest water, after a photo of a castle on a great alpine
-   * lake: on the left a steep wooded mountain rising past the top of the
-   * view, at its foot by the water a castle (a tall keep under a pyramid
-   * roof, round towers with cone roofs, a hall with its rows of windows), and
-   * away on the right snowy peaks over hazy blue mountains, wide blue water.
+   * The last and dearest water, after a photo of an alpine lake (seen the
+   * other way round): on the left a big dark mountain, woods below and grey
+   * cliffs above, its slope running down into the lake; far off in the middle
+   * and on the right snowy peaks over hazy blue ridges; on the right a low
+   * wooded hill reaching into the water with a rocky knoll and an old castle
+   * on it (a tall square keep with its battlements, walls stepping down the
+   * rock); wide rippled water under a cool, hazy light.
    */
   mountain: {
-    horizon: 0.62,
-    focus: 0.4,
+    horizon: 0.64,
+    focus: 0.55,
     ridges: [
-      // A broad snowy massif far away on the right, the clouds' home.
-      { top: 0.5, amplitude: 0.3, seed: 6.3, jagged: true, alpine: true, rise: [0.4, 0.66], snowline: 0.42, haze: 0.24, fill: "#5d7084", glyph: "#8193a5", texture: ".'", density: 0.05 },
-      // Hazy blue mountains under it, rising on the right: with the big mountain they make a V of a valley.
-      { top: 0.62, amplitude: 0.36, seed: 2.2, jagged: true, alpine: true, rise: [0.62, 1], treeline: 0, haze: 0.5, fill: "#2e4458", glyph: "#46607a", texture: ".'", density: 0.05 },
-      // The big mountain on the left under living broadleaf woods (`canopy`: dark, mid and lit greens), its crest past the top of the view, sloping down to the right.
-      { top: 0.62, amplitude: 0.62, seed: 3.8, hills: [[0, 0.82, 1.45], [0.36, 0.2, 0.62]], canopy: [[16, 46, 22], [58, 122, 46], [150, 204, 84]], haze: 0.12, fill: "#1f3a28", glyph: "#3e6a40", texture: "&%", density: 0.42 },
+      // Snowy peaks far off in the middle and on the right.
+      { top: 0.52, amplitude: 0.2, seed: 6.9, jagged: true, alpine: true, rise: [0.25, 0.55], snowline: 0.53, haze: 0.36, fill: "#5d7084", glyph: "#8193a5", texture: ".'", density: 0.05 },
+      // Hazy blue ridges under them.
+      { top: 0.62, amplitude: 0.09, seed: 2.4, jagged: true, alpine: true, treeline: 0, haze: 0.55, fill: "#2e4458", glyph: "#46607a", texture: ".'", density: 0.05 },
+      // The big dark mountain on the left: woods below, grey cliffs above, sloping down to the lake.
+      { top: 0.64, amplitude: 0.5, seed: 3.6, jagged: true, alpine: true, rise: [0.58, 0.12], treeline: 0.4, pale: 0.08, haze: 0.1, fill: "#24343a", glyph: "#3a4e56", texture: ".'", density: 0.05 },
     ],
-    // Trees only on the left, under the mountain.
-    forest: { heightScale: 1.1, spacingScale: 0.7, broadleaf: 0.85, round: 0.7, gaps: [[0.2, 1]] },
-    structures: {},
-    // Wide blue water; the castle stands at its edge, near us on the left (see castleShape).
-    // The castle (`castle: { x }`, see castleShape) is left out for now.
-    water: { body: "#1c4a6a", mirror: 0.7 },
-    // Seen from above: hardly any bank of our own.
+    // A few trees on the far left shore; the right is the castle hill's own (see `castleHill`).
+    forest: { heightScale: 1.4, spacingScale: 0.8, broadleaf: 0.3, gaps: [[0.12, 1]] },
+    structures: {
+      castleHill: { from: 0.6, peak: 0.1, castle: 0.79 },
+    },
+    water: { body: "#2c4a66", mirror: 0.35 },
     nearBank: 0.015,
     foreground: { reeds: 0, rock: false, lilyPads: 0 },
   },
@@ -355,42 +356,6 @@ export function wreckShape(width, height) {
 }
 
 /**
- * The castle at the mountain lake's edge, in scene pixels: its parts as
- * boxes on a unit of the screen height, left to right from its centre (`u`
- * across, heights up from the waterline), placed across the visible slice so
- * a phone shows it too. `covers(x, y)` keeps the water off it.
- */
-export function castleShape(width, height) {
-  const spec = active.water.castle;
-  if (!spec) return null;
-  // Near us: big, its foot well below the far shore.
-  const unit = Math.min(height * 0.0115, view.frameWidth * 0.008);
-  const cx = view.left + spec.x * view.frameWidth;
-  const waterline = active.horizon * height + height * 0.05;
-  // [from, to, top]: `roof` "pyramid", "cone", "gable" or none; all in units, left to right.
-  const ROOF = { pyramid: 7, cone: 5, gable: 4 };
-  const parts = [
-    { from: -21, to: 17, top: 6, kind: "wall" },
-    { from: -22, to: -16.5, top: 12, roof: "cone", kind: "tower" },
-    { from: -16.5, to: -8, top: 11, roof: "gable", kind: "hall" },
-    { from: -8.5, to: -1, top: 24, roof: "pyramid", kind: "keep" },
-    { from: -1, to: 8, top: 13, roof: "gable", kind: "hall" },
-    { from: 3, to: 5, top: 17, roof: "cone", kind: "turret" },
-    { from: 8, to: 16.5, top: 15.5, roof: "gable", kind: "hall" },
-    { from: 14.5, to: 16.2, top: 20, roof: "cone", kind: "turret" },
-  ].map((part) => ({ ...part, x0: cx + part.from * unit, x1: cx + part.to * unit, y: waterline - part.top * unit, roofTop: waterline - (part.top + (ROOF[part.roof] ?? 0)) * unit }));
-  const covers = (x, y) => y < waterline + 2 && parts.some((part) => {
-    if (x < part.x0 || x > part.x1) return false;
-    if (y >= part.y) return true;
-    if (!part.roof || y < part.roofTop) return false;
-    const mid = (part.x0 + part.x1) / 2;
-    const half = (part.x1 - part.x0) / 2;
-    return Math.abs(x - mid) <= half * ((y - part.roofTop) / (part.y - part.roofTop));
-  });
-  return { cx, waterline, unit, parts, covers };
-}
-
-/**
  * The wooden jetty on the far shore and the boat tied up beside it, in scene
  * pixels: the deck narrows away from us (`left`/`right` at a screen y between
  * `top` and `bottom`), and the boat lies alongside its near end.
@@ -459,7 +424,6 @@ export function isOpenWater(x, y, width, height) {
     if (((x - rock.x * width) / r) ** 2 + ((y - rock.y * height) / (r * 0.45)) ** 2 < 1.4) return false;
   }
   if (wreckShape(width, height)?.covers(x, y)) return false;
-  if (castleShape(width, height)?.covers(x, y)) return false;
   if (jettyShape(width, height)?.covers(x, y)) return false;
   return true;
 }
