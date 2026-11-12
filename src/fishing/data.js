@@ -159,7 +159,7 @@ for (const [id, kind] of Object.entries({ zolotyi: "karas", syva: "shchuka", kny
 
 /** How much fight a fish has in it: its kind's spirit times its heft (a 100 g fish hardly any, 4 kg in full, 10 kg and up half as much again). */
 export function fightVigor(species, weight) {
-  return Math.min(2, (FIGHT[species] ?? 0.5) * Math.min(1.6, Math.max(0.1, Math.sqrt(weight) / 2)));
+  return Math.min(1.8, (FIGHT[species] ?? 0.5) * Math.min(1.3, Math.max(0.1, Math.sqrt(weight) / 2)));
 }
 
 /** How much less a lure predator (pike, zander) wants a float bait than the spoon. */
@@ -304,7 +304,7 @@ export const RODS = {
   glass: { tier: 5, maxKg: 10, price: 14000, reel: 1.05 },
   carbon: { tier: 6, maxKg: 14, price: 38000, reel: 1.1 },
   carp: { tier: 7, maxKg: 25, price: 85000, reel: 1.15 },
-  catfish: { tier: 8, maxKg: 40, price: 220000, reel: 1.2, holdsAny: true },
+  catfish: { tier: 8, maxKg: 50, price: 220000, reel: 2, holdsAny: true },
 };
 
 /*

@@ -63,7 +63,7 @@ export const TUNING = {
   schoolBoost: 1.3,
   // How often a fish that fights surges off (per second, times its vigor), and
   // how far to the side it can take the line (normalized, at full distance).
-  surgeRate: 0.08,
+  surgeRate: 0.06,
   sideSwing: 0.12,
 };
 
@@ -71,16 +71,17 @@ export const TUNING = {
 export function fightRates(weight, rodId, extras = [], junk = false) {
   const rod = RODS[rodId];
   // The strongest rod has no limit: a fish past its rating is only as hard as one at it.
-  const strain = rod.holdsAny ? Math.min(1, weight / rod.maxKg) : weight / rod.maxKg;
-  // Past the rod's rated weight the bar fills much faster.
+  const strain = weight / rod.maxKg;
+  // Past the rod's rated weight the bar fills much faster (the strongest rod
+  // never gives, it only makes the fight past its rating harder).
   const overload = Math.max(0, strain - 1);
-  const pace = TUNING.fillRate * (1 + 2.5 * overload) * (extras.includes("braid") ? 0.85 : 1);
+  const pace = TUNING.fillRate * (1 + (rod.holdsAny ? 0.9 : 2.5) * overload) * (extras.includes("braid") ? 0.85 : 1);
   // A fish well under the rating hardly loads the rod: the bar fills slower
   // (a quarter of the pace at a tenth of the rating, the full pace from the
   // rating on) while the fish comes in just as fast.
   const load = Math.min(1, 0.15 + 0.85 * strain ** 0.8);
   // How many full bars of pulling it would take at the full pace.
-  const pulls = Math.max(1, 5.2 * strain ** 1.3) / rod.reel;
+  const pulls = (Math.max(1, 3.8 * strain ** 1.3) * (1 + (rod.holdsAny ? 1.5 : 0) * overload)) / rod.reel;
   return {
     strain,
     pulls,
@@ -633,13 +634,14 @@ export class FishingGame {
     if (this.surge > 0) this.surge -= dt;
     else if (vigor > 0.15 && this.distance > 0.1 && ((this.firstRun !== null && this.firstRun <= 0) || random() < TUNING.surgeRate * vigor * dt)) {
       this.firstRun = null;
-      this.surge = 0.8 + random() * 1.5 * Math.min(1.5, vigor);
+      this.surge = 0.6 + random() * Math.min(1.5, vigor);
       this.surgePower = 0.5 + random() * 0.5;
       this.sideTarget = Math.max(-1, Math.min(1, this.side + (random() < 0.5 ? -1 : 1) * (0.4 + random() * 0.6)));
       this.emit("surge", { power: this.surgePower * vigor });
     }
     const surging = this.surge > 0;
-    const run = surging ? rates.reel * (0.4 + 0.5 * this.surgePower) * Math.min(1, 0.3 + 0.5 * vigor) * calm : 0;
+    // A stout rod holds a fish well under its rating: such a run takes less line.
+    const run = surging ? rates.reel * (0.4 + 0.5 * this.surgePower) * Math.min(1, 0.3 + 0.5 * vigor) * Math.min(1, 0.3 + 0.7 * rates.strain) * calm : 0;
     if (this.pulling) {
       this.tension += rates.fill * calm * dt;
       if (surging) this.tension += TUNING.fillRate * 0.5 * this.surgePower * Math.min(1.5, vigor) * calm * dt;
