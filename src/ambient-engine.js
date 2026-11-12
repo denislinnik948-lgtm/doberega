@@ -100,9 +100,18 @@ export function fillAmbient(ambient, { ground, haze, glow }, time, dayTime, rain
   const { cellWidth, lineHeight } = ambient;
 
   // Gusts sweep across the grass as bright travelling bands.
+  // Tens of thousands of stalks a frame: table sines, each cell's phases kept on it.
+  const gustTime = time * 0.35;
+  const waveTime = time * 1.4;
   for (const cell of ambient.breeze) {
-    const gust = 0.5 + 0.5 * Math.sin(cell.x * 0.004 - time * 0.35);
-    const wave = Math.min(1, Math.max(0, Math.sin(cell.x * 0.02 * downwind + cell.y * 0.03 - time * 1.4)) ** 3 * gust * blow);
+    if (cell.breezeGust === undefined) {
+      cell.breezeGust = cell.x * 0.004;
+      cell.wavePhaseX = cell.x * 0.02;
+      cell.wavePhaseY = cell.y * 0.03;
+    }
+    const gust = 0.5 + 0.5 * fastSin(cell.breezeGust - gustTime);
+    const rise = fastSin(cell.wavePhaseX * downwind + cell.wavePhaseY - waveTime);
+    const wave = rise > 0 ? Math.min(1, rise * rise * rise * gust * blow) : 0;
     // The gust bends each stalk over and shifts it a little downwind.
     const lean = wave * cellWidth * 0.15 * downwind;
     ground.push(cell.x + lean, cell.y, cell.glyph, wave > 0.05 ? mix(cell.colorValue, 0xe8e6b8, wave * 0.45) : cell.colorValue, wave * 0.6 * downwind);
@@ -110,10 +119,10 @@ export function fillAmbient(ambient, { ground, haze, glow }, time, dayTime, rain
 
   // Leaves stir a pixel or so and catch the light as gusts pass.
   const stirTime = time * 1.1;
-  const gustTime = time * 0.6;
+  const leafGustTime = time * 0.6;
   for (const cell of ambient.leaves) {
     const stir = fastSin(stirTime + cell.stirPhase);
-    const wave = fastSin(cell.gustPhase - gustTime);
+    const wave = fastSin(cell.gustPhase - leafGustTime);
     const gust = wave > 0 ? wave * wave * wave * wave : 0;
     ground.push(cell.x + stir * 0.7 * (0.4 + gust), cell.y + stir * 0.25, cell.glyph, gust > 0.1 ? mix(cell.colorValue, 0xb8d07a, gust * 0.35) : cell.colorValue);
   }

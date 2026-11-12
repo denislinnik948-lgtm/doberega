@@ -37,6 +37,8 @@ const SKY_INTERVAL = 1 / 15;
 // Lighting (sky texture, water palette, glint path) refreshes this often;
 // colours drift so slowly that the steps are invisible.
 const LIGHT_INTERVAL = 0.25;
+// The slow layers (water, trees, meadows) are refilled at most this often (see render).
+const SLOW_INTERVAL = 1 / 32;
 const SKY_SCALE = 0.25;
 /*
  * Depth: each plane of the scene has its own grid, and its glyphs are sized to it.
@@ -455,6 +457,8 @@ export class CanvasWaterRenderer {
     this.farPerspective = [0, 1, far, far];
     this.bankCells = thin(createBankGlyphs(width, height, cellWidth, lineHeight, this.sun.x), 1);
     this.grassStale = true;
+    this.slowTime = null;
+    this.landTime = null;
     this.grass = createGrass({ width, height, cellWidth, lineHeight, frame: this.frame, season: currentSeason(), trees: this.trees });
     this.ambient = createAmbient({
       // Plain grass on the banks is drawn as blades; the scrub along the water stays glyphs.
@@ -3593,15 +3597,28 @@ export class CanvasWaterRenderer {
     this.discBatch.clear();
     if (sky.moon.up && sky.moon.y < 0.52) pushDisc(this.discBatch, this.moonDisc, sky.moon.x * width, sky.moon.y * height, cellWidth, lineHeight, "moon", moon);
     if (sky.sun.up && sky.sun.y < 0.52) pushDisc(this.discBatch, this.sunDisc, sky.sun.x * width, sky.sun.y * height, cellWidth, lineHeight, "sun");
-    this.fillForest(time);
-    fillAmbient(this.ambient, this.ambientBatches, time, dayTime, this.rain, this.wind);
+    // The water, the trees and the meadows move slowly: past 30 frames a second
+    // (a cast, a fight) they are refilled at most SLOW_INTERVAL apart, the water
+    // on one frame and the land on the next so no frame carries both, while the
+    // line, the fish and the float on the overlay keep the full rate.
+    const since = (at) => (at == null || time < at ? Infinity : time - at);
+    const slowDue = since(this.slowTime) >= SLOW_INTERVAL;
+    const landDue = since(this.landTime) >= SLOW_INTERVAL && (!slowDue || since(this.landTime) >= SLOW_INTERVAL * 1.2);
+    if (slowDue) this.slowTime = time;
+    if (landDue) {
+      this.landTime = time;
+      this.fillForest(time);
+      fillAmbient(this.ambient, this.ambientBatches, time, dayTime, this.rain, this.wind);
+    }
     // Grass sways slowly, so it is refilled every other frame; the water moves every frame.
     this.frameIndex = (this.frameIndex ?? 0) + 1;
     if (this.frameIndex % 2 === 0 || this.grassStale) fillGrass(this.grass, this.grassBatches, time, dayTime, this.rain, this.wind);
     if (env.night) this.drawNightEvents(env.night, time);
-    this.fillWater(time, config, ripples);
+    if (slowDue || this.grassStale) {
+      this.fillWater(time, config, ripples);
+      this.fillSurface(time, ripples);
+    }
     this.grassStale = false;
-    this.fillSurface(time, ripples);
     if (this.winterIce) this.moveFloes(time);
     this.fillSteam(time, dayTime);
     this.fillRain(time, this.rain);
