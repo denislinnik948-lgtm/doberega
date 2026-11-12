@@ -108,7 +108,8 @@ const ALPINE = {
 
 /** Palette colour of a slope sample, with distance haze. */
 export function alpineColor(ridge, sample, depth) {
-  const [shade, lit] = ALPINE[sample.material];
+  // `spruce`: woods of the deep green of spruce rather than the usual grey-green.
+  const [shade, lit] = sample.material === "woods" && ridge.spruce ? ridge.spruce : ALPINE[sample.material];
   const base = mixRgb(shade, lit, sample.light);
   // `pale`: a light limestone rather than dark granite.
   const rock = sample.material === "rock" && ridge.pale ? mixRgb(base, LIMESTONE, ridge.pale) : base;
@@ -376,6 +377,7 @@ export function createStructures(width, height, cellWidth, lineHeight, fine = nu
   if (structures.archBridge) onFineGrid(addArchBridge, structures.archBridge);
   if (structures.hillDecor) onFineGrid(addHillDecor, structures.hillDecor);
   if (structures.viaduct) onFineGrid(addViaduct, structures.viaduct);
+  if (structures.peakRuin) onFineGrid(addPeakRuin, structures.peakRuin);
 
   return out;
 }
@@ -869,6 +871,50 @@ function addHillDecor({ count = 60, trees = 14 }, width, height, cellWidth, line
  * piers with round arches between them, a parapet along the top with a lamp
  * over each pier (lit after dark), and the line cut on into each hill.
  */
+/**
+ * The ruins of an old castle on a mountain's top (`peakRuin.x`, the share of
+ * the scene across): a broken curtain wall between two towers, the taller
+ * one on the left with its battlements half gone, a window or two, the
+ * stone weathered pale and dark, standing on the ridge line; glyphs only.
+ */
+function addPeakRuin({ x: fx }, width, height, cellWidth, lineHeight, out) {
+  const scene = activeScene();
+  const ridge = scene.ridges[0];
+  const cx = fx * width;
+  const ground = (x) => ridgeTop(ridge, x, height);
+  // Set down into the peak's top, so the woods meet its foot.
+  const unit = height * 0.009;
+  const base = ground(cx) + unit * 3;
+  // Old grey stone, darker than the sky behind it.
+  const STONE = ["#5e5a52", "#76726a", "#4a4640", "#3c3834"];
+  const block = (x0, x1, top, { crenels = false, gap = 0, windows = [] } = {}) => {
+    for (let x = x0; x <= x1; x += cellWidth) {
+      const cell0 = cellAt(x, 0, cellWidth, lineHeight);
+      const foot = Math.min(base, ground(x) + lineHeight * 1.5);
+      // Broken off: a bite out of the top here and there.
+      const broken = gap && hash2(cell0.column, 1, 5701) < gap ? lineHeight * (1 + Math.floor(hash2(cell0.column, 2, 5701) * 3)) : 0;
+      for (let y = top + broken; y < foot; y += lineHeight) {
+        const cell = cellAt(x, y, cellWidth, lineHeight);
+        const noise = hash2(cell.column, cell.row, 5702);
+        if (crenels && y < top + lineHeight && cell.column % 2) continue;
+        const window = windows.some(([wx, wy]) => Math.abs(x - wx) < cellWidth && Math.abs(y - wy) < lineHeight);
+        out.cells.push({ ...cell, glyph: window ? "#" : "#%&8M=:"[Math.floor(noise * 7)], color: window ? "#141210" : STONE[Math.floor(noise * 4)] });
+      }
+    }
+  };
+  // A dark ground under the stones, as under the castle and the viaduct, so the ruin reads solid against the sky.
+  out.shapes.push({ color: "#26241f", points: [
+    [cx - unit * 9, base], [cx - unit * 9, base - unit * 9.5], [cx - unit * 5.5, base - unit * 9.5], [cx - unit * 5.5, base - unit * 3.5],
+    [cx + unit * 4.5, base - unit * 3.5], [cx + unit * 4.5, base - unit * 6.5], [cx + unit * 7, base - unit * 6.5], [cx + unit * 7, base],
+  ] });
+  // The curtain wall, broken, between the towers.
+  block(cx - unit * 6, cx + unit * 5, base - unit * 4.5, { gap: 0.45 });
+  // The tall tower on the left, battlements half gone, a window.
+  block(cx - unit * 9, cx - unit * 5.5, base - unit * 10, { crenels: true, gap: 0.25, windows: [[cx - unit * 7.2, base - unit * 7.5]] });
+  // The lower tower on the right.
+  block(cx + unit * 4.5, cx + unit * 7, base - unit * 7, { crenels: true, windows: [[cx + unit * 5.8, base - unit * 5]] });
+}
+
 function addViaduct({ deck = 0.13, spans = 5 }, width, height, cellWidth, lineHeight, out) {
   const scene = activeScene();
   const ridge = scene.ridges[0];

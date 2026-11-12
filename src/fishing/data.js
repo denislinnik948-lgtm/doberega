@@ -555,12 +555,12 @@ export const LOCATIONS = [
   },
   {
     /*
-     * The Flooded Temple, the last and dearest water, still being tried out
+     * The mountain lake, the last and dearest water, still being tried out
      * (`preview`: a tester only): giants from 45 kg, mostly up to 70, a big
      * one up to 100, now and then up to 110. Its own fish, the weekly ticket
      * and the fish's strength are still to come.
      */
-    id: "temple", snagChance: 0.03, kind: "temple", water: "#2e5a4a", preview: true,
+    id: "mountain", snagChance: 0.03, kind: "mountain", water: "#2e5a4a", preview: true,
     traits: { type: "lake", depth: "veryDeep", bottom: "stones", current: "none" },
     minKg: 45, typicalKg: 70, maxKg: 100, bigChance: 1 / 6, tailKg: 110, tailChance: 1 / 60, pace: 0.5,
     // Entry by a 7-day ticket, and only with the catfish rod (to come); not a once-paid fee, so off the rod ladder.

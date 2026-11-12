@@ -47,7 +47,8 @@ export function createAmbient({ scene, structures, ridgeCells, bankCells, width,
   const mist = [];
   for (let x = cellWidth; scene.mist !== false && x < width; x += cellWidth * 1.5) {
     const shore = shorelineY(x);
-    for (let k = -4; k <= 2; k += 1) mist.push({ x, y: shore + k * lineHeight * 0.7, row: k });
+    // A scene's own mist (`scene.mist.rows`) reaches farther out over the water.
+    for (let k = -4; k <= (scene.mist?.rows ?? 2); k += 1) mist.push({ x, y: shore + k * lineHeight * 0.7, row: k });
   }
 
   // Cloud wisps drift across the upper slopes of alpine ridges.
@@ -79,6 +80,7 @@ export function createAmbient({ scene, structures, ridgeCells, bankCells, width,
     beacons: structures.beacons ?? [],
     garlands: structures.garlands ?? [],
     mist,
+    morningMist: scene.mist?.morning ?? 0,
     wisps,
     cellWidth,
     lineHeight,
@@ -144,7 +146,9 @@ export function fillAmbient(ambient, { ground, haze, glow }, time, dayTime, rain
   }
 
   // Mist drifts slowly along the far shore; rain clears it away.
-  const strength = mistStrength(dayTime) * Math.max(0, 1 - rain * 4);
+  // Some waters lie under a thick mist on a morning (`morning`, see SCENES).
+  const morning = ambient.morningMist ? ambient.morningMist * Math.exp(-((((dayTime - 0.3 + 1.5) % 1) - 0.5) ** 2) / (2 * 0.05 * 0.05)) : 0;
+  const strength = Math.max(mistStrength(dayTime), morning) * Math.max(0, 1 - rain * 4);
   if (strength > 0.05) {
     for (const cell of ambient.mist) {
       // Thickest right on the waterline, thinning upward into the trees.

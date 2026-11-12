@@ -1,6 +1,6 @@
 import { sampleWater } from "./water-engine.js";
 import { createForestGlyphs } from "./forest-engine.js";
-import { activeScene, bankWidths, currentAt, deckShape, isOpenWater, jettyShape, nearBankY, setScene, shorelineY, sunPosition, templeShape, view, wreckShape } from "./scene.js";
+import { activeScene, bankWidths, currentAt, deckShape, isOpenWater, jettyShape, nearBankY, setScene, shorelineY, lakeShape, sunPosition, view, wreckShape } from "./scene.js";
 import { skyAt, toHex, toInt } from "./daycycle.js";
 import { clamp, hash01, hash2, hexToInt, mixColor, valueNoise } from "./noise.js";
 import { createBankGlyphs, createRidgeGlyphs, createShoreGlyphs, createStructures, ridgeTop } from "./landscape-engine.js";
@@ -143,7 +143,7 @@ export class CanvasWaterRenderer {
     this.forestBatch = new GlyphBatch();
     this.waterBatch = new GlyphBatch(32768);
     this.surfaceBatch = new GlyphBatch();
-    // Stone standing out of the water (the Flooded Temple's ruins), lit like the land rather than tinted as water.
+    // Woodwork standing on the water (the mountain lake's raft and dam), lit like the land rather than tinted as water.
     this.ruinBatch = new GlyphBatch();
     // Winter: steam rising off the open water in the frost.
     this.steamBatch = new GlyphBatch();
@@ -2124,7 +2124,7 @@ export class CanvasWaterRenderer {
       return { stone, foam };
     });
     if (wreck) rocks.push(this.createWreck());
-    if (activeScene().water.temple) rocks.push(...this.createTemple());
+    if (activeScene().water.raft || activeScene().water.klyauza) rocks.push(...this.createLakeWood());
     if (activeScene().water.jetty) rocks.push(...this.createJetty());
     return rocks;
   }
@@ -2317,146 +2317,52 @@ export class CanvasWaterRenderer {
   }
 
   /**
-   * The Flooded Temple's ruins in the water (see templeShape), in stone glyphs
-   * on grids as fine as the water around each: the stepped pyramid with its
-   * stair and the shrine on top, its doorway dark; fluted columns with their
-   * capitals, two carrying a carved lintel, two broken off; the idol's great
-   * head with its headband, heavy brows, deep eyes, broad nose, thick lips and
-   * ear plugs. Moss in patches and green at the waterline, lianas hanging
-   * from the tops, foam lapping round the feet.
+   * The mountain lake's woodwork on the water (see lakeShape), in glyphs on
+   * grids as fine as the water round each: a raft of logs lashed together,
+   * its pole standing up, rocking gently; and the rafters' dam by the right
+   * shore, a wall of logs with its gate and the walkway along the top.
    */
-  createTemple() {
+  createLakeWood() {
     const { width, height } = this;
-    const shape = templeShape(width, height);
-    // Pale weathered limestone, so the ruins stand out against the green water and woods.
-    const STONE = [0xf0ecd4, 0xd8d4b8, 0xbcb89c, 0xa09c80];
-    const MOSS = [0x6e8e4e, 0x5a7a44, 0x48663a];
-    const LIANA = [0x5e8a44, 0x4a7236];
+    const shape = lakeShape(width, height);
+    const WOOD = [0xc89a68, 0xb08254, 0x9a6e44, 0xdcae78];
     const pieces = [];
-    const piece = (waterline) => {
+    const piece = (waterline, bob = false) => {
       const { cellWidth, lineHeight } = this.gridAt(waterline);
       const stone = [];
       const foam = [];
       const put = (x, y, glyph, color) => stone.push((Math.floor(x / cellWidth) + 0.5) * cellWidth, (Math.floor(y / lineHeight) + 0.52) * lineHeight, glyph, color);
+      pieces.push({ stone, foam, ruin: true, bob });
       const lap = (from, to, y) => {
-        for (let x = from - cellWidth * 2; x <= to + cellWidth * 2; x += cellWidth) foam.push({ x: (Math.floor(x / cellWidth) + 0.5) * cellWidth, y: (Math.floor((y + lineHeight * 0.6) / lineHeight) + 0.52) * lineHeight, noise: hash2(Math.round(x), 7, 3101), downstream: false });
+        for (let x = from - cellWidth; x <= to + cellWidth; x += cellWidth) foam.push({ x: (Math.floor(x / cellWidth) + 0.5) * cellWidth, y: (Math.floor((y + lineHeight * 0.6) / lineHeight) + 0.52) * lineHeight, noise: hash2(Math.round(x), 8, 3201), downstream: false });
       };
-      const liana = (x, y, length, seed) => {
-        for (let r = 0; r < length; r += 1) put(x + (hash2(seed, r, 3102) > 0.6 ? cellWidth : 0), y + r * lineHeight, r % 3 === 1 ? "~" : r % 2 ? ")" : "(", LIANA[r % 2]);
-      };
-      pieces.push({ stone, foam, ruin: true });
-      return { cellWidth, lineHeight, put, lap, liana };
+      return { cellWidth, lineHeight, put, lap };
     };
-    const rock = (seed, a, b, moss = 0.6) => {
-      const noise = hash2(a, b, seed);
-      const green = hash2(Math.floor(a / 4), Math.floor(b / 3), seed + 1) > moss;
-      return green ? [",;%"[Math.floor(noise * 3)], MOSS[Math.floor(noise * 3)]] : ["#%&8@=:"[Math.floor(noise * 7)], STONE[Math.floor(noise * 4)]];
-    };
-
-    // The stepped pyramid in the far shallows.
-    {
-      const { pyramid } = shape;
-      const { cellWidth, lineHeight, put, lap, liana } = piece(pyramid.base);
-      const tierHeight = pyramid.height / pyramid.tiers;
-      for (let y = pyramid.base, r = 0; y > pyramid.base - pyramid.height; y -= lineHeight, r += 1) {
-        const tier = Math.min(pyramid.tiers - 1, Math.floor((pyramid.base - y) / tierHeight));
-        const half = pyramid.half * (1 - tier * 0.16);
-        const ledge = Math.floor((pyramid.base - y - lineHeight) / tierHeight) > tier - 1 && (pyramid.base - y) % tierHeight < lineHeight;
-        for (let x = pyramid.cx - half, c = 0; x <= pyramid.cx + half; x += cellWidth, c += 1) {
-          const stair = Math.abs(x - pyramid.cx) < pyramid.half * 0.1;
-          const edge = Math.abs(x - pyramid.cx) > half - cellWidth;
-          let [glyph, color] = rock(3103, c, r);
-          if (stair) [glyph, color] = [r % 2 ? "=" : "_", r % 2 ? 0xb8b49c : 0x9a967e];
-          else if (ledge) [glyph, color] = ["_", 0xbcb8a0];
-          else if (edge) [glyph, color] = [x < pyramid.cx ? "/" : "\\", 0x6a6656];
-          if (r === 0) [glyph, color] = [hash2(c, 1, 3104) > 0.4 ? "%" : "~", MOSS[2]];
-          put(x, y, glyph, color);
-        }
+    if (shape.raft) {
+      const { cx, waterline, half } = shape.raft;
+      const { cellWidth, lineHeight, put, lap } = piece(waterline, true);
+      // Three rows of logs, their ends showing round at the sides, lashed across.
+      for (let x = cx - half, c = 0; x <= cx + half; x += cellWidth, c += 1) {
+        const end = c === 0 || x + cellWidth > cx + half;
+        for (let r = 0; r < 3; r += 1) put(x, waterline - r * lineHeight, end ? "o" : c % 6 === 3 ? "#" : "=", end ? 0xe8c08a : WOOD[(c + r) % 4]);
       }
-      // The shrine on top, its doorway a dark gap, lianas over its sides.
-      const top = pyramid.base - pyramid.height;
-      const shrineHalf = pyramid.half * 0.2;
-      const rows = Math.max(3, Math.round((height * 0.035) / lineHeight));
-      for (let r = 0; r < rows; r += 1) {
-        const y = top - r * lineHeight;
-        for (let x = pyramid.cx - shrineHalf, c = 0; x <= pyramid.cx + shrineHalf; x += cellWidth, c += 1) {
-          const door = Math.abs(x - pyramid.cx) < shrineHalf * 0.35 && r < rows - 1;
-          if (r === rows - 1) put(x, y, c % 3 ? "=" : "^", 0xb0ac94);
-          else put(x, y, door ? "#" : rock(3105, c, r)[0], door ? 0x14120e : rock(3105, c, r)[1]);
-        }
-      }
-      liana(pyramid.cx - shrineHalf, top, rows + 2, 1);
-      liana(pyramid.cx + shrineHalf, top - lineHeight, rows + 3, 2);
-      liana(pyramid.cx - pyramid.half * 0.55, pyramid.base - tierHeight * 2, 4, 3);
-      lap(pyramid.cx - pyramid.half, pyramid.cx + pyramid.half, pyramid.base);
+      // The rafter's pole, standing up at the back.
+      for (let r = 3; r < 9; r += 1) put(cx - half * 0.6, waterline - r * lineHeight, "|", WOOD[3]);
+      lap(cx - half, cx + half, waterline);
     }
-
-    // The columns, and the lintel across the gate.
-    shape.columns.forEach((column, index) => {
-      const { cellWidth, lineHeight, put, lap, liana } = piece(column.foot);
-      const rows = Math.round((column.foot - column.top) / lineHeight);
-      for (let r = 0; r <= rows; r += 1) {
-        const y = column.foot - r * lineHeight;
-        for (let x = column.cx - column.half, c = 0; x <= column.cx + column.half; x += cellWidth, c += 1) {
-          const edge = x < column.cx - column.half + cellWidth || x + cellWidth > column.cx + column.half;
-          // A broken one ends in a jagged stump.
-          if (column.broken && r >= rows - 1 && hash2(c, r, 3106 + index) > 0.5) continue;
-          let glyph = edge ? "|" : c % 2 ? ":" : "|";
-          let color = edge ? 0x6a6656 : c % 2 ? 0x8e8a74 : 0xaaa690;
-          if (r < 2) [glyph, color] = [hash2(c, r, 3107) > 0.5 ? "%" : "~", MOSS[1 + (r % 2)]];
-          else if (hash2(Math.floor(c / 2), Math.floor(r / 3), 3108 + index) > 0.82) [glyph, color] = [",", MOSS[0]];
-          if (column.broken && r === rows) [glyph, color] = [hash2(c, 2, 3109) > 0.5 ? "^" : "/", 0x9a967e];
-          put(x, y, glyph, color);
+    if (shape.dam) {
+      const { cx, waterline, half, height: tall } = shape.dam;
+      const { cellWidth, lineHeight, put, lap } = piece(waterline);
+      const rows = Math.max(3, Math.round(tall / lineHeight));
+      for (let x = cx - half, c = 0; x <= cx + half; x += cellWidth, c += 1) {
+        const gate = Math.abs(x - cx) < half * 0.18;
+        for (let r = 0; r < rows; r += 1) {
+          const y = waterline - r * lineHeight;
+          if (r === rows - 1) put(x, y, c % 4 === 0 ? "+" : "_", WOOD[3]);
+          else put(x, y, gate ? (r === 0 ? "~" : "#") : c % 3 === 0 ? "|" : "=", gate ? (r === 0 ? 0xd8e4e8 : 0x4a3420) : WOOD[(c + r) % 3]);
         }
       }
-      if (!column.broken) {
-        // The capital, a cell wider each side, and its abacus.
-        const y = column.top;
-        for (let x = column.cx - column.half - cellWidth; x <= column.cx + column.half + cellWidth; x += cellWidth) {
-          put(x, y, "=", 0xb8b49c);
-          put(x, y - lineHeight, "_", 0xc4c0a8);
-        }
-        liana(column.cx + column.half, y + lineHeight, 3 + Math.floor(hash2(index, 1, 3110) * 6), 10 + index);
-      }
-      lap(column.cx - column.half, column.cx + column.half, column.foot);
-    });
-    {
-      const [a, b] = shape.gate;
-      const { cellWidth, lineHeight, put, liana } = piece(a.foot);
-      const y = a.top - lineHeight * 2;
-      for (let x = a.cx - a.half * 2, c = 0; x <= b.cx + b.half * 2; x += cellWidth, c += 1) {
-        put(x, y, c % 4 === 2 ? "o" : "=", c % 4 === 2 ? 0x5e5a4a : 0xa8a48c);
-        put(x, y - lineHeight, "_", 0xc0bca4);
-      }
-      liana((a.cx + b.cx) / 2, y + lineHeight, 6, 20);
-      liana((a.cx + b.cx) / 2 + cellWidth * 3, y + lineHeight, 4, 21);
-    }
-
-    // The idol's head looking out of the water.
-    {
-      const { idol } = shape;
-      const { cellWidth, lineHeight, put, lap } = piece(idol.waterline);
-      for (let y = idol.waterline, r = 0; y > idol.waterline - idol.height; y -= lineHeight, r += 1) {
-        const v = (idol.waterline - y) / idol.height;
-        for (let x = idol.cx - idol.half; x <= idol.cx + idol.half; x += cellWidth) {
-          const u = (x - idol.cx) / idol.half;
-          const au = Math.abs(u);
-          // A round-topped head, a little narrower at the jaw.
-          const outline = v > 0.7 ? Math.sqrt(Math.max(0, 1 - ((v - 0.7) / 0.32) ** 2)) : v < 0.2 ? 0.86 + v * 0.7 : 1;
-          if (au > outline) continue;
-          const c = Math.round(x / cellWidth);
-          let [glyph, color] = rock(3111, c, r, 0.7);
-          if (v < 0.06) [glyph, color] = [hash2(c, r, 3112) > 0.5 ? "%" : "~", MOSS[2]];
-          else if (v > 0.78) [glyph, color] = [au < 0.8 && c % 3 === 0 ? "o" : "=", au < 0.8 && c % 3 === 0 ? 0x5e5a4a : 0xb8b49c];
-          else if (v > 0.62 && v <= 0.7 && au > 0.1 && au < 0.75) [glyph, color] = ["=", 0x5a5646];
-          else if (v > 0.48 && v <= 0.6 && au > 0.18 && au < 0.6) [glyph, color] = au > 0.32 && au < 0.46 ? ["@", 0x1a1814] : ["(", 0x6a6656];
-          else if (v > 0.28 && v <= 0.5 && au < 0.14) [glyph, color] = [v < 0.34 ? "o" : u < 0 ? "/" : "\\", v < 0.34 ? 0x2a2620 : 0x8a8670];
-          else if (v > 0.14 && v <= 0.26 && au < 0.42) [glyph, color] = [v < 0.2 ? "-" : "=", v < 0.2 ? 0x2a2620 : 0x9a9680];
-          else if (au > 0.86 && v > 0.32 && v < 0.66) [glyph, color] = [v > 0.44 && v < 0.54 ? "O" : u < 0 ? "(" : ")", 0x7e7a66];
-          put(x, y, glyph, color);
-        }
-      }
-      lap(idol.cx - idol.half, idol.cx + idol.half, idol.waterline);
+      lap(cx - half, cx + half, waterline);
     }
     return pieces;
   }
