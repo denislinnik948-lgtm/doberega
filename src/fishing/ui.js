@@ -1457,9 +1457,9 @@ export class AnglerUI {
         )),
         // Float skins, only for the look: bought once, put on the line at once.
         ...Object.entries(FLOAT_SKINS).filter(([, skin]) => skin.price).map(([id, skin]) => once(
-          `float-${id}`, () => floatSprite(skin.rows, 3), t(`float.${id}`), t("float.text"), skin.price, progress.floats.includes(id),
+          `float-${id}`, () => floatSprite(skin.rows, 3), t(`float.${id}`), t("float.pick"), skin.price, progress.floats.includes(id),
           () => { progress.floats.push(id); progress.float = id; },
-        )),
+        )).map((ware) => ({ ...ware, group: "look" })),
       ],
     };
   }
@@ -1482,7 +1482,11 @@ export class AnglerUI {
       if (!ware || ware.owned) delete this.basket[id];
     }
     for (const [tab, list] of Object.entries(wares)) {
-      $(`#${tab}`).replaceChildren(...list.map((ware) => {
+      // A shelf of its own, under a heading, for what is only for the look (the float skins).
+      const heading = (ware, index) => (ware.group && ware.group !== list[index - 1]?.group
+        ? [element("li", { className: "shelf-heading" }, [element("h3", { textContent: t(`shop.group.${ware.group}`) }), element("small", { textContent: t(`shop.group.${ware.group}Text`) })])]
+        : []);
+      $(`#${tab}`).replaceChildren(...list.flatMap((ware, index) => [...heading(ware, index), (() => {
         const inBasket = this.basket[ware.id] ?? 0;
         const label = ware.owned ? t("shop.owned") : !ware.add && inBasket ? t("shop.inCartOnce") : t("shop.toCart", { count: ware.step, total: formatMoney(ware.price * ware.step) });
         // Under the name: what it does (bait needs no words), and how many are in the backpack.
@@ -1506,7 +1510,7 @@ export class AnglerUI {
           ]),
           ware.add && inBasket ? element("span", { className: "ware-in", textContent: `×${inBasket}` }) : "",
         ])]);
-      }));
+      })()]));
     }
     this.renderBasketBar($("#basket-bar"), true);
     if (!this.shopDialog.open) this.shopDialog.showModal();

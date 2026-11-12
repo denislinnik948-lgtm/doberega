@@ -538,6 +538,9 @@ html.keyboard-open .sheet[open] > .account-body {
 .trophy-badges { margin: 0; color: var(--gold); font-size: 20px; text-align: center; }
 .trophy-badges[hidden] { display: none; }
 /* Tournament cups on a shelf above the player's own wall, and last week's winner's cup by a name. */
+.shelf-heading { display: grid; gap: 2px; margin-top: 10px; padding: 8px 4px 2px; border-top: 1px dashed rgba(169, 199, 180, 0.35); text-align: center; }
+.shelf-heading h3 { margin: 0; color: var(--gold); font-size: 20px; }
+.shelf-heading small { color: var(--soft); font-size: 15px; }
 .cup-shelf { display: grid; gap: 8px; }
 .cup-shelf[hidden] { display: none; }
 .cup-shelf h3 { margin: 0; color: var(--gold); font-size: 20px; text-align: center; }
