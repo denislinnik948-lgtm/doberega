@@ -1660,19 +1660,19 @@ export class AnglerUI {
     });
     for (const [id, hook] of Object.entries(HOOKS)) {
       const left = progress.hooks[id] ?? 0;
-      add("box", {
+      add("hooks", {
         key: `hook:${id}`, art: () => hookSprite(3, id), title: nameOf("hook", id), tag: `×${left}`,
         facts: reachLines(hook), on: id === progress.hook, status: t("pack.tied"),
         take: left > 0 || id === progress.hook ? () => { progress.hook = id; } : null,
       });
     }
-    add("box", {
+    add("line", {
       key: "line", art: () => lineSprite(3, worn), title: t("line.name"), tag: `${Math.round(progress.line * 100)}%`, worn,
       facts: [`${t("line.spare")}: ${progress.lines}`], action: [t("pack.newLine"), () => this.renewLine(true)],
     });
     for (const id of this.ownedBaits()) {
       const locked = BAITS[id].lure && !reel;
-      add(BAITS[id].lure ? "box" : "bait", {
+      add(BAITS[id].lure ? "lures" : "bait", {
         key: `bait:${id}`, art: () => baitSprite(id, 3), title: nameOf("bait", id),
         tag: locked ? t("pack.needReel") : countLabel(baitCount(progress, id)),
         facts: BAITS[id].lure ? [...reachLines(BAITS[id]), t(`tackle.style.${id}`), locked ? t("tackle.needReel") : ""].filter(Boolean) : [],
@@ -1743,10 +1743,17 @@ export class AnglerUI {
       element("div", { className: "pack-sections" }, [
         handbook,
         section("rods", t("pack.rodCase"), "rod-case"),
+        // The tackle apart, as on the shop's shelves: hooks, lures, line.
         element("div", { className: "pack-pair" }, [
-          section("box", t("pack.box"), "pack-grid"),
-          section("bait", t("pack.bait"), "pack-grid"),
+          section("hooks", t("shop.group.hooks"), "pack-grid"),
+          section("line", t("shop.group.line"), "pack-grid"),
         ]),
+        items.some((item) => item.section === "lures")
+          ? element("div", { className: "pack-pair" }, [
+            section("lures", t("shop.group.lures"), "pack-grid"),
+            section("bait", t("pack.bait"), "pack-grid"),
+          ])
+          : section("bait", t("pack.bait"), "pack-grid"),
         section("pocket", t("pack.pocket"), "pack-grid"),
         // What is only for the look, apart from the gear that does something.
         ...(items.some((item) => item.section === "looks") ? [section("looks", t("pack.looks"), "pack-grid")] : []),
