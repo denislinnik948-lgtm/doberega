@@ -55,6 +55,55 @@ const DEPTH = (() => {
   return { ...depth, water: depth.far * 1.2 };
 })();
 
+/*
+ * The train on the viaduct (see drawTrain), each wagon as rows of glyphs drawn
+ * left to right as if going right, top row first, wheels in the last row;
+ * `colors` by glyph, `windows` the row whose "o" are windows lit at night.
+ */
+const TRAIN_UNITS = (() => {
+  const wheels = "#5a5650";
+  const LOCO = {
+    rows: [
+      "      _  __    ",
+      " ___ (_)|  |   ",
+      "|[o]|___|__|_==",
+      "|===|########|>",
+      "|___|########|\\",
+      " oo  (O)=(O)o /",
+    ],
+    colors: { _: "#5a5650", "(": "#3a3834", ")": "#3a3834", "|": "#4a4640", "[": "#2a2826", "]": "#2a2826", o: "#5a5650", "=": "#9a9488", "#": "#2c2a26", ">": "#8a2a22", "\\": "#6a6660", "/": "#6a6660", O: wheels },
+    windows: 2,
+    chimney: 9,
+  };
+  const TENDER = {
+    rows: ["       ", " %&%%& ", "|#####|", "|#####|", "|_____|", " oo oo "],
+    colors: { "%": "#1a1816", "&": "#24221e", "#": "#2c2a26", "|": "#3a3834", _: "#4a4640", o: wheels },
+  };
+  const CAR = (color) => ({
+    rows: ["            ", " __________ ", "|o o o o o|=", "|#########|-", "|_________| ", " oo     oo  "],
+    colors: { _: "#4a4640", "|": color, "#": color, "=": "#4a4842", "-": "#4a4842", o: wheels },
+    windows: 2,
+  });
+  const BOX = {
+    rows: ["           ", "           ", " _________ ", "|#|#|#|#|#|", "|#########|", " oo    oo  "],
+    colors: { _: "#5a3a28", "|": "#4a2e20", "#": "#6a4430", o: wheels },
+  };
+  const TANK = {
+    rows: ["           ", "   _ _     ", " (=======) ", "(=========)", "/_________\\", " oo    oo  "],
+    colors: { _: "#3a3a3a", "(": "#2e2e2e", ")": "#2e2e2e", "=": "#4a4a48", "/": "#3a3834", "\\": "#3a3834", o: wheels },
+  };
+  const COAL = {
+    rows: ["           ", "           ", "  %&%%&%%  ", "\\#########/", " \\#######/ ", " oo    oo  "],
+    colors: { "%": "#1a1816", "&": "#2a2724", "#": "#4a3e34", "\\": "#3e342c", "/": "#3e342c", o: wheels },
+  };
+  const LOGS = {
+    rows: ["           ", "  @@@@@@@  ", " @@@@@@@@@ ", "|=========|", "|_________|", " oo    oo  "],
+    colors: { "@": "#8a6a44", "=": "#4a4842", "|": "#3a3834", _: "#3a3834", o: wheels },
+  };
+  return { LOCO, TENDER, CAR, BOX, TANK, COAL, LOGS };
+})();
+const TRAIN_MIRROR = { "/": "\\", "\\": "/", "(": ")", ")": "(", "[": "]", "]": "[", ">": "<", "<": ">" };
+
 export class CanvasWaterRenderer {
   constructor(canvas) {
     this.canvas = canvas;
@@ -1465,63 +1514,98 @@ export class CanvasWaterRenderer {
   }
 
   /**
-   * Now and then a steam train crosses the viaduct, one way or the other: a
-   * locomotive with its tender and four carriages, small with distance,
-   * coming out of the cutting in one hill and into the other. Smoke puffs
-   * from its chimney, rises, spreads and drifts off on the wind, left
-   * hanging behind it. After dark its headlamp and the carriage windows are
-   * lit (drawn over the night shade, see renderOverlay).
+   * Now and then a steam train crosses the viaduct, one way or the other,
+   * small with distance, coming out of the cutting in one hill and into the
+   * other: a passenger train (four carriages, now and then a red one among the
+   * green) or a goods train (box wagons, logs, coal, a tank wagon). Fine glyphs
+   * in six rows (TRAIN_UNITS), each with a dark outline: the locomotive with
+   * its chimney, dome and cab window, wheels turning and the rod between them
+   * going to and fro, steam at the cylinders; the tender heaped with coal.
+   * Smoke puffs from the chimney, rises, spreads and drifts off on the wind,
+   * left hanging behind it. After dark its headlamp and the carriage windows
+   * are lit (drawn over the night shade, see renderOverlay).
    */
   drawTrain(ctx, time, dt) {
     const road = this.road;
-    const size = Math.round(road.lineHeight * 2.2);
-    const step = road.cellWidth * 1.9;
-    const row = size * 0.85;
-    // The train, back to front: [upper, lower] strokes and what each column is.
-    const LOCO = [["#", "#", "cab"], ["#", "#", "cab"], ["_", "O", "boiler"], ["!", "O", "chimney"], ["_", "O", "boiler"], [" ", ">", "front"]];
-    const TENDER = [["_", "#", "tender"], ["_", "#", "tender"], [" ", "-", "gap"]];
-    const CARRIAGE = [["[", "#", "body"], ["o", "#", "window"], ["o", "#", "window"], ["o", "#", "window"], ["]", "#", "body"], [" ", "-", "gap"]];
-    const units = [...CARRIAGE, ...CARRIAGE, ...CARRIAGE, ...CARRIAGE, ...TENDER, ...LOCO];
+    const size = Math.round(road.lineHeight * 1.35);
+    const cw = size * 0.62;
+    const lh = size * 0.92;
     if (!this.train && Math.random() < dt / 45) {
       const dir = Math.random() < 0.5 ? 1 : -1;
-      this.train = { dir, head: dir > 0 ? road.from : road.to, speed: (road.to - road.from) / 30, puff: 0, color: Math.random() < 0.5 ? "#3a5a3e" : "#6a2e26" };
+      const { LOCO, TENDER, CAR, BOX, TANK, COAL, LOGS } = TRAIN_UNITS;
+      const green = CAR("#3a5a3e");
+      const cars = Math.random() < 0.5
+        ? [green, green, Math.random() < 0.5 ? CAR("#6a2e26") : green, green]
+        : [BOX, LOGS, COAL, COAL, TANK, BOX].filter(() => Math.random() < 0.85);
+      // Back to front; the locomotive leads.
+      const units = [...cars, TENDER, LOCO];
+      const length = units.reduce((sum, unit) => sum + unit.rows[0].length, 0) * cw;
+      this.train = { dir, units, length, head: dir > 0 ? road.from : road.to, speed: (road.to - road.from) / 30, puff: 0, steam: 0 };
     }
     const night = this.shade > 0.35;
     this.trainLights = [];
     ctx.font = `600 ${size}px ${MONO_FONT}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
+    ctx.lineJoin = "round";
     const train = this.train;
     if (train) {
       train.head += train.dir * train.speed * dt;
-      const tail = train.head - train.dir * units.length * step;
+      const tail = train.head - train.dir * train.length;
       if ((train.dir > 0 && tail > road.to) || (train.dir < 0 && tail < road.from)) this.train = null;
       else {
-        units.forEach(([upper, lower, part], index) => {
-          // The last entry is the front: it leads the way.
-          const x = train.head - train.dir * (units.length - 1 - index) * step;
-          if (x < road.from || x > road.to) return;
-          const body = part === "cab" || part === "boiler" || part === "chimney" || part === "front" || part === "tender" ? "#2c2a26" : train.color;
-          if (upper !== " ") {
-            const lit = part === "window";
-            if (lit && night) this.trainLights.push({ x, y: road.y - row, glyph: "o", color: "#ffd878" });
-            else {
-              ctx.fillStyle = lit ? "#d8d0a8" : part === "chimney" ? "#1c1a18" : body;
-              ctx.fillText(upper, x, road.y - row);
+        // Laid out left to right; going left, the whole train is mirrored glyph by glyph.
+        const flip = train.dir < 0;
+        const order = flip ? [...train.units].reverse() : train.units;
+        let x0 = flip ? train.head : train.head - train.length;
+        const spin = Math.sin(time * 14);
+        for (const unit of order) {
+          const width = unit.rows[0].length;
+          const loco = unit === TRAIN_UNITS.LOCO;
+          unit.rows.forEach((line, row) => {
+            const y = road.y - (unit.rows.length - 1 - row) * lh;
+            for (let col = 0; col < width; col += 1) {
+              const source = line[flip ? width - 1 - col : col];
+              if (!source || source === " ") continue;
+              const x = x0 + (col + 0.5) * cw;
+              if (x < road.from || x > road.to) continue;
+              let glyph = flip ? TRAIN_MIRROR[source] ?? source : source;
+              const color = unit.colors[source] ?? "#5a5650";
+              // Lit windows shine through the dark.
+              if (source === "o" && unit.windows === row) {
+                if (night) this.trainLights.push({ x, y, glyph: "o", color: "#ffd878" });
+                else this.trainGlyph(ctx, "o", x, y, "#d8d0a8");
+                continue;
+              }
+              // The wheels turn and the rod between them goes to and fro.
+              if (row === unit.rows.length - 1) {
+                if (loco && source === "=") glyph = spin > 0 ? "=" : "-";
+                else if (source === "O") glyph = Math.sin(time * 14 + col) > 0 ? "O" : "0";
+                else if (source === "o") glyph = Math.sin(time * 14 + col) > 0 ? "o" : ".";
+              }
+              this.trainGlyph(ctx, glyph, x, y, color);
             }
-          }
-          ctx.fillStyle = part === "front" ? "#8a2a22" : part === "gap" ? "#4a4842" : body;
-          ctx.fillText(train.dir > 0 || lower !== ">" ? lower : "<", x, road.y);
-          if (part === "front" && night) this.trainLights.push({ x: x + train.dir * step * 0.6, y: road.y, glyph: "*", color: "#fff2b8" });
-          // Smoke from the chimney, a puff every so often.
-          if (part === "chimney") {
+          });
+          if (loco) {
+            const chimney = x0 + ((flip ? width - 1 - TRAIN_UNITS.LOCO.chimney : TRAIN_UNITS.LOCO.chimney) + 0.5) * cw;
+            const front = x0 + (flip ? 0 : width) * cw;
+            const onView = (x) => x > road.from && x < road.to;
             train.puff -= dt;
-            if (train.puff <= 0) {
+            if (train.puff <= 0 && onView(chimney)) {
               train.puff = 0.08 + Math.random() * 0.08;
-              this.smoke.push({ x, y: road.y - row * 1.6, age: 0, life: 4 + Math.random() * 2, drift: (Math.random() - 0.5) * 6 });
+              this.smoke.push({ x: chimney, y: road.y - lh * 5.6, age: 0, life: 4 + Math.random() * 2, drift: (Math.random() - 0.5) * 6 });
             }
+            // A breath of steam at the cylinders.
+            train.steam -= dt;
+            const cylinder = x0 + (flip ? width - 8 : 8) * cw;
+            if (train.steam <= 0 && onView(cylinder)) {
+              train.steam = 0.3 + Math.random() * 0.4;
+              this.smoke.push({ x: cylinder, y: road.y, age: 0, life: 0.9, drift: -train.dir * 4, steam: true });
+            }
+            if (night && onView(front)) this.trainLights.push({ x: front + train.dir * cw * 0.4, y: road.y - lh * 2, glyph: "*", color: "#fff2b8" });
           }
-        });
+          x0 += width * cw;
+        }
       }
     }
     // The smoke rises, spreads and drifts on the wind, thinning as it goes.
@@ -1535,14 +1619,23 @@ export class CanvasWaterRenderer {
         continue;
       }
       const t = puff.age / puff.life;
-      puff.x += (wind + puff.drift) * dt;
-      puff.y -= (26 - t * 14) * dt;
+      puff.x += (wind * (puff.steam ? 0.3 : 1) + puff.drift) * dt;
+      puff.y -= (puff.steam ? 4 : 26 - t * 14) * dt;
       ctx.globalAlpha = (1 - t) * (night ? 0.35 : 0.8);
-      ctx.fillStyle = t < 0.25 ? "#5a5852" : "#a8a69c";
-      ctx.font = `600 ${Math.round(size * (0.9 + t * 1.6))}px ${MONO_FONT}`;
-      ctx.fillText(t < 0.15 ? "o" : t < 0.45 ? "O" : "~", puff.x, puff.y);
+      ctx.fillStyle = puff.steam ? "#d8dcdc" : t < 0.25 ? "#5a5852" : "#a8a69c";
+      ctx.font = `600 ${Math.round(size * (puff.steam ? 0.6 : 0.75) * (0.9 + t * 1.6))}px ${MONO_FONT}`;
+      ctx.fillText(puff.steam ? "~" : t < 0.15 ? "o" : t < 0.45 ? "O" : "~", puff.x, puff.y);
     }
     ctx.restore();
+  }
+
+  /** One glyph of the train, with a dark outline so it reads against the hills. */
+  trainGlyph(ctx, glyph, x, y, color) {
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#0e0d0b";
+    ctx.strokeText(glyph, x, y);
+    ctx.fillStyle = color;
+    ctx.fillText(glyph, x, y);
   }
 
   drawOakLeaves(ctx, time) {
@@ -2854,7 +2947,7 @@ export class CanvasWaterRenderer {
     }
     // The train's lamp and windows shine through the dark.
     if (this.trainLights?.length) {
-      ctx.font = `600 ${Math.round(this.road.lineHeight * 2.2)}px ${MONO_FONT}`;
+      ctx.font = `600 ${Math.round(this.road.lineHeight * 1.35)}px ${MONO_FONT}`;
       for (const light of this.trainLights) {
         ctx.fillStyle = light.color;
         ctx.fillText(light.glyph, light.x, light.y);
