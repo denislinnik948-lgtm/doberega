@@ -22,8 +22,6 @@ import { setSoundEnabled, setVolume, soundEnabled, sounds, volume } from "../sou
 // Each achievement group's ribbon colour.
 const RIBBONS = { start: P.light, collector: P.soft, weight: P.ember, skill: P.mid, time: P.bone, count: P.gold, special: P.goldDark };
 
-// Hook sprites grow with the hook's size.
-const HOOK_SCALE = { small: 2, medium: 3, large: 4 };
 /** The handbook's fish sections, by the most a kind grows to (kg). */
 const FISH_SIZES = [{ id: "small", upTo: 1 }, { id: "medium", upTo: 5 }, { id: "large", upTo: 20 }, { id: "giant", upTo: Infinity }];
 import {
@@ -1436,7 +1434,7 @@ export class AnglerUI {
       )),
       "tackle-shop": [
         ...Object.entries(HOOKS).map(([id, hook]) => piece(
-          `hook-${id}`, () => hookSprite(HOOK_SCALE[id] + 1), nameOf("hook", id), reachLines(hook), hook.price, progress.hooks[id] ?? 0,
+          `hook-${id}`, () => hookSprite(4, id), nameOf("hook", id), reachLines(hook), hook.price, progress.hooks[id] ?? 0,
           (qty) => { progress.hooks[id] = (progress.hooks[id] ?? 0) + qty; },
           // Hooks too come by the ten.
           10,
@@ -1650,7 +1648,7 @@ export class AnglerUI {
     for (const [id, hook] of Object.entries(HOOKS)) {
       const left = progress.hooks[id] ?? 0;
       add("box", {
-        key: `hook:${id}`, art: () => hookSprite(HOOK_SCALE[id]), title: nameOf("hook", id), tag: `×${left}`,
+        key: `hook:${id}`, art: () => hookSprite(3, id), title: nameOf("hook", id), tag: `×${left}`,
         facts: reachLines(hook), on: id === progress.hook, status: t("pack.tied"),
         take: left > 0 || id === progress.hook ? () => { progress.hook = id; } : null,
       });

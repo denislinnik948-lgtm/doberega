@@ -1485,8 +1485,24 @@ export function keepnetSprite(scale = 3) {
 }
 
 /** A single fishing hook. */
-export function hookSprite(scale = 3) {
-  return fromRows([
+/*
+ * Hooks by size (see HOOKS), each its own shape and metal so they tell apart
+ * at a glance: a small fine-wire one, bright steel; the medium one, bronze; a
+ * large forged one, dark, thick in the bend and with the barb showing.
+ */
+const HOOK_ROWS = {
+  small: [
+    "....oo..",
+    "...oWo..",
+    "...oLo..",
+    "...oLo..",
+    "...oLo..",
+    ".o.oLo..",
+    "oLooLo..",
+    ".oLLo...",
+    "..oo....",
+  ],
+  medium: [
     "......oo....",
     ".....oWo....",
     ".....oLo....",
@@ -1498,7 +1514,32 @@ export function hookSprite(scale = 3) {
     ".oLLooLo....",
     "..oLLLo.....",
     "...ooo......",
-  ], { o: P.ink, L: P.light, W: P.bone }).toCanvas(scale);
+  ],
+  large: [
+    ".......ooo....",
+    "......oW.Wo...",
+    "......oWWWo...",
+    ".......oLLo...",
+    ".......oLLo...",
+    ".......oLLo...",
+    ".......oLLo...",
+    ".......oLLo...",
+    ".oo....oLLo...",
+    "oLWo...oLLo...",
+    ".oLLo..oLLo...",
+    ".oLLLooLLLo...",
+    "..oLLLLLLo....",
+    "...oLLLLo.....",
+    "....oooo......",
+  ],
+};
+const HOOK_METALS = {
+  small: { L: "#c8d0d4", W: "#f2f6f8" },
+  medium: { L: "#c89a52", W: "#f0d08a" },
+  large: { L: "#6a737c", W: "#b4c0ca" },
+};
+export function hookSprite(scale = 3, size = "medium") {
+  return fromRows(HOOK_ROWS[size] ?? HOOK_ROWS.medium, { o: P.ink, ...(HOOK_METALS[size] ?? HOOK_METALS.medium) }).toCanvas(scale);
 }
 
 /** Small sun / moon for the clock; at night the moon in its phase (`moon` from moonAt). */
