@@ -2897,8 +2897,10 @@ export class CanvasWaterRenderer {
     if (angler && !angler.hidden) this.renderAngler(ctx, angler, "line");
 
     // Reeds are close to the viewer, so they use larger glyphs and sway harder.
+    // Drawn as the rods are: glyphs close together, each outlined dark, over
+    // only a thin dark line, no solid silhouette under them.
     const size = this.reedSize;
-    const step = size * 0.92;
+    const step = size * 0.62;
     ctx.font = `600 ${size}px ${MONO_FONT}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -2936,28 +2938,24 @@ export class CanvasWaterRenderer {
       const rim = winter ? (reed.lit ? "#d8d4c0" : "#9a8c68") : dry ? (reed.lit ? "#c9a85e" : "#8c7242") : spring ? (reed.lit ? "#8fb05a" : "#557040") : reed.lit ? "#71804f" : "#46573c";
       const points = Array.from({ length: segments + 1 }, (_, i) => at(i / segments));
 
-      // A solid silhouette hides the water glyphs behind each stalk.
+      // Only a thin dark line along the stalk.
+      const outline = dry ? "#150f08" : "#0b1410";
       ctx.beginPath();
       points.forEach((point, i) => (i ? ctx.lineTo(point.x, point.y) : ctx.moveTo(point.x, point.y)));
-      ctx.lineWidth = size * (reed.kind === "grass" ? 0.3 : 0.4);
-      ctx.strokeStyle = dry ? "#150f08" : "#0b1410";
+      ctx.lineWidth = Math.max(1, size * 0.08);
+      ctx.strokeStyle = outline;
       ctx.stroke();
       if (reed.kind === "cattail") {
         const top = at(0.86);
-        const bottom = at(0.62);
         const perch = this.reedPerches?.get(reed);
         if (perch) {
           perch.x = top.x;
           perch.y = top.y - size * 0.45;
         }
-        ctx.beginPath();
-        ctx.moveTo(bottom.x, bottom.y);
-        ctx.lineTo(top.x, top.y);
-        ctx.lineWidth = size * 0.85;
-        ctx.strokeStyle = "#2a1d14";
-        ctx.stroke();
       }
 
+      ctx.lineWidth = Math.max(1.5, size * 0.17);
+      ctx.strokeStyle = outline;
       let fill = null;
       for (let i = 0; i < segments; i += 1) {
         const t = i / segments;
@@ -2978,6 +2976,7 @@ export class CanvasWaterRenderer {
           ctx.fillStyle = color;
           fill = color;
         }
+        ctx.strokeText(glyph, point.x, point.y);
         ctx.fillText(glyph, point.x, point.y);
       }
     }
