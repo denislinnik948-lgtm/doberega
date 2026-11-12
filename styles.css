@@ -1049,7 +1049,7 @@ html.keyboard-open .sheet[open] > .account-body {
 /* Backpack: a rod case, a tackle box, the bait and a pocket. */
 .pack-pockets { min-height: 0; overflow-y: auto; padding: 4px 2px; scrollbar-color: var(--mid) transparent; }
 .pack-sections { display: grid; gap: 18px; }
-.pack-pair { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 18px; }
+.pack-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
 .pack-pocket { padding: 14px; }
 /* The handbook, at the top of the backpack on its own: the book, its name, Read. */
 .pack-handbook { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px; min-height: 64px; padding: 8px 14px; border: 0; color: var(--bone); font: inherit; text-align: left; background: var(--deep); box-shadow: inset 0 0 0 2px var(--mid); cursor: pointer; }
