@@ -541,6 +541,8 @@ html.keyboard-open .sheet[open] > .account-body {
 /* The heading takes a whole row of the shelves, so what follows starts on a line of its own. */
 .shelf-heading { grid-column: 1 / -1; display: grid; gap: 2px; margin-top: 10px; padding: 12px 4px 4px; border-top: 1px dashed rgba(169, 199, 180, 0.35); text-align: center; }
 .shelf-heading h3 { margin: 0; color: var(--gold); font-size: 20px; }
+/* The first shelf of a tab needs no line above it. */
+.shelf-heading.is-first { margin-top: 0; padding-top: 0; border-top: 0; }
 .shelf-heading small { color: var(--soft); font-size: 15px; }
 .cup-shelf { display: grid; gap: 8px; }
 .cup-shelf[hidden] { display: none; }

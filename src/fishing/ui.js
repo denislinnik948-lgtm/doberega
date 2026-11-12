@@ -1432,18 +1432,19 @@ export class AnglerUI {
         id, () => rodArt(id, 3), nameOf("rod", id), rodRating(id), rod.price, progress.rods.includes(id),
         () => { progress.rods.push(id); progress.rod = id; },
       )),
+      // Tackle in three shelves: hooks, lures, line.
       "tackle-shop": [
-        ...Object.entries(HOOKS).map(([id, hook]) => piece(
+        ...Object.entries(HOOKS).map(([id, hook]) => ({ ...piece(
           `hook-${id}`, () => hookSprite(4, id), nameOf("hook", id), reachLines(hook), hook.price, progress.hooks[id] ?? 0,
           (qty) => { progress.hooks[id] = (progress.hooks[id] ?? 0) + qty; },
           // Hooks too come by the ten.
           10,
-        )),
-        piece("line", () => lineSprite(4), t("line.name"), t("line.shopText"), LINE.price, progress.lines, (qty) => { progress.lines += qty; }),
-        ...Object.entries(BAITS).filter(([, bait]) => bait.lure).map(([id, lure]) => piece(
+        ), group: "hooks" })),
+        ...Object.entries(BAITS).filter(([, bait]) => bait.lure).map(([id, lure]) => ({ ...piece(
           id, () => baitSprite(id, 4), nameOf("bait", id), [...reachLines(lure), t(`tackle.style.${id}`), reel ? "" : t("tackle.needReel")].filter(Boolean),
           lure.price, progress.baits[id] ?? 0, (qty) => { progress.baits[id] = (progress.baits[id] ?? 0) + qty; },
-        )),
+        ), group: "lures" })),
+        { ...piece("line", () => lineSprite(4), t("line.name"), t("line.shopText"), LINE.price, progress.lines, (qty) => { progress.lines += qty; }), group: "line" },
       ],
       // The groundbaits on a shelf of their own, each saying how much it livens the water and which fish it draws.
       "groundbait-shop": Object.entries(GROUNDBAITS).map(([kind, bag]) => piece(
@@ -1484,7 +1485,10 @@ export class AnglerUI {
     for (const [tab, list] of Object.entries(wares)) {
       // A shelf of its own, under a heading, for what is only for the look (the float skins).
       const heading = (ware, index) => (ware.group && ware.group !== list[index - 1]?.group
-        ? [element("li", { className: "shelf-heading" }, [element("h3", { textContent: t(`shop.group.${ware.group}`) }), element("small", { textContent: t(`shop.group.${ware.group}Text`) })])]
+        ? [element("li", { className: `shelf-heading${index === 0 ? " is-first" : ""}` }, [
+          element("h3", { textContent: t(`shop.group.${ware.group}`) }),
+          ware.group === "look" ? element("small", { textContent: t("shop.group.lookText") }) : "",
+        ])]
         : []);
       $(`#${tab}`).replaceChildren(...list.flatMap((ware, index) => [...heading(ware, index), (() => {
         const inBasket = this.basket[ware.id] ?? 0;
