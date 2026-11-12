@@ -250,7 +250,7 @@ export const SCENES = {
     // No forest of the usual kind: a living grove on the left (`grove`), the castle hill's woods on the right.
     forest: { heightScale: 1.4, spacingScale: 0.8, broadleaf: 0.3, gaps: [[0, 1]] },
     structures: {
-      castleHill: { from: 0.6, peak: 0.1, castle: 0.79 },
+      castleHill: { from: 0.6, peak: 0.1, castle: 0.8, knollRise: 0.12, size: 0.22, zoom: 1 },
       grove: { to: 0.15 },
     },
     // Steel-blue water, silver where it catches the light.

@@ -383,7 +383,12 @@ export function createStructures(width, height, cellWidth, lineHeight, fine = nu
     const [firstCell, firstLight] = [cells.length, lights.length];
     add(spec, width, height, fine?.cellWidth ?? cellWidth, fine?.lineHeight ?? lineHeight, out, 1 / (fine?.scale ?? 1));
     // A light marked `full` keeps the base size, so a far window or torch still shows.
-    if (fine) for (const cell of [...cells.slice(firstCell), ...lights.slice(firstLight)]) if (!cell.full) cell.scale = fine.scale;
+    // A cell with its own `zoom` is drawn that much smaller again, on its own finer grid.
+    for (const cell of [...cells.slice(firstCell), ...lights.slice(firstLight)]) {
+      // `ink`: drawn a little larger than its cell, so glyphs without a ground under them close up.
+      if (fine && !cell.full) cell.scale = fine.scale * (cell.zoom ?? 1) * (cell.ink ?? 1);
+      else if (cell.zoom) cell.scale = cell.zoom * (cell.ink ?? 1);
+    }
   };
   if (structures.chnpp) onFineGrid(addChnpp, structures.chnpp);
   if (structures.crag) onFineGrid(addCrag, structures.crag);
@@ -1099,7 +1104,7 @@ function addGrove({ to }, width, height, cellWidth, lineHeight, out, k = 1) {
  * other, streaked by rain and green with moss at the foot. Glyphs only over
  * the hill's one dark ground.
  */
-function addCastleHill({ from, peak, castle }, width, height, cellWidth, lineHeight, out, k = 1) {
+function addCastleHill({ from, peak, castle, knollRise = 0.45, size, zoom }, width, height, cellWidth, lineHeight, out, k = 1) {
   const horizon = activeScene().horizon * height;
   const knoll = castle * width;
   const knollHalf = width * 0.07;
@@ -1110,7 +1115,7 @@ function addCastleHill({ from, peak, castle }, width, height, cellWidth, lineHei
     const rise = Math.min(1, (u - from) / 0.1) ** 0.7;
     const bump = Math.max(0, 1 - Math.abs(x - knoll) / knollHalf) ** 1.4;
     const roll = 0.06 * Math.sin(x * 0.02) + 0.04 * valueNoise(x * 0.05, 2, 4401);
-    return horizon - height * peak * (rise * (0.6 + roll) + 0.45 * bump);
+    return horizon - height * peak * (rise * (0.6 + roll) + knollRise * bump);
   };
   // Grey rock round the knoll, more of it toward the top, green tufts in its ledges.
   const rockDepth = (x) => Math.max(0, 1 - Math.abs(x - knoll) / (knollHalf * 1.1)) * height * peak * 0.6 * (0.7 + 0.3 * valueNoise(x * 0.04, 3, 4403));
@@ -1136,91 +1141,315 @@ function addCastleHill({ from, peak, castle }, width, height, cellWidth, lineHei
     }
   }
 
-  // The castle.
-  const put = (x, y, glyph, color) => {
-    const cell = cellAt(x, y, cellWidth, lineHeight);
-    out.cells.push({ ...cell, glyph, color });
-    return out.cells[out.cells.length - 1];
+  // The castle: Dragonsreach on the knoll, standing on its walls where they rise out of the rock.
+  addDragonsreach(knoll, skyline, height, cellWidth, lineHeight, out, { size, zoom });
+}
+
+/*
+ * Dragonsreach, after Skyrim's great hall (the user's reference shots), laid
+ * out in a 1440 by 1080 reference frame and built of glyphs only, without a
+ * ground under them: a tall timber tower in tiers with steep framed gables and
+ * a lantern on top, a square stone keep with tall arched windows and a mossy
+ * roof, the hall's gables with round windows, the great porch of pointed ribs
+ * between two carved pillars with braziers, a palisade of sharpened stakes and
+ * the stone wall it all stands on. Carved dragon heads on the gable tips.
+ * Colours from the reference: weathered brown-grey timber, golden moss on the
+ * roofs, warm carved wood on the porch.
+ */
+const DRAGONSREACH = (() => {
+  const shapes = [];
+  const poly = (pts, mat, o = {}) => {
+    const xs = pts.map(([x]) => x);
+    const ys = pts.map(([, y]) => y);
+    shapes.push({ kind: "poly", pts, mat, box: [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)], ...o });
   };
-  // Weathered stone: pale on the sun's side (left), dark on the other, streaked by rain, mossy at the foot.
-  // Darker than the snowfields behind it, so the castle stands out against them.
-  const STONE_LIT = ["#aaa596", "#98938a", "#868076", "#746e64"];
-  const STONE_DARK = ["#5e5a52", "#4e4a44", "#403d38", "#33312d"];
-  const stone = (column, row, lit, fromFoot) => {
-    const noise = hash2(column, row, 4413);
-    if (fromFoot < 2 && noise > 0.45) return { glyph: ",%"[Math.floor(noise * 2)], color: noise > 0.7 ? "#5a7a44" : "#46603a" };
-    const streak = hash2(column, 3, 4417) > 0.8 && noise > 0.3;
-    const tones = lit ? STONE_LIT : STONE_DARK;
-    return { glyph: streak ? "|" : "#%&8$#"[Math.floor(noise * 6)], color: streak ? (lit ? "#8a877c" : "#3e3c37") : tones[Math.floor(noise * tones.length)] };
-  };
-  const rowsOf = (fraction) => Math.max(3, Math.round((height * fraction) / lineHeight));
-  /*
-   * Masonry from x0 to x1 standing `rows` above the ground (the rock under
-   * each column, plus `sink` rows into it), lit on its left part; options:
-   * battlements on top, a corbelled parapet wider by a cell, a battered foot,
-   * windows at given rows.
-   */
-  const tower = (x0, x1, rows, { sink = 1, battlements = true, corbels = false, batter = false, windows = [], litShare = 0.55 } = {}) => {
-    const columns = [];
-    for (let x = x0 + cellWidth / 2; x < x1; x += cellWidth) columns.push(x);
-    const groundOf = (x) => skyline(x) + sink * lineHeight;
-    // Its top is level, set from the highest ground under it.
-    const top = Math.min(...columns.map(groundOf)) - rows * lineHeight;
-    columns.forEach((x, index) => {
-      const lit = index < columns.length * litShare;
-      const cellColumn = cellAt(x, 0, cellWidth, lineHeight).column;
-      let r = 0;
-      for (let y = groundOf(x); y > top; y -= lineHeight, r += 1) {
-        const fromTop = Math.round((y - top) / lineHeight);
-        const window = windows.some((at) => fromTop === at) && index === Math.floor(columns.length / 2);
-        const { glyph, color } = stone(cellColumn, r, lit, r);
-        put(x, y, window ? "|" : glyph, window ? "#14130f" : color);
-      }
-      if (battlements) put(x, top - lineHeight * (corbels ? 1 : 0), index % 2 ? "n" : "#", lit ? STONE_LIT[1] : STONE_DARK[1]);
-    });
-    if (corbels) {
-      // The parapet stands out a cell either side on its corbels, crenellated along the top.
-      for (const [x, lit] of [[columns[0] - cellWidth, true], [columns[columns.length - 1] + cellWidth, false]]) {
-        put(x, top, "=", lit ? STONE_LIT[2] : STONE_DARK[2]);
-        put(x, top - lineHeight, "n", lit ? STONE_LIT[1] : STONE_DARK[1]);
-      }
-      columns.forEach((x, index) => put(x, top, index % 2 ? "=" : "-", index < columns.length * litShare ? STONE_LIT[3] : STONE_DARK[0]));
+  const tri = (px, py, l, r, by, mat, o = {}) => poly([[px, py], [l, by], [r, by]], mat, { peak: px, py, l, r, by, ...o });
+  const disc = (cx, cy, r, mat) => shapes.push({ kind: "disc", cx, cy, r, mat });
+  const ring = (cx, cy, r, w, mat) => shapes.push({ kind: "ring", cx, cy, r, w, mat, stroke: true });
+  // A cubic curve (start, then control, control, end), as a polyline of `w` thickness.
+  const curve = ([a, b, c, d], w, mat, o = {}) => {
+    const line = [];
+    for (let i = 0; i <= 16; i += 1) {
+      const t = i / 16;
+      const m = 1 - t;
+      line.push([0, 1].map((k) => m * m * m * a[k] + 3 * m * m * t * b[k] + 3 * m * t * t * c[k] + t * t * t * d[k]));
     }
-    if (batter) {
-      // The foot spreads a cell either side, sloping.
-      for (let r = 0; r < 3; r += 1) {
-        put(columns[0] - cellWidth, groundOf(columns[0]) - r * lineHeight, r === 2 ? "/" : "#", STONE_LIT[2]);
-        put(columns[columns.length - 1] + cellWidth, groundOf(columns[columns.length - 1]) - r * lineHeight, r === 2 ? "\\" : "#", STONE_DARK[2]);
-      }
+    shapes.push({ kind: "line", line, w, mat, stroke: true, ...o });
+  };
+  const rect = (x0, y0, x1, y1, mat, o) => poly([[x0, y0], [x1, y0], [x1, y1], [x0, y1]], mat, o);
+
+  // The stone keep on the right: a mossy roof over a timber storey, tall arched windows, slits below.
+  poly([[905, 150], [1080, 150], [1122, 222], [862, 222]], "roofL", { peak: 870, light: 0.5 });
+  rect(872, 218, 1112, 262, "wood", { frame: 3 });
+  rect(872, 262, 1112, 900, "stone", { light: 0.45 });
+  for (const [x, y] of [[1072, 590], [1072, 650], [1088, 600]]) rect(x, y, x + 7, y + 34, "win");
+  poly([[908, 560], [908, 330], [932, 295], [956, 330], [956, 560]], "win");
+  poly([[985, 520], [985, 330], [1009, 295], [1033, 330], [1033, 520]], "win");
+  tri(925, 130, 872, 985, 240, "roofD");
+  tri(925, 168, 895, 958, 218, "wood", { aframe: 1, light: 0.75 });
+  disc(925, 190, 14, "ring");
+  disc(925, 190, 8, "win");
+  // The timber tower: a box in tiers, a framed gable and a smaller one behind, a lantern on top.
+  rect(702, 120, 878, 262, "wood", { frame: 1, light: 0.4 });
+  for (const x of [812, 832, 852]) rect(x, 150, x + 9, 210, "win");
+  tri(845, 70, 808, 882, 150, "roofD", { dark: 1 });
+  tri(845, 92, 822, 868, 148, "wood", { aframe: 1, light: 0.8 });
+  rect(760, 20, 786, 70, "wood", { light: 0.75 });
+  rect(768, 32, 778, 62, "win");
+  tri(773, 0, 752, 794, 26, "roofD", { dark: 1 });
+  tri(766, 52, 688, 846, 252, "roofD", { dark: 1 });
+  tri(766, 78, 712, 822, 246, "wood", { aframe: 1, light: 1 });
+  rect(744, 214, 760, 244, "win");
+  rect(772, 214, 788, 244, "win");
+  // A flared skirt of roof, its eaves curling up, then a storey of tall windows and the balcony.
+  poly([[694, 250], [886, 250], [912, 280], [668, 280]], "roofD", { peak: 790 });
+  curve([[680, 276], [662, 282], [650, 276], [646, 262]], 7, "roofD");
+  curve([[900, 276], [918, 282], [930, 276], [934, 262]], 7, "roofD");
+  rect(702, 280, 878, 350, "wood", { frame: 1, light: 0.5 });
+  for (const x of [718, 742, 818, 842]) rect(x, 292, x + 10, 340, "win");
+  rect(692, 350, 878, 388, "rail");
+  poly([[700, 388], [880, 388], [922, 430], [660, 430]], "roofD", { peak: 790 });
+  rect(690, 430, 905, 790, "wood", { frame: 1, light: 0.35 });
+  // The hall: a mossy roof to the keep, a dormer with braces, the gable with the round window, the front gable.
+  poly([[830, 480], [1005, 480], [1085, 705], [830, 705]], "roofL", { peak: 700 });
+  tri(985, 520, 930, 1045, 620, "roofD");
+  tri(985, 548, 950, 1022, 615, "wood", { aframe: 1, light: 0.8 });
+  rect(948, 618, 1025, 705, "wood", { frame: 2 });
+  rect(962, 640, 980, 690, "win");
+  rect(994, 640, 1012, 690, "win");
+  tri(757, 282, 672, 845, 475, "roofL");
+  tri(757, 322, 702, 812, 465, "wood", { aframe: 1, light: 0.85 });
+  disc(756, 378, 26, "ring");
+  disc(756, 378, 17, "win");
+  rect(752, 355, 760, 401, "bar");
+  tri(658, 378, 560, 860, 720, "roofL");
+  tri(668, 445, 618, 800, 712, "wood", { aframe: 1, light: 0.8 });
+  poly([[700, 712], [700, 575], [717, 545], [734, 575], [734, 712]], "win");
+  disc(717, 500, 15, "ring");
+  disc(717, 500, 9, "win");
+  rect(714, 488, 720, 512, "bar");
+  // The great porch: pointed ribs with round tracery between them and a row of spikes along the top.
+  [445, 505, 548, 592, 635].forEach((x, i) => {
+    const top = 455 - i * 6;
+    curve([[x - 20, 770], [x - 26, 600], [x - 10, 500], [x + 22, top]], 12, "rib");
+    curve([[x + 22, top], [x + 40, 520], [x + 50, 600], [x + 46, 770]], 9, "rib", { back: 1 });
+  });
+  for (const [x, y] of [[475, 560], [527, 556], [570, 552], [614, 548]]) ring(x, y, 15, 7, "rib");
+  curve([[445, 440], [520, 445], [580, 455], [640, 470]], 9, "spike");
+  curve([[905, 148], [960, 148], [1020, 148], [1080, 148]], 7, "spike");
+  curve([[830, 478], [890, 478], [950, 478], [1005, 478]], 7, "spike");
+  // Two carved pillars with a beam between, a brazier on each, a dragon's neck on the inner one.
+  rect(300, 550, 448, 578, "wood");
+  poly([[272, 520], [345, 470], [350, 900], [272, 900]], "pillar");
+  poly([[402, 470], [448, 455], [448, 900], [402, 900]], "pillar");
+  poly([[410, 440], [440, 440], [436, 456], [414, 456]], "brazier");
+  poly([[428, 462], [428, 385], [436, 350], [450, 338], [462, 352], [450, 385], [446, 462]], "pillar");
+  poly([[296, 470], [328, 470], [322, 488], [302, 488]], "brazier");
+  // The palisade: sharpened stakes, pale where they are cut.
+  for (const [from, to, base, spread] of [[455, 1075, 690, 28], [110, 270, 705, 20]]) {
+    for (let x = from; x < to; x += 11) {
+      const t = base + hash2(x, 1, 4421) * spread;
+      poly([[x, t + 16], [x + 4, t], [x + 9, t + 16], [x + 9, 800], [x, 800]], "stake", { top: t });
     }
-    return { top, x0: columns[0], x1: columns[columns.length - 1] };
-  };
-  // A wall following the rock down: each column its own height over the ground under it, crenellated.
-  const curtain = (x0, x1, rows, litShare = 0.5) => {
-    const columns = [];
-    for (let x = x0 + cellWidth / 2; x < x1; x += cellWidth) columns.push(x);
-    columns.forEach((x, index) => {
-      const ground = skyline(x) + lineHeight;
-      const lit = index < columns.length * litShare;
-      const cellColumn = cellAt(x, 0, cellWidth, lineHeight).column;
-      for (let r = 0; r < rows; r += 1) {
-        const { glyph, color } = stone(cellColumn, r, lit, r);
-        put(x, ground - r * lineHeight, glyph, color);
+  }
+  // The wall it all stands on, down into the rock of the knoll.
+  poly([[90, 790], [380, 772], [620, 768], [1060, 764], [1150, 740], [1150, 1400], [90, 1400]], "wall");
+  return shapes;
+})();
+
+const DRAGONSREACH_HEADS = [[773, 2, 1], [766, 54, -1], [845, 72, 1], [646, 262, -1], [934, 262, 1], [925, 132, 1], [866, 214, -1], [1118, 214, 1], [757, 284, -1], [658, 380, -1, 2], [452, 340, -1, 2.4], [985, 522, 1]];
+// Each material from dark to lit, as sampled from the reference.
+// The scene's grade lifts colours, so the lit ends sit a little under the reference's.
+const DRAGONSREACH_COLORS = {
+  stone: ["#0c0c0a", "#4a463c"], win: ["#030302", "#0a0a06"], roofD: ["#15190f", "#555748"], roofL: ["#17170c", "#8a744c"],
+  wood: ["#120f09", "#625c4f"], rail: ["#120f09", "#625c4f"], ring: ["#120f09", "#6e624b"], bar: ["#120f09", "#625c4f"],
+  rib: ["#1a0c02", "#806a4c"], spike: ["#4e3820", "#a8967f"], pillar: ["#241206", "#9a8670"], brazier: ["#181006", "#483824"],
+  stake: ["#200a00", "#836f52"], wall: ["#1e1108", "#857660"],
+};
+
+function dragonsreachHit(shape, x, y) {
+  switch (shape.kind) {
+    case "poly": {
+      const [x0, y0, x1, y1] = shape.box;
+      if (x < x0 || x > x1 || y < y0 || y > y1) return false;
+      let inside = false;
+      const { pts } = shape;
+      for (let i = 0, j = pts.length - 1; i < pts.length; j = i, i += 1) {
+        const [xi, yi] = pts[i];
+        const [xj, yj] = pts[j];
+        if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
       }
-      if (index % 2 === 0) put(x, ground - rows * lineHeight, "n", lit ? STONE_LIT[1] : STONE_DARK[1]);
-    });
+      return inside;
+    }
+    case "disc":
+      return Math.hypot(x - shape.cx, y - shape.cy) <= shape.r;
+    case "ring":
+      return Math.abs(Math.hypot(x - shape.cx, y - shape.cy) - shape.r) <= shape.w / 2;
+    default: {
+      const { line, w } = shape;
+      for (let i = 1; i < line.length; i += 1) {
+        const [ax, ay] = line[i - 1];
+        const [bx, by] = line[i];
+        const t = clamp(((x - ax) * (bx - ax) + (y - ay) * (by - ay)) / ((bx - ax) ** 2 + (by - ay) ** 2 || 1), 0, 1);
+        if (Math.hypot(x - ax - t * (bx - ax), y - ay - t * (by - ay)) <= w / 2) return true;
+      }
+      return false;
+    }
+  }
+}
+
+/*
+ * Lays Dragonsreach out with its tower over `knollX`, `size` of the screen
+ * tall, on a grid `zoom` times the shore's (glyphs drawn that much smaller).
+ * Cells under the hill's skyline are left to the hill.
+ */
+function addDragonsreach(knollX, skyline, height, cellWidth, lineHeight, out, { size = 0.2, zoom = 0.6 } = {}) {
+  const scale = (height * size) / 770;
+  const cw = cellWidth * zoom;
+  const lh = lineHeight * zoom;
+  const base = skyline(knollX) + lineHeight;
+  const toRef = (x, y) => [(x - knollX) / scale + 766, (y - base) / scale + 790];
+  const toScreen = (X, Y) => [knollX + (X - 766) * scale, base + (Y - 790) * scale];
+  const [cwR, lhR] = [cw / scale, lh / scale];
+  const topAt = (X, Y) => {
+    for (let i = DRAGONSREACH.length - 1; i >= 0; i -= 1) if (dragonsreachHit(DRAGONSREACH[i], X, Y)) return DRAGONSREACH[i];
+    return null;
   };
-  const u = width * 0.0105;
-  curtain(knoll - u * 9, knoll - u * 2.4, rowsOf(0.034), 0.6);
-  curtain(knoll + u * 2.6, knoll + u * 7, rowsOf(0.038), 0.3);
-  // The lower tower on the right, a little flag on it.
-  const small = tower(knoll + u * 6.2, knoll + u * 9, rowsOf(0.055), { windows: [3], litShare: 0.35 });
-  const pole = (small.x0 + small.x1) / 2;
-  put(pole, small.top - lineHeight, "|", "#6a675e");
-  put(pole, small.top - lineHeight * 2, "|", "#6a675e");
-  put(pole + cellWidth, small.top - lineHeight * 2, ">", "#c0402e");
-  // The keep: tall and square, battered foot, corbelled battlements, narrow windows.
-  tower(knoll - u * 2.8, knoll + u * 2.8, rowsOf(0.085), { sink: 0, corbels: true, batter: true, windows: [4, 9] });
+  const [left, top] = toScreen(80, 0);
+  const [right] = toScreen(1160, 0);
+  for (let c = Math.floor(left / cw); c * cw < right; c += 1) {
+    const x = (c + 0.5) * cw;
+    const ground = skyline(x);
+    for (let r = Math.floor(top / lh); (r + 0.5) * lh < ground + lh * 0.5; r += 1) {
+      const y = (r + 0.5) * lh;
+      const [X, Y] = toRef(x, y);
+      const s = topAt(X, Y);
+      if (!s) continue;
+      const n = hash2(c, r, 4431);
+      const [dark, lit] = DRAGONSREACH_COLORS[s.mat];
+      let t = s.light ?? 0.65;
+      let glyph;
+      let color = null;
+      switch (s.mat) {
+        case "roofD":
+        case "roofL": {
+          const onLeft = X < (s.peak ?? X);
+          t = (onLeft ? 0.78 : 0.4) * (s.dark ? 0.45 : 1) + (n - 0.5) * 0.2;
+          glyph = r % 2 ? (onLeft ? "/" : "\\") : "%&#@"[Math.floor(n * 4)];
+          break;
+        }
+        case "wood":
+        case "rail": {
+          const beam = s.frame && r % 7 === 0;
+          const post = s.frame && c % 8 === 0;
+          glyph = s.mat === "rail" ? (c % 2 ? "+" : "|") : beam && post ? "+" : beam ? "=" : c % 2 ? "H" : "M";
+          if (s.frame === 2) glyph = (c + r) % 8 === 0 ? "\\" : (c - r + 800) % 8 === 0 ? "/" : glyph;
+          if (s.frame === 3) glyph = c % 3 === 0 ? "|" : "#";
+          t = (s.light ?? 0.55) + (n - 0.5) * 0.25;
+          if (s.frame === 3 && glyph === "#") t = 0.05;
+          if (s.aframe) {
+            // A gable's face: barge boards along its edges, an inner A of timbers, a king post and a collar beam.
+            const span = s.by - s.py;
+            const k = (Y - s.py) / span;
+            const xl = s.peak + (s.l - s.peak) * k;
+            const xr = s.peak + (s.r - s.peak) * k;
+            const f = (X - xl) / (xr - xl);
+            const py2 = s.py + span * 0.38;
+            const k2 = (Y - py2) / span;
+            const xl2 = s.peak + (s.l - s.peak) * k2;
+            const xr2 = s.peak + (s.r - s.peak) * k2;
+            glyph = f < 0.08 ? "/" : f > 0.92 ? "\\" : Y > py2 && Math.abs(X - xl2) < cwR * 1.2 ? "/" : Y > py2 && Math.abs(X - xr2) < cwR * 1.2 ? "\\" : Math.abs(f - 0.5) < 0.03 ? "|" : Math.abs(Y - (s.py + span * 0.62)) < lhR * 1.1 ? "=" : "H";
+            t = (s.light ?? 0.55) + (n - 0.5) * 0.2 - ("/\\|=".includes(glyph) ? 0.35 : 0);
+          }
+          break;
+        }
+        case "wall": {
+          const joint = (c + (r % 2) * 4) % 8 === 0;
+          glyph = joint ? "|" : n > 0.7 ? "#" : n > 0.4 ? "H" : "=";
+          t = 0.55 - ((Y - 770) / 320) * 0.3 + (n - 0.5) * 0.2;
+          break;
+        }
+        case "stake":
+          if (Y < s.top + 24) {
+            glyph = Y < s.top + 10 ? "^" : "I";
+            color = "#a08460";
+          } else {
+            glyph = "I";
+            t = 0.45 + (n - 0.5) * 0.3;
+          }
+          break;
+        case "pillar": {
+          // Plain in the middle, carved knotwork down its edges.
+          const edge = !dragonsreachHit(s, X - 3 * cwR, Y) || !dragonsreachHit(s, X + 3 * cwR, Y);
+          glyph = edge ? (r % 2 ? "S" : "8") : "H";
+          t = edge ? 0.8 : 0.5 + (n - 0.5) * 0.15;
+          break;
+        }
+        case "spike":
+          glyph = "^";
+          t = 0.95;
+          break;
+        case "rib":
+          if (s.kind === "ring") {
+            glyph = "o";
+            t = 0.7;
+          } else {
+            glyph = s.back ? (Y < 560 ? "\\" : ")") : Y < 560 ? "/" : "(";
+            if (n > 0.5) glyph = s.back ? "%" : "&";
+            t = s.back ? 0.35 : 0.75;
+          }
+          break;
+        case "stone":
+          glyph = "#%@&$"[Math.floor(n * 5)];
+          t += (n - 0.5) * 0.25;
+          break;
+        case "ring":
+          glyph = "o";
+          break;
+        case "bar":
+          glyph = "|";
+          break;
+        case "brazier":
+          glyph = "U";
+          break;
+        default:
+          glyph = "#";
+          t += (n - 0.5) * 0.25;
+      }
+      // Lit along its upper left edges, shaded along the lower right.
+      if (!s.stroke && !color) {
+        if (!dragonsreachHit(s, X - cwR, Y - lhR)) t += 0.2;
+        else if (!dragonsreachHit(s, X + cwR, Y + lhR)) t -= 0.25;
+      }
+      const cell = { x, y, column: c, row: r, glyph, color: mixHex(color ?? mixHex(dark, lit, clamp(t, 0, 0.9)), "#000000", 0.3), zoom, ink: 1.12, bold: true, solo: true };
+      out.cells.push(cell);
+      // After dark a few windows glow.
+      if (s.mat === "win" && hash2(c, Math.floor(r / 3), 4433) < 0.35) out.lights.push({ ...cell, glyph: "|", color: "#e2b85e", flicker: true });
+    }
+  }
+  // Fire in the braziers.
+  for (const [X, Y] of [[312, 452], [425, 426]]) {
+    const [x, y] = toScreen(X, Y);
+    out.lights.push({ x, y, column: 0, row: 0, glyph: "*", color: "#f0a040", flicker: true, zoom, full: false });
+    out.cells.push({ x, y, column: 0, row: 0, glyph: "*", color: "#c07830", zoom });
+  }
+  // Carved dragon heads, each a short run of strokes rearing up and looking out.
+  const neck = [[0, 0], [0.3, -3], [-0.3, -6], [0.5, -9], [2.5, -11], [5.5, -11.5], [8.5, -10.5], [9.5, -9], [7, -8.3], [4, -8]];
+  const strokeGlyph = (dx, dy) => {
+    const m = (((Math.atan2(dy, dx) * 180) / Math.PI) % 180 + 180) % 180;
+    return m < 22 || m > 158 ? "-" : m < 68 ? "\\" : m < 112 ? "|" : "/";
+  };
+  for (const [X, Y, dir, k = 1.6] of DRAGONSREACH_HEADS) {
+    const [bx, by] = toScreen(X, Y);
+    const unit = k * 2 * scale;
+    const points = neck.map(([u, v]) => [bx + u * dir * unit, by + v * unit]);
+    for (let i = 0; i < points.length - 1; i += 1) {
+      const [x0, y0] = points[i];
+      const [x1, y1] = points[i + 1];
+      const glyph = i === 7 ? (dir > 0 ? ">" : "<") : strokeGlyph(x1 - x0, y1 - y0);
+      out.cells.push({ x: (x0 + x1) / 2, y: (y0 + y1) / 2, column: 0, row: 0, glyph, color: i < 4 ? "#463428" : "#9a8670", zoom: zoom * 0.8, bold: true });
+    }
+  }
 }
 
 /**

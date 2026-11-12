@@ -674,12 +674,13 @@ export class CanvasWaterRenderer {
   }
 
   /** With depth on, the land layer's font for a glyph at height `y` (sizes rounded to keep font changes few). */
-  glyphFont(ctx, y, scale = this.scaleAt(y)) {
+  glyphFont(ctx, y, scale = this.scaleAt(y), bold = false) {
     if (!DEPTH) return;
     const size = Math.round(this.charSize * scale * 4) / 4;
-    if (size !== ctx.depthSize) {
-      ctx.depthSize = size;
-      ctx.font = `${size}px ${MONO_FONT}`;
+    const key = bold ? -size : size;
+    if (key !== ctx.depthSize) {
+      ctx.depthSize = key;
+      ctx.font = `${bold ? "bold " : ""}${size}px ${MONO_FONT}`;
     }
   }
 
@@ -690,6 +691,19 @@ export class CanvasWaterRenderer {
     const horizon = height * scene.horizon;
     const ridges = scene.ridges;
 
+    // A structure drawn in glyphs only (`solo`, the castle) stands clear of the ridge glyphs behind
+    // it: there the ridge shows only its plain ground, so the two fields of glyphs do not mix.
+    const { width: hillW, height: hillH } = this.hillCell;
+    const solo = new Set();
+    for (const cell of this.structureCells) {
+      if (!cell.solo) continue;
+      // Every ridge cell under the glyph's own cell (larger), with a margin so no row slips between.
+      const halfW = this.cellWidth * (cell.scale ?? 1) * 0.75;
+      const halfH = this.lineHeight * (cell.scale ?? 1) * 0.75;
+      for (let column = Math.floor((cell.x - halfW) / hillW); column * hillW < cell.x + halfW; column += 1) {
+        for (let row = Math.floor((cell.y - halfH) / hillH); row * hillH < cell.y + halfH; row += 1) solo.add(column * 65536 + row);
+      }
+    }
     ridges.forEach((ridge, index) => {
       const points = this.ridgeOutlines[index];
       ctx.beginPath();
@@ -717,6 +731,7 @@ export class CanvasWaterRenderer {
       for (const cell of this.ridgeCells) {
         // Breezy meadows are drawn every frame by the ambient layer instead.
         if (cell.ridge !== index || !cell.glyph || this.ambient.breezyRidges.has(index)) continue;
+        if (solo.has(Math.floor(cell.x / hillW) * 65536 + Math.floor(cell.y / hillH))) continue;
         if (ridge.alpine) ctx.fillStyle = cell.color;
         this.glyphFont(ctx, cell.y, this.hillScale);
         ctx.fillText(cell.glyph, cell.x, cell.y);
@@ -980,7 +995,7 @@ export class CanvasWaterRenderer {
       // Rustling leaves are drawn every frame by the ambient layer.
       if (cell.rustle || Boolean(cell.behind) !== behind) continue;
       ctx.fillStyle = cell.color;
-      if (cell.scale) this.glyphFont(ctx, cell.y, cell.scale);
+      if (cell.scale) this.glyphFont(ctx, cell.y, cell.scale, cell.bold);
       else if (ctx.depthSize) {
         ctx.font = this.font;
         ctx.depthSize = null;
