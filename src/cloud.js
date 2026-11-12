@@ -1,6 +1,6 @@
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./cloud-config.js";
 import { LOCATIONS } from "./fishing/data.js";
-import { hasProgress, normalizeProgress } from "./fishing/store.js";
+import { hasProgress, mergePurchases, normalizeProgress } from "./fishing/store.js";
 import { markOwnDevice } from "./analytics.js";
 
 // Loaded on demand, only when accounts are configured.
@@ -168,9 +168,21 @@ export class Cloud {
     await this.push();
   }
 
-  async push() {
+  /** `checked`: the cloud's save is known to be this device's to replace (see reconcile). */
+  async push({ checked = false } = {}) {
     this.pushTimer = null;
     if (!this.user) return;
+    // The cloud moved on elsewhere since this device last matched it (another
+    // device, or this one left open for long): bring the two together first
+    // instead of writing over what was done there.
+    if (!checked) {
+      const { data, error } = await this.client.from("saves").select("savedAt:progress->savedAt").eq("user_id", this.user.id).maybeSingle();
+      const theirs = Number(data?.savedAt) || null;
+      if (!error && theirs && theirs !== this.syncedAt() && theirs !== this.getProgress().savedAt) {
+        await this.reconcile();
+        return;
+      }
+    }
     const progress = this.getProgress();
     // The save can change while it goes up; remember the one that was sent.
     const { savedAt } = progress;
@@ -283,8 +295,9 @@ export class Cloud {
    * On signing in or opening the game: bring this device and the account to
    * the same save, without asking. If only one side moved on since they last
    * matched, that side wins. If both did (or this device never synced), the
-   * one that has caught more fish wins, the newer on a tie. Progress replaced
-   * by the cloud's is kept aside under BACKUP_KEY.
+   * one that has caught more fish wins, the newer on a tie, and what was
+   * bought only on the other side comes over too (see mergePurchases).
+   * Progress replaced by the cloud's is kept aside under BACKUP_KEY.
    */
   async reconcile() {
     if (!this.user) return;
@@ -293,7 +306,7 @@ export class Cloud {
       if (error) throw error;
       const local = this.getProgress();
       if (!data) {
-        await this.push();
+        await this.push({ checked: true });
         return;
       }
       const remote = normalizeProgress(data.progress);
@@ -306,6 +319,15 @@ export class Cloud {
       else if (synced && local.savedAt === synced) keep = "remote";
       else if ((remote.caught ?? 0) !== (local.caught ?? 0)) keep = (remote.caught ?? 0) > (local.caught ?? 0) ? "remote" : "local";
       else keep = (remote.savedAt ?? 0) > (local.savedAt ?? 0) ? "remote" : "local";
+      // Both moved on: keep the purchases of the other side as well.
+      const both = (keep === "remote" || keep === "local") && hasProgress(local) && hasProgress(remote) && !(synced && (remote.savedAt === synced || local.savedAt === synced));
+      const merged = both && (keep === "remote" ? mergePurchases(remote, local) : mergePurchases(local, remote));
+      if (merged) {
+        this.backup(local);
+        this.applyProgress(merged);
+        await this.push({ checked: true });
+        return;
+      }
       if (keep === "remote") {
         if (hasProgress(local)) {
           try {
@@ -316,7 +338,7 @@ export class Cloud {
         }
         this.applyProgress(remote);
       }
-      if (keep === "local") await this.push();
+      if (keep === "local") await this.push({ checked: true });
       else {
         this.markSynced(remote.savedAt);
         this.lastSync = Date.now();
@@ -324,6 +346,14 @@ export class Cloud {
       }
     } catch (error) {
       this.fail(error);
+    }
+  }
+
+  backup(local) {
+    try {
+      localStorage.setItem(BACKUP_KEY, JSON.stringify(local));
+    } catch {
+      // No room for a backup: the merged save still goes on.
     }
   }
 

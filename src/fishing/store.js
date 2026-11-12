@@ -134,6 +134,29 @@ export function replaceProgress(target, source) {
   Object.assign(target, structuredClone(normalizeProgress(source)));
 }
 
+/**
+ * Two saves that both moved on (two devices, or the game left open on one
+ * while played on the other): `kept` wins, but what was bought only in `other`
+ * (rods, extras, water fees) is not lost; it comes over at its price, so it
+ * is paid for once. Null when `other` has nothing `kept` lacks.
+ */
+export function mergePurchases(kept, other) {
+  const rods = (other.rods ?? []).filter((id) => RODS[id] && !kept.rods.includes(id));
+  const extras = (other.extras ?? []).filter((id) => EXTRAS[id] && !kept.extras.includes(id));
+  const waters = (other.waters ?? []).filter((id) => !(kept.waters ?? []).includes(id));
+  if (!rods.length && !extras.length && !waters.length) return null;
+  const fee = (id) => LOCATIONS.find((spot) => spot.id === id)?.unlock?.price ?? 0;
+  const cost = rods.reduce((sum, id) => sum + RODS[id].price, 0) + extras.reduce((sum, id) => sum + EXTRAS[id].price, 0) + waters.reduce((sum, id) => sum + fee(id), 0);
+  return {
+    ...structuredClone(kept),
+    rods: [...kept.rods, ...rods],
+    extras: [...kept.extras, ...extras],
+    waters: [...(kept.waters ?? []), ...waters],
+    money: Math.max(0, kept.money - cost),
+    savedAt: Date.now(),
+  };
+}
+
 /** Whether a save holds anything beyond the starting kit. */
 export function hasProgress(state) {
   return (state.caught ?? 0) > 0 || (state.trophies?.length ?? 0) > 0 || (state.keepnet?.length ?? 0) > 0 || (state.rods?.length ?? 1) > 1

@@ -1055,6 +1055,8 @@ document.addEventListener("visibilitychange", () => {
   } else if (hiddenAt !== null) {
     pauseDuration += performance.now() - hiddenAt;
     hiddenAt = null;
+    // Back after a while away: the cloud may hold what was done on another device since.
+    if (cloud.user && !game.busy) cloud.reconcile();
     cancelAnimationFrame(animationFrame);
     animationFrame = requestAnimationFrame(draw);
   }
