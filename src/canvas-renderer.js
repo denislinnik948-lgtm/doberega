@@ -139,10 +139,11 @@ export class CanvasWaterRenderer {
     // Grass blades behind the bank trees, on the bank we stand on, and fireflies.
     this.grassBatches = { far: new GlyphBatch(16384), near: new GlyphBatch(16384), flies: new GlyphBatch() };
     this.ducks = [];
-    this.glintBatch = new GlyphBatch();
+    // The water and its glints in two halves (every other cell), refilled in turn (see fillWater).
+    this.glintBatches = [new GlyphBatch(), new GlyphBatch()];
     this.lightKey = null;
     this.forestBatch = new GlyphBatch();
-    this.waterBatch = new GlyphBatch(32768);
+    this.waterBatches = [new GlyphBatch(16384), new GlyphBatch(16384)];
     this.surfaceBatch = new GlyphBatch();
     // Winter: steam rising off the open water in the frost.
     this.steamBatch = new GlyphBatch();
@@ -175,6 +176,7 @@ export class CanvasWaterRenderer {
     }
     this.overlayContext.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
     this.backend.resize(width, height, this.pixelRatio, frame);
+    this.glyphSprites = new Map();
 
     // Game-style 2:1 projection: each world axis rises 1 screen unit per 2 run.
     // This is atan(0.5) ≈ 26.6°, commonly used for isometric game tiles.
@@ -617,9 +619,14 @@ export class CanvasWaterRenderer {
     return layer;
   }
 
-  /** Rasterize a static, full-screen layer once per rebuild (the backend grades it). */
+  /**
+   * Rasterize a static, full-screen layer once per rebuild (the backend grades it).
+   * One canvas is kept and reused, so each rebuild doesn't leave a big one behind
+   * for the browser to let go of.
+   */
   createLayer(paint) {
-    const layer = document.createElement("canvas");
+    const layer = this.layerCanvas ?? (this.layerCanvas = document.createElement("canvas"));
+    // Setting the size clears it, even to the same size.
     layer.width = Math.round(this.width * this.pixelRatio);
     layer.height = Math.round(this.height * this.pixelRatio);
     const ctx = layer.getContext("2d");
@@ -2060,10 +2067,19 @@ export class CanvasWaterRenderer {
     }
   }
 
-  fillWater(time, config, ripples) {
+  /**
+   * Refill the water: `half` 0 or 1 for only every other cell (the frames
+   * between take turns, so no frame carries the whole water), or both.
+   */
+  fillWater(time, config, ripples, half = null) {
+    if (half === null) {
+      this.fillWater(time, config, ripples, 0);
+      this.fillWater(time, config, ripples, 1);
+      return;
+    }
     const { cellWidth, lineHeight, columns, backdrop, reflectionColors } = this;
     const { centerX, centerY, axisX, axisY } = this.projection;
-    const batch = this.waterBatch;
+    const batch = this.waterBatches[half];
     const waveConfig = { ...config, ...this.waterParams };
     // Flowing water keeps reflections trembling even when the surface is calm.
     const amplitudeScale = Math.max(config.waveAmplitude / 1.3, this.waterParams.flow ? 0.7 : 0);
@@ -2072,7 +2088,7 @@ export class CanvasWaterRenderer {
     const glintStrength = 4.2 * (0.45 + config.shimmer) * this.lightStrength * (1 - this.rain);
     const glintColors = this.glintColors;
     // Glints are light, not water: drawn on their own so night doesn't dim them.
-    const glints = this.glintBatch;
+    const glints = this.glintBatches[half];
     const mirror = Boolean(activeScene().water.mirror);
     batch.clear();
     glints.clear();
@@ -2080,7 +2096,9 @@ export class CanvasWaterRenderer {
     const rowWobble = this.rowWobble ?? (this.rowWobble = new Float32Array(this.rows + 1));
     for (let row = 0; row <= this.rows; row += 1) rowWobble[row] = Math.sin(row * 0.83 + wobbleTime) * cellWidth * 0.7 * amplitudeScale;
 
-    for (const cell of this.waterCells) {
+    const cells = this.waterCells;
+    for (let index = half; index < cells.length; index += 2) {
+      const cell = cells[index];
       // Ice lies still on the water.
       if (cell.ice) {
         batch.push(cell.screenX, cell.screenY, cell.ice.glyph, cell.ice.color);
@@ -2893,92 +2911,7 @@ export class CanvasWaterRenderer {
     if (this.castle) this.drawBats(ctx, time);
     if (angler && !angler.hidden) this.renderAngler(ctx, angler, "line");
 
-    // Reeds are close to the viewer, so they use larger glyphs and sway harder.
-    // Drawn as the rods are: glyphs close together, each outlined dark, over
-    // only a thin dark line, no solid silhouette under them.
-    const size = this.reedSize;
-    const step = size * 0.62;
-    ctx.font = `600 ${size}px ${MONO_FONT}`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.lineCap = "round";
-    // The reeds swing harder in the wind and bow downwind.
-    const wind = this.wind;
-    const gust = (0.6 + 0.4 * Math.sin(time * 0.21)) * (0.6 + 1.6 * wind.strength * wind.gust);
-    const bow = wind.dir * wind.strength * wind.gust * 0.22;
-    const winter = isWinter();
-    const spring = !winter && isSpring() && !activeScene().dry;
-    const dry = activeScene().dry || winter;
-    // The sign stands among the reeds: the farther two thirds behind it, the nearest in front.
-    let sign = this.signImage;
-    const drawSign = () => {
-      ctx.drawImage(sign.image, sign.left, sign.top, sign.width, sign.height);
-      sign = null;
-    };
-
-    // The first time through in winter, a perch on top of each cattail (moved with it every frame).
-    if (winter && !this.reedPerches) {
-      this.reedPerches = new Map(this.reeds.filter((reed) => reed.kind === "cattail").map((reed) => [reed, { x: 0, y: 0 }]));
-      this.perches.push(...this.reedPerches.values());
-    }
-    for (const reed of this.reeds) {
-      if (sign && reed.depth > 0.66) drawSign();
-      const segments = Math.max(2, Math.round(reed.length / step));
-      const swing = (Math.sin(time * 0.95 + reed.phase) * 0.65 + Math.sin(time * 0.37 + reed.baseX * 0.01) * 0.35) * gust;
-      const at = (t) => ({
-        x: reed.baseX + reed.length * (reed.lean * t + reed.curve * t * t + (swing + bow) * reed.flex * t * t),
-        y: reed.baseY - reed.length * t,
-      });
-      // Dry reeds at Pripyat (and everywhere in winter): straw and old brown instead of green;
-      // fresh green in spring; frost on the tips in winter.
-      const shade = dry ? (reed.depth < 0.5 ? "#4a3b22" : "#3a2e1a") : spring ? (reed.depth < 0.5 ? "#2e4a2c" : "#243a24") : reed.depth < 0.5 ? "#2c3b2c" : "#223024";
-      const rim = winter ? (reed.lit ? "#d8d4c0" : "#9a8c68") : dry ? (reed.lit ? "#c9a85e" : "#8c7242") : spring ? (reed.lit ? "#8fb05a" : "#557040") : reed.lit ? "#71804f" : "#46573c";
-      const points = Array.from({ length: segments + 1 }, (_, i) => at(i / segments));
-
-      // Only a thin dark line along the stalk.
-      const outline = dry ? "#150f08" : "#0b1410";
-      ctx.beginPath();
-      points.forEach((point, i) => (i ? ctx.lineTo(point.x, point.y) : ctx.moveTo(point.x, point.y)));
-      ctx.lineWidth = Math.max(1, size * 0.08);
-      ctx.strokeStyle = outline;
-      ctx.stroke();
-      if (reed.kind === "cattail") {
-        const top = at(0.86);
-        const perch = this.reedPerches?.get(reed);
-        if (perch) {
-          perch.x = top.x;
-          perch.y = top.y - size * 0.45;
-        }
-      }
-
-      ctx.lineWidth = Math.max(1.5, size * 0.17);
-      ctx.strokeStyle = outline;
-      let fill = null;
-      for (let i = 0; i < segments; i += 1) {
-        const t = i / segments;
-        const point = points[i];
-        const next = points[i + 1];
-        const slope = (next.x - point.x) / (point.y - next.y);
-        let glyph = Math.abs(slope) < 0.2 ? "|" : Math.abs(slope) > 2.5 ? "=" : slope > 0 ? "/" : "\\";
-        let color = t > 0.45 ? rim : shade;
-
-        if (reed.kind === "cattail" && t > 0.62 && t < 0.86) {
-          glyph = "#";
-          color = reed.lit ? "#9a7148" : "#6a4c32";
-        } else if (i === segments - 1 && reed.kind !== "cattail") {
-          glyph = reed.kind === "grass" ? "," : "'";
-        }
-        // Setting a colour makes the canvas parse it: only when it changes.
-        if (color !== fill) {
-          ctx.fillStyle = color;
-          fill = color;
-        }
-        ctx.strokeText(glyph, point.x, point.y);
-        ctx.fillText(glyph, point.x, point.y);
-      }
-    }
-
-    if (sign) drawSign();
+    this.drawReeds(ctx, time);
 
     // The oak on our bank, in front of the water and the far shore, and its falling leaves.
     if (this.oak) {
@@ -3422,6 +3355,146 @@ export class CanvasWaterRenderer {
     ctx.restore();
   }
 
+  /** The reeds by our bank, and the sign standing among them, into `ctx`. */
+  drawReeds(ctx, time) {
+    // Reeds are close to the viewer, so they use larger glyphs and sway harder.
+    // Drawn as the rods are: glyphs close together, each outlined dark, over
+    // only a thin dark line, no solid silhouette under them.
+    const size = this.reedSize;
+    const step = size * 0.62;
+    ctx.font = `600 ${size}px ${MONO_FONT}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.lineCap = "round";
+    // The reeds swing harder in the wind and bow downwind.
+    const wind = this.wind;
+    const gust = (0.6 + 0.4 * Math.sin(time * 0.21)) * (0.6 + 1.6 * wind.strength * wind.gust);
+    const bow = wind.dir * wind.strength * wind.gust * 0.22;
+    const winter = isWinter();
+    const spring = !winter && isSpring() && !activeScene().dry;
+    const dry = activeScene().dry || winter;
+    // The sign stands among the reeds: the farther two thirds behind it, the nearest in front.
+    let sign = this.signImage;
+    const drawSign = () => {
+      ctx.drawImage(sign.image, sign.left, sign.top, sign.width, sign.height);
+      sign = null;
+    };
+
+    // The first time through in winter, a perch on top of each cattail (moved with it every frame).
+    if (winter && !this.reedPerches) {
+      this.reedPerches = new Map(this.reeds.filter((reed) => reed.kind === "cattail").map((reed) => [reed, { x: 0, y: 0 }]));
+      this.perches.push(...this.reedPerches.values());
+    }
+    for (const reed of this.reeds) {
+      if (sign && reed.depth > 0.66) drawSign();
+      const segments = Math.max(2, Math.round(reed.length / step));
+      const swing = (Math.sin(time * 0.95 + reed.phase) * 0.65 + Math.sin(time * 0.37 + reed.baseX * 0.01) * 0.35) * gust;
+      const bend = reed.curve + (swing + bow) * reed.flex;
+      const atX = (t) => reed.baseX + reed.length * (reed.lean * t + bend * t * t);
+      const atY = (t) => reed.baseY - reed.length * t;
+      // Dry reeds at Pripyat (and everywhere in winter): straw and old brown instead of green;
+      // fresh green in spring; frost on the tips in winter.
+      const shade = dry ? (reed.depth < 0.5 ? "#4a3b22" : "#3a2e1a") : spring ? (reed.depth < 0.5 ? "#2e4a2c" : "#243a24") : reed.depth < 0.5 ? "#2c3b2c" : "#223024";
+      const rim = winter ? (reed.lit ? "#d8d4c0" : "#9a8c68") : dry ? (reed.lit ? "#c9a85e" : "#8c7242") : spring ? (reed.lit ? "#8fb05a" : "#557040") : reed.lit ? "#71804f" : "#46573c";
+      // The stalk's points, x and y in turn, in one array kept between frames (no garbage every frame).
+      const points = (this.reedPoints ??= new Float64Array(256)).length >= (segments + 1) * 2 ? this.reedPoints : (this.reedPoints = new Float64Array((segments + 1) * 4));
+      for (let i = 0; i <= segments; i += 1) {
+        points[i * 2] = atX(i / segments);
+        points[i * 2 + 1] = atY(i / segments);
+      }
+
+      // Only a thin dark line along the stalk.
+      const outline = dry ? "#150f08" : "#0b1410";
+      ctx.beginPath();
+      ctx.moveTo(points[0], points[1]);
+      for (let i = 1; i <= segments; i += 1) ctx.lineTo(points[i * 2], points[i * 2 + 1]);
+      ctx.lineWidth = Math.max(1, size * 0.08);
+      ctx.strokeStyle = outline;
+      ctx.stroke();
+      if (reed.kind === "cattail") {
+        const perch = this.reedPerches?.get(reed);
+        if (perch) {
+          perch.x = atX(0.86);
+          perch.y = atY(0.86) - size * 0.45;
+        }
+      }
+
+      ctx.lineWidth = Math.max(1.5, size * 0.17);
+      ctx.strokeStyle = outline;
+      let fill = null;
+      for (let i = 0; i < segments; i += 1) {
+        const t = i / segments;
+        const px = points[i * 2];
+        const py = points[i * 2 + 1];
+        const slope = (points[i * 2 + 2] - px) / (py - points[i * 2 + 3]);
+        let glyph = Math.abs(slope) < 0.2 ? "|" : Math.abs(slope) > 2.5 ? "=" : slope > 0 ? "/" : "\\";
+        let color = t > 0.45 ? rim : shade;
+
+        if (reed.kind === "cattail" && t > 0.62 && t < 0.86) {
+          glyph = "#";
+          color = reed.lit ? "#9a7148" : "#6a4c32";
+        } else if (i === segments - 1 && reed.kind !== "cattail") {
+          glyph = reed.kind === "grass" ? "," : "'";
+        }
+        // Each outlined glyph is drawn once into a little picture and then only copied:
+        // some 1,600 of them a frame cost two text draws each before.
+        const sprite = this.outlinedGlyph(glyph, color, outline, size, ctx.lineWidth);
+        if (sprite) ctx.drawImage(sprite.image, px - sprite.half, py - sprite.half, sprite.size, sprite.size);
+        else {
+          // Setting a colour makes the canvas parse it: only when it changes.
+          if (color !== fill) {
+            ctx.fillStyle = color;
+            fill = color;
+          }
+          ctx.strokeText(glyph, px, py);
+          ctx.fillText(glyph, px, py);
+        }
+      }
+    }
+
+    if (sign) drawSign();
+  }
+
+  /**
+   * A reed glyph (600 weight, `size` px) in `color` outlined in `outline`,
+   * drawn once into a little square canvas at the screen's pixel ratio and kept
+   * (`glyphSprites`, cleared on resize or a new outline or size). Null until the web font has loaded, so
+   * a fallback face is never kept.
+   */
+  outlinedGlyph(glyph, color, outline, size, lineWidth) {
+    // Looked up by colour, then glyph, so a frame's 1,600 lookups make no new strings;
+    // the outline, size and line width are the same for every reed, so a change starts afresh.
+    if (outline !== this.spriteOutline || size !== this.spriteSize || lineWidth !== this.spriteLine) {
+      this.glyphSprites = new Map();
+      this.spriteOutline = outline;
+      this.spriteSize = size;
+      this.spriteLine = lineWidth;
+    }
+    let byColor = this.glyphSprites.get(color);
+    if (!byColor) this.glyphSprites.set(color, (byColor = new Map()));
+    let sprite = byColor.get(glyph);
+    if (sprite) return sprite;
+    if (document.fonts && document.fonts.status !== "loaded") return null;
+    const box = Math.ceil(size * 1.5 + lineWidth * 2);
+    const ratio = this.pixelRatio;
+    const image = document.createElement("canvas");
+    image.width = image.height = Math.ceil(box * ratio);
+    const ctx = image.getContext("2d");
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.font = `600 ${size}px ${MONO_FONT}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.lineCap = "round";
+    ctx.lineWidth = lineWidth;
+    ctx.strokeStyle = outline;
+    ctx.fillStyle = color;
+    ctx.strokeText(glyph, box / 2, box / 2);
+    ctx.fillText(glyph, box / 2, box / 2);
+    sprite = { image, size: box, half: box / 2 };
+    byColor.set(glyph, sprite);
+    return sprite;
+  }
+
   /**
    * The dragon of the last water flying over (see dragon.js), in glyphs a little
    * larger than the ruined tower's and outlined dark, its wingspan about a quarter of the view; mirrored
@@ -3684,10 +3757,10 @@ export class CanvasWaterRenderer {
     this.discBatch.clear();
     if (sky.moon.up && sky.moon.y < 0.52) pushDisc(this.discBatch, this.moonDisc, sky.moon.x * width, sky.moon.y * height, cellWidth, lineHeight, "moon", moon);
     if (sky.sun.up && sky.sun.y < 0.52) pushDisc(this.discBatch, this.sunDisc, sky.sun.x * width, sky.sun.y * height, cellWidth, lineHeight, "sun");
-    // The water, the trees and the meadows move slowly: past 30 frames a second
-    // (a cast, a fight) they are refilled at most SLOW_INTERVAL apart, the water
-    // on one frame and the land on the next so no frame carries both, while the
-    // line, the fish and the float on the overlay keep the full rate.
+    // The trees and the meadows move slowly: past 30 frames a second they are
+    // refilled at most SLOW_INTERVAL apart, on every other frame, while the line,
+    // the fish and the float on the overlay keep the full rate (the water, below,
+    // goes in halves).
     const since = (at) => (at == null || time < at ? Infinity : time - at);
     const slowDue = since(this.slowTime) >= SLOW_INTERVAL;
     const landDue = since(this.landTime) >= SLOW_INTERVAL && (!slowDue || since(this.landTime) >= SLOW_INTERVAL * 1.2);
@@ -3701,10 +3774,15 @@ export class CanvasWaterRenderer {
     this.frameIndex = (this.frameIndex ?? 0) + 1;
     if (this.frameIndex % 2 === 0 || this.grassStale) fillGrass(this.grass, this.grassBatches, time, dayTime, this.rain, this.wind);
     if (env.night) this.drawNightEvents(env.night, time);
-    if (slowDue || this.grassStale) {
-      this.fillWater(time, config, ripples);
-      this.fillSurface(time, ripples);
-    }
+    // The water: at 60 frames a second half of it each frame, every other cell in turn,
+    // so each cell is still refilled about 30 times a second but no frame carries it all
+    // (it used to land whole on every other frame, making those twice as heavy);
+    // at a slower rate, all of it every frame.
+    const frameGap = since(this.waterTime);
+    this.waterTime = time;
+    if (this.grassStale || frameGap >= SLOW_INTERVAL * 0.9) this.fillWater(time, config, ripples);
+    else this.fillWater(time, config, ripples, (this.waterHalf = 1 - (this.waterHalf ?? 0)));
+    if (slowDue || this.grassStale) this.fillSurface(time, ripples);
     this.grassStale = false;
     if (this.winterIce) this.moveFloes(time);
     this.fillSteam(time, dayTime);
@@ -3747,8 +3825,8 @@ export class CanvasWaterRenderer {
     backend.drawGlyphs(this.lightBatch, [1, 1, 1, Math.min(1, 0.12 + sky.stars)]);
     backend.drawGlyphs(this.fineLightBatch, [1, 1, 1, Math.min(1, 0.12 + sky.stars)], this.farPerspective);
     backend.drawGlyphs(this.ambientBatches.glow, undefined, this.perspective);
-    backend.drawGlyphs(this.waterBatch, water, this.waterPerspective);
-    backend.drawGlyphs(this.glintBatch, undefined, this.waterPerspective);
+    for (const batch of this.waterBatches) backend.drawGlyphs(batch, water, this.waterPerspective);
+    for (const batch of this.glintBatches) backend.drawGlyphs(batch, undefined, this.waterPerspective);
     backend.drawGlyphs(this.surfaceBatch, water, this.waterPerspective);
     // Pale against the dark water, lit like the land (dim at night).
     if (this.steamBatch.count) backend.drawGlyphs(this.steamBatch, [...land.map((value) => Math.min(1.2, value * 1.25)), 0.85], this.waterPerspective);

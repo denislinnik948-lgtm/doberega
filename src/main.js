@@ -1017,17 +1017,22 @@ const TARGET_FPS = 45;
 let lastDrawn = -Infinity;
 let lastTick = null;
 let tick = 0;
-// The screen's refresh interval, from the gaps between animation frames (the median of the last few).
-const gaps = [];
+// The screen's refresh interval, from the gaps between animation frames: a low one of the
+// last few (late frames only ever make gaps longer), worked out every half second.
+const gaps = new Float64Array(60);
+let gapCount = 0;
 let refreshMs = 1000 / 60;
 function measureRefresh(now) {
   if (lastTick !== null) {
     const gap = now - lastTick;
     // A long gap is a hidden tab or a stall, not the screen.
     if (gap > 4 && gap < 50) {
-      gaps.push(gap);
-      if (gaps.length > 60) gaps.shift();
-      if (gaps.length >= 20) refreshMs = [...gaps].sort((a, b) => a - b)[gaps.length >> 1];
+      gaps[gapCount % gaps.length] = gap;
+      gapCount += 1;
+      if (gapCount >= 20 && gapCount % 30 === 0) {
+        const recent = gaps.slice(0, Math.min(gapCount, gaps.length)).sort();
+        refreshMs = recent[recent.length >> 2];
+      }
     }
   }
   lastTick = now;
@@ -1039,6 +1044,48 @@ function waterStep() {
   for (let n = 2; n <= 4; n += 1) if (Math.abs(hz / n - TARGET_FPS) < Math.abs(hz / best - TARGET_FPS) - 0.5) best = n;
   return best;
 }
+
+/*
+ * A device that can't keep that rate up would drop frames now and then, and
+ * the scene would stutter. So the frames drawn at the water are watched: when
+ * more than one in ten comes late (a frame or more after its turn) over a
+ * couple of seconds, the scene steps down to about 30 frames a second, still an
+ * even step of the screen (`slowStep`), steady rather than stuttering. After a while it
+ * tries the full rate again; each try that fails waits twice as long for the
+ * next (from 20 s up to 5 min), so it doesn't keep switching back and forth.
+ */
+const pace = { slow: false, drawn: 0, late: 0, retryAt: 0, wait: 20000, tried: false };
+if (window.doberega) window.doberega.pace = pace;
+function paceWater(now, gap, step) {
+  // Gaps far beyond a frame are a stall (building a scene, a hidden tab), not the pace.
+  if (gap > 250) return;
+  pace.drawn += 1;
+  if (gap > refreshMs * step * 1.5) pace.late += 1;
+  if (pace.drawn < 120) return;
+  const lateShare = pace.late / pace.drawn;
+  pace.drawn = 0;
+  pace.late = 0;
+  if (!pace.slow && lateShare > 0.1) {
+    pace.slow = true;
+    // A try at the full rate that failed: wait longer before the next.
+    if (pace.tried) pace.wait = Math.min(300000, pace.wait * 2);
+    pace.tried = false;
+    pace.retryAt = now + pace.wait;
+  } else if (pace.slow && lateShare < 0.02 && now > pace.retryAt) {
+    pace.slow = false;
+    pace.tried = true;
+  } else if (!pace.slow && pace.tried && lateShare < 0.02) {
+    // The full rate held: it can stay.
+    pace.tried = false;
+    pace.wait = 20000;
+  }
+}
+
+/** The step it falls back to: about 30 frames a second, still an even step of the screen (2 on 60 Hz, 3 on 90, 4 on 120). */
+function slowStep() {
+  return Math.max(waterStep() + 1, Math.round(1000 / refreshMs / 30));
+}
+
 function frameRate() {
   if (mode === "menu" || document.querySelector("dialog[open]")) return 12;
   if (!document.hasFocus()) return 20;
@@ -1050,7 +1097,9 @@ function draw(now) {
   tick += 1;
   const rate = frameRate();
   if (rate === null) {
-    if (tick % waterStep() !== 0) return;
+    const step = pace.slow ? slowStep() : waterStep();
+    if (tick % step !== 0) return;
+    paceWater(now, now - lastDrawn, step);
   } else if (now - lastDrawn < 1000 / rate - 3) return;
   lastDrawn = now;
   renderNow(now);
