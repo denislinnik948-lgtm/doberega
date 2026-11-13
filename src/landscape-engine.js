@@ -1157,7 +1157,7 @@ function addCastleHill({ from, peak, castle, knollRise = 0.45, size, zoom }, wid
 function addRuinedTower(knollX, skyline, height, cellWidth, lineHeight, out, { size = 0.22, zoom = 1 } = {}) {
   const cw = cellWidth * zoom;
   const lh = lineHeight * zoom;
-  const rows = Math.round((height * size * 0.85) / lh);
+  const rows = Math.round((height * size * 1.6) / lh);
   const front = Math.max(9, Math.round((height * size * 0.5) / cw));
   const side = Math.max(3, Math.round(front * 0.25));
   const first = Math.round(knollX / cw - (front + side) / 2);
@@ -1239,7 +1239,7 @@ function addRuinedTower(knollX, skyline, height, cellWidth, lineHeight, out, { s
   // A stretch of the curtain wall running off to the left down the hill: crenellated by the
   // tower, lower and ragged further on, broken through in one place, ending in a stump.
   const wallLength = Math.round(front * 1.3);
-  const wallRows = Math.round(rows * 0.32);
+  const wallRows = Math.round(rows * 0.17);
   for (let j = 1; j <= wallLength; j += 1) {
     const c = first - j;
     const x = (c + 0.5) * cw;
