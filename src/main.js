@@ -1002,29 +1002,23 @@ function resize(force = false) {
 }
 
 /*
- * Frame pacing, to keep a laptop cool. The water drifts slowly, so while you
- * simply wait at the water 30 frames a second look the same as 60; the full
- * 60 come only when things move fast: a cast, a fight, reeling in, a fresh
- * splash, or your finger on the screen. Under the menu or a window the scene
- * barely shows (12 frames, and under the menu or a page nothing is drawn at
- * all, see sceneCovered), and in a window you aren't looking at, 20.
+ * Frame pacing. At the water the scene keeps one steady 60 frames a second:
+ * dropping to fewer while you wait and back up for a cast or a fight was
+ * plain to see as the motion changed its smoothness. Under the menu or a
+ * window the scene barely shows (12 frames, and under the menu or a page
+ * nothing is drawn at all, see sceneCovered), and in a window you aren't
+ * looking at, 20.
  */
 let lastDrawn = -Infinity;
-let lastFast = -Infinity;
-function frameRate(now) {
+function frameRate() {
   if (mode === "menu" || document.querySelector("dialog[open]")) return 12;
   if (!document.hasFocus()) return 20;
-  const fast = ["casting", "fight", "reeling", "landed"].includes(game.phase) || game.pulling || pullPointer !== null
-    || ripples.some((ripple) => !ripple.ambient && lastElapsed - ripple.time < 1);
-  // Stay smooth a moment after the action ends, so it eases out rather than steps down.
-  if (fast) lastFast = now;
-  // Waiting for a bite, the slow water reads fine at 24 frames, and the laptop stays cooler.
-  return now - lastFast < 800 ? 60 : 24;
+  return 60;
 }
 function draw(now) {
   animationFrame = requestAnimationFrame(draw);
   // A little slack, so a 60 Hz screen never skips a frame it should draw.
-  if (now - lastDrawn < 1000 / frameRate(now) - 3) return;
+  if (now - lastDrawn < 1000 / frameRate() - 3) return;
   lastDrawn = now;
   renderNow(now);
 }
