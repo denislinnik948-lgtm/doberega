@@ -697,13 +697,16 @@ export class CanvasWaterRenderer {
     const solo = new Set();
     for (const cell of this.structureCells) {
       if (!cell.solo) continue;
-      // Every ridge cell under the glyph's own cell (larger), with a margin so no row slips between.
-      const halfW = this.cellWidth * (cell.scale ?? 1) * 0.75;
-      const halfH = this.lineHeight * (cell.scale ?? 1) * 0.75;
+      // Every ridge cell under the glyph's own cell (larger), and no further.
+      const halfW = (this.cellWidth * (cell.scale ?? 1)) / 2;
+      const halfH = (this.lineHeight * (cell.scale ?? 1)) / 2;
       for (let column = Math.floor((cell.x - halfW) / hillW); column * hillW < cell.x + halfW; column += 1) {
         for (let row = Math.floor((cell.y - halfH) / hillH); row * hillH < cell.y + halfH; row += 1) solo.add(column * 65536 + row);
       }
     }
+    // Around it the mountain behind stands a little paler in the haze, so the dark castle stands out.
+    const soloCells = this.structureCells.filter((cell) => cell.solo);
+    const soloBox = soloCells.length ? soloCells.reduce((box, cell) => [Math.min(box[0], cell.x), Math.min(box[1], cell.y), Math.max(box[2], cell.x), Math.max(box[3], cell.y)], [Infinity, Infinity, -Infinity, -Infinity]) : null;
     ridges.forEach((ridge, index) => {
       const points = this.ridgeOutlines[index];
       ctx.beginPath();
@@ -735,6 +738,26 @@ export class CanvasWaterRenderer {
         if (ridge.alpine) ctx.fillStyle = cell.color;
         this.glyphFont(ctx, cell.y, this.hillScale);
         ctx.fillText(cell.glyph, cell.x, cell.y);
+      }
+      if (soloBox) {
+        const [x0, y0, x1, y1] = soloBox;
+        const cx = (x0 + x1) / 2;
+        const cy = (y0 + y1) / 2;
+        const r = Math.max(x1 - x0, y1 - y0) * 1.1;
+        const glow = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r);
+        glow.addColorStop(0, "rgba(206, 214, 222, 0.24)");
+        glow.addColorStop(1, "rgba(206, 214, 222, 0)");
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(points[0], points[1]);
+        for (let i = 2; i < points.length; i += 2) ctx.lineTo(points[i], points[i + 1]);
+        ctx.lineTo(width, horizon + height * 0.03);
+        ctx.lineTo(0, horizon + height * 0.03);
+        ctx.closePath();
+        ctx.clip();
+        ctx.fillStyle = glow;
+        ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+        ctx.restore();
       }
 
       // Valley haze settles between the layers.

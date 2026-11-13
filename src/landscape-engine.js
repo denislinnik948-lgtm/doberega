@@ -1118,7 +1118,8 @@ function addCastleHill({ from, peak, castle, knollRise = 0.45, size, zoom }, wid
     return horizon - height * peak * (rise * (0.6 + roll) + knollRise * bump);
   };
   // Grey rock round the knoll, more of it toward the top, green tufts in its ledges.
-  const rockDepth = (x) => Math.max(0, 1 - Math.abs(x - knoll) / (knollHalf * 1.1)) * height * peak * 0.6 * (0.7 + 0.3 * valueNoise(x * 0.04, 3, 4403));
+  // Under the castle the woods come right up to its wall: only a few stones show.
+  const rockDepth = (x) => Math.max(0, 1 - Math.abs(x - knoll) / (knollHalf * 1.1)) * height * peak * 0.12 * (0.7 + 0.3 * valueNoise(x * 0.04, 3, 4403));
   const outline = [[width * from, horizon + lineHeight]];
   for (let x = width * from; x <= width + cellWidth; x += cellWidth) outline.push([x, skyline(x)]);
   outline.push([width + cellWidth, horizon + lineHeight]);
@@ -1253,18 +1254,21 @@ const DRAGONSREACH = (() => {
     }
   }
   // The wall it all stands on, down into the rock of the knoll.
-  poly([[90, 790], [380, 772], [620, 768], [1060, 764], [1150, 740], [1150, 1400], [90, 1400]], "wall");
+  // Only as wide as the castle itself, its top ragged where the stones have fallen.
+  const wallTop = [];
+  for (let x = 250; x <= 1120; x += 30) wallTop.push([x, 770 + hash2(x, 3, 4425) * 18]);
+  poly([...wallTop, [1120, 1400], [250, 1400]], "wall");
   return shapes;
 })();
 
 const DRAGONSREACH_HEADS = [[773, 2, 1], [766, 54, -1], [845, 72, 1], [646, 262, -1], [934, 262, 1], [925, 132, 1], [866, 214, -1], [1118, 214, 1], [757, 284, -1], [658, 380, -1, 2], [452, 340, -1, 2.4], [985, 522, 1]];
 // Each material from dark to lit, as sampled from the reference.
-// The scene's grade lifts colours, so the lit ends sit a little under the reference's.
+// Warm and dark throughout, so the whole castle reads as one solid mass against the paler mountain.
 const DRAGONSREACH_COLORS = {
-  stone: ["#0c0c0a", "#4a463c"], win: ["#030302", "#0a0a06"], roofD: ["#15190f", "#555748"], roofL: ["#17170c", "#8a744c"],
-  wood: ["#120f09", "#625c4f"], rail: ["#120f09", "#625c4f"], ring: ["#120f09", "#6e624b"], bar: ["#120f09", "#625c4f"],
-  rib: ["#1a0c02", "#806a4c"], spike: ["#4e3820", "#a8967f"], pillar: ["#241206", "#9a8670"], brazier: ["#181006", "#483824"],
-  stake: ["#200a00", "#836f52"], wall: ["#1e1108", "#857660"],
+  stone: ["#0a0907", "#4e4638"], win: ["#030302", "#0a0a06"], roofD: ["#110f0a", "#4e4a3a"], roofL: ["#14120a", "#7a6838"],
+  wood: ["#100c07", "#665640"], rail: ["#100c07", "#665640"], ring: ["#100c07", "#6e5c42"], bar: ["#100c07", "#665640"],
+  rib: ["#140a03", "#664a2e"], spike: ["#3a2a18", "#8a7050"], pillar: ["#1c0e05", "#6e5640"], brazier: ["#140c05", "#3e3020"],
+  stake: ["#180900", "#664e34"], wall: ["#120c07", "#62584a"],
 };
 
 function dragonsreachHit(shape, x, y) {
@@ -1307,7 +1311,8 @@ function addDragonsreach(knollX, skyline, height, cellWidth, lineHeight, out, { 
   const scale = (height * size) / 770;
   const cw = cellWidth * zoom;
   const lh = lineHeight * zoom;
-  const base = skyline(knollX) + lineHeight;
+  // Set into the hill a little, so the woods hide the foot of its wall.
+  const base = skyline(knollX) + lineHeight + 45 * scale;
   const toRef = (x, y) => [(x - knollX) / scale + 766, (y - base) / scale + 790];
   const toScreen = (X, Y) => [knollX + (X - 766) * scale, base + (Y - 790) * scale];
   const [cwR, lhR] = [cw / scale, lh / scale];
@@ -1372,7 +1377,7 @@ function addDragonsreach(knollX, skyline, height, cellWidth, lineHeight, out, { 
         case "stake":
           if (Y < s.top + 24) {
             glyph = Y < s.top + 10 ? "^" : "I";
-            color = "#a08460";
+            color = "#7a6244";
           } else {
             glyph = "I";
             t = 0.45 + (n - 0.5) * 0.3;
@@ -1421,7 +1426,7 @@ function addDragonsreach(knollX, skyline, height, cellWidth, lineHeight, out, { 
         if (!dragonsreachHit(s, X - cwR, Y - lhR)) t += 0.2;
         else if (!dragonsreachHit(s, X + cwR, Y + lhR)) t -= 0.25;
       }
-      const cell = { x, y, column: c, row: r, glyph, color: mixHex(color ?? mixHex(dark, lit, clamp(t, 0, 0.9)), "#000000", 0.3), zoom, ink: 1.12, bold: true, solo: true };
+      const cell = { x, y, column: c, row: r, glyph, color: color ?? mixHex(dark, lit, clamp(t, 0, 0.85)), zoom, ink: 1.12, bold: true, solo: true };
       out.cells.push(cell);
       // After dark a few windows glow.
       if (s.mat === "win" && hash2(c, Math.floor(r / 3), 4433) < 0.35) out.lights.push({ ...cell, glyph: "|", color: "#e2b85e", flicker: true });
