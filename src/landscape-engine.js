@@ -1236,6 +1236,29 @@ function addRuinedTower(knollX, skyline, height, cellWidth, lineHeight, out, { s
     put(first + i, topRow - 1, "=", i < 0 ? LIT[2] : LIT[3]);
     if (i % 2 === 0 || i < 0) put(first + i, topRow - 2, i < 0 ? "n" : "#", LIT[1]);
   }
+  // A stretch of the curtain wall running off to the left down the hill: crenellated by the
+  // tower, lower and ragged further on, broken through in one place, ending in a stump.
+  const wallLength = Math.round(front * 1.3);
+  const wallRows = Math.round(rows * 0.32);
+  for (let j = 1; j <= wallLength; j += 1) {
+    const c = first - j;
+    const x = (c + 0.5) * cw;
+    const footRow = Math.floor((skyline(x) + lineHeight * 1.2) / lh);
+    const f = j / wallLength;
+    const breach = Math.abs(f - 0.55) < 0.07;
+    const worn = f > 0.35 ? (f - 0.35) * wallRows * 0.9 + (hash2(Math.floor(j / 2), 7, 4455) - 0.5) * 3 : 0;
+    const height = Math.round(wallRows - worn - (breach ? wallRows * 0.6 : 0));
+    const crenel = f < 0.35 && j % 2 === 0;
+    const wallTop = footRow - height;
+    for (let r = wallTop - (crenel ? 1 : 0); r <= footRow; r += 1) {
+      const n = hash2(c, r, 4457);
+      const fromTop = r - wallTop;
+      if (crenel && r < wallTop) put(c, r, "n", LIT[1]);
+      else if (fromTop === 0 && f >= 0.35) put(c, r, "^/\\%"[Math.floor(n * 4)], LIT[3]);
+      else if (footRow - r < 2 && n > 0.5) put(c, r, ",%"[Math.floor(n * 2)], n > 0.75 ? "#4e6e3c" : "#3a5630");
+      else put(c, r, (c + (r % 2) * 2) % 4 === 0 ? "|" : "#%&8H"[Math.floor(n * 5)], LIT[Math.min(3, Math.floor(n * 3) + (fromTop === 0 ? 0 : 1))]);
+    }
+  }
   // Fallen stones heaped by the broken side.
   for (let i = front - 2; i < front + side + 4; i += 1) {
     const heap = Math.round(3 * Math.max(0, 1 - Math.abs(i - (front + side * 0.8)) / (side + 3)) + hash2(i, 5, 4451));
