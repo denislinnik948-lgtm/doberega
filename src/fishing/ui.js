@@ -2383,7 +2383,9 @@ export class AnglerUI {
       if (request !== this.tourneyRequest || !shown()) return;
       if (result.error) return say(t("trophies.othersError"));
       const me = cloud.user?.id;
-      const row = (place, player, weight, isMe, rank, avatar, userId) => element("li", { className: `tourney-row${isMe ? " is-me" : ""}${place <= 3 ? ` is-top is-top-${place}` : ""}` }, [
+      // When the result was set (the fish landed, or in a marathon the last that counted), in this device's time.
+      const when = (at) => (at ? new Date(at).toLocaleString(locale(), { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "");
+      const row = (place, player, weight, isMe, rank, avatar, userId, caughtAt) => element("li", { className: `tourney-row${isMe ? " is-me" : ""}${place <= 3 ? ` is-top is-top-${place}` : ""}` }, [
         element("span", { className: "tourney-place", textContent: String(place) }),
         element("span", { className: "tourney-avatar" }, [avatarSprite(avatar ?? 0, 2)]),
         element("span", { className: "tourney-player" }, [
@@ -2391,7 +2393,10 @@ export class AnglerUI {
           this.championBadge(champions, userId),
           Number.isFinite(rank) ? element("small", { textContent: ` · ${this.rankName(rank)}` }) : "",
         ]),
-        element("span", { className: "tourney-weight", textContent: formatWeight(weight) }),
+        element("span", { className: "tourney-result" }, [
+          element("span", { className: "tourney-weight", textContent: formatWeight(weight) }),
+          caughtAt ? element("small", { className: "tourney-when", textContent: when(caughtAt) }) : "",
+        ]),
       ]);
       // Ties share a place.
       let place = 0;
@@ -2399,10 +2404,10 @@ export class AnglerUI {
       const rows = result.rows.map((entry, index) => {
         if (entry.weight !== last) place = index + 1;
         last = entry.weight;
-        return row(place, entry.player, entry.weight, entry.user_id === me, entry.angler_rank, entry.avatar, entry.user_id);
+        return row(place, entry.player, entry.weight, entry.user_id === me, entry.angler_rank, entry.avatar, entry.user_id, entry.caught_at);
       });
       if (mine?.place && !result.rows.some((entry) => entry.user_id === me)) {
-        rows.push(element("li", { className: "tourney-gap", textContent: "…" }), row(mine.place, cloud.user.user_metadata?.nickname, mine.weight, true, this.progress.rank ?? 0, this.progress.avatar, me));
+        rows.push(element("li", { className: "tourney-gap", textContent: "…" }), row(mine.place, cloud.user.user_metadata?.nickname, mine.weight, true, this.progress.rank ?? 0, this.progress.avatar, me, mine.caughtAt));
       }
       board.replaceChildren(...rows);
       const note = !rows.length ? t("tourney.empty") : !cloud.user ? t("tourney.signIn") : !mine?.place ? t("tourney.notYet") : "";

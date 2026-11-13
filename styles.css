@@ -1115,7 +1115,9 @@ html.keyboard-open .sheet[open] > .account-body {
 .tourney-avatar canvas { display: block; }
 .tourney-place { color: var(--soft); text-align: right; font-variant-numeric: tabular-nums; }
 .tourney-player { overflow: hidden; min-width: 0; white-space: nowrap; text-overflow: ellipsis; }
+.tourney-result { display: grid; justify-items: end; gap: 2px; }
 .tourney-weight { color: var(--gold); font-variant-numeric: tabular-nums; }
+.tourney-when { color: var(--soft); font-size: 14px; font-variant-numeric: tabular-nums; }
 .tourney-row.is-top-1 .tourney-place { color: var(--gold); }
 .tourney-row.is-top-2 .tourney-place { color: var(--bone); }
 .tourney-row.is-top-3 .tourney-place { color: var(--ember); }

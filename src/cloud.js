@@ -283,12 +283,12 @@ export class Cloud {
   /** This angler's result for a week and their place (ties share it); place is null without a result. */
   async tournamentPlace(week, species) {
     if (!this.user) return null;
-    const mine = await this.client.from("tournament").select("weight").eq("week", week).eq("species", species).eq("user_id", this.user.id).maybeSingle();
+    const mine = await this.client.from("tournament").select("weight, caught_at").eq("week", week).eq("species", species).eq("user_id", this.user.id).maybeSingle();
     if (mine.error) throw mine.error;
     if (!mine.data) return { weight: 0, place: null };
     const ahead = await this.client.from("tournament").select("user_id", { count: "exact", head: true }).eq("week", week).eq("species", species).gt("weight", mine.data.weight);
     if (ahead.error) throw ahead.error;
-    return { weight: mine.data.weight, place: ahead.count + 1 };
+    return { weight: mine.data.weight, caughtAt: mine.data.caught_at, place: ahead.count + 1 };
   }
 
   /** The savedAt of the last save this device and the cloud both had, for this account. */
