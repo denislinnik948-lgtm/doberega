@@ -1002,23 +1002,56 @@ function resize(force = false) {
 }
 
 /*
- * Frame pacing. At the water the scene keeps one steady 60 frames a second:
- * dropping to fewer while you wait and back up for a cast or a fight was
- * plain to see as the motion changed its smoothness. Under the menu or a
- * window the scene barely shows (12 frames, and under the menu or a page
- * nothing is drawn at all, see sceneCovered), and in a window you aren't
- * looking at, 20.
+ * Frame pacing. At the water the scene keeps one steady rate: it used to drop
+ * while you waited and come back up for a cast or a fight, and the change of
+ * smoothness was plain to see. The rate is the one closest to 45 that the
+ * screen's own refresh divides evenly, so every frame stays on screen just as
+ * long as the next: every frame of a 60 Hz screen, every third of a 120 Hz
+ * one (40), every second of 90 Hz (45) or 144 Hz (72 is further, so every
+ * third, 48). A rate the screen doesn't divide (40 on 60 Hz) would judder.
+ * Under the menu or a window the scene barely shows (12 frames, and under the
+ * menu or a page nothing is drawn at all, see sceneCovered), and in a window
+ * you aren't looking at, 20.
  */
+const TARGET_FPS = 45;
 let lastDrawn = -Infinity;
+let lastTick = null;
+let tick = 0;
+// The screen's refresh interval, from the gaps between animation frames (the median of the last few).
+const gaps = [];
+let refreshMs = 1000 / 60;
+function measureRefresh(now) {
+  if (lastTick !== null) {
+    const gap = now - lastTick;
+    // A long gap is a hidden tab or a stall, not the screen.
+    if (gap > 4 && gap < 50) {
+      gaps.push(gap);
+      if (gaps.length > 60) gaps.shift();
+      if (gaps.length >= 20) refreshMs = [...gaps].sort((a, b) => a - b)[gaps.length >> 1];
+    }
+  }
+  lastTick = now;
+}
+/** Draw every how many screen frames at the water: the even step whose rate is closest to TARGET_FPS (the smoother one on a tie). */
+function waterStep() {
+  const hz = 1000 / refreshMs;
+  let best = 1;
+  for (let n = 2; n <= 4; n += 1) if (Math.abs(hz / n - TARGET_FPS) < Math.abs(hz / best - TARGET_FPS) - 0.5) best = n;
+  return best;
+}
 function frameRate() {
   if (mode === "menu" || document.querySelector("dialog[open]")) return 12;
   if (!document.hasFocus()) return 20;
-  return 60;
+  return null;
 }
 function draw(now) {
   animationFrame = requestAnimationFrame(draw);
-  // A little slack, so a 60 Hz screen never skips a frame it should draw.
-  if (now - lastDrawn < 1000 / frameRate() - 3) return;
+  measureRefresh(now);
+  tick += 1;
+  const rate = frameRate();
+  if (rate === null) {
+    if (tick % waterStep() !== 0) return;
+  } else if (now - lastDrawn < 1000 / rate - 3) return;
   lastDrawn = now;
   renderNow(now);
 }
