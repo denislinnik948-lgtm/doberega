@@ -771,6 +771,15 @@ export class CanvasWaterRenderer {
       }
     });
 
+    // A structure that asks for it (the ruined tower) stands on one plain dark ground of its own shape.
+    for (const cell of soloCells) {
+      if (!cell.ground) continue;
+      const w = this.cellWidth * (cell.scale ?? 1);
+      const h = this.lineHeight * (cell.scale ?? 1);
+      ctx.fillStyle = cell.ground;
+      ctx.fillRect(cell.x - w / 2, cell.y - h / 2, w + 0.5, h + 0.5);
+    }
+
     // Anything standing back in the woods (the fire tower) goes under the forest.
     ctx.font = this.font;
     ctx.depthSize = null;
