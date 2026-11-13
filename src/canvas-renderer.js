@@ -3427,9 +3427,9 @@ export class CanvasWaterRenderer {
    * larger than the ruined tower's and outlined dark, its wingspan about a quarter of the view; mirrored
    * glyph by glyph when it flies left.
    */
-  drawDragon(ctx, { x, y, dir, phase }) {
+  drawDragon(ctx, { x, y, dir, phase, sway }) {
     const scale = (this.frame.width * 0.26) / 450;
-    const cells = dragonCells(phase, scale, this.cellWidth * 0.55, this.lineHeight * 0.55);
+    const cells = dragonCells(phase, sway, scale, this.cellWidth * 0.55, this.lineHeight * 0.55);
     const left = this.frame.left + x * this.frame.width;
     const top = y * this.height;
     const flip = (glyph) => (dir > 0 ? glyph : glyph === "/" ? "\\" : glyph === "\\" ? "/" : glyph);

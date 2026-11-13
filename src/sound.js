@@ -973,19 +973,21 @@ export function nightSound(kind) {
 
 /**
  * The dragon flying over the last water (`dir` 1 left to right, -1 back):
- * slow heavy wingbeats passing across, far off and muffled, and one long low
- * roar as it passes the middle.
+ * slow heavy wingbeats passing across, far off and muffled, one on each
+ * downstroke, in its rhythm (two beats, then a silent glide).
  */
-export function dragonSound(dir = 1) {
+export function dragonSound(dir = 1, { cycle, flap, beats }, length) {
   play("dragon", () => {
-    for (let i = 0; i < 16; i += 1) {
-      const delay = i * 0.58 + rand(0, 0.05);
-      const pan = Math.max(-0.85, Math.min(0.85, dir * (-0.9 + (delay / 9.5) * 1.8)));
-      const near = Math.sin(Math.PI * Math.min(1, delay / 9.5));
-      wash({ buffer: brown, type: "lowpass", from: 420, to: 140, attack: 0.08, length: 0.42, volume: 0.05 + 0.1 * near, delay, pan });
+    for (let start = 0; start < length; start += cycle) {
+      for (let i = 0; i < beats; i += 1) {
+        // Each downstroke: the first half of every beat.
+        const delay = start + ((i + 0.25) * flap) / beats;
+        if (delay > length) break;
+        const pan = Math.max(-0.85, Math.min(0.85, dir * (-0.9 + (delay / length) * 1.8)));
+        const near = Math.sin(Math.PI * Math.min(1, delay / length));
+        wash({ buffer: brown, type: "lowpass", from: 420, to: 140, attack: 0.08, length: 0.45, volume: 0.06 + 0.12 * near, delay, pan });
+      }
     }
-    voice({ delay: 3.6, contour: [70, 95, 120, 112, 96, 78, 58], length: 2.6, level: 0.09, formants: [[260, 2], [620, 3], [1300, 6]], pan: dir * 0.15, muffle: 0.75 });
-    voice({ delay: 3.7, contour: [52, 64, 74, 70, 60, 48, 40], length: 2.5, level: 0.06, formants: [[180, 2], [420, 3]], pan: dir * 0.15, muffle: 0.85 });
   });
 }
 

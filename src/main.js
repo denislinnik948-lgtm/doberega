@@ -12,7 +12,7 @@ import { baitCount, loadProgress, onProgressSaved, replaceProgress, saveProgress
 import { Cloud } from "./cloud.js";
 import { currentSeason, isWinter, onSeasonChange } from "./theme.js";
 import { NightEvents } from "./night-events.js";
-import { DragonSky } from "./dragon.js";
+import { DRAGON, DragonSky, RHYTHM } from "./dragon.js";
 import { track } from "./analytics.js";
 import { ambienceTick, dragonSound, jumpSound, musicTick, nightSound, sounds, thunderClap } from "./sound.js";
 import { AnglerUI } from "./fishing/ui.js";
@@ -70,13 +70,13 @@ const critters = new Critters({
     }
   },
 });
-// The last water's dragon: very rarely it flies over the ruined tower, roaring once; seeing it is a secret achievement.
-// `?dragon` brings it a few seconds after reaching the water, for testing.
+// The last water's dragon: very rarely it flies over the ruined tower, its wingbeats heard; seeing it is a secret achievement.
+// `?dragon` brings it a few seconds after reaching the water and every 40 s after, at any hour, for testing.
 const atDragonWater = () => mode === "fishing" && LOCATIONS[progress.location].kind === "mountain";
 const dragonSky = new DragonSky({
-  soon: params.has("dragon"),
+  test: params.has("dragon"),
   onEvent: (type, flight) => {
-    dragonSound(flight.dir);
+    dragonSound(flight.dir, RHYTHM, DRAGON.flight);
     bump(progress, "sawDragon");
     ui.commit();
   },

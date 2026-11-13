@@ -12,6 +12,9 @@
 /** About once in four and a half hours at the water, never twice within half an hour. */
 export const DRAGON = { perHour: 1 / 4.5, cooldown: 1800, flight: 10, from: 6, to: 21 };
 
+/** Its flight: two wingbeats in `flap` seconds, then a glide, every `cycle` seconds. */
+export const RHYTHM = { cycle: 3.6, flap: 2.4, beats: 2 };
+
 const hash = (a, b, seed) => {
   const h = Math.sin(a * 127.1 + b * 311.7 + seed * 74.7) * 43758.5453;
   return h - Math.floor(h);
@@ -61,8 +64,15 @@ const PALETTE = {
   horn: ["#3a3226", "#c8bca0"],
 };
 
-/** The dragon's shapes at one point of its wingbeat (`phase` in radians), facing right, in units about its body. */
-function dragonShapes(phase) {
+/** How far the head nods at a point of the sway (`sway` in radians), in body units. */
+const headNod = (sway) => 4 * Math.sin(sway + 0.5);
+
+/**
+ * The dragon's shapes at one point of its wingbeat (`phase` in radians) and of
+ * the slower sway that runs a wave down its tail and nods its head (`sway`),
+ * facing right, in units about its body.
+ */
+function dragonShapes(phase, sway) {
   const up = Math.cos(phase);
   const shapes = [];
   const tube = (line, w0, w1, mat) => shapes.push({ kind: "tube", line, w0, w1, mat });
@@ -93,18 +103,23 @@ function dragonShapes(phase) {
     shapes.push({ kind: "claw", at: wrist, mat: "horn" });
   };
   wing(true);
-  const tail = bezier([-48, 4], [-110, 34], [-160, -24], [-238, 6]);
+  // The tail swings in a wave running back along it.
+  const tip = 10 * Math.sin(sway - 2.2);
+  const tail = bezier([-48, 4], [-110, 34 + 7 * Math.sin(sway - 0.6)], [-160, -24 + 9 * Math.sin(sway - 1.4)], [-238, 6 + tip]);
   tube(tail, 17, 5, "scale");
-  poly([[-232, 6], [-256, -8], [-248, 8], [-258, 22]], "horn");
+  poly([[-232, 6 + tip], [-256, -8 + tip * 1.2], [-248, 8 + tip], [-258, 22 + tip * 1.2]], "horn");
   poly([[-56, -6], [-30, -22], [20, -24], [56, -14], [64, 2], [40, 18], [-10, 20], [-50, 12]], "scale");
   poly([[-46, 10], [-10, 18], [40, 16], [60, 4], [50, 12], [0, 24], [-40, 18]], "belly");
   tube([[40, 10], [46, 24], [42, 32]], 7, 4, "scale");
   tube([[-30, 14], [-36, 26], [-30, 34]], 7, 4, "scale");
-  const neck = bezier([50, -10], [80, -20], [96, -46], [124, -52]);
+  // The head nods a little, the neck bending with it.
+  const nod = headNod(sway);
+  const neck = bezier([50, -10], [80, -20], [96, -46 + nod * 0.5], [124, -52 + nod]);
+  const head = (points) => points.map(([x, y]) => [x, y + nod]);
   tube(neck, 16, 10, "scale");
-  poly([[114, -62], [134, -64], [152, -58], [172, -54], [168, -46], [150, -45], [162, -40], [146, -37], [126, -40], [112, -48]], "scale");
-  poly([[120, -60], [104, -72], [92, -74], [100, -68], [116, -56]], "horn");
-  poly([[128, -62], [118, -78], [110, -82], [114, -74], [124, -58]], "horn");
+  poly(head([[114, -62], [134, -64], [152, -58], [172, -54], [168, -46], [150, -45], [162, -40], [146, -37], [126, -40], [112, -48]]), "scale");
+  poly(head([[120, -60], [104, -72], [92, -74], [100, -68], [116, -56]]), "horn");
+  poly(head([[128, -62], [118, -78], [110, -82], [114, -74], [124, -58]]), "horn");
   const spine = [...bezier([-40, -14], [-10, -24], [30, -24], [52, -16], 6), ...neck.slice(2, 12)];
   spine.forEach(([x, y], i) => {
     const h = i < 7 ? 7 : 6;
@@ -129,7 +144,8 @@ function hit(shape, x, y) {
   return Math.hypot(x - shape.at[0], y - shape.at[1]) < 4;
 }
 
-const FRAMES = 24;
+const FRAMES = 32;
+const SWAYS = 12;
 const cache = new Map();
 
 /**
@@ -137,12 +153,15 @@ const cache = new Map();
  * `lineHeight` pixels, the body `scale` pixels to a unit: a list of
  * { dx, dy, glyph, color } from the dragon's centre, facing right.
  */
-export function dragonCells(phase, scale, cellWidth, lineHeight) {
-  const frame = ((Math.round((phase / (Math.PI * 2)) * FRAMES) % FRAMES) + FRAMES) % FRAMES;
-  const key = `${frame}:${scale.toFixed(3)}:${cellWidth.toFixed(2)}:${lineHeight.toFixed(2)}`;
+export function dragonCells(phase, sway, scale, cellWidth, lineHeight) {
+  const step = (angle, count) => ((Math.round((angle / (Math.PI * 2)) * count) % count) + count) % count;
+  const frame = step(phase, FRAMES);
+  const swayFrame = step(sway, SWAYS);
+  const key = `${frame}:${swayFrame}:${scale.toFixed(3)}:${cellWidth.toFixed(2)}:${lineHeight.toFixed(2)}`;
   if (cache.has(key)) return cache.get(key);
-  if (cache.size > FRAMES * 2) cache.clear();
-  const shapes = dragonShapes((frame / FRAMES) * Math.PI * 2);
+  if (cache.size > FRAMES * SWAYS * 2) cache.clear();
+  const swayAngle = (swayFrame / SWAYS) * Math.PI * 2;
+  const shapes = dragonShapes((frame / FRAMES) * Math.PI * 2, swayAngle);
   const cells = [];
   for (let row = Math.floor((-150 * scale) / lineHeight); row * lineHeight < 90 * scale; row += 1) {
     for (let column = Math.floor((-265 * scale) / cellWidth); column * cellWidth < 195 * scale; column += 1) {
@@ -188,33 +207,34 @@ export function dragonCells(phase, scale, cellWidth, lineHeight) {
     }
   }
   // The eye, an ember.
-  cells.push({ dx: 148 * scale, dy: -50 * scale, glyph: "*", color: "#e8603a" });
+  cells.push({ dx: 148 * scale, dy: (-50 + headNod(swayAngle)) * scale, glyph: "*", color: "#e8603a" });
   cache.set(key, cells);
   return cells;
 }
 
 /** When the dragon comes and where it is on its way across. */
 export class DragonSky {
-  constructor({ random = Math.random, onEvent = () => {}, soon = false } = {}) {
+  constructor({ random = Math.random, onEvent = () => {}, test = false } = {}) {
     this.random = random;
     this.onEvent = onEvent;
     this.flight = null;
-    // With `?dragon` it comes a few seconds after reaching the water, for testing.
-    this.cooldown = soon ? -1 : 0;
-    this.soon = soon;
+    this.cooldown = 0;
+    // With `?dragon` it comes a few seconds after reaching the water and every 40 s after, at any hour, for testing.
+    this.test = test;
+    this.arrived = null;
   }
 
   /** Advance by `dt` seconds; `here` while fishing at the last water, `hour` 0..24. */
   update(dt, time, { here, hour }) {
     this.cooldown = Math.max(0, this.cooldown - dt);
     if (this.flight && time - this.flight.start > this.flight.life) this.flight = null;
+    if (!here) this.arrived = null;
     if (this.flight || !here || this.cooldown > 0) return;
-    if (hour < DRAGON.from || hour >= DRAGON.to) return;
-    const due = this.soon ? (this.soonAt ??= time + 4) <= time : this.random() < (dt * DRAGON.perHour) / 3600;
+    this.arrived ??= time;
+    const due = this.test ? time - this.arrived > 4 : hour >= DRAGON.from && hour < DRAGON.to && this.random() < (dt * DRAGON.perHour) / 3600;
     if (!due) return;
-    this.soon = false;
     this.flight = { start: time, life: DRAGON.flight, dir: this.random() < 0.5 ? 1 : -1, height: 0.17 + this.random() * 0.04 };
-    this.cooldown = DRAGON.cooldown;
+    this.cooldown = this.test ? 40 : DRAGON.cooldown;
     this.onEvent("dragon", this.flight);
   }
 
@@ -222,14 +242,31 @@ export class DragonSky {
   visible(time) {
     const flight = this.flight;
     if (!flight) return null;
-    const progress = (time - flight.start) / flight.life;
+    const age = time - flight.start;
+    const progress = age / flight.life;
     const across = -0.2 + progress * 1.4;
+    // Two beats, then a glide on spread wings; it climbs a little as it beats and sinks as it glides,
+    // its body heaving up on each downstroke.
+    const beat = age % RHYTHM.cycle;
+    let phase;
+    let climb;
+    if (beat < RHYTHM.flap) {
+      const k = beat / RHYTHM.flap;
+      phase = k * RHYTHM.beats * Math.PI * 2;
+      climb = k - 0.35 * Math.sin(phase);
+    } else {
+      const k = (beat - RHYTHM.flap) / (RHYTHM.cycle - RHYTHM.flap);
+      phase = (Math.PI / 2) * Math.sin(Math.PI * k);
+      climb = 1 - k;
+    }
     return {
       x: flight.dir > 0 ? across : 1 - across,
       // A long shallow swoop, lowest about the middle of the view, over the tower.
-      y: flight.height + Math.sin(progress * Math.PI) * 0.04 + Math.sin(time * 1.3) * 0.006,
+      y: flight.height + Math.sin(progress * Math.PI) * 0.04 - climb * 0.014,
       dir: flight.dir,
-      phase: time * 5,
+      phase,
+      // A slower sway runs down its tail and nods its head.
+      sway: age * 1.7,
     };
   }
 
