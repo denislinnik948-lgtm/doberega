@@ -104,6 +104,9 @@ export const ACHIEVEMENTS = [
   { id: "mutant", group: "special", reward: 500, secret: true, ...flag((p) => hasTrophy(p, "dvoholovyi")) },
   { id: "sawMavka", group: "special", reward: 200, secret: true, ...flag((p) => stat(p, "sawMavka") >= 1) },
   { id: "sawBoatman", group: "special", reward: 200, secret: true, ...flag((p) => stat(p, "sawBoat") >= 1) },
+  // The last water's dragon, seen once, and seen again and again (it comes about once in four and a half hours there).
+  { id: "sawDragon", group: "special", reward: 500, secret: true, preview: "mountain", ...flag((p) => stat(p, "sawDragon") >= 1) },
+  { id: "dragonAgain", group: "special", reward: 1000, secret: true, preview: "mountain", ...counted(5, (p) => stat(p, "sawDragon")) },
 ];
 
 export const GROUPS = ["start", "collector", "weight", "skill", "time", "count", "special"];

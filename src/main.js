@@ -12,8 +12,9 @@ import { baitCount, loadProgress, onProgressSaved, replaceProgress, saveProgress
 import { Cloud } from "./cloud.js";
 import { currentSeason, isWinter, onSeasonChange } from "./theme.js";
 import { NightEvents } from "./night-events.js";
+import { DragonSky } from "./dragon.js";
 import { track } from "./analytics.js";
-import { ambienceTick, jumpSound, musicTick, nightSound, sounds, thunderClap } from "./sound.js";
+import { ambienceTick, dragonSound, jumpSound, musicTick, nightSound, sounds, thunderClap } from "./sound.js";
 import { AnglerUI } from "./fishing/ui.js";
 import { breakStreak, bump, recordCatch } from "./fishing/achievements.js";
 import { XP, fishXp, gainXp, rankPending } from "./fishing/ranks.js";
@@ -67,6 +68,17 @@ const critters = new Critters({
       addRipple({ ...renderer.screenToPlane(data.x, data.y), time: lastElapsed, strength: type === "beaverSlap" ? 0.7 : 0.35, size: type === "beaverSlap" ? 0.6 : 0.25, ambient: true });
       sounds[type](Math.max(-0.7, Math.min(0.7, pan)));
     }
+  },
+});
+// The last water's dragon: very rarely it flies over the ruined tower, roaring once; seeing it is a secret achievement.
+// `?dragon` brings it a few seconds after reaching the water, for testing.
+const atDragonWater = () => mode === "fishing" && LOCATIONS[progress.location].kind === "mountain";
+const dragonSky = new DragonSky({
+  soon: params.has("dragon"),
+  onEvent: (type, flight) => {
+    dragonSound(flight.dir);
+    bump(progress, "sawDragon");
+    ui.commit();
   },
 });
 // Mystic nights: lights over the water, an apparition by the far shore, eyes by the bank.
@@ -594,7 +606,7 @@ function tryCast(x, y) {
 }
 
 // `?debug` exposes the game for manual testing from the console.
-if (params.has("debug")) window.doberega = { game, progress, ui, cloud, nightEvents, renderNow, renderer, config, ripples, weather, ducks, critters, school: () => school, isOnWater, castReach };
+if (params.has("debug")) window.doberega = { game, progress, ui, cloud, nightEvents, dragonSky, renderNow, renderer, config, ripples, weather, ducks, critters, school: () => school, isOnWater, castReach };
 
 const pullable = () => ["waiting", "retrieving", "nibble", "bite", "fight"].includes(game.phase);
 
@@ -854,6 +866,7 @@ function renderNow(now = performance.now()) {
   ui.setGroundbait(mode === "fishing" ? groundbaitLeft(LOCATIONS[progress.location].id) : 0, progress.baitedKind?.[LOCATIONS[progress.location].id] ?? null);
   ui.setWeather(weather.intensity, wind.strength);
   nightEvents.update(step, elapsed, dayTime);
+  dragonSky.update(step, elapsed, { here: atDragonWater(), hour: dayTime * 24 });
   playLoops(step, dayTime);
   const winter = isWinter();
   floatLife(step, elapsed);
@@ -872,6 +885,7 @@ function renderNow(now = performance.now()) {
     ducks: ducks.all,
     critters,
     night: nightEvents.visible(elapsed),
+    dragon: atDragonWater() ? dragonSky.visible(elapsed) : null,
   });
 }
 

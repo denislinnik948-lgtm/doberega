@@ -11,6 +11,7 @@ import { createAmbient, fillAmbient } from "./ambient-engine.js";
 import { currentSeason, GRADE_MATRIX, gradeHex, gradeInt, gradeSky, isAutumn, isSpring, isWinter, seasonDeep, seasonWater, snowHex, snowImageData } from "./theme.js";
 import { createGrass, fillGrass } from "./grass-engine.js";
 import { ROD_LOOKS, rodGlyph } from "./fishing/sprites.js";
+import { dragonCells } from "./dragon.js";
 
 // A little sparser than solid: dark water shows between the strokes.
 const WATER_RAMP = "     ..,:;~-=+*#%@W";
@@ -2887,6 +2888,7 @@ export class CanvasWaterRenderer {
     this.drawDucks(ctx, time, this.ducks);
     if (this.floes?.length) this.drawFloes(ctx);
     if (this.critters) this.drawCritters(ctx, time, this.critters);
+    if (this.dragon) this.drawDragon(ctx, this.dragon);
     if (this.road) this.drawTrain(ctx, time, dt);
     if (this.castle) this.drawBats(ctx, time);
     if (angler && !angler.hidden) this.renderAngler(ctx, angler, "line");
@@ -3421,6 +3423,33 @@ export class CanvasWaterRenderer {
   }
 
   /**
+   * The dragon of the last water flying over (see dragon.js), in glyphs a little
+   * larger than the ruined tower's and outlined dark, its wingspan about a quarter of the view; mirrored
+   * glyph by glyph when it flies left.
+   */
+  drawDragon(ctx, { x, y, dir, phase }) {
+    const scale = (this.frame.width * 0.26) / 450;
+    const cells = dragonCells(phase, scale, this.cellWidth * 0.55, this.lineHeight * 0.55);
+    const left = this.frame.left + x * this.frame.width;
+    const top = y * this.height;
+    const flip = (glyph) => (dir > 0 ? glyph : glyph === "/" ? "\\" : glyph === "\\" ? "/" : glyph);
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.lineJoin = "round";
+    ctx.font = `bold ${Math.round(this.charSize * 0.62 * 4) / 4}px ${MONO_FONT}`;
+    // A dark outline round every glyph first, so the whole reads as one shape against the sky.
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "#14110d";
+    for (const cell of cells) ctx.strokeText(flip(cell.glyph), left + cell.dx * dir, top + cell.dy);
+    for (const cell of cells) {
+      ctx.fillStyle = cell.color;
+      ctx.fillText(flip(cell.glyph), left + cell.dx * dir, top + cell.dy);
+    }
+    ctx.restore();
+  }
+
+  /**
    * The heron, the beaver and the dragonflies (see Critters in wildlife.js),
    * drawn in glyphs like the ducks, each with a dark outline so it reads on the water.
    */
@@ -3683,6 +3712,7 @@ export class CanvasWaterRenderer {
     this.fillBolt(env.bolt);
     this.ducks = env.ducks ?? [];
     this.critters = env.critters ?? null;
+    this.dragon = env.dragon ?? null;
     this.hour = (dayTime * 24) % 24;
     this.starsLevel = sky.stars;
     setCloudiness(this.rain);
