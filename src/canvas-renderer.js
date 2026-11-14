@@ -2790,30 +2790,27 @@ export class CanvasWaterRenderer {
         ctx.font = `600 ${floatSize}px ${MONO_FONT}`;
         const sink = angler.float.sink;
         const below = floatSize * 0.45 * sink;
-        // The float's skin (FLOAT_SKINS in data.js), its glyphs stacked from the tip down to the
-        // body at the waterline; as it sinks the body goes under first, the tip last.
-        const rows = angler.floatRows ?? [["|", "#e8573a"], ["o", "#f1e9d8"]];
-        const rise = (index) => rows.length - 1 - index;
-        const shown = (index) => sink < 0.25 + (rows.length > 1 ? (0.3 * rise(index)) / (rows.length - 1) : 0);
         // A plain float all but vanishes in the dark.
         ctx.globalAlpha = clamp(1 - (this.shade ?? 0) * 1.45, 0.12, 1);
-        rows.forEach(([glyph, color], index) => {
-          if (!shown(index)) return;
-          ctx.fillStyle = color;
-          ctx.fillText(glyph, end.x, end.y - rise(index) * floatSize * 0.55 + below);
-        });
+        if (sink < 0.55) {
+          ctx.fillStyle = "#e8573a";
+          ctx.fillText("|", end.x, end.y - floatSize * 0.55 + below);
+        }
+        if (sink < 0.25) {
+          ctx.fillStyle = "#f1e9d8";
+          ctx.fillText("o", end.x, end.y + below);
+        }
         ctx.globalAlpha = 1;
         // A glowing float shines through the dark: off by day, fading in at dusk, full at night.
         // Drawn here with the plain one, so the rod, the reeds and the bank still pass in front of it.
         const glow = clamp(((this.shade ?? 0) - 0.2) / 0.25, 0, 1);
-        if (angler.glowFloat && shown(0) && glow > 0.02) {
+        if (angler.glowFloat && sink < 0.55 && glow > 0.02) {
           const pulse = 0.75 + 0.25 * Math.sin(angler.time * 3);
           ctx.save();
           ctx.shadowColor = `rgba(170, 255, 140, ${(0.9 * glow).toFixed(3)})`;
           ctx.shadowBlur = (10 + 6 * pulse) * glow;
           ctx.fillStyle = `rgba(214, 255, 160, ${((0.85 + 0.15 * pulse) * glow).toFixed(3)})`;
-          // The tip glows the same on every skin: a bright stick of light at the top, whatever glyph the skin has there.
-          ctx.fillText("|", end.x, end.y - rise(0) * floatSize * 0.55 + below);
+          ctx.fillText("|", end.x, end.y - floatSize * 0.55 + below);
           ctx.restore();
         }
       }

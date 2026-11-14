@@ -1,7 +1,7 @@
 import { ACHIEVEMENTS } from "./achievements.js";
 import { RANKS, pastXp } from "./ranks.js";
 import { ensureOpenSpot, giveGroundbaits } from "./waters.js";
-import { AVATAR_COUNT, BAITS, SPECIAL_AVATAR, EXTRAS, FISH, FLOAT_SKINS, GROUNDBAITS, HOOKS, LOCATIONS, OLD_GROUNDBAITS, RETIRED_BAITS, RODS, START_STATE, gameHoursMs } from "./data.js";
+import { AVATAR_COUNT, BAITS, SPECIAL_AVATAR, EXTRAS, FISH, GROUNDBAITS, HOOKS, LOCATIONS, OLD_GROUNDBAITS, RETIRED_BAITS, RETIRED_FLOATS, RODS, START_STATE, gameHoursMs } from "./data.js";
 
 // The storage key keeps the game's old working name so existing saves carry over.
 const KEY = "stillwater.fishing.v2";
@@ -109,9 +109,9 @@ export function normalizeProgress(saved) {
       if (tourney.previous && Number.isFinite(tourney.previous.week)) state.tourney.previous = { week: tourney.previous.week, count: Math.max(0, Math.floor(Number(tourney.previous.count) || 0)) };
     }
     if (saved.cupsBackfilled === true) state.cupsBackfilled = true;
-    // Float skins: the classic one always, the bought ones, and the one on the line.
-    if (Array.isArray(saved.floats)) state.floats = ["classic", ...saved.floats.filter((id) => FLOAT_SKINS[id] && id !== "classic")];
-    if (state.floats.includes(saved.float)) state.float = saved.float;
+    // The float skins were taken out of the game: each one bought is paid back at its price,
+    // once (the save keeps no list of them after this).
+    if (Array.isArray(saved.floats)) for (const id of new Set(saved.floats)) state.money += RETIRED_FLOATS[id] ?? 0;
     // Tournament cups (see settleTourney).
     if (Array.isArray(saved.cups)) {
       state.cups = saved.cups.filter((cup) => cup && Number.isFinite(cup.week) && FISH[cup.species] && [1, 2, 3].includes(cup.place))
@@ -168,17 +168,14 @@ export function mergePurchases(kept, other) {
   const rods = (other.rods ?? []).filter((id) => RODS[id] && !kept.rods.includes(id));
   const extras = (other.extras ?? []).filter((id) => EXTRAS[id] && !kept.extras.includes(id));
   const waters = (other.waters ?? []).filter((id) => !(kept.waters ?? []).includes(id));
-  const floats = (other.floats ?? []).filter((id) => FLOAT_SKINS[id] && !(kept.floats ?? []).includes(id));
-  if (!rods.length && !extras.length && !waters.length && !floats.length) return null;
+  if (!rods.length && !extras.length && !waters.length) return null;
   const fee = (id) => LOCATIONS.find((spot) => spot.id === id)?.unlock?.price ?? 0;
-  const cost = rods.reduce((sum, id) => sum + RODS[id].price, 0) + extras.reduce((sum, id) => sum + EXTRAS[id].price, 0) + waters.reduce((sum, id) => sum + fee(id), 0)
-    + floats.reduce((sum, id) => sum + FLOAT_SKINS[id].price, 0);
+  const cost = rods.reduce((sum, id) => sum + RODS[id].price, 0) + extras.reduce((sum, id) => sum + EXTRAS[id].price, 0) + waters.reduce((sum, id) => sum + fee(id), 0);
   return {
     ...structuredClone(kept),
     rods: [...kept.rods, ...rods],
     extras: [...kept.extras, ...extras],
     waters: [...(kept.waters ?? []), ...waters],
-    floats: [...(kept.floats ?? ["classic"]), ...floats],
     money: Math.max(0, kept.money - cost),
     savedAt: Date.now(),
   };

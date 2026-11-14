@@ -543,7 +543,6 @@ html.keyboard-open .sheet[open] > .account-body {
 .shelf-heading h3 { margin: 0; color: var(--gold); font-size: 20px; }
 /* The first shelf of a tab needs no line above it. */
 .shelf-heading.is-first { margin-top: 0; padding-top: 0; border-top: 0; }
-.shelf-heading small { color: var(--soft); font-size: 15px; }
 .cup-shelf { display: grid; gap: 8px; }
 .cup-shelf[hidden] { display: none; }
 .cup-shelf h3 { margin: 0; color: var(--gold); font-size: 20px; text-align: center; }

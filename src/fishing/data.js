@@ -383,19 +383,10 @@ export const EXTRAS = {
 };
 
 /**
- * Float skins (Shop → Extras), only for the look: each drawn in glyphs on the
- * water, `rows` from the tip down to the body at the waterline ([glyph,
- * colour]). The classic one everyone has; the rest are bought once and picked
- * in the backpack (`progress.floats`, `progress.float`).
+ * Float skins were sold for a few days (Shop → Extras, only for the look) and
+ * taken out again: each bought one is paid back at its price (see store.js).
  */
-export const FLOAT_SKINS = {
-  classic: { price: 0, rows: [["|", "#e8573a"], ["o", "#f1e9d8"]] },
-  feather: { price: 600, rows: [["'", "#e8e4d8"], ["|", "#d8d4c8"], ["|", "#c8c4b8"], ["I", "#8a8478"]] },
-  sport: { price: 1500, rows: [["!", "#f0e040"], ["|", "#e85030"], ["0", "#f0e040"]] },
-  forest: { price: 1500, rows: [["|", "#c8d860"], ["|", "#8aaa5a"], ["@", "#6e9a4e"]] },
-  vyshyvanka: { price: 4000, rows: [["|", "#e03a3a"], ["x", "#f1ede0"], ["X", "#e03a3a"], ["o", "#f1ede0"]] },
-  gold: { price: 15000, rows: [["*", "#fff2b0"], ["|", "#e2b85e"], ["0", "#e2b85e"]] },
-};
+export const RETIRED_FLOATS = { feather: 600, sport: 1500, forest: 1500, vyshyvanka: 4000, gold: 15000 };
 
 /** Extras still being tried out (`preview`) are on sale only to a tester. */
 export const extraShown = (id) => !EXTRAS[id]?.preview || access.tester;
@@ -625,9 +616,6 @@ export const START_STATE = {
   waters: [],
   // Tournament cups, one for each place in the top three (see settleTourney in quests.js).
   cups: [],
-  // Float skins owned and the one on the line (see FLOAT_SKINS).
-  floats: ["classic"],
-  float: "classic",
 };
 
 /** The fish of the day (see quests.js) sells for this much more, if it was caught that day. */
