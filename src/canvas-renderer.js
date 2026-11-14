@@ -2802,16 +2802,11 @@ export class CanvasWaterRenderer {
         }
         ctx.globalAlpha = 1;
         // A glowing float shines through the dark: off by day, fading in at dusk, full at night.
-        // Drawn here with the plain one, so the rod, the reeds and the bank still pass in front of it.
+        // Its light is drawn after the foreground has been darkened for the night (see
+        // renderOverlay), or the night would dim it too.
         const glow = clamp(((this.shade ?? 0) - 0.2) / 0.25, 0, 1);
         if (angler.glowFloat && sink < 0.55 && glow > 0.02) {
-          const pulse = 0.75 + 0.25 * Math.sin(angler.time * 3);
-          ctx.save();
-          ctx.shadowColor = `rgba(170, 255, 140, ${(0.9 * glow).toFixed(3)})`;
-          ctx.shadowBlur = (10 + 6 * pulse) * glow;
-          ctx.fillStyle = `rgba(214, 255, 160, ${((0.85 + 0.15 * pulse) * glow).toFixed(3)})`;
-          ctx.fillText("|", end.x, end.y - floatSize * 0.55 + below);
-          ctx.restore();
+          this.floatLight = { x: end.x, y: end.y - floatSize * 0.55 + below, size: floatSize, glow, pulse: 0.75 + 0.25 * Math.sin(angler.time * 3) };
         }
       }
       return;
@@ -2895,6 +2890,7 @@ export class CanvasWaterRenderer {
     const ctx = this.overlayContext;
     const dt = clamp(time - (this.overlayTime ?? time), 0, 0.1);
     this.overlayTime = time;
+    this.floatLight = null;
     // Only the slice on screen is ever seen (a phone shows part of a wider canvas).
     ctx.clearRect(this.frame.left, 0, this.frame.width, this.height);
     this.spawnLife(time, dt);
@@ -2939,6 +2935,7 @@ export class CanvasWaterRenderer {
       ctx.fillRect(this.frame.left, 0, this.frame.width, this.height);
       ctx.globalCompositeOperation = "source-over";
     }
+    if (this.floatLight) this.drawFloatLight(ctx, this.floatLight);
     // The train's lamp and windows shine through the dark.
     if (this.trainLights?.length) {
       ctx.font = `600 ${Math.round(this.road.lineHeight * 1.35)}px ${MONO_FONT}`;
@@ -3349,6 +3346,30 @@ export class CanvasWaterRenderer {
       put(0.75, -0.45, "@", breast);
       put(0.85, -1.2 + bob, "o", cap);
     }
+    ctx.restore();
+  }
+
+  /**
+   * The glowing float's light at night: a soft green halo round the tip, then the
+   * tip itself, a little bigger and bold (plain to see even far out, where the
+   * float is drawn small), drawn twice so its glow builds up.
+   */
+  drawFloatLight(ctx, { x, y, size, glow, pulse }) {
+    const tip = Math.max(size * 1.15, 12);
+    ctx.save();
+    const halo = ctx.createRadialGradient(x, y, 0, x, y, tip * 1.4);
+    halo.addColorStop(0, `rgba(170, 255, 140, ${(0.45 * glow * pulse).toFixed(3)})`);
+    halo.addColorStop(1, "rgba(170, 255, 140, 0)");
+    ctx.fillStyle = halo;
+    ctx.fillRect(x - tip * 1.4, y - tip * 1.4, tip * 2.8, tip * 2.8);
+    ctx.font = `700 ${tip}px ${MONO_FONT}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = `rgba(170, 255, 140, ${glow.toFixed(3)})`;
+    ctx.shadowBlur = (14 + 8 * pulse) * glow;
+    ctx.fillStyle = `rgba(226, 255, 180, ${((0.9 + 0.1 * pulse) * glow).toFixed(3)})`;
+    ctx.fillText("|", x, y);
+    ctx.fillText("|", x, y);
     ctx.restore();
   }
 
