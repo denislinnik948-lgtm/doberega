@@ -16,54 +16,54 @@ import { isAutumn } from "../theme.js";
  * bait it bites only very rarely (FLOAT_PREDATOR).
  */
 export const FISH = {
-  yorzh: { min: 0.02, max: 0.2, pricePerKg: 15, active: { base: 0.6, peaks: [[6, 4, 0.5], [20, 5, 0.5]] } },
-  plitka: { min: 0.05, max: 0.6, pricePerKg: 20, active: { base: 0.35, peaks: [[7, 3, 1], [13, 4, 0.6], [18, 3, 0.8]] } },
-  krasnopirka: { min: 0.05, max: 0.7, pricePerKg: 20, active: { base: 0.3, peaks: [[13, 4, 1]] } },
-  karas: { min: 0.1, max: 1.5, pricePerKg: 30, active: { base: 0.3, peaks: [[6, 3, 1], [12, 4, 0.6], [19, 3, 1]] } },
+  yorzh: { min: 0.02, max: 0.2, pricePerKg: 45, active: { base: 0.6, peaks: [[6, 4, 0.5], [20, 5, 0.5]] } },
+  plitka: { min: 0.05, max: 0.6, pricePerKg: 30, active: { base: 0.35, peaks: [[7, 3, 1], [13, 4, 0.6], [18, 3, 0.8]] } },
+  krasnopirka: { min: 0.05, max: 0.7, pricePerKg: 35, active: { base: 0.3, peaks: [[13, 4, 1]] } },
+  karas: { min: 0.1, max: 1.5, pricePerKg: 40, active: { base: 0.3, peaks: [[6, 3, 1], [12, 4, 0.6], [19, 3, 1]] } },
   okun: { min: 0.1, max: 1.8, pricePerKg: 35, active: { base: 0.25, peaks: [[10, 4, 1], [16, 3, 0.8]] } },
   lyn: { min: 0.3, max: 3.5, pricePerKg: 60, active: { base: 0.2, peaks: [[6, 3, 1], [13, 4, 0.5], [21, 2.5, 0.7]] } },
   lyasch: { min: 0.4, max: 5, pricePerKg: 30, active: { base: 0.25, peaks: [[5, 3, 0.8], [12, 4, 0.7], [22, 3, 0.7]] } },
-  korop: { min: 1, max: 18, pricePerKg: 40, active: { base: 0.25, peaks: [[7, 3, 0.9], [14, 4, 0.8], [23, 3, 0.6]] } },
-  shchuka: { min: 1, max: 14, pricePerKg: 45, lure: true, active: { base: 0.2, peaks: [[9, 3, 1], [17, 3, 0.9]] } },
-  sudak: { min: 0.8, max: 10, pricePerKg: 70, lure: true, active: { base: 0.15, peaks: [[11, 3, 0.5], [20, 3, 0.9], [5, 3, 0.7]] } },
-  som: { min: 5, max: 110, pricePerKg: 40, active: { base: 0.1, peaks: [[14, 4, 0.65], [1, 4, 0.6], [22, 3, 0.35]] } },
+  korop: { min: 1, max: 18, pricePerKg: 32, active: { base: 0.25, peaks: [[7, 3, 0.9], [14, 4, 0.8], [23, 3, 0.6]] } },
+  shchuka: { min: 1, max: 14, pricePerKg: 40, lure: true, active: { base: 0.2, peaks: [[9, 3, 1], [17, 3, 0.9]] } },
+  sudak: { min: 0.8, max: 10, pricePerKg: 60, lure: true, active: { base: 0.15, peaks: [[11, 3, 0.5], [20, 3, 0.9], [5, 3, 0.7]] } },
+  som: { min: 5, max: 110, pricePerKg: 25, active: { base: 0.1, peaks: [[14, 4, 0.65], [1, 4, 0.6], [22, 3, 0.35]] } },
   // Bleak: tiny silver surface fish in shoals, biting fast and often by day.
-  verkhovodka: { min: 0.01, max: 0.06, pricePerKg: 14, active: { base: 0.5, peaks: [[9, 4, 0.6], [15, 4, 0.6]] } },
+  verkhovodka: { min: 0.01, max: 0.06, pricePerKg: 120, active: { base: 0.5, peaks: [[9, 4, 0.6], [15, 4, 0.6]] } },
   // Amur sleeper: greedy, takes anything at all, even a lure (`greedy`).
-  rotan: { min: 0.05, max: 0.4, pricePerKg: 12, greedy: true, active: { base: 0.55, peaks: [[12, 6, 0.4]] } },
+  rotan: { min: 0.05, max: 0.4, pricePerKg: 25, greedy: true, active: { base: 0.55, peaks: [[12, 6, 0.4]] } },
   // Goby: a small, bold bottom fish of Pripyat.
-  bychok: { min: 0.03, max: 0.25, pricePerKg: 16, active: { base: 0.45, peaks: [[8, 4, 0.5], [19, 4, 0.5]] } },
+  bychok: { min: 0.03, max: 0.25, pricePerKg: 40, active: { base: 0.45, peaks: [[8, 4, 0.5], [19, 4, 0.5]] } },
   // Ide: strong and wary, ponders over the bait.
-  yaz: { min: 0.3, max: 4, pricePerKg: 38, active: { base: 0.2, peaks: [[6, 3, 0.9], [20, 3, 0.8]] } },
+  yaz: { min: 0.3, max: 4, pricePerKg: 35, active: { base: 0.2, peaks: [[6, 3, 0.9], [20, 3, 0.8]] } },
   // Asp: a predator hitting the surface hard, lures only.
-  zherekh: { min: 1, max: 8, pricePerKg: 70, lure: true, active: { base: 0.2, peaks: [[8, 3, 1], [18, 3, 1]] } },
+  zherekh: { min: 1, max: 8, pricePerKg: 60, lure: true, active: { base: 0.2, peaks: [[8, 3, 1], [18, 3, 1]] } },
   // Trout: clear cold water, the dearest by the kilo; spinner or worm.
-  forel: { min: 0.3, max: 4, pricePerKg: 90, active: { base: 0.25, peaks: [[7, 3, 1], [19, 3, 0.8]] } },
+  forel: { min: 0.3, max: 4, pricePerKg: 85, active: { base: 0.25, peaks: [[7, 3, 1], [19, 3, 0.8]] } },
   /*
    * The trout farm's own (see LOCATIONS, troutfarm). Rainbow trout: stocked,
    * silver with a pink band, keen in the morning and the evening.
    */
-  raiduzhna: { min: 0.3, max: 10, pricePerKg: 65, active: { base: 0.3, peaks: [[8, 3, 1], [19, 3, 0.9]] } },
+  raiduzhna: { min: 0.3, max: 10, pricePerKg: 60, active: { base: 0.3, peaks: [[8, 3, 1], [19, 3, 0.9]] } },
   // Brook trout (char): small and bright, an orange belly; dawn and dusk.
-  paliya: { min: 0.2, max: 3, pricePerKg: 95, active: { base: 0.2, peaks: [[5, 2.5, 1], [21, 2.5, 1]] } },
+  paliya: { min: 0.2, max: 3, pricePerKg: 90, active: { base: 0.2, peaks: [[5, 2.5, 1], [21, 2.5, 1]] } },
   // Huchen: the mountain rivers' great salmon, in the Red Book; let go, never sold. Night and dawn.
   holovach: { min: 2, max: 20, pricePerKg: 0, protected: true, active: { base: 0.1, peaks: [[2, 3, 0.9], [5, 2, 1]] } },
   // The quarry's own (see LOCATIONS, quarry). Chub: a wary, broad-headed fish of clear water, keen by day.
-  holavl: { min: 0.3, max: 4, pricePerKg: 45, active: { base: 0.25, peaks: [[12, 4, 1], [17, 3, 0.6]] } },
+  holavl: { min: 0.3, max: 4, pricePerKg: 40, active: { base: 0.25, peaks: [[12, 4, 1], [17, 3, 0.6]] } },
   // Steelhead: a sea-run rainbow trout, steel-backed and strong; lures only, at dawn and dusk.
-  stalhead: { min: 1, max: 12, pricePerKg: 110, lure: true, active: { base: 0.15, peaks: [[5, 2.5, 1.1], [20, 2.5, 1]] } },
+  stalhead: { min: 1, max: 12, pricePerKg: 90, lure: true, active: { base: 0.15, peaks: [[5, 2.5, 1.1], [20, 2.5, 1]] } },
   // The carp lake's own (see LOCATIONS, carplake). Mirror carp: a carp with a few big scales, heavier and keener at night.
-  dzerkalnyi: { min: 2, max: 25, pricePerKg: 50, active: { base: 0.25, peaks: [[23, 4, 1], [6, 3, 0.8], [14, 4, 0.4]] } },
+  dzerkalnyi: { min: 2, max: 25, pricePerKg: 40, active: { base: 0.25, peaks: [[23, 4, 1], [6, 3, 0.8], [14, 4, 0.4]] } },
   // Bigmouth buffalo: a deep grey-olive fish of slow water, feeding by day.
-  bufalo: { min: 1, max: 20, pricePerKg: 40, active: { base: 0.2, peaks: [[12, 5, 1]] } },
+  bufalo: { min: 1, max: 20, pricePerKg: 30, active: { base: 0.2, peaks: [[12, 5, 1]] } },
   // Channel catfish: slim, blue-grey, spotted; bites only at night.
-  kanalnyi: { min: 0.5, max: 8, pricePerKg: 75, active: { base: 0.01, peaks: [[0, 3.5, 1.3], [22, 2.5, 0.8], [3, 2.5, 0.9]] } },
+  kanalnyi: { min: 0.5, max: 8, pricePerKg: 60, active: { base: 0.01, peaks: [[0, 3.5, 1.3], [22, 2.5, 0.8], [3, 2.5, 0.9]] } },
   // Burbot: bites only at night and only in autumn (`season`).
-  myn: { min: 0.5, max: 4, pricePerKg: 85, season: "autumn", active: { base: 0.02, peaks: [[0, 4, 1.2], [23, 3, 0.6], [3, 3, 0.8]] } },
+  myn: { min: 0.5, max: 4, pricePerKg: 80, season: "autumn", active: { base: 0.02, peaks: [[0, 4, 1.2], [23, 3, 0.6], [3, 3, 0.8]] } },
   // Grass carp: a big, strong fish for anglers who have climbed far.
-  amur: { min: 3, max: 50, pricePerKg: 42, active: { base: 0.15, peaks: [[11, 4, 0.8], [16, 4, 0.8]] } },
+  amur: { min: 3, max: 50, pricePerKg: 28, active: { base: 0.15, peaks: [[11, 4, 0.8], [16, 4, 0.8]] } },
   // Silver carp: a giant that hardly ever takes a hook.
-  tovstolob: { min: 5, max: 55, pricePerKg: 90, active: { base: 0.1, peaks: [[13, 5, 0.6]] } },
+  tovstolob: { min: 5, max: 55, pricePerKg: 60, active: { base: 0.1, peaks: [[13, 5, 0.6]] } },
   // Sterlet: in the Red Book. It can't be sold, only let go, and that earns a badge (`protected`).
   sterliad: { min: 0.5, max: 3, pricePerKg: 0, protected: true, active: { base: 0.15, peaks: [[4, 3, 0.6], [21, 3, 0.6]] } },
   // The third joke: a two-headed perch, only at Pripyat. Priceless, trophy only.
@@ -622,15 +622,16 @@ export const START_STATE = {
 export const DAY_FISH_BONUS = 1.5;
 
 /**
- * Market price: the price per kilo times the weight, tapering for heavy fish
- * (a 40 kg catfish is worth a lot, but not forty crucians' worth per kilo).
- * A fish caught as the fish of the day (`dayFish`) fetches DAY_FISH_BONUS times as much.
+ * Market price: exactly the price per kilo times the weight, as the handbook
+ * says (a 5 kg catfish at 40 $ a kilo is 200 $), at least 1 $. A big one and
+ * one past its kind's limit fetch more (sizeBonus), and a fish caught as the
+ * fish of the day (`dayFish`) DAY_FISH_BONUS times as much.
  */
 export function fishPrice(fish) {
   const kind = FISH[fish.species];
   // A one-of-a-kind or a protected fish isn't for sale.
   if (kind.unique || kind.protected) return 0;
-  return Math.round((fish.weight ** 0.88 * kind.pricePerKg + 2) * sizeBonus(fish) * (fish.dayFish ? DAY_FISH_BONUS : 1));
+  return Math.max(1, Math.round(fish.weight * kind.pricePerKg * sizeBonus(fish) * (fish.dayFish ? DAY_FISH_BONUS : 1)));
 }
 
 /**
