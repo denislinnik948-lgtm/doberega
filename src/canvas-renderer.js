@@ -3361,9 +3361,9 @@ export class CanvasWaterRenderer {
     ctx.font = `700 ${Math.max(size, 10)}px ${MONO_FONT}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.shadowColor = `rgba(150, 255, 120, ${(0.8 * glow).toFixed(3)})`;
-    ctx.shadowBlur = 4 * glow;
-    ctx.fillStyle = `rgba(170, 255, 120, ${glow.toFixed(3)})`;
+    ctx.shadowColor = `rgba(150, 255, 120, ${glow.toFixed(3)})`;
+    ctx.shadowBlur = 6 * glow;
+    ctx.fillStyle = `rgba(200, 255, 160, ${glow.toFixed(3)})`;
     ctx.fillText("|", x, y);
     ctx.restore();
   }
