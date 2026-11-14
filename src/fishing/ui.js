@@ -1,6 +1,6 @@
 import {
   BAITS, BOTTLE_MONEY, SPECIAL_AVATAR, EXTRAS, FISH, LIVEBAIT, access, extraShown, GROUNDBAIT, GROUNDBAITS, GULL, HOOKS, LEGENDS, LINE, LOCATIONS, RODS, fishShown, gameHoursMs, spotShown,
-  baitEntries, fishPrice, formatMoney, formatWeight, handbookEntries, peakPeriod, spotEntries, trophyCost,
+  baitEntries, BIG_BONUS, DAY_FISH_BONUS, OVERSIZE_BONUS, fishPrice, formatMoney, sizeBonus, formatWeight, handbookEntries, peakPeriod, spotEntries, trophyCost,
 } from "./data.js";
 import {
   AVATARS, atlasSprite, avatarSprite, bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, groundbaitSprite, hookSprite, keepnetSprite, lineSprite, medalSprite, packSprite, rodSprite, windSprite,
@@ -310,6 +310,20 @@ export class AnglerUI {
 
 
   /** After the very first fish, offer once to sign in, warning what skipping means. */
+  /**
+   * What lifts a fish's price over its weight times its price per kilo, each
+   * with its factor, so the sum adds up at a glance: big for its water,
+   * outgrown its kind, the fish of the day.
+   */
+  priceTags(fish) {
+    const times = (factor) => `×${factor.toLocaleString(locale())}`;
+    const size = sizeBonus(fish);
+    return [
+      size === OVERSIZE_BONUS ? `${t("price.oversize")} ${times(OVERSIZE_BONUS)}` : size === BIG_BONUS ? `${t("price.big")} ${times(BIG_BONUS)}` : "",
+      fish.dayFish ? `${t("dayFish.tag")} ${times(DAY_FISH_BONUS)}` : "",
+    ].filter(Boolean);
+  }
+
   /**
    * The first start: a few screens on just what it takes to start (cast, the
    * bite, the fight, the catch), each with a little picture in glyphs. Shown
@@ -1472,7 +1486,7 @@ export class AnglerUI {
         element("div", { className: "keepnet-art" }, [fishSprite(fish.species, 2)]),
         element("div", { className: "keepnet-info" }, [
           element("strong", { textContent: nameOf("fish", fish.species) }),
-          element("span", { textContent: `${formatWeight(fish.weight)} · ${formatMoney(fishPrice(fish))}${fish.dayFish ? ` · ${t("dayFish.tag")}` : ""}` }),
+          element("span", { textContent: [formatWeight(fish.weight), formatMoney(fishPrice(fish)), ...this.priceTags(fish)].join(" · ") }),
         ]),
         element("div", { className: "keepnet-actions" }, [trophy, release]),
       ]);
