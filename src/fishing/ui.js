@@ -1130,6 +1130,8 @@ export class AnglerUI {
   accessText(index) {
     const unlock = LOCATIONS[index].unlock;
     if (!unlock) return t("water.openAll");
+    // The last water: a ticket for 7 days, only with the catfish rod (still being tried out).
+    if (unlock.pass) return t("water.openPass", { price: formatMoney(unlock.pass), rod: nameOf("rod", unlock.rod) });
     const text = unlock.rank !== undefined ? t("water.openRank", { rank: this.rankName(unlock.rank) }) : t("water.openFee", { price: formatMoney(unlock.price) });
     return unlock.price && !spotLock(this.progress, index) ? `${text} · ${t("water.member")}` : text;
   }
