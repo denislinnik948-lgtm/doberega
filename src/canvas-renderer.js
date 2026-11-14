@@ -2802,11 +2802,11 @@ export class CanvasWaterRenderer {
         }
         ctx.globalAlpha = 1;
         // A glowing float shines through the dark: off by day, fading in at dusk, full at night.
-        // Its light is drawn after the foreground has been darkened for the night (see
-        // renderOverlay), or the night would dim it too.
+        // Its light is drawn once the foreground has been darkened for the night, behind it
+        // (see drawFloatLight), or the night would dim it too.
         const glow = clamp(((this.shade ?? 0) - 0.2) / 0.25, 0, 1);
         if (angler.glowFloat && sink < 0.55 && glow > 0.02) {
-          this.floatLight = { x: end.x, y: end.y - floatSize * 0.55 + below, size: floatSize, glow, pulse: 0.75 + 0.25 * Math.sin(angler.time * 3) };
+          this.floatLight = { x: end.x, y: end.y - floatSize * 0.55 + below, size: floatSize, glow };
         }
       }
       return;
@@ -3350,25 +3350,20 @@ export class CanvasWaterRenderer {
   }
 
   /**
-   * The glowing float's light at night: a soft green halo round the tip, then the
-   * tip itself, a little bigger and bold (plain to see even far out, where the
-   * float is drawn small), drawn twice so its glow builds up.
+   * The glowing float's light at night: just its tip in bright green, bold and
+   * never under 10 px however far out, with a faint glow. Drawn behind what is
+   * already on the overlay ("destination-over"), so the reeds, the rod and the
+   * bank still pass in front of it, after the night has darkened them.
    */
-  drawFloatLight(ctx, { x, y, size, glow, pulse }) {
-    const tip = Math.max(size * 1.15, 12);
+  drawFloatLight(ctx, { x, y, size, glow }) {
     ctx.save();
-    const halo = ctx.createRadialGradient(x, y, 0, x, y, tip * 1.4);
-    halo.addColorStop(0, `rgba(170, 255, 140, ${(0.45 * glow * pulse).toFixed(3)})`);
-    halo.addColorStop(1, "rgba(170, 255, 140, 0)");
-    ctx.fillStyle = halo;
-    ctx.fillRect(x - tip * 1.4, y - tip * 1.4, tip * 2.8, tip * 2.8);
-    ctx.font = `700 ${tip}px ${MONO_FONT}`;
+    ctx.globalCompositeOperation = "destination-over";
+    ctx.font = `700 ${Math.max(size, 10)}px ${MONO_FONT}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.shadowColor = `rgba(170, 255, 140, ${glow.toFixed(3)})`;
-    ctx.shadowBlur = (14 + 8 * pulse) * glow;
-    ctx.fillStyle = `rgba(226, 255, 180, ${((0.9 + 0.1 * pulse) * glow).toFixed(3)})`;
-    ctx.fillText("|", x, y);
+    ctx.shadowColor = `rgba(150, 255, 120, ${(0.8 * glow).toFixed(3)})`;
+    ctx.shadowBlur = 4 * glow;
+    ctx.fillStyle = `rgba(170, 255, 120, ${glow.toFixed(3)})`;
     ctx.fillText("|", x, y);
     ctx.restore();
   }
