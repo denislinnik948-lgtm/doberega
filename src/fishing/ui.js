@@ -1222,6 +1222,23 @@ export class AnglerUI {
     }, duration);
   }
 
+  /** The first lessons' line: `text` (empty hides it), `tone` "alert" for the bite, "bad" after a mistake. */
+  setCoach(text, tone = "") {
+    const node = this.coachNode ??= $("#coach");
+    if (node.dataset.text === text && node.dataset.tone === tone) return;
+    node.dataset.text = text;
+    node.dataset.tone = tone;
+    node.hidden = !text;
+    if (!text) return;
+    $("#coach-text").textContent = text;
+    node.classList.toggle("is-alert", tone === "alert");
+    node.classList.toggle("is-bad", tone === "bad");
+    // Each new line comes in afresh.
+    node.style.animation = "none";
+    void node.offsetWidth;
+    node.style.animation = "";
+  }
+
   showFight(visible) {
     this.fightHud.hidden = !visible;
     this.fighting = visible;

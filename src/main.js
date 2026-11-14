@@ -354,6 +354,15 @@ function toScreen(point) {
 }
 
 function handleGameEvent(type, data) {
+  // A note from the first lessons lasts until the next cast; after the first catch's, they are over.
+  if (type === "cast" && coach.note) {
+    if (progress.caught > 0) coach.done = true;
+    coach.note = null;
+  }
+  if (type === "outcome" && data.type === "escape") {
+    const lesson = { early: "early", missed: "early", eaten: "eaten", snap: "snap" }[data.reason];
+    if (lesson) coachNote(lesson);
+  }
   if (type === "cast") {
     // The swish comes with the forward swing, partway through the cast.
     // Timed so the swish peaks as the bait is let go.
@@ -465,6 +474,7 @@ function handleGameEvent(type, data) {
       ui.toast(`${headline}${losses.length ? ` · ${losses.join(", ")}` : ""}`, "bad", 2400);
     } else {
       progress.caught += 1;
+      if (progress.caught === 1) coachNote("done", "alert");
       track("catch");
       if (data.fish.unique) sounds.unique();
       else if (FISH[data.fish.species]?.junk) sounds.boot();
@@ -618,7 +628,39 @@ function stopPull() {
   game.release();
 }
 
+/*
+ * First lessons. Until the angler lands a first catch, a line under the top bar
+ * says what to do at each moment: where to cast, to wait while the fish only
+ * tries the bait, to strike the moment the float goes under, to hold and let
+ * go in the fight. After a mistake (struck too early, the bait taken unseen,
+ * the line snapped) it says what went wrong until the next cast; after the
+ * first catch, where it went. Float fishing only: the spoon comes later.
+ */
+const coach = { note: null, tone: "", done: false };
+const touchFirst = window.matchMedia?.("(pointer: coarse)").matches ?? false;
+// With a mouse, "click" where a phone says "tap" (a line of its own where they differ).
+const coachSay = (key) => (!touchFirst && t(`coach.${key}Mouse`) !== `coach.${key}Mouse` ? t(`coach.${key}Mouse`) : t(`coach.${key}`));
+function coachLine() {
+  if (coach.done || mode !== "fishing" || BAITS[game.busy ? game.bait : progress.bait]?.lure) return ["", ""];
+  if (progress.caught > 0 && !coach.note) return ["", ""];
+  if (coach.note) return [coach.note, coach.tone];
+  switch (game.phase) {
+    case "ready": return [coachSay("cast"), ""];
+    case "waiting": return game.bare ? [coachSay("bare"), "bad"] : [coachSay("wait"), ""];
+    case "nibble": return [coachSay("nibble"), ""];
+    case "bite": return [coachSay("bite"), "alert"];
+    case "fight": return [coachSay("fight"), ""];
+    default: return ["", ""];
+  }
+}
+function coachNote(key, tone = "bad") {
+  if (coach.done || progress.caught > 0 && key !== "done") return;
+  coach.note = coachSay(key);
+  coach.tone = tone;
+}
+
 function syncFishingUi() {
+  ui.setCoach(...coachLine());
   if (game.phase !== shownPhase) {
     shownPhase = game.phase;
     ui.setBusy(game.busy);
