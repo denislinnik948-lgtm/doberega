@@ -368,7 +368,6 @@ export function lineWeakness(health) {
 /** One-off upgrades that make fishing easier. */
 export const EXTRAS = {
   handbook: { price: 900 },
-  glowfloat: { price: 900 },
   net: { price: 7500 },
   braid: { price: 12000 },
   sonar: { price: 20000 },

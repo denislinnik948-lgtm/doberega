@@ -1295,25 +1295,6 @@ export function exitSprite(scale = 3) {
  * rest: a light edge on the left and top, a shade on the right and bottom.
  */
 const EXTRA_SPRITES = {
-  // A float with a glowing tip for fishing at night.
-  glowfloat: () => fromRows([
-    "......gYg.......",
-    ".....gYYYg......",
-    "......oYo.......",
-    "......oYo.......",
-    ".....oRRRo......",
-    "....oRrRRRo.....",
-    "...oRrRRRRdo....",
-    "...oRRRRRRdo....",
-    "...oWwWWWWso....",
-    "...oWwWWWWso....",
-    "....oWWWWso.....",
-    ".....oWWso......",
-    "......oso.......",
-    "......oDo.......",
-    "......oDo.......",
-    ".......o........",
-  ], { o: P.ink, g: "#7ec86e", Y: "#d8ff9a", R: P.ember, r: "#e08a5e", d: "#9a4a2e", W: P.bone, w: "#f4f2e0", s: "#b8b6a2", D: P.mid }),
   // The angler's handbook: a red cloth cover with a gold fish on it, the pages showing below.
   handbook: () => fromRows([
     "................",

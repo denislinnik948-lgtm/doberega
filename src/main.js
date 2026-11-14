@@ -722,7 +722,6 @@ function anglerView(elapsed) {
     distance: game.distance,
     rodTier: RODS[game.busy && game.rod ? game.rod : progress.rod].tier,
     hidden: mode === "menu",
-    glowFloat: progress.extras.includes("glowfloat"),
     // The bell on the rod tip, and how hard it swings: with each twitch and dip, wildly once the float is under.
     bell: progress.extras.includes("bell"),
     bellShake: game.phase === "nibble" ? Math.min(1, Math.max(Math.abs(game.float.offset) / 3, game.float.sink))

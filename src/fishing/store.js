@@ -44,6 +44,8 @@ export function normalizeProgress(saved) {
     if (Array.isArray(saved.extras)) state.extras = saved.extras.filter((id) => EXTRAS[id]);
     // The campfire was sold for a day and taken off sale: its price goes back.
     if (Array.isArray(saved.extras) && saved.extras.includes("campfire")) state.money += 600;
+    // The glowing float became every angler's float: its price goes back to those who bought it.
+    if (Array.isArray(saved.extras) && saved.extras.includes("glowfloat")) state.money += 900;
     if (saved.groundbaits && typeof saved.groundbaits === "object") {
       // The older kinds (carp, bream, trout, predator) became the basic and the predator one.
       state.groundbaits = {};

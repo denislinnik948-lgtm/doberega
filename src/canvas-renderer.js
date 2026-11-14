@@ -2801,11 +2801,11 @@ export class CanvasWaterRenderer {
           ctx.fillText("o", end.x, end.y + below);
         }
         ctx.globalAlpha = 1;
-        // A glowing float shines through the dark: off by day, fading in at dusk, full at night.
+        // The float's tip glows green through the dark (every float does): off by day, fading in at dusk, full at night.
         // Its light is drawn once the foreground has been darkened for the night, behind it
         // (see drawFloatLight), or the night would dim it too.
         const glow = clamp(((this.shade ?? 0) - 0.2) / 0.25, 0, 1);
-        if (angler.glowFloat && sink < 0.55 && glow > 0.02) {
+        if (sink < 0.55 && glow > 0.02) {
           this.floatLight = { x: end.x, y: end.y - floatSize * 0.55 + below, size: floatSize, glow };
         }
       }
@@ -3350,7 +3350,7 @@ export class CanvasWaterRenderer {
   }
 
   /**
-   * The glowing float's light at night: just its tip in bright green, bold and
+   * The float's light at night: just its tip in bright green, bold and
    * never under 10 px however far out, with a faint glow. Drawn behind what is
    * already on the overlay ("destination-over"), so the reeds, the rod and the
    * bank still pass in front of it, after the night has darkened them.
