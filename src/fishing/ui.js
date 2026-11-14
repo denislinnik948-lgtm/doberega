@@ -1,5 +1,5 @@
 import {
-  BAITS, BOTTLE_MONEY, SPECIAL_AVATAR, EXTRAS, FISH, LIVEBAIT, access, extraShown, GROUNDBAIT, GROUNDBAITS, GULL, HOOKS, LEGENDS, LINE, LOCATIONS, RODS, fishShown, gameHoursMs, spotShown,
+  BAITS, BOTTLE_MONEY, SPECIAL_AVATAR, EXTRAS, FISH, FLOAT_LIGHTS, LIVEBAIT, access, extraShown, GROUNDBAIT, GROUNDBAITS, GULL, HOOKS, LEGENDS, LINE, LOCATIONS, RODS, fishShown, gameHoursMs, spotShown,
   baitEntries, BIG_BONUS, DAY_FISH_BONUS, OVERSIZE_BONUS, fishPrice, formatMoney, sizeBonus, formatWeight, handbookEntries, peakPeriod, spotEntries, trophyCost,
 } from "./data.js";
 import {
@@ -1793,6 +1793,10 @@ export class AnglerUI {
     for (const id of progress.extras.filter((extra) => extra !== "handbook")) add("pocket", {
       key: `extra:${id}`, art: () => extraSprite(id, 3), title: nameOf("extra", id), tag: "",
       facts: [nameOf("extraText", id)], action: null,
+      // The coloured lights: one button for each colour, the one on the float marked.
+      choices: id === "lights" ? FLOAT_LIGHTS.map((color) => ({
+        color, label: t(`floatLight.${color}`), on: color === progress.floatLight, pick: () => this.pickFloatLight(color),
+      })) : null,
     });
 
     return items;
@@ -1901,12 +1905,24 @@ export class AnglerUI {
         element("span", { className: "slip-stock", textContent: item.on ? item.status : "" }),
       ]),
       ...item.facts.map((line) => element("small", { className: "slip-fact", textContent: line })),
+      ...(item.choices ? [element("div", { className: "slip-choices" }, item.choices.map((choice) => element("button", {
+        className: `light-pick light-${choice.color}${choice.on ? " is-on" : ""}`, type: "button", ariaPressed: String(choice.on), onclick: choice.pick,
+      }, [element("span", { className: "light-tip", textContent: "|" }), element("span", { textContent: choice.label })])))] : []),
       ...(item.action ? [element("div", { className: "slip-action" }, [element("button", {
         className: "pixel-btn pixel-btn-buy slip-buy", type: "button", textContent: item.action[0], onclick: item.action[1],
       })])] : []),
     ], animate);
   }
 
+
+  /** The coloured lights: the float's tip glows this colour at night from now on. */
+  pickFloatLight(color) {
+    if (this.progress.floatLight === color) return;
+    this.progress.floatLight = color;
+    sounds.ui("select");
+    this.commit();
+    this.showPackItem(false);
+  }
 
   /**
    * Put a spare line on: on its own once the old one is worn through, or

@@ -379,7 +379,12 @@ export const EXTRAS = {
   feeder: { price: 6000 },
   // A bucket for live bait: small fish go into it as live bait (see LIVEBAIT).
   bucket: { price: 4000 },
+  // Coloured lights for the float's tip at night: bought once, then any of FLOAT_LIGHTS, picked in the backpack.
+  lights: { price: 2000, preview: true },
 };
+
+/** The colours the float's tip can glow at night (green, every float's own, and the rest with the lights). */
+export const FLOAT_LIGHTS = ["green", "blue", "red", "yellow", "white"];
 
 /**
  * Float skins were sold for a few days (Shop → Extras, only for the look) and
@@ -596,6 +601,8 @@ export const START_STATE = {
   rod: "willow",
   bait: "worm",
   extras: [],
+  // The colour of the float's light at night (see FLOAT_LIGHTS; other than green only with the lights).
+  floatLight: "green",
   // The groundbaits, by kind (see GROUNDBAITS).
   groundbaits: {},
   // When the groundbait at each water wears off, by spot id, and which kind it is (none: the plain one).

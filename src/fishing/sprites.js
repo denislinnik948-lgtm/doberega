@@ -1447,6 +1447,25 @@ const EXTRA_SPRITES = {
     "...oooooooooo...",
     "................",
   ], { o: P.ink, M: P.mid, L: P.light, d: P.dark, k: P.deep, G: P.gold, s: P.soft, H: P.ember }),
+  // The coloured lights: five light sticks for the float's tip, green, blue, red, yellow and white.
+  lights: () => fromRows([
+    "................",
+    ".........ooo....",
+    ".....ooo.oYo....",
+    ".....oBo.oYooo..",
+    "...oooBo.oYoWo..",
+    "...oGoBoooyoWo..",
+    "...oGoboRoyoWo..",
+    "...oGoboRoyowo..",
+    "...ogoboRoyowo..",
+    "...ogoboroyowo..",
+    "...ogoboroyowo..",
+    "...ogoboroyowo..",
+    "...ogoboroyowo..",
+    "...ogoboroyowo..",
+    "...ooooooooooo..",
+    "................",
+  ], { o: P.ink, G: "#b8ff9a", g: "#4cc85a", B: "#a8d8ff", b: "#3c8ad8", R: "#ff9a8a", r: "#c83c3c", Y: "#fff09a", y: "#d8b030", W: "#ffffff", w: "#b8bcc8" }),
 };
 
 /* Each groundbait in its own sack (see GROUNDBAITS): the plain one sandy, the basic one sandy with corn on top, the predator one dark red, the premium one deep blue with gold; the carp, bream and trout ones are from before. */

@@ -1081,6 +1081,16 @@ html.keyboard-open .sheet[open] > .account-body {
 .slip-fact { color: var(--light); font-size: 18px; line-height: 1.15; }
 .slip-action { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
 .slip-buy { flex: 1; min-height: 44px; }
+/* The coloured lights' colours, each a glowing tip like the float's at night; the one in use outlined in gold. */
+.slip-choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.light-pick { display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 8px; border: 2px solid var(--mid); background: transparent; color: var(--light); font: inherit; font-size: 18px; cursor: pointer; }
+.light-pick.is-on { border-color: var(--gold); color: var(--bone); }
+.light-tip { color: var(--tip); font-weight: 700; font-size: 22px; text-shadow: 0 0 6px var(--tip); }
+.light-green { --tip: #c8ffa0; }
+.light-blue { --tip: #aad7ff; }
+.light-red { --tip: #ffa096; }
+.light-yellow { --tip: #fff096; }
+.light-white { --tip: #fffffa; }
 .slip-owned { display: flex; flex: 1; align-items: center; justify-content: center; min-height: 44px; color: var(--light); font-size: 22px; }
 
 /* Backpack: a rod case, a tackle box, the bait and a pocket. */

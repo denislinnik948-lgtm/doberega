@@ -16,6 +16,14 @@ import { dragonCells } from "./dragon.js";
 // A little sparser than solid: dark water shows between the strokes.
 const WATER_RAMP = "     ..,:;~-=+*#%@W";
 const MONO_FONT = '"SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace';
+// The float's light at night, by colour (see FLOAT_LIGHTS): the tip, and its faint glow.
+const FLOAT_LIGHT_COLORS = {
+  green: ["200, 255, 160", "150, 255, 120"],
+  blue: ["170, 215, 255", "90, 160, 255"],
+  red: ["255, 160, 150", "255, 80, 70"],
+  yellow: ["255, 240, 150", "255, 205, 70"],
+  white: ["255, 255, 250", "215, 230, 255"],
+};
 const GAME_ISOMETRIC_SLOPE = 0.5;
 const WATER_BANDS = 10;
 const REFLECTION_LEVELS = 3;
@@ -2806,7 +2814,7 @@ export class CanvasWaterRenderer {
         // (see drawFloatLight), or the night would dim it too.
         const glow = clamp(((this.shade ?? 0) - 0.2) / 0.25, 0, 1);
         if (sink < 0.55 && glow > 0.02) {
-          this.floatLight = { x: end.x, y: end.y - floatSize * 0.55 + below, size: floatSize, glow };
+          this.floatLight = { x: end.x, y: end.y - floatSize * 0.55 + below, size: floatSize, glow, color: angler.floatLight };
         }
       }
       return;
@@ -3350,20 +3358,22 @@ export class CanvasWaterRenderer {
   }
 
   /**
-   * The float's light at night: just its tip in bright green, bold and
+   * The float's light at night: just its tip in a bright colour (green, or the
+   * one picked with the coloured lights, see FLOAT_LIGHTS), bold and
    * never under 10 px however far out, with a faint glow. Drawn behind what is
    * already on the overlay ("destination-over"), so the reeds, the rod and the
    * bank still pass in front of it, after the night has darkened them.
    */
-  drawFloatLight(ctx, { x, y, size, glow }) {
+  drawFloatLight(ctx, { x, y, size, glow, color }) {
+    const [tip, halo] = FLOAT_LIGHT_COLORS[color] ?? FLOAT_LIGHT_COLORS.green;
     ctx.save();
     ctx.globalCompositeOperation = "destination-over";
     ctx.font = `700 ${Math.max(size, 10)}px ${MONO_FONT}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.shadowColor = `rgba(150, 255, 120, ${glow.toFixed(3)})`;
+    ctx.shadowColor = `rgba(${halo}, ${glow.toFixed(3)})`;
     ctx.shadowBlur = 6 * glow;
-    ctx.fillStyle = `rgba(200, 255, 160, ${glow.toFixed(3)})`;
+    ctx.fillStyle = `rgba(${tip}, ${glow.toFixed(3)})`;
     ctx.fillText("|", x, y);
     ctx.restore();
   }

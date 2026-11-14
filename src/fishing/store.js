@@ -1,7 +1,7 @@
 import { ACHIEVEMENTS } from "./achievements.js";
 import { RANKS, pastXp } from "./ranks.js";
 import { ensureOpenSpot, giveGroundbaits } from "./waters.js";
-import { AVATAR_COUNT, BAITS, SPECIAL_AVATAR, EXTRAS, FISH, GROUNDBAITS, HOOKS, LOCATIONS, OLD_GROUNDBAITS, RETIRED_BAITS, RETIRED_FLOATS, RODS, START_STATE, gameHoursMs } from "./data.js";
+import { AVATAR_COUNT, BAITS, SPECIAL_AVATAR, EXTRAS, FISH, FLOAT_LIGHTS, GROUNDBAITS, HOOKS, LOCATIONS, OLD_GROUNDBAITS, RETIRED_BAITS, RETIRED_FLOATS, RODS, START_STATE, gameHoursMs } from "./data.js";
 
 // The storage key keeps the game's old working name so existing saves carry over.
 const KEY = "stillwater.fishing.v2";
@@ -46,6 +46,7 @@ export function normalizeProgress(saved) {
     if (Array.isArray(saved.extras) && saved.extras.includes("campfire")) state.money += 600;
     // The glowing float became every angler's float: its price goes back to those who bought it.
     if (Array.isArray(saved.extras) && saved.extras.includes("glowfloat")) state.money += 900;
+    if (FLOAT_LIGHTS.includes(saved.floatLight)) state.floatLight = saved.floatLight;
     if (saved.groundbaits && typeof saved.groundbaits === "object") {
       // The older kinds (carp, bream, trout, predator) became the basic and the predator one.
       state.groundbaits = {};

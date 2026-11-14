@@ -130,6 +130,11 @@ const STRINGS = {
     "dayFish.tag": "fish of the day",
     "price.big": "big",
     "price.oversize": "outgrown its kind",
+    "floatLight.green": "green",
+    "floatLight.blue": "blue",
+    "floatLight.red": "red",
+    "floatLight.yellow": "yellow",
+    "floatLight.white": "white",
     "streak.title": "Days in a row",
     "streak.start": "Land a fish today to start a run. Every day in a row brings a gift; miss a day and the run starts again.",
     "streak.keep": "Days in a row so far: {count}. Land a fish today to keep it going and get today's gift.",
@@ -608,7 +613,7 @@ const STRINGS = {
         glass: "Fibreglass", carbon: "Carbon", carp: "Carp rod", catfish: "Catfish rod",
       },
       extra: {
-        handbook: "Angler's handbook", net: "Landing net", braid: "Braided line", sonar: "Fish finder", spinreel: "Spinning reel", bell: "Bite bell", feeder: "Feeder", bucket: "Live bait bucket"
+        handbook: "Angler's handbook", net: "Landing net", braid: "Braided line", sonar: "Fish finder", spinreel: "Spinning reel", bell: "Bite bell", feeder: "Feeder", bucket: "Live bait bucket", lights: "Coloured float lights"
       },
       abundance: { common: "often", regular: "sometimes", rare: "rarely" },
       biteStyle: {
@@ -629,6 +634,7 @@ const STRINGS = {
         bell: "Rings at every touch; a little longer to strike",
         feeder: "Cast to one spot again and again: it bites more there",
         bucket: "Small fish up to 150 g become live bait",
+        lights: "The float glows at night in the colour you pick: green, blue, red, yellow or white",
       },
       location: {
         pond: "Village pond", lake: "Quiet lake", castle: "Castle lake", reservoir: "Pripyat", bridge: "Old bridge", troutfarm: "Smerekove", quarry: "Granite quarry", carplake: "Quiet Backwater", mountain: "Blue Lake",
@@ -663,6 +669,7 @@ const STRINGS = {
       ["Line", "Every fight wears the line a little: more the harder and longer you pull, and more for a heavy fish; a snap takes a bigger bite out of it, and braid wears half as fast. The backpack shows how much is left in percent. Below 25% the line is weak and the tension bar fills faster. When it wears through, a spare line from the backpack goes on by itself before the next cast; spares are sold in Shop → Tackle, 100 $ each, and lighter fish leave a line good for hours."],
       ["Shop", "Tap a ware to put it in the basket: bait and hooks by the ten (the tag shows the price of ten), line and groundbait one at a time, a rod or an extra once (tap it again to take it out). The bar at the bottom shows how many things are in the basket and pays for them all at once; tap it to open the basket and change the counts."],
       ["Float", "The farther you cast, the smaller the float looks. At dusk its tip lights up green and shines all night, so the float is easy to see in the dark; by day it is an ordinary float."],
+      ["Coloured lights", "In the shop, under Extras: coloured lights for the float. Bought once, they let the float glow at night green, blue, red, yellow or white; pick the colour in the backpack, in the pocket, and change it whenever you like. Only the look changes.", true],
       ["Gear", "A landing net calms fish near the bank, braided line tightens more slowly, and a fish finder helps fish find the bait sooner."],
       ["Bell, feeder, bucket", "A bell on the rod tip rings at every touch and loudest when the float goes under, so you hear a bite without watching; it also gives a little longer to strike. A feeder drops a little groundbait with each float cast: cast into the same spot again within three minutes and it is fed one step more, up to five, each step livening the bite there a little; a cast elsewhere starts a new spot. With a live bait bucket, small bleak, roach, rudd, crucian, rotan and gobies up to 150 g go into it as live bait instead of the keepnet, up to 20 at a time."],
       ["Keepnet", "Every fish you land goes into the keepnet; the chip at the bottom left shows how many. When you leave the water, the keepnet comes up: sell everything in one go, keep any fish as a trophy, or let it go. Fish left in it wait for next time."],
@@ -804,6 +811,11 @@ const STRINGS = {
     "dayFish.tag": "риба дня",
     "price.big": "велика",
     "price.oversize": "переросток",
+    "floatLight.green": "зелений",
+    "floatLight.blue": "синій",
+    "floatLight.red": "червоний",
+    "floatLight.yellow": "жовтий",
+    "floatLight.white": "білий",
     "streak.title": "Дні поспіль",
     "streak.start": "Спіймай сьогодні хоч одну рибу, щоб почати серію. Кожен день поспіль приносить подарунок; пропустиш день, і серія почнеться спочатку.",
     "streak.keep": "Уже днів поспіль: {count}. Спіймай сьогодні рибу, щоб не обірвати серію й отримати подарунок дня.",
@@ -1282,7 +1294,7 @@ const STRINGS = {
         glass: "Скловолоконна", carbon: "Карбонова", carp: "Коропова", catfish: "Сомова",
       },
       extra: {
-        handbook: "Довідник рибака", net: "Підсак", braid: "Плетена волосінь", sonar: "Ехолот", spinreel: "Спінінгова котушка", bell: "Дзвіночок", feeder: "Годівниця", bucket: "Відро для живця"
+        handbook: "Довідник рибака", net: "Підсак", braid: "Плетена волосінь", sonar: "Ехолот", spinreel: "Спінінгова котушка", bell: "Дзвіночок", feeder: "Годівниця", bucket: "Відро для живця", lights: "Кольорові світлячки"
       },
       abundance: { common: "часто", regular: "іноді", rare: "рідко" },
       biteStyle: {
@@ -1303,6 +1315,7 @@ const STRINGS = {
         bell: "Дзеленчить на кожен дотик; трохи більше часу на підсічку",
         feeder: "Закидайте в одну точку раз у раз: там клює більше",
         bucket: "Дрібна риба до 150 г стає живцем",
+        lights: "Поплавок вночі світить кольором на вибір: зеленим, синім, червоним, жовтим чи білим",
       },
       location: {
         pond: "Ставок за селом", lake: "Тихе озеро", castle: "Замкове озеро", reservoir: "Прип'ять", bridge: "Старий міст", troutfarm: "Смерекове", quarry: "Гранітний кар'єр", carplake: "Тиха заводь", mountain: "Синє озеро",
@@ -1337,6 +1350,7 @@ const STRINGS = {
       ["Волосінь", "Кожен бій трохи зношує волосінь: що сильніше й довше тягнеш, то більше, і важка риба зношує її швидше; обрив забирає більший шматок, а плетена зношується вдвічі повільніше. Скільки лишилось, видно в рюкзаку у відсотках. Нижче 25% волосінь слабка, і шкала натягу заповнюється швидше. Коли вона зноситься, перед наступним закидом сама ставиться запасна з рюкзака; запасні продаються в Магазин → Снасті по 100 $, а на дрібній рибі волосіні вистачає на години."],
       ["Магазин", "Торкніться товару, щоб покласти його в кошик: наживку й гачки десятками (на цінику ціна за десяток), волосінь і прикормку по одному, вудку чи річ один раз (торкніться ще раз, щоб прибрати). Панель унизу показує, скільки товарів у кошику, і оплачує все разом; торкніться її, щоб відкрити кошик і змінити кількість."],
       ["Поплавок", "Що далі закинеш, то менший здається поплавок. У сутінках його кінчик загоряється зеленим і світить усю ніч, тож поплавок добре видно в темряві. Вдень це звичайний поплавок."],
+      ["Кольорові світлячки", "У магазині, в розділі «Різне», є кольорові світлячки для поплавка. Купуєш один раз, і поплавок вночі світить зеленим, синім, червоним, жовтим чи білим. Колір обирається в рюкзаку, у кишені, і його можна змінювати будь-коли. Змінюється лише вигляд.", true],
       ["Спорядження", "Підсак заспокоює рибу біля берега, плетена волосінь повільніше натягується, ехолот допомагає рибі швидше знайти наживку."],
       ["Дзвіночок, годівниця, відро", "Дзвіночок на кінчику вудки дзеленчить на кожен дотик, а найгучніше, коли поплавок іде під воду, тож кльов чути, навіть не дивлячись; ще він дає трохи більше часу на підсічку. Годівниця з кожним закидом поплавка кидає трохи прикормки: закиньте в те саме місце знову протягом трьох хвилин, і точку прикормлено ще на крок, до п'яти, і кожен крок трохи пожвавлює кльов там; закид деінде починає нову точку. З відром для живця дрібна верховодка, плітка, краснопірка, карась, ротан і бичок до 150 г ідуть у відро на живця замість садка, до 20 за раз."],
       ["Садок", "Уся витягнута риба йде в садок; скільки її там, видно внизу ліворуч. Коли йдеш із водойми, відкривається садок: можна продати все разом, будь-яку рибу зберегти як трофей або відпустити. Риба, що лишилася в садку, дочекається наступного разу."],
