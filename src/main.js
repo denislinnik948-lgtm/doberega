@@ -173,6 +173,8 @@ function ensureSpot() {
   if (builtSpot !== progress.location) applySpot();
 // Fish left in the keepnet from last time (the game was closed at the water): offer to sell them.
 if (progress.keepnet.length) setTimeout(() => ui.openKeepnet(), 800);
+// The first start (and, once, for everyone who played before it came in): a few screens on the basics.
+setTimeout(() => ui.openOnboarding(), 1200);
 }
 
 // Game hours spent at the water since leaving the menu (a whole day of it is an achievement).
@@ -354,10 +356,13 @@ function toScreen(point) {
 }
 
 function handleGameEvent(type, data) {
-  // A note from the first lessons lasts until the next cast; after the first catch's, they are over.
-  if (type === "cast" && coach.note) {
-    if (progress.caught > 0) coach.done = true;
-    coach.note = null;
+  // A tip's note after something happened lasts until the next cast.
+  if (type === "cast") coach.note = null;
+  // A strike too early on the first guided catch: said every time, while the fish keeps nibbling.
+  if (type === "tooEarly") {
+    coach.note = coachSay("tooEarly");
+    coach.tone = "bad";
+    coach.notePhase = "nibble";
   }
   if (type === "outcome" && data.type === "escape") {
     const lesson = { early: "early", missed: "early", eaten: "eaten", snap: "snap" }[data.reason];
@@ -474,7 +479,7 @@ function handleGameEvent(type, data) {
       ui.toast(`${headline}${losses.length ? ` · ${losses.join(", ")}` : ""}`, "bad", 2400);
     } else {
       progress.caught += 1;
-      if (progress.caught === 1) coachNote("done", "alert");
+      if (!FISH[data.fish.species]?.junk) coachNote("done", "alert");
       track("catch");
       if (data.fish.unique) sounds.unique();
       else if (FISH[data.fish.species]?.junk) sounds.boot();
@@ -629,38 +634,58 @@ function stopPull() {
 }
 
 /*
- * First lessons. Until the angler lands a first catch, a line under the top bar
- * says what to do at each moment: where to cast, to wait while the fish only
- * tries the bait, to strike the moment the float goes under, to hold and let
- * go in the fight. After a mistake (struck too early, the bait taken unseen,
- * the line snapped) it says what went wrong until the next cast; after the
- * first catch, where it went. Float fishing only: the spoon comes later.
+ * First-use tips. The first time each moment of the cast comes (the water to
+ * cast on, waiting, the fish trying the bait, the bite, the fight), a line
+ * under the top bar says what to do, for as long as that moment lasts; the
+ * first time something goes wrong (struck too early, the bait taken unseen,
+ * the line snapped), it says why until the next cast; and the first catch says
+ * where it went. Each is shown once ever (`progress.tips`). Float fishing only.
  */
-const coach = { note: null, tone: "", done: false };
+const coach = { note: null, tone: "", shown: null, notePhase: null };
 const touchFirst = window.matchMedia?.("(pointer: coarse)").matches ?? false;
 // With a mouse, "click" where a phone says "tap" (a line of its own where they differ).
 const coachSay = (key) => (!touchFirst && t(`coach.${key}Mouse`) !== `coach.${key}Mouse` ? t(`coach.${key}Mouse`) : t(`coach.${key}`));
-function coachLine() {
-  if (coach.done || mode !== "fishing" || BAITS[game.busy ? game.bait : progress.bait]?.lure) return ["", ""];
-  if (progress.caught > 0 && !coach.note) return ["", ""];
-  if (coach.note) return [coach.note, coach.tone];
-  switch (game.phase) {
-    case "ready": return [coachSay("cast"), ""];
-    case "waiting": return game.bare ? [coachSay("bare"), "bad"] : [coachSay("wait"), ""];
-    case "nibble": return [coachSay("nibble"), ""];
-    case "bite": return [coachSay("bite"), "alert"];
-    case "fight": return [coachSay("fight"), ""];
-    default: return ["", ""];
-  }
+const tipSeen = (key) => progress.tips?.includes(key);
+function markTip(key) {
+  if (!key || tipSeen(key)) return;
+  (progress.tips ??= []).push(key);
+  ui.commit();
 }
+/** The tip for this moment: [text, tone, key], or nothing. */
+function coachLine() {
+  if (mode !== "fishing" || BAITS[game.busy ? game.bait : progress.bait]?.lure) return ["", "", null];
+  // A note for one moment only (a strike too early, forgiven) goes when that moment does.
+  if (coach.notePhase && game.phase !== coach.notePhase) {
+    coach.note = null;
+    coach.notePhase = null;
+  }
+  if (coach.note) return [coach.note, coach.tone, null];
+  const key = { ready: "cast", waiting: game.bare ? "bare" : "wait", nibble: "nibble", bite: "bite", fight: "fight" }[game.phase];
+  if (!key || tipSeen(key)) return ["", "", null];
+  return [coachSay(key), key === "bite" ? "alert" : key === "bare" ? "bad" : "", key];
+}
+/** A one-off note after something happened, kept until the next cast; once ever for each. */
 function coachNote(key, tone = "bad") {
-  if (coach.done || progress.caught > 0 && key !== "done") return;
+  if (tipSeen(key)) return;
   coach.note = coachSay(key);
   coach.tone = tone;
+  markTip(key);
 }
 
 function syncFishingUi() {
-  ui.setCoach(...coachLine());
+  /*
+   * Until the first catch with the tips ("done"), fishing is forgiving: a slow
+   * nibble with time to read, a bite that waits for the strike, a strike too
+   * early forgiven, no snag, duck, snapped line or bent hook (see `gentle` in game.js).
+   */
+  game.gentle = mode === "fishing" && !tipSeen("done") && !BAITS[game.busy ? game.bait : progress.bait]?.lure;
+  const [text, tone, key] = coachLine();
+  ui.setCoach(text, tone);
+  // A moment's tip is spent once that moment is over.
+  if (coach.shown !== key) {
+    markTip(coach.shown);
+    coach.shown = key;
+  }
   if (game.phase !== shownPhase) {
     shownPhase = game.phase;
     ui.setBusy(game.busy);

@@ -217,7 +217,7 @@ export class FishingGame {
         const roll = this.random();
         const snagChance = LOCATIONS[this.location]?.snagChance ?? 0.02;
         let edge = snagChance;
-        const find = roll < snagChance ? "snag"
+        const find = roll < snagChance && !this.gentle ? "snag"
           : [["boot", BOOT_CHANCE], ["bottle", FINDS.bottle], ["lostlure", FINDS.lostlure]].find(([, chance]) => roll < (edge += chance))?.[0];
         if (find === "snag") this.startSnag();
         else if (find) {
@@ -233,6 +233,11 @@ export class FishingGame {
         break;
       }
       case "nibble": {
+        // The first guided catch forgives a strike too early: the fish keeps at the bait.
+        if (this.gentle) {
+          this.emit("tooEarly");
+          break;
+        }
         const dipping = this.float.sink > 0.5;
         if (dipping && this.random() < TUNING.dipHookChance) this.hook(true);
         else this.escape(dipping ? "missed" : "early");
@@ -280,9 +285,9 @@ export class FishingGame {
     this.rates.fill *= lineWeakness(this.lineHealth());
     this.wearRate = LINE.wear * (1 + this.fish.weight ** 0.8) * (this.extras.includes("braid") ? 0.5 : 1);
     // Too heavy for the hook: it may bend straight somewhere on the way in.
-    this.giveAt = !this.fish.junk && this.random() < straightenChance(this.gear, this.fish.weight) ? 0.2 + this.random() * 0.6 : null;
+    this.giveAt = !this.fish.junk && !this.gentle && this.random() < straightenChance(this.gear, this.fish.weight) ? 0.2 + this.random() * 0.6 : null;
     // Too heavy for the rod: the line snaps somewhere on the way in.
-    this.snapAt = !this.fish.junk && this.random() < rodGiveChance(this.rod, this.fish.weight) ? 0.1 + this.random() * 0.6 : null;
+    this.snapAt = !this.fish.junk && !this.gentle && this.random() < rodGiveChance(this.rod, this.fish.weight) ? 0.1 + this.random() * 0.6 : null;
     this.tension = 0;
     this.distance = 1;
     this.behavior = 0;
@@ -332,7 +337,7 @@ export class FishingGame {
 
   /** A duck paddled over the float and ate the bait (the hook is left). */
   duckSteal() {
-    if (!["waiting", "nibble", "bite"].includes(this.phase)) return false;
+    if (this.gentle || !["waiting", "nibble", "bite"].includes(this.phase)) return false;
     this.escape("duck", false, "duck");
     return true;
   }
@@ -432,6 +437,8 @@ export class FishingGame {
 
   /** Seconds until the next bite: shorter when the local fish are feeding. */
   nextWait() {
+    // The first guided catch (`gentle`, set by main.js) doesn't keep a new angler waiting long.
+    if (this.gentle) return 2 + this.random() * 2;
     // Mostly a short wait, sometimes a quick one, now and then a long lull.
     const lull = this.random() < 0.1 ? 6 + this.random() * 12 : 0;
     const wait = 2.5 + 11 * this.random() ** 1.6 + lull;
@@ -498,6 +505,8 @@ export class FishingGame {
    */
   planNibble(species) {
     const random = this.random;
+    // The first guided catch: a few slow twitches, time enough to read the tip, then a plain bite.
+    if (this.gentle) return [{ at: 1.2, kind: "twitch", strength: 1 }, { at: 2.8, kind: "twitch", strength: 1 }, { at: 4.4, kind: "twitch", strength: 1 }, { at: 6.4, kind: "bite" }];
     // Each species leans toward its own kinds of bite and its own rhythm.
     const style = NIBBLE[species] ?? { tempers: [18, 44, 25, 13], pace: 1, twitches: 1, strength: 1 };
     const total = style.tempers.reduce((sum, weight) => sum + weight, 0);
@@ -632,7 +641,8 @@ export class FishingGame {
         // Once it takes, the fish drags the sunk float steadily away.
         this.driftFloat(dt);
         this.moveFloat(Math.cos(this.heading) * 0.006 * dt, Math.sin(this.heading) * 0.0035 * dt);
-        if (this.clock >= (this.biteWindow ?? TUNING.biteWindow)) {
+        // The first guided catch waits for the strike, however long it takes.
+        if (!this.gentle && this.clock >= (this.biteWindow ?? TUNING.biteWindow)) {
           if (this.spinning) {
             this.escape("late");
             break;
@@ -747,6 +757,8 @@ export class FishingGame {
       this.ripple(this.fishPosition(), this.pulling ? 0.55 : 0.3 + this.behavior * 0.15, 0.28 + Math.min(0.4, rates.strain * 0.3));
     }
 
+    // The first guided catch can't snap the line: the bar stops just short of the end.
+    if (this.gentle) this.tension = Math.min(this.tension, 0.97);
     if (this.tension >= 1) {
       // A big fish snapping the line takes the hook with it.
       this.onLineWear(LINE.snapWear);

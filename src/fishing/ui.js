@@ -310,6 +310,84 @@ export class AnglerUI {
 
 
   /** After the very first fish, offer once to sign in, warning what skipping means. */
+  /**
+   * The first start: a few screens on just what it takes to start (cast, the
+   * bite, the fight, the catch), each with a little picture in glyphs. Shown
+   * once (`progress.onboarded`), whether gone through or skipped; it waits
+   * while another window is open.
+   */
+  openOnboarding() {
+    const progress = this.progress;
+    if (progress.onboarded) return;
+    // Another window open (not a page being warmed up out of sight): try again a little later.
+    if (document.querySelector("dialog[open]") && !document.body.classList.contains("warming")) {
+      setTimeout(() => this.openOnboarding(), 1500);
+      return;
+    }
+    const W = "#5f8a96";
+    const RED = "#e8573a";
+    const BODY = "#f1e9d8";
+    const GOLD = "#e2b85e";
+    const SOFT = "#8fa39a";
+    // A line of glyphs: [text, colour] pieces.
+    const line = (...pieces) => [...pieces.map(([text, color]) => element("span", { textContent: text, style: `color: ${color}` })), "\n"];
+    // Three little scenes side by side, each `width` glyphs wide, centred.
+    const width = 11;
+    const pad = (text) => {
+      const room = Math.max(0, width - text.length);
+      return " ".repeat(Math.floor(room / 2)) + text + " ".repeat(Math.ceil(room / 2));
+    };
+    const pages = [
+      { key: "cast", art: [
+        line(["      ·  ·  ·  ·     ", SOFT]),
+        line(["    /              ", SOFT], ["|", RED], ["  ", SOFT]),
+        line(["   /               ", SOFT], ["o", BODY], ["  ", SOFT]),
+        line(["  /  ", "#c8a868"], ["~ ~ ~ ~ ~ ~ ~ ~ ~", W]),
+      ] },
+      { key: "bite", art: [
+        line([pad("|"), RED], [pad(" |"), RED], [pad(" "), RED]),
+        line([pad("o"), BODY], [pad("  o"), BODY], [pad("( )"), GOLD]),
+        line([pad("~ ~ ~ ~ ~"), W], [pad("~ ~ ~ ~ ~"), W], [pad("~ ~ ~ ~ ~"), W]),
+        line([pad(t("onboarding.calm")), SOFT], [pad(t("onboarding.twitch")), SOFT], [pad(t("onboarding.under")), GOLD]),
+      ] },
+      { key: "fight", art: [
+        line(["   ><(((°>  ", "#c9d6c6"], ["~ ~ ~ ~ ~ ~ ~", W]),
+        line([" "]),
+        line(["[", SOFT], ["########", "#cfe3c6"], ["#####", GOLD], ["####", RED], ["]", SOFT]),
+        line([t("onboarding.pull"), "#cfe3c6"], [" · ", SOFT], [t("onboarding.careful"), GOLD], [" · ", SOFT], [t("onboarding.letGo"), RED]),
+      ] },
+      { key: "catch", art: [
+        line([pad("><(((°>"), "#c9d6c6"], [pad("[###]"), "#a08a68"], [pad("$"), GOLD]),
+        line([pad(t("onboarding.fish")), "#c9d6c6"], [pad(t("onboarding.keepnet")), "#a08a68"], [pad(t("onboarding.money")), GOLD]),
+      ] },
+    ];
+    const dialog = $("#onboarding");
+    let at = 0;
+    const show = () => {
+      const page = pages[at];
+      $("#onboarding-heading").textContent = t(`onboarding.${page.key}.title`);
+      $("#onboarding-art").replaceChildren(...page.art.flat());
+      $("#onboarding-text").textContent = t(`onboarding.${page.key}.text`);
+      $("#onboarding-step").textContent = `${at + 1} / ${pages.length}`;
+      $("#onboarding-next").textContent = at < pages.length - 1 ? t("onboarding.next") : t("onboarding.start");
+      $("#onboarding-skip").hidden = at === pages.length - 1;
+    };
+    $("#onboarding-next").onclick = () => {
+      if (at < pages.length - 1) {
+        at += 1;
+        show();
+      } else dialog.close();
+    };
+    $("#onboarding-skip").onclick = () => dialog.close();
+    // Gone through, skipped or closed with Esc: it doesn't come again.
+    dialog.onclose = () => {
+      progress.onboarded = true;
+      this.commit();
+    };
+    show();
+    dialog.showModal();
+  }
+
   offerSignIn() {
     const cloud = this.cloud;
     const KEY = "stillwater.signInOffered";

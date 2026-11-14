@@ -616,6 +616,9 @@ export const START_STATE = {
   waters: [],
   // Tournament cups, one for each place in the top three (see settleTourney in quests.js).
   cups: [],
+  // The first-start screens seen (or skipped), and the first-use tips already shown (see main.js).
+  onboarded: false,
+  tips: [],
 };
 
 /** The fish of the day (see quests.js) sells for this much more, if it was caught that day. */

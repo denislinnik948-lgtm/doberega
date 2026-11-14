@@ -340,6 +340,21 @@
       </div>
     </dialog>
 
+    <!-- First start: a few screens on the basics, once, skippable (see openOnboarding in ui.js). -->
+    <dialog class="sheet onboarding-sheet" id="onboarding" data-frame="ornate" aria-labelledby="onboarding-title">
+      <header class="sheet-heading">
+        <h2 class="title-tab" id="onboarding-title" data-frame="tab" data-i18n="onboarding.title">How to fish</h2>
+      </header>
+      <h3 class="onboarding-heading" id="onboarding-heading"></h3>
+      <pre class="onboarding-art" id="onboarding-art" aria-hidden="true"></pre>
+      <p class="sync-text" id="onboarding-text"></p>
+      <div class="onboarding-foot">
+        <span class="onboarding-step" id="onboarding-step"></span>
+        <button class="pixel-btn" id="onboarding-skip" type="button" data-i18n="onboarding.skip">Skip</button>
+        <button class="pixel-btn pixel-btn-primary" id="onboarding-next" type="button"></button>
+      </div>
+    </dialog>
+
     <script type="module" src="./src/main.js"></script>
   </body>
 </html>

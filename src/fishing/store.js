@@ -109,6 +109,8 @@ export function normalizeProgress(saved) {
       if (tourney.previous && Number.isFinite(tourney.previous.week)) state.tourney.previous = { week: tourney.previous.week, count: Math.max(0, Math.floor(Number(tourney.previous.count) || 0)) };
     }
     if (saved.cupsBackfilled === true) state.cupsBackfilled = true;
+    if (saved.onboarded === true) state.onboarded = true;
+    if (Array.isArray(saved.tips)) state.tips = [...new Set(saved.tips.filter((key) => typeof key === "string"))].slice(0, 50);
     // The float skins were taken out of the game: each one bought is paid back at its price,
     // once (the save keeps no list of them after this).
     if (Array.isArray(saved.floats)) for (const id of new Set(saved.floats)) state.money += RETIRED_FLOATS[id] ?? 0;
