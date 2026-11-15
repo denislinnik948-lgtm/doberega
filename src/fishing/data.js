@@ -380,7 +380,7 @@ export const EXTRAS = {
   // A bucket for live bait: small fish go into it as live bait (see LIVEBAIT).
   bucket: { price: 4000 },
   // Coloured lights for the float's tip at night: bought once, then any of FLOAT_LIGHTS, picked in the backpack.
-  lights: { price: 2000, preview: true },
+  lights: { price: 2000 },
 };
 
 /** The colours the float's tip can glow at night (green, every float's own, and the rest with the lights). */
