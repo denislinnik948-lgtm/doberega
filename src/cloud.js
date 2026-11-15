@@ -327,6 +327,10 @@ export class Cloud {
         return;
       }
       const remote = normalizeProgress(data.progress);
+      // The first-start screens and the tips at the water, seen on either side, are seen on both.
+      const seen = { onboarded: local.onboarded || remote.onboarded, tips: [...new Set([...(local.tips ?? []), ...(remote.tips ?? [])])] };
+      Object.assign(local, seen);
+      Object.assign(remote, seen);
       const synced = this.syncedAt();
       let keep;
       if (remote.savedAt && remote.savedAt === local.savedAt) keep = "same";

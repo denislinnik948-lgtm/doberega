@@ -380,7 +380,14 @@ export class AnglerUI {
     const show = () => {
       const page = pages[at];
       $("#onboarding-heading").textContent = t(`onboarding.${page.key}.title`);
-      $("#onboarding-art").replaceChildren(...page.art.flat());
+      const art = $("#onboarding-art");
+      art.replaceChildren(...page.art.flat());
+      // On a narrow screen the glyphs shrink until the picture fits, none of it cut off.
+      art.style.fontSize = "";
+      const inset = parseFloat(getComputedStyle(art).paddingLeft) * 2;
+      const room = art.clientWidth - inset;
+      const need = art.scrollWidth - inset;
+      if (need > room) art.style.fontSize = `${Math.floor((parseFloat(getComputedStyle(art).fontSize) * room / need) * 10) / 10}px`;
       $("#onboarding-text").textContent = t(`onboarding.${page.key}.text`);
       $("#onboarding-step").textContent = `${at + 1} / ${pages.length}`;
       $("#onboarding-next").textContent = at < pages.length - 1 ? t("onboarding.next") : t("onboarding.start");
@@ -398,8 +405,9 @@ export class AnglerUI {
       progress.onboarded = true;
       this.commit();
     };
-    show();
+    // Open first, so the picture can be measured.
     dialog.showModal();
+    show();
   }
 
   offerSignIn() {

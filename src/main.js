@@ -173,8 +173,6 @@ function ensureSpot() {
   if (builtSpot !== progress.location) applySpot();
 // Fish left in the keepnet from last time (the game was closed at the water): offer to sell them.
 if (progress.keepnet.length) setTimeout(() => ui.openKeepnet(), 800);
-// The first start (and, once, for everyone who played before it came in): a few screens on the basics.
-setTimeout(() => ui.openOnboarding(), 1200);
 }
 
 // Game hours spent at the water since leaving the menu (a whole day of it is an achievement).
@@ -340,8 +338,16 @@ onProgressSaved(() => cloud.schedulePush());
 window.addEventListener("pagehide", () => cloud.flush());
 // Once the saves are in step (so the cloud's isn't mistaken for the older one),
 // a save from before ranks gets the gifts of the ranks it has earned.
+// The first start (and, once, for everyone who played before it came in): a few screens on the basics,
+// once the account's save is in (so an angler signed in on a new device who has seen them won't again),
+// but no sooner than 1.2 s and no later than 8 s in.
+const onboardAt = Date.now() + 1200;
+const onboard = () => setTimeout(() => ui.openOnboarding(), Math.max(0, onboardAt - Date.now()));
+const onboardLate = setTimeout(onboard, 8000);
 cloud.init().then(() => {
   if (rankPending(progress)) ui.commit();
+  clearTimeout(onboardLate);
+  onboard();
 });
 // One anonymous "visit" per page open, for the stats page (see analytics.js),
 // counted once the page has been on screen for two seconds.
