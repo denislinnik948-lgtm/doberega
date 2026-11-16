@@ -264,6 +264,21 @@ export const FISH_LOOKS = {
     len: 46, h: 22, peak: 0.6, back: "#5a5236", side: "#c8c0a0", belly: "#f0ece0", fin: "#7a7458", lowFin: "#a89c78", tailFin: "#6a6448", eye: "#e8e0c4",
     dorsal: [[0.46, 0.56, 4]], anal: [0.12, 0.3, 3, "long"], tail: "deep", head: 1.6, stem: 0.3, pattern: "scales",
   },
+  // Nile perch: a big silver-grey perch with a humped back, a spiny first dorsal, a rounded tail and a glowing gold eye.
+  nilskyi: {
+    len: 48, h: 15, peak: 0.55, back: "#44545a", side: "#b4c0bc", belly: "#eceee6", fin: "#68726e", lowFin: "#8a948e", tailFin: "#68726e", eye: "#f2c03a",
+    dorsal: [[0.5, 0.78, 6, "spiny"], [0.28, 0.48, 4]], anal: [0.16, 0.3, 3], tail: "round", hump: true, bigEye: true,
+  },
+  // Siamese giant carp: a huge head on a deep bronze-grey body, big scales.
+  siamskyi: {
+    len: 46, h: 18, peak: 0.58, back: "#3a3222", side: "#aa9260", belly: "#e2d4ac", fin: "#4a3e2a", lowFin: "#7a6440", tailFin: "#4a3e2a", eye: "#e0d8b0",
+    dorsal: [[0.44, 0.6, 5]], anal: [0.16, 0.28, 3], tail: "fork", pattern: "scales", head: 1.8, stem: 0.36,
+  },
+  // White sturgeon: long and grey, rows of pale bony plates, a pointed snout with barbels, a deep tail.
+  osetr: {
+    len: 54, h: 10, peak: 0.45, back: "#545e60", side: "#a4acac", belly: "#ecebe2", fin: "#687274", lowFin: "#889092", tailFin: "#687274", eye: "#e0dccc",
+    dorsal: [[0.16, 0.26, 3]], anal: [0.14, 0.22, 2], tail: "deep", snout: "point", barbels: 2, pattern: "speckle", flat: true,
+  },
   // Sterlet: long, slim and grey, a pointed snout with barbels, a deep tail.
   sterliad: {
     len: 46, h: 8, peak: 0.45, back: "#3e4446", side: "#8c9496", belly: "#e0dcc8", fin: "#5a6264", lowFin: "#7a8284", tailFin: "#5a6264", eye: "#d8d4c0",
@@ -449,6 +464,8 @@ Object.assign(FISH_LOOKS, {
   panas: { ...FISH_LOOKS.som, back: "#1a1c16", side: "#4a4a3a", belly: "#b8b49a", eye: "#e8e0c0" },
   // The Old Grass Carp: huge and dark, its scales gone bronze and mossy with age.
   staryi: { ...FISH_LOOKS.amur, back: "#22261a", side: "#6e6a3e", belly: "#c8c49a", fin: "#3a3a26", lowFin: "#5a5636", tailFin: "#3a3a26", eye: "#e8dca0" },
+  // Zmii, the dragon of the lake: a white sturgeon gone near black and green with age, an ember for an eye.
+  zmii: { ...FISH_LOOKS.osetr, back: "#1c2422", side: "#4a5852", belly: "#c4c6b4", fin: "#2c3632", lowFin: "#3e4a44", tailFin: "#2c3632", eye: "#f08a2a", bigEye: true },
   // The granite pike: dark, grey as the quarry walls, pale spots like lichen.
   granitna: { ...FISH_LOOKS.shchuka, back: "#2a2e2c", side: "#6a6e66", belly: "#d8d6c8", fin: "#5a5448", lowFin: "#7a6a52", tailFin: "#5a5448", spotColor: "#b8b8a4", eye: "#f0d070" },
   // Veselka, the rainbow: a huge rainbow trout, its band gone bright as a rainbow.

@@ -1521,7 +1521,8 @@ export class AnglerUI {
       this.progress.money += money;
       return t("catch.bottleMoney", { money: formatMoney(money) });
     }
-    const notes = [...Object.values(LEGENDS).map((legend) => t(`legend.${legend.id}`)), ...[1, 2, 3, 4, 5].map((n) => t(`bottle.note${n}`))];
+    // A rumour of a legend (only of the waters this angler can see), or one of the notes.
+    const notes = [...Object.values(LEGENDS).filter((legend) => fishShown(legend.id)).map((legend) => t(`legend.${legend.id}`)), ...[1, 2, 3, 4, 5].map((n) => t(`bottle.note${n}`))];
     return t("catch.bottleNote", { text: notes[Math.floor(Math.random() * notes.length)] });
   }
 

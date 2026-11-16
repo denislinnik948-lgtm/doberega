@@ -64,6 +64,15 @@ export const FISH = {
   amur: { min: 3, max: 50, pricePerKg: 28, active: { base: 0.15, peaks: [[11, 4, 0.8], [16, 4, 0.8]] } },
   // Silver carp: a giant that hardly ever takes a hook.
   tovstolob: { min: 5, max: 55, pricePerKg: 60, active: { base: 0.1, peaks: [[13, 5, 0.6]] } },
+  /*
+   * Dragon Lake's own giants (see LOCATIONS, mountain; testers only while it is).
+   * Nile perch: a huge silver predator with a gold eye, on live bait or lures, keen at dawn and dusk.
+   */
+  nilskyi: { min: 5, max: 120, pricePerKg: 30, active: { base: 0.15, peaks: [[7, 3, 1], [18, 3, 0.9]] } },
+  // Siamese giant carp: the biggest of the carps, a great head on a bronze body; boilies, corn and peas, by day.
+  siamskyi: { min: 10, max: 130, pricePerKg: 26, active: { base: 0.2, peaks: [[12, 5, 0.8], [20, 3, 0.6]] } },
+  // White sturgeon: long, grey and armoured, feeding off the bottom at night and dawn; crayfish and live bait.
+  osetr: { min: 20, max: 140, pricePerKg: 45, active: { base: 0.06, peaks: [[1, 4, 1], [5, 3, 0.8]] } },
   // Sterlet: in the Red Book. It can't be sold, only let go, and that earns a badge (`protected`).
   sterliad: { min: 0.5, max: 3, pricePerKg: 0, protected: true, active: { base: 0.15, peaks: [[4, 3, 0.6], [21, 3, 0.6]] } },
   // The third joke: a two-headed perch, only at Pripyat. Priceless, trophy only.
@@ -85,6 +94,7 @@ export const FISH = {
   veselka: { min: 14, max: 16, pricePerKg: 0, unique: true, legend: true, active: { base: 1, peaks: [] } },
   granitna: { min: 20, max: 24, pricePerKg: 0, unique: true, legend: true, active: { base: 1, peaks: [] } },
   staryi: { min: 40, max: 46, pricePerKg: 0, unique: true, legend: true, active: { base: 1, peaks: [] } },
+  zmii: { min: 130, max: 150, pricePerKg: 0, unique: true, legend: true, active: { base: 1, peaks: [] } },
   // Not fish: now and then reeled in instead of an empty hook (see FINDS).
   boot: { min: 0.6, max: 1.4, pricePerKg: 0, junk: true, active: { base: 0, peaks: [] } },
   bottle: { min: 0.4, max: 0.7, pricePerKg: 0, junk: true, active: { base: 0, peaks: [] } },
@@ -127,6 +137,10 @@ export const NIBBLE = {
   myn: { tempers: [2, 2, 3, 3], pace: 1.4, twitches: 0.8, strength: 1, window: 1.4 },
   amur: { tempers: [1, 2, 4, 3], pace: 1.4, twitches: 1, strength: 1.2, window: 1.1 },
   tovstolob: { tempers: [0, 1, 4, 5], pace: 1.8, twitches: 0.6, strength: 0.9, window: 1.2 },
+  // The Nile perch strikes like a pike, only harder; the giant carp and the sturgeon mouth the bait slowly.
+  nilskyi: { tempers: [6, 1, 1, 2], pace: 0.9, twitches: 0.6, strength: 1.6, window: 1.1 },
+  siamskyi: { tempers: [1, 2, 4, 3], pace: 1.5, twitches: 1, strength: 1.3, window: 1.2 },
+  osetr: { tempers: [1, 3, 4, 2], pace: 1.4, twitches: 1, strength: 1.1, window: 1.3 },
   sterliad: { tempers: [1, 3, 4, 2], pace: 1.2, twitches: 1, strength: 0.8, window: 1 },
   dvoholovyi: { tempers: [5, 3, 1, 1], pace: 0.8, twitches: 1.2, strength: 1.2, window: 1.4 },
   valerka: { tempers: [3, 3, 1, 3], pace: 0.6, twitches: 1.5, strength: 1.3, window: 1.6 },
@@ -137,7 +151,7 @@ export const NIBBLE = {
   lostlure: { tempers: [1, 0, 0, 0], pace: 1, twitches: 0, strength: 0.5, window: 1 },
 };
 // A legend bites like its kind, only harder.
-for (const [id, kind] of Object.entries({ zolotyi: "karas", syva: "shchuka", knyazha: "forel", myron: "korop", panas: "som", veselka: "raiduzhna", granitna: "shchuka", staryi: "amur" })) {
+for (const [id, kind] of Object.entries({ zolotyi: "karas", syva: "shchuka", knyazha: "forel", myron: "korop", panas: "som", veselka: "raiduzhna", granitna: "shchuka", staryi: "amur", zmii: "osetr" })) {
   NIBBLE[id] = { ...NIBBLE[kind], strength: NIBBLE[kind].strength * 1.3 };
 }
 
@@ -151,9 +165,9 @@ export const FIGHT = {
   yorzh: 0.1, plitka: 0.35, krasnopirka: 0.4, karas: 0.6, okun: 0.7, lyn: 0.9, lyasch: 0.15, korop: 1.4,
   shchuka: 1.1, sudak: 0.6, som: 1.2, verkhovodka: 0.1, rotan: 0.25, bychok: 0.2, yaz: 0.9, zherekh: 1.3,
   forel: 1.2, raiduzhna: 1.3, paliya: 1, holovach: 1.3, holavl: 1, stalhead: 1.5, dzerkalnyi: 1.3, bufalo: 1,
-  kanalnyi: 1, myn: 0.4, amur: 1.5, tovstolob: 1, sterliad: 0.6, boot: 0, bottle: 0, lostlure: 0,
+  kanalnyi: 1, myn: 0.4, amur: 1.5, tovstolob: 1, sterliad: 0.6, nilskyi: 1.4, siamskyi: 1.3, osetr: 1.1, boot: 0, bottle: 0, lostlure: 0,
 };
-for (const [id, kind] of Object.entries({ zolotyi: "karas", syva: "shchuka", knyazha: "forel", myron: "korop", panas: "som", veselka: "raiduzhna", granitna: "shchuka", staryi: "amur" })) {
+for (const [id, kind] of Object.entries({ zolotyi: "karas", syva: "shchuka", knyazha: "forel", myron: "korop", panas: "som", veselka: "raiduzhna", granitna: "shchuka", staryi: "amur", zmii: "osetr" })) {
   FIGHT[id] = FIGHT[kind] * 1.3;
 }
 
@@ -187,6 +201,7 @@ export const LEGENDS = {
   troutfarm: { id: "veselka", kind: "raiduzhna", baits: ["spinner", "worm", "corn"] },
   quarry: { id: "granitna", kind: "shchuka", baits: ["spoon", "wobbler"] },
   carplake: { id: "staryi", kind: "amur", baits: ["corn", "peas", "boilie"] },
+  mountain: { id: "zmii", kind: "osetr", baits: ["crayfish", "livebait"] },
 };
 export const LEGEND_CHANCE = 1 / 1500;
 
@@ -266,13 +281,13 @@ export const BAITS = {
   maggot: { price: 4, size: 0.5, species: { plitka: 4, krasnopirka: 3, yorzh: 2, lyasch: 2, karas: 2, verkhovodka: 4, yaz: 1, raiduzhna: 2 } },
   barley: { price: 4, size: 0.8, species: { karas: 3, lyasch: 3, plitka: 2, korop: 2, lyn: 1, yaz: 2, bufalo: 3 } },
   bloodworm: { price: 5, size: 0.5, species: { yorzh: 3, plitka: 3, karas: 2, lyn: 3, okun: 2, bychok: 2, sterliad: 2, verkhovodka: 1, paliya: 3 } },
-  peas: { price: 6, size: 0.9, species: { lyasch: 4, korop: 3, lyn: 2, plitka: 1, yaz: 3, amur: 2, dzerkalnyi: 2, bufalo: 4 } },
-  corn: { price: 7, size: 1, species: { karas: 2, lyasch: 3, korop: 4, lyn: 2, yaz: 2, amur: 4, raiduzhna: 2, holavl: 3, dzerkalnyi: 3, bufalo: 2 } },
-  boilie: { price: 20, size: 1.6, species: { korop: 6, lyasch: 1, amur: 3, tovstolob: 0.6, dzerkalnyi: 6, kanalnyi: 3 } },
+  peas: { price: 6, size: 0.9, species: { lyasch: 4, korop: 3, lyn: 2, plitka: 1, yaz: 3, amur: 2, dzerkalnyi: 2, bufalo: 4, siamskyi: 2 } },
+  corn: { price: 7, size: 1, species: { karas: 2, lyasch: 3, korop: 4, lyn: 2, yaz: 2, amur: 4, raiduzhna: 2, holavl: 3, dzerkalnyi: 3, bufalo: 2, siamskyi: 3 } },
+  boilie: { price: 20, size: 1.6, species: { korop: 6, lyasch: 1, amur: 3, tovstolob: 0.6, dzerkalnyi: 6, kanalnyi: 3, siamskyi: 5 } },
   // Live bait and crayfish: big perch and catfish (pike and zander go for the spoon).
-  livebait: { price: 25, size: 1.4, species: { okun: 4, som: 2, myn: 3, zherekh: 1, holovach: 1, kanalnyi: 4 } },
-  crayfish: { price: 30, size: 1.6, species: { som: 3, okun: 2, myn: 1, kanalnyi: 3 } },
-  frog: { price: 45, size: 1.8, species: { som: 6 } },
+  livebait: { price: 25, size: 1.4, species: { okun: 4, som: 2, myn: 3, zherekh: 1, holovach: 1, kanalnyi: 4, nilskyi: 5, osetr: 2 } },
+  crayfish: { price: 30, size: 1.6, species: { som: 3, okun: 2, myn: 1, kanalnyi: 3, osetr: 4, nilskyi: 2 } },
+  frog: { price: 45, size: 1.8, species: { som: 6, nilskyi: 2 } },
   /*
    * Lures for the spinning reel, sold with the tackle. Each works like a hook
    * as well (`minKg`, `holdKg`, see HOOKS) and has its own way of being fished:
@@ -282,9 +297,9 @@ export const BAITS = {
   // A small spinner: mostly perch, takes on a plain steady retrieve.
   spinner: { price: 150, lure: true, size: 0.7, others: 0, minKg: 0, holdKg: 2, retrieve: { jerk: 1, flutter: 0.6, steady: 3 }, species: { okun: 6, shchuka: 1.2, sudak: 0.6, plitka: 0.8, forel: 4, zherekh: 1, raiduzhna: 4, paliya: 3, holavl: 3 } },
   // The wobbling spoon: pike and zander, best fished in jerks.
-  spoon: { price: 300, lure: true, size: 1.2, others: 0, minKg: 0.3, holdKg: 8, retrieve: { jerk: 1, flutter: 1, steady: 1 }, species: { okun: 4, shchuka: 5, sudak: 4, som: 0.4, zherekh: 4, holovach: 3, raiduzhna: 2, stalhead: 4 } },
+  spoon: { price: 300, lure: true, size: 1.2, others: 0, minKg: 0.3, holdKg: 8, retrieve: { jerk: 1, flutter: 1, steady: 1 }, species: { okun: 4, shchuka: 5, sudak: 4, som: 0.4, zherekh: 4, holovach: 3, raiduzhna: 2, stalhead: 4, nilskyi: 2 } },
   // A wobbler: only bigger fish, which hit it as it stops in the pause.
-  wobbler: { price: 900, lure: true, size: 1.5, others: 0, minKg: 1, holdKg: Infinity, retrieve: { jerk: 0.5, flutter: 1.85, steady: 0.45 }, species: { shchuka: 6, sudak: 2.5, okun: 2, som: 0.8, zherekh: 3, holovach: 3, raiduzhna: 1.5, holavl: 3, stalhead: 4 } },
+  wobbler: { price: 900, lure: true, size: 1.5, others: 0, minKg: 1, holdKg: Infinity, retrieve: { jerk: 0.5, flutter: 1.85, steady: 0.45 }, species: { shchuka: 6, sudak: 2.5, okun: 2, som: 0.8, zherekh: 3, holovach: 3, raiduzhna: 1.5, holavl: 3, stalhead: 4, nilskyi: 4 } },
 };
 
 /** Baits taken out of the game, with their price: a save that still holds some is paid back. */
@@ -435,8 +450,8 @@ export const RARE_FISH = ["lyn", "sudak", "zherekh", "forel", "paliya", "kanalny
  * `progress.baitedKind[spot]`. `gift: false`: never given away.
  */
 export const GROUNDBAITS = {
-  basic: { price: 120, boost: 1.35, favor: 2, favors: ["korop", "dzerkalnyi", "amur", "karas", "lyn", "bufalo", "tovstolob", "lyasch", "plitka", "krasnopirka", "yaz", "holavl", "verkhovodka", "forel", "raiduzhna", "paliya"] },
-  predator: { price: 200, boost: 1.35, favor: 3, favors: ["okun", "shchuka", "sudak", "som", "zherekh", "kanalnyi", "myn", "stalhead"] },
+  basic: { price: 120, boost: 1.35, favor: 2, favors: ["korop", "dzerkalnyi", "amur", "karas", "lyn", "bufalo", "tovstolob", "lyasch", "plitka", "krasnopirka", "yaz", "holavl", "verkhovodka", "forel", "raiduzhna", "paliya", "siamskyi"] },
+  predator: { price: 200, boost: 1.35, favor: 3, favors: ["okun", "shchuka", "sudak", "som", "zherekh", "kanalnyi", "myn", "stalhead", "nilskyi", "osetr"] },
   premium: { price: 3000, boost: 1.9, favor: 2.5, favors: RARE_FISH, gift: false },
 };
 /** Older saves' groundbaits, by what they became. */
@@ -552,18 +567,19 @@ export const LOCATIONS = [
     /*
      * The mountain lake, the last and dearest water, still being tried out
      * (`preview`: a tester only): giants from 45 kg, mostly up to 70, a big
-     * one up to 100, now and then up to 110. Entered by a day ticket (see
-     * PASS_MS), only with the catfish rod. Its own fish and the fish's
-     * strength are still to come.
+     * one up to 100, now and then up to 110: its own Nile perch, Siamese giant
+     * carp and white sturgeon, with the catfish and the silver carp. Entered
+     * by a day ticket (see PASS_MS), only with the catfish rod. The fish's
+     * strength is still to come.
      */
     id: "mountain", snagChance: 0.03, kind: "mountain", water: "#2e5a4a", preview: true,
     traits: { type: "lake", depth: "veryDeep", bottom: "stones", current: "none" },
     minKg: 45, typicalKg: 70, maxKg: 100, bigChance: 1 / 6, tailKg: 110, tailChance: 1 / 60, pace: 0.5,
     // Entry by a ticket for a day, and only with the catfish rod; not a once-paid fee, so off the rod ladder.
-    // It pays about 71 000 $ an hour with the catfish rod (the carp lake 47 000), so the ticket pays for itself in about an hour and a half there,
-    // and only after some four hours does a day there beat the carp lake.
+    // It pays about 89 000 $ an hour with the catfish rod and crayfish (the carp lake 47 000), so the ticket pays for itself in a little over
+    // an hour there, and after some two and a half hours a day there beats the carp lake.
     unlock: { pass: 100000, rod: "catfish" },
-    fish: { som: 3, amur: 1, tovstolob: 1 },
+    fish: { nilskyi: 3, siamskyi: 3, osetr: 1, som: 1.5, tovstolob: 0.5 },
   },
 ];
 
