@@ -698,13 +698,19 @@ html.keyboard-open .sheet[open] > .account-body {
 .volume-row:has(input:disabled) :is(.setting-label, output) { color: var(--mid); }
 .volume-row input:disabled { opacity: 0.4; }
 .feedback-open { justify-self: stretch; min-height: 48px; padding-inline: 18px; }
+.feedback-social { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; color: var(--soft); font-size: 18px; line-height: 1.4; }
+.feedback-social a { color: var(--light); text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
+.feedback-social a:hover { color: var(--bone); }
+/* "Auto" stands apart from the four seasons: a rule between them. */
+.segmented-rule { flex: none; width: 2px; margin: 4px 4px; background: var(--line); }
 @media (min-width: 900px) {
   .settings-body { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .settings-wide { grid-column: 1 / -1; }
   /* Across both cards: the line on the left, the button on the right. */
   .feedback-card { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 20px; }
   .feedback-card .today-heading { grid-column: 1 / -1; }
-  .feedback-open { justify-self: end; }
+  .feedback-card > .setting-note, .feedback-social { grid-column: 1; }
+  .feedback-open { grid-column: 2; grid-row: 2 / span 2; justify-self: end; }
   .feedback-body { max-width: 720px; grid-template-columns: minmax(0, 1fr); }
 }
 

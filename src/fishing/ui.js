@@ -248,7 +248,7 @@ export class AnglerUI {
         this.openSettings();
       },
     })));
-    $("#season-options").replaceChildren(...SEASONS.map((id) => element("button", {
+    const seasons = SEASONS.map((id) => element("button", {
       className: `pixel-btn tab${id === season() ? " is-active" : ""}`,
       type: "button",
       role: "radio",
@@ -259,7 +259,9 @@ export class AnglerUI {
         this.openSettings();
         this.renderSpot();
       },
-    })));
+    }));
+    // "Auto" first, then a rule, then the four seasons.
+    $("#season-options").replaceChildren(seasons[0], element("span", { className: "segmented-rule", ariaHidden: "true" }), ...seasons.slice(1));
     $("#season-hint").textContent = t(`season.${season()}Hint`);
     // Sound: off until switched on here.
     $("#sound-options").replaceChildren(...[true, false].map((on) => element("button", {
