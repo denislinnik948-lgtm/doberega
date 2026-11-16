@@ -170,30 +170,37 @@ export function recordDay(progress, now = Date.now()) {
 }
 
 /*
- * The weekly tournament: one species, the same for everyone, from Monday
- * 00:00 to Sunday 23:59 Kyiv time, in one of three formats taking turns
- * (TOURNEY_FORMATS): the heaviest single fish, a marathon (the most kilos of
- * it all week) or the heaviest one caught at night. Middling fish, ones the
- * early rods can land too, and the pike and zander. Results of signed-in
- * anglers go to the cloud (cloud.js); the server checks the week and the
- * weight. Prizes, paid the next time the angler comes in after the week: 3×,
- * 2× and 1× the quest reward and a cup on the trophy wall for the top three,
- * and two groundbaits made for the week's fish for everyone who landed at
- * least TOURNEY_GIFT.minFish of it.
+ * The tournament: one species, the same for everyone, for three days at a
+ * time from midnight Kyiv time (a week, Monday to Sunday, before 16 November
+ * 2026), in one of three formats taking turns (TOURNEY_FORMATS): the heaviest
+ * single fish, a marathon (the most kilos of it over the tournament) or the
+ * heaviest one caught at night. Middling fish, ones the early rods can land
+ * too, and the pike and zander. Results of signed-in anglers go to the cloud
+ * (cloud.js); the server checks the tournament and the weight. Prizes, paid
+ * the next time the angler comes in after it: 3×, 2× and 1× the quest reward
+ * and a cup on the trophy wall for the top three, and two groundbaits made
+ * for its fish for everyone who landed at least TOURNEY_GIFT.minFish of it.
+ *
+ * A tournament is known by its number, `week` (the name kept from the weekly
+ * ones, in the saves and the cloud's table alike): the weeks counted from
+ * 1970 up to 2967, then one number for every three days from 2968 on.
  *
  * `progress.tourney` holds { week, best, count, place, claimed, previous }:
- * this week's score (the heaviest, or the kilos in all), how many of the
- * week's fish counted, the last place seen on the board, the last week whose
- * prize has been settled, and last week's { week, count }.
+ * this tournament's score (the heaviest, or the kilos in all), how many of
+ * its fish counted, the last place seen on the board, the last tournament
+ * whose prize has been settled, and the one before's { week, count }.
  */
 export const TOURNEY_FISH = ["karas", "okun", "lyn", "lyasch", "plitka", "krasnopirka", "shchuka", "sudak"];
-// The formats and the pike and zander came in with the week starting 16 November 2026;
-// the weeks before keep the fish and the format they were played for.
+// The formats, the pike and zander and the three days came in with the tournament
+// starting 16 November 2026; the weeks before keep the fish and the format they were played for.
 export const TOURNEY_RULES_FROM = 2968;
+// Its first day, counted from 1 January 1970 (the Monday week 2968 began on), and each one's length.
+const TOURNEY_DAYS_FROM = TOURNEY_RULES_FROM * 7 - 3;
+export const TOURNEY_DAYS = 3;
 const OLD_TOURNEY_FISH = ["karas", "okun", "lyn", "lyasch", "plitka", "krasnopirka"];
 export const TOURNEY_PRIZES = [3, 2, 1];
 export const TOURNEY_GIFT = { groundbait: 2, minFish: 3 };
-// The formats take turns by week: the heaviest every other week, a marathon and a night one in between.
+// The formats take turns: the heaviest every other time, a marathon and a night one in between.
 export const TOURNEY_FORMATS = ["heaviest", "marathon", "heaviest", "night"];
 // Night by the game's clock, the same for everyone (see daycycle.js).
 export const TOURNEY_NIGHT = { from: 21, to: 5 };
@@ -215,17 +222,24 @@ function kyivWall(now) {
   return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute);
 }
 
-/** The week's number: weeks start on Monday (1 Jan 1970 was a Thursday). */
+/** The day a tournament starts on, counted from 1 January 1970. */
+function tourneyStartDay(week) {
+  return week < TOURNEY_RULES_FROM ? week * 7 - 3 : TOURNEY_DAYS_FROM + (week - TOURNEY_RULES_FROM) * TOURNEY_DAYS;
+}
+
+/** The tournament's number: weeks starting on Monday (1 Jan 1970 was a Thursday), then three days each. */
 export function tourneyWeek(now = Date.now()) {
-  return Math.floor((Math.floor(kyivWall(now) / DAY_MS) + 3) / 7);
+  const day = Math.floor(kyivWall(now) / DAY_MS);
+  if (day < TOURNEY_DAYS_FROM) return Math.floor((day + 3) / 7);
+  return TOURNEY_RULES_FROM + Math.floor((day - TOURNEY_DAYS_FROM) / TOURNEY_DAYS);
 }
 
-/** Milliseconds until the week ends. */
+/** Milliseconds until the tournament ends. */
 export function untilWeekEnd(now = Date.now()) {
-  return ((tourneyWeek(now) + 1) * 7 - 3) * DAY_MS - kyivWall(now);
+  return tourneyStartDay(tourneyWeek(now) + 1) * DAY_MS - kyivWall(now);
 }
 
-/** The week's fish, never the same two weeks running. */
+/** The tournament's fish, never the same two running. */
 export function tourneyFish(week = tourneyWeek()) {
   const list = (w) => (w >= TOURNEY_RULES_FROM ? TOURNEY_FISH : OLD_TOURNEY_FISH);
   const pick = (w) => list(w)[Math.floor(hash2(w, 11, 7717) * list(w).length) % list(w).length];
@@ -234,7 +248,7 @@ export function tourneyFish(week = tourneyWeek()) {
   return fish === pick(week - 1) ? own[(own.indexOf(fish) + 1) % own.length] : fish;
 }
 
-/** This week's run at the tournament, started afresh on a new week (last week's count kept for its gift). */
+/** This tournament's run, started afresh on a new one (the last one's count kept for its gift). */
 export function tourneyState(progress, week = tourneyWeek()) {
   const state = progress.tourney ?? { week, best: 0, count: 0, claimed: week - 1 };
   if (state.week !== week) {
@@ -246,7 +260,7 @@ export function tourneyState(progress, week = tourneyWeek()) {
 }
 
 /**
- * A landed fish at game hour `hour`: when it raises the week's score, returns
+ * A landed fish at game hour `hour`: when it raises the tournament's score, returns
  * { week, species, weight, format } (weight: the score), otherwise null.
  */
 export function recordTourney(progress, fish, hour = 12, now = Date.now()) {
@@ -263,7 +277,7 @@ export function recordTourney(progress, fish, hour = 12, now = Date.now()) {
 }
 
 /**
- * Pay out a finished week once its place is known: `place` is null when the
+ * Pay out a finished tournament once its place is known: `place` is null when the
  * angler had no result. Returns what was given ({ place, money, gift }) or
  * null when there was nothing.
  */
@@ -275,7 +289,7 @@ export function settleTourney(progress, week, place) {
   const share = TOURNEY_PRIZES[place - 1] ?? 0;
   const money = Math.round(questReward(progress) * share);
   progress.money += money;
-  // The gift only for having really taken part: a few of the week's fish. The fish
+  // The gift only for having really taken part: a few of its fish. The fish
   // weren't counted before the new rules (and an older save may not count them
   // yet): those weeks are given the benefit of the doubt.
   const counted = week >= TOURNEY_RULES_FROM && state.previous?.week === week;
@@ -292,5 +306,5 @@ export function settleTourney(progress, week, place) {
   return { place, money, gift };
 }
 
-/** The Monday a tournament week starts on, as a date. */
-export const tourneyWeekStart = (week) => new Date((week * 7 - 3) * DAY_MS);
+/** The day a tournament starts on, as a date. */
+export const tourneyWeekStart = (week) => new Date(tourneyStartDay(week) * DAY_MS);

@@ -253,8 +253,10 @@ const cloud = new Cloud({
     // Signing in or out: the tiles drawn again (the tournament's board knows who you are).
     ui.refreshTiles();
   },
-  // Signed in and in step: this week's best goes up (it may have been caught
-  // before signing in), and last week's tournament is settled, once.
+  // Signed in and in step: this tournament's best goes up (it may have been
+  // caught before signing in), and every finished one this angler has a result
+  // in since the last settled is settled, once, oldest first (a tournament
+  // lasts three days, so one or two may go by between visits).
   onSynced: async () => {
     const week = tourneyWeek();
     const state = tourneyState(progress, week);
@@ -262,14 +264,21 @@ const cloud = new Cloud({
     await backfillCups(week);
     if ((state.claimed ?? -1) >= week - 1) return;
     try {
-      const result = await cloud.tournamentPlace(week - 1, tourneyFish(week - 1));
-      if (!result) return;
-      const prize = settleTourney(progress, week - 1, result.place);
-      if (prize) gainXp(progress, XP.podium[prize.place - 1] ?? 0);
+      const rows = await cloud.myTournamentRows();
+      if (!rows) return;
+      const due = rows.filter((row) => row.week < week && row.week > (state.claimed ?? -1)).sort((a, b) => a.week - b.week);
+      let settled = true;
+      for (const row of due) {
+        const result = await cloud.tournamentPlace(row.week, row.species);
+        if (!result) { settled = false; break; }
+        const prize = settleTourney(progress, row.week, result.place);
+        if (prize) gainXp(progress, XP.podium[prize.place - 1] ?? 0);
+        if (prize) ui.tourneyPrize(prize);
+      }
+      if (settled) state.claimed = week - 1;
       ui.commit();
-      if (prize) ui.tourneyPrize(prize);
     } catch (error) {
-      console.warn("Last week's tournament could not be checked:", error.message);
+      console.warn("The last tournaments could not be checked:", error.message);
     }
   },
 });

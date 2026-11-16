@@ -1031,8 +1031,8 @@ export class AnglerUI {
   }
 
   /**
-   * Who won last week's tournament (a Set of user ids, empty when unknown),
-   * asked once a week: they wear a little cup by their name until the next.
+   * Who won the last tournament (a Set of user ids, empty when unknown),
+   * asked once a tournament: they wear a little cup by their name until the next ends.
    */
   champions() {
     const week = tourneyWeek() - 1;
@@ -1047,13 +1047,13 @@ export class AnglerUI {
     return this.championsFor.request;
   }
 
-  /** The little cup by a name, for last week's winner (nothing for anyone else). */
+  /** The little cup by a name, for the last tournament's winner (nothing for anyone else). */
   championBadge(champions, userId) {
     if (!userId || !champions?.has(userId)) return "";
     return element("span", { className: "champion-badge", title: t("tourney.champion"), "aria-label": t("tourney.champion") }, [cupSprite(1)]);
   }
 
-  /** "3 d 4 h" until the tournament week ends. */
+  /** "2 d 4 h" until the tournament ends. */
   weekLeft() {
     const left = untilWeekEnd();
     return t("tourney.left", { days: Math.floor(left / 86400000), hours: Math.floor((left % 86400000) / 3600000) });

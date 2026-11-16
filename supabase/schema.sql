@@ -63,9 +63,10 @@ drop policy if exists "delete own trophies" on public.trophies;
 create policy "delete own trophies" on public.trophies
   for delete using (auth.uid() = user_id);
 
--- The weekly tournament: each angler's heaviest fish of the week's species.
+-- The tournament (a week, then three days from 16 November 2026): each angler's
+-- heaviest fish of its species, or in a marathon the kilos in all.
 -- Anyone can read the table; results only go in through submit_tournament(),
--- which takes the week from the server's clock and turns away weights the
+-- which takes the tournament from the server's clock and turns away weights the
 -- fish can't reach. A bad entry can be removed here by hand:
 --   delete from public.tournament where player = 'NICKNAME' and week = WEEK;
 create table if not exists public.tournament (
@@ -93,18 +94,21 @@ drop policy if exists "anyone reads the tournament" on public.tournament;
 create policy "anyone reads the tournament" on public.tournament
   for select using (true);
 
--- Weeks start on Monday 00:00 Kyiv time, numbered as in the game (src/fishing/quests.js).
+-- The tournament's number, as in the game (tourneyWeek in src/fishing/quests.js):
+-- weeks from Monday 00:00 Kyiv time up to 2967, then one for every three days
+-- from 16 November 2026 (day 20773 since 1970, the start of week 2968).
 create or replace function public.tournament_week()
 returns int
 language sql
 stable
 as $$
-  select floor(((now() at time zone 'Europe/Kiev')::date - date '1970-01-01' + 3) / 7.0)::int;
+  select case when d < 20773 then floor((d + 3) / 7.0)::int else 2968 + floor((d - 20773) / 3.0)::int end
+  from (select (now() at time zone 'Europe/Kiev')::date - date '1970-01-01' as d) as today;
 $$;
 
--- The week's format, as in the game (TOURNEY_FORMATS in src/fishing/quests.js):
--- the heaviest fish every other week, a marathon and a night one in between,
--- from the week starting 16 November 2026 (TOURNEY_RULES_FROM).
+-- The tournament's format, as in the game (TOURNEY_FORMATS in src/fishing/quests.js):
+-- the heaviest fish every other time, a marathon and a night one in between,
+-- from the one starting 16 November 2026 (TOURNEY_RULES_FROM).
 create or replace function public.tournament_format(w int)
 returns text
 language sql
@@ -115,7 +119,7 @@ $$;
 
 -- A new score for the signed-in angler. The limit is the heaviest each fish can
 -- grow, a tenth over its kind's top (a fish can outgrow its kind, OVERSIZE in
--- src/fishing/data.js); in a marathon week, the kilos of a week's fishing.
+-- src/fishing/data.js); in a marathon, the kilos of the tournament's fishing.
 -- `lvl` is the angler's rank and `pic` their picture, both shown by their name.
 drop function if exists public.submit_tournament(text, real);
 drop function if exists public.submit_tournament(text, real, int);
