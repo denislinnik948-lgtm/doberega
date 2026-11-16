@@ -905,6 +905,38 @@ export function coinSprite(scale = 3) {
   ], { o: P.ink, D: P.goldDark, L: P.bone, G: P.gold, f: P.goldDark }).toCanvas(scale);
 }
 
+/** The developer's social networks, in the page's pale ink: Instagram's camera and X's cross. */
+export function socialSprite(network, scale = 2) {
+  const rows = network === "instagram" ? [
+    ".LLLLLLLLLL.",
+    "L..........L",
+    "L........L.L",
+    "L...LLLL...L",
+    "L..L....L..L",
+    "L..L....L..L",
+    "L..L....L..L",
+    "L..L....L..L",
+    "L...LLLL...L",
+    "L..........L",
+    "L..........L",
+    ".LLLLLLLLLL.",
+  ] : [
+    "LL.........L",
+    "LLL.......L.",
+    ".LLL.....L..",
+    "..LLL...L...",
+    "...LLL.L....",
+    "....LLL.....",
+    ".....LLL....",
+    "....L.LLL...",
+    "...L...LLL..",
+    "..L.....LLL.",
+    ".L.......LLL",
+    "L.........LL",
+  ];
+  return fromRows(rows, { L: P.bone }).toCanvas(scale);
+}
+
 /** A little shop front with a striped awning: the shop. */
 export function bagSprite(scale = 3) {
   return fromRows([

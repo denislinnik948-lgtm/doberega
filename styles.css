@@ -698,9 +698,11 @@ html.keyboard-open .sheet[open] > .account-body {
 .volume-row:has(input:disabled) :is(.setting-label, output) { color: var(--mid); }
 .volume-row input:disabled { opacity: 0.4; }
 .feedback-open { justify-self: stretch; min-height: 48px; padding-inline: 18px; }
-.feedback-social { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; color: var(--soft); font-size: 18px; line-height: 1.4; }
-.feedback-social a { color: var(--light); text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
-.feedback-social a:hover { color: var(--bone); }
+.feedback-social { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; color: var(--soft); font-size: 18px; line-height: 1.4; }
+/* Each network a square button with its pixel mark, big enough for a thumb. */
+.social-link { display: grid; place-items: center; width: 44px; height: 44px; background: var(--ink); box-shadow: inset 0 0 0 2px var(--line); }
+.social-link:hover { background: var(--deep); box-shadow: inset 0 0 0 2px var(--line-hover); }
+.social-link canvas { display: block; image-rendering: pixelated; }
 /* "Auto" stands apart from the four seasons: a rule between them. */
 .segmented-rule { flex: none; width: 2px; margin: 4px 4px; background: var(--line); }
 @media (min-width: 900px) {

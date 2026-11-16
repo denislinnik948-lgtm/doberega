@@ -3,7 +3,7 @@ import {
   baitEntries, BIG_BONUS, DAY_FISH_BONUS, OVERSIZE_BONUS, fishPrice, formatMoney, sizeBonus, formatWeight, handbookEntries, peakPeriod, spotEntries, trophyCost,
 } from "./data.js";
 import {
-  AVATARS, atlasSprite, avatarSprite, bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, groundbaitSprite, hookSprite, keepnetSprite, lineSprite, medalSprite, packSprite, rodSprite, windSprite,
+  AVATARS, atlasSprite, avatarSprite, bagSprite, baitSprite, clockSprite, gearSprite, rainSprite, coinSprite, cupSprite, exitSprite, extraSprite, fishSprite, groundbaitSprite, hookSprite, keepnetSprite, lineSprite, medalSprite, packSprite, rodSprite, socialSprite, windSprite,
 } from "./sprites.js";
 import { P } from "./palette.js";
 import { GROUPS, bump, evaluate, shownAchievements } from "./achievements.js";
@@ -144,6 +144,7 @@ export class AnglerUI {
     $("#keepnet-chip").addEventListener("click", () => this.openKeepnet());
     $("#settings-button").addEventListener("click", () => this.openSettings());
     $("#feedback-button").addEventListener("click", () => this.openFeedback());
+    document.querySelectorAll(".social-link").forEach((link) => link.replaceChildren(socialSprite(link.dataset.network)));
     $("#feedback-send").addEventListener("click", () => this.sendFeedback());
     $("#feedback-text").addEventListener("input", () => this.countFeedback());
     // Each tile opens the page it sums up.
