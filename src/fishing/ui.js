@@ -241,24 +241,24 @@ export class AnglerUI {
     this.render();
   }
 
+  /** An on/off switch: its state, the word beside it (null keeps its own), and what a tap does. */
+  setSwitch(button, on, text, toggle) {
+    button.setAttribute("aria-checked", String(on));
+    if (text !== null) button.querySelector(".switch-text").textContent = text;
+    button.onclick = toggle;
+  }
+
   openSettings() {
     // Writing to the developer: testers only until the bot is seen to work.
     $("#feedback-row").hidden = !access.tester;
     // The update log: testers only for now too; whether it opens by itself on coming in.
     $("#news-row").hidden = !access.tester;
     const news = (this.progress.news ??= { seen: "", shownOn: "", off: false });
-    $("#news-options").replaceChildren(...[true, false].map((on) => element("button", {
-      className: `pixel-btn tab${on === !news.off ? " is-active" : ""}`,
-      type: "button",
-      role: "radio",
-      ariaChecked: String(on === !news.off),
-      textContent: t(on ? "news.show" : "news.hide"),
-      onclick: () => {
-        news.off = !on;
-        this.commit();
-        this.openSettings();
-      },
-    })));
+    this.setSwitch($("#news-switch"), !news.off, null, () => {
+      news.off = !news.off;
+      this.commit();
+      this.openSettings();
+    });
     const options = $("#language-options");
     options.replaceChildren(...LANGUAGES.map(({ id, label }) => element("button", {
       className: `pixel-btn tab${id === language() ? " is-active" : ""}`,
@@ -289,17 +289,10 @@ export class AnglerUI {
     $("#season-options").replaceChildren(seasons[0], element("span", { className: "segmented-rule", ariaHidden: "true" }), ...seasons.slice(1));
     $("#season-hint").textContent = t(`season.${season()}Hint`);
     // Sound: off until switched on here.
-    $("#sound-options").replaceChildren(...[true, false].map((on) => element("button", {
-      className: `pixel-btn tab${on === soundEnabled() ? " is-active" : ""}`,
-      type: "button",
-      role: "radio",
-      ariaChecked: String(on === soundEnabled()),
-      textContent: t(on ? "sound.on" : "sound.off"),
-      onclick: () => {
-        setSoundEnabled(on);
-        this.openSettings();
-      },
-    })));
+    this.setSwitch($("#sound-switch"), soundEnabled(), t(soundEnabled() ? "sound.on" : "sound.off"), () => {
+      setSoundEnabled(!soundEnabled());
+      this.openSettings();
+    });
     // Two volume sliders, effects and music: live as you drag, remembered; faded while sound is off.
     for (const kind of ["fx", "music"]) {
       const slider = $(`#volume-${kind}`);

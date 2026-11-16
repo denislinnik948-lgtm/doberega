@@ -691,6 +691,15 @@ html.keyboard-open .sheet[open] > .account-body {
 .segmented .pixel-btn { flex: 1; min-width: 0; min-height: 42px; padding-inline: 6px; border-color: transparent; color: var(--soft); background: none; }
 .segmented .pixel-btn:hover:not(.is-active) { border-color: transparent; color: var(--bone); background: var(--deep); }
 .segmented .pixel-btn.is-active { border-color: var(--line-hover); color: var(--bone); background: var(--dark); }
+/* On or off: a switch, a square knob sliding along a sunken track, gold when on; the word for its state beside it. */
+.switch { display: inline-flex; justify-self: start; align-items: center; gap: 12px; min-height: 44px; padding: 0; border: 0; color: var(--light); font: inherit; font-size: 19px; text-align: left; background: none; cursor: pointer; }
+.switch-track { position: relative; flex: none; width: 60px; height: 32px; background: var(--ink); box-shadow: inset 0 0 0 2px var(--line); }
+.switch-knob { position: absolute; top: 6px; left: 6px; width: 20px; height: 20px; background: var(--soft); transition: left 120ms steps(3); }
+.switch:hover .switch-track { box-shadow: inset 0 0 0 2px var(--line-hover); }
+.switch[aria-checked="true"] { color: var(--bone); }
+.switch[aria-checked="true"] .switch-track { background: var(--dark); box-shadow: inset 0 0 0 2px var(--gold-dark); }
+.switch[aria-checked="true"] .switch-knob { left: 34px; background: var(--gold); }
+.switch:focus-visible { outline: 2px solid var(--bone); outline-offset: 4px; }
 /* A volume: the slider and its value, faded while the sound is off. */
 .volume-control { display: grid; grid-template-columns: minmax(0, 1fr) 52px; align-items: center; gap: 12px; }
 .volume-control output { color: var(--bone); text-align: right; font-variant-numeric: tabular-nums; }
@@ -698,6 +707,7 @@ html.keyboard-open .sheet[open] > .account-body {
 .volume-row:has(input:disabled) :is(.setting-label, output) { color: var(--mid); }
 .volume-row input:disabled { opacity: 0.4; }
 .feedback-open { justify-self: stretch; min-height: 48px; padding-inline: 18px; }
+.news-open { justify-self: stretch; min-height: 48px; padding-inline: 18px; }
 /* The update log: days newest first, each its date and a few lines; in the window, "don't show again" beside Got it. */
 .news-list { display: grid; gap: 18px; margin: 0; padding: 0; list-style: none; }
 .news-day { display: grid; gap: 8px; }
@@ -711,8 +721,6 @@ html.keyboard-open .sheet[open] > .account-body {
 .news-foot .pixel-btn { min-height: 46px; padding-inline: 22px; }
 .news-never { display: flex; align-items: center; gap: 10px; color: var(--light); font-size: 18px; cursor: pointer; }
 .news-never input { width: 20px; height: 20px; margin: 0; accent-color: var(--gold); }
-.news-auto { margin-top: 2px; }
-.news-auto .segmented { max-width: 380px; }
 .feedback-social { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; color: var(--soft); font-size: 18px; line-height: 1.4; }
 /* Each network a square button with its pixel mark, big enough for a thumb. */
 .social-link { display: grid; place-items: center; width: 44px; height: 44px; background: var(--ink); box-shadow: inset 0 0 0 2px var(--line); }
@@ -724,10 +732,10 @@ html.keyboard-open .sheet[open] > .account-body {
   .settings-body { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .settings-wide { grid-column: 1 / -1; }
   /* Across both cards: the line on the left, the button on the right. */
-  .feedback-card, .news-card { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 20px; }
-  :is(.feedback-card, .news-card) .today-heading { grid-column: 1 / -1; }
-  :is(.feedback-card, .news-card) > .setting-note, .feedback-social, .news-auto { grid-column: 1; }
-  .feedback-open { grid-column: 2; grid-row: 2 / span 2; justify-self: end; }
+  /* The log and the contact side by side, each a heading, its lines and its button at the foot. */
+  .news-card { grid-template-rows: auto 1fr auto; }
+  .feedback-card { grid-template-rows: auto auto 1fr auto; }
+  .news-open, .feedback-open { align-self: end; }
   .feedback-body { max-width: 720px; grid-template-columns: minmax(0, 1fr); }
 }
 

@@ -326,30 +326,26 @@
         </section>
         <section class="settings-card" data-frame="box">
           <h3 class="today-heading" data-i18n="settings.soundCard">Sound and music</h3>
-          <div class="setting-line is-choice">
-            <span class="setting-label" data-i18n="settings.sound">Sound</span>
-            <div class="segmented" id="sound-options" role="radiogroup" data-i18n-aria="settings.sound"></div>
+          <div class="setting-line">
+            <span class="setting-label" id="sound-label" data-i18n="settings.sound">Sound</span>
+            <button class="switch" id="sound-switch" type="button" role="switch" aria-labelledby="sound-label"><span class="switch-track"><span class="switch-knob"></span></span><span class="switch-text" id="sound-state"></span></button>
           </div>
           <label class="setting-line volume-row"><span class="setting-label" data-i18n="settings.effects">Effects</span><span class="volume-control"><input type="range" id="volume-fx" min="0" max="100" step="5" /><output id="volume-fx-value"></output></span></label>
           <label class="setting-line volume-row"><span class="setting-label" data-i18n="settings.music">Music</span><span class="volume-control"><input type="range" id="volume-music" min="0" max="100" step="5" /><output id="volume-music-value"></output></span></label>
           <p class="account-hint setting-hint" id="sound-hint" data-i18n="settings.soundOff">Switch the sound on to set its volume.</p>
         </section>
-        <!-- The update log: its own page, and whether it opens by itself on coming in (see openNews in ui.js). -->
-        <section class="settings-card settings-wide news-card" id="news-row" data-frame="box" hidden>
+        <!-- The update log: read it all, and whether what's new opens by itself on coming in (see openNews in ui.js). -->
+        <section class="settings-card news-card" id="news-row" data-frame="box" hidden>
           <h3 class="today-heading" data-i18n="settings.news">Update log</h3>
-          <p class="setting-note" data-i18n="news.lead">What has changed in how the game plays.</p>
-          <button class="pixel-btn feedback-open" id="news-button" type="button" aria-haspopup="dialog" data-i18n="news.open">Open ›</button>
-          <div class="setting-line is-choice news-auto">
-            <span class="setting-label" data-i18n="news.onStart">On coming in</span>
-            <div class="segmented" id="news-options" role="radiogroup" data-i18n-aria="news.onStart"></div>
-          </div>
+          <button class="switch" id="news-switch" type="button" role="switch"><span class="switch-track"><span class="switch-knob"></span></span><span class="switch-text" data-i18n="news.onStart">Show what's new on coming in</span></button>
+          <button class="pixel-btn news-open" id="news-button" type="button" aria-haspopup="dialog" data-i18n="news.open">Read the log ›</button>
         </section>
         <!-- A word to the developer: its own page, the message going to their Telegram (api/feedback.js). -->
-        <section class="settings-card settings-wide feedback-card" id="feedback-row" data-frame="box" hidden>
+        <section class="settings-card feedback-card" id="feedback-row" data-frame="box" hidden>
           <h3 class="today-heading" data-i18n="settings.feedback">Contact the developer</h3>
           <p class="setting-note" data-i18n="feedback.lead">Found a bug, have an idea or a question? Write, I read everything.</p>
-          <button class="pixel-btn feedback-open" id="feedback-button" type="button" aria-haspopup="dialog" data-i18n="feedback.open">Write ›</button>
           <p class="feedback-social"><span data-i18n="feedback.social">Or find me here:</span> <a class="social-link" data-network="instagram" href="https://www.instagram.com/haveavicenight/" target="_blank" rel="noopener" aria-label="Instagram @haveavicenight" title="Instagram @haveavicenight"></a><a class="social-link" data-network="x" href="https://x.com/DenysLynnyk948" target="_blank" rel="noopener" aria-label="X @DenysLynnyk948" title="X @DenysLynnyk948"></a></p>
+          <button class="pixel-btn feedback-open" id="feedback-button" type="button" aria-haspopup="dialog" data-i18n="feedback.open">Write ›</button>
         </section>
       </div>
     </dialog>
