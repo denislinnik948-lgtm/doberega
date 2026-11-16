@@ -13,12 +13,16 @@ export const CHANGELOG = [
       "З 22 листопада чотири нові формати турніру: снайпер (риба, найближча до заданої ваги), легка снасть (лоза, ліщина чи бамбук), одна наживка і трофейний (будь-яка риба, рахується відсоток від рекорду виду).",
       "Дні поспіль тепер ідуть колом з десяти днів: сьомого дня половина нагороди за завдання, восьмого 10 кукурудзи, дев'ятого дві прикормки, десятого півтори нагороди.",
       "У налаштуваннях з'явилися журнал оновлень і зв'язок з розробником: можна написати про помилку чи ідею просто з гри.",
+      "Відкрито Драконове озеро, останню водойму: гірське озеро під руїнами старої вежі. Вхід за квитком на добу (100 000 $) і лише з сомовою вудкою. Тут ловляться велетні від 45 кг: нільський окунь, сіамський короп, білий осетер і сом, а легенда озера, осетер Змій, важить 130–150 кг.",
+      "Риба на Драконовому озері має силу: над шкалою натягу з'являється шкала «Сила риби». Тримай волосінь натягнутою, щоб риба втомилася, і лише тоді вона піде до берега.",
     ],
     en: [
       "A tournament now lasts three days instead of a week. Prizes are paid for every tournament you took part in, even if several went by while you were away.",
       "From 22 November, four new tournament formats: sniper (the fish closest to a set weight), light tackle (willow, hazel or bamboo rod), one bait, and trophy (any fish, scored as a share of its kind's top weight).",
       "Days in a row now go round ten days: half the quest reward on the seventh, 10 corn on the eighth, two groundbaits on the ninth, one and a half quest rewards on the tenth.",
       "Settings now have the update log and a way to contact the developer: write about a bug or an idea right from the game.",
+      "Dragon Lake, the last water, is open: a mountain lake under a ruined tower. Entry is by a day ticket (100 000 $) and only with the catfish rod. Here giants from 45 kg bite: the Nile perch, the Siamese giant carp, the white sturgeon and the catfish, and the lake's legend, the sturgeon Zmii, weighs 130-150 kg.",
+      "Fish at Dragon Lake have strength: a Fish's strength bar appears over the tension bar. Keep the line tight to wear the fish out, and only then will it come in.",
     ],
   },
   {

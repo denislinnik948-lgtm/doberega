@@ -56,6 +56,7 @@ export const ACHIEVEMENTS = [
   { id: "knowsTroutfarm", group: "collector", reward: 300, preview: "troutfarm", ...spotBadge("troutfarm") },
   { id: "knowsQuarry", group: "collector", reward: 300, preview: "quarry", ...spotBadge("quarry") },
   { id: "knowsCarplake", group: "collector", reward: 300, preview: "carplake", ...spotBadge("carplake") },
+  { id: "knowsMountain", group: "collector", reward: 1000, preview: "mountain", ...spotBadge("mountain") },
   { id: "predators", group: "collector", reward: 300, ...counted(5, (p) => ["shchuka", "sudak", "zherekh", "okun", "forel"].filter((id) => species(p, id) > 0).length) },
   // A protected fish counts once let go.
   countedBy({ id: "ichthyologist", group: "collector", reward: 1000 }, () => collectable().length, (p) => collectable().filter((id) => species(p, id) > 0 || (p.released?.[id] ?? 0) > 0).length),

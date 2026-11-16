@@ -565,14 +565,14 @@ export const LOCATIONS = [
   },
   {
     /*
-     * The mountain lake, the last and dearest water, still being tried out
-     * (`preview`: a tester only): giants from 45 kg, mostly up to 70, a big
+     * Dragon Lake, the mountain lake, the last and dearest water: giants
+     * from 45 kg, mostly up to 70, a big
      * one up to 100, now and then up to 110: its own Nile perch, Siamese giant
      * carp and white sturgeon, with the catfish and the silver carp. Entered
      * by a day ticket (see PASS_MS), only with the catfish rod. Its fish have
      * strength to wear down first (`strongFish`).
      */
-    id: "mountain", snagChance: 0.03, kind: "mountain", water: "#2e5a4a", preview: true,
+    id: "mountain", snagChance: 0.03, kind: "mountain", water: "#2e5a4a",
     // Its giants have strength to wear down before they come in (see the fight in game.js).
     strongFish: true,
     traits: { type: "lake", depth: "veryDeep", bottom: "stones", current: "none" },
