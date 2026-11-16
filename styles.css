@@ -1651,6 +1651,12 @@ html.keyboard-open .sheet[open] > .account-body {
   .tiles #handbook-dialog .book-page { height: calc(100dvh - 160px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); }
 }
 
+/* On its side the screen is too low to keep the tabs too: there they scroll away with the page. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .tiles dialog.page .sheet-heading:has(+ .tabs) { height: auto; box-shadow: 0 2px 0 var(--dark), 0 12px 12px -6px rgb(10 20 18 / 0.85); }
+  .tiles dialog.page > .tabs { position: static; margin: 0; padding: 0; background: none; box-shadow: none; }
+}
+
 /*
  * The handbook on a phone on its side, where height is short: the arrow back
  * sits in the heading instead of a strip of its own, and the page turns with
