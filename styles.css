@@ -1241,9 +1241,10 @@ html.keyboard-open .sheet[open] > .account-body {
 .tiles .tile-note { overflow: hidden; max-width: 100%; color: var(--light); font-size: clamp(15px, 1.9vh, 19px); white-space: nowrap; text-overflow: ellipsis; }
 .tiles .tile .achievement-bar { width: 100%; height: 8px; margin: 0; background: var(--dark); }
 .tiles .tile .achievement-bar span { background: var(--gold); }
-.tiles .tile-art { display: flex; flex: 1; align-items: center; }
-.tiles .tile-art canvas { display: block; }
-.tiles .tile-days { color: var(--gold); font-size: clamp(18px, 2.6vh, 26px); letter-spacing: 0.12em; }
+.tiles .tile-art { display: flex; flex: 1; align-items: center; min-width: 0; }
+/* A long fish (a pike, a catfish) shrinks to the cell rather than running past it. */
+.tiles .tile-art canvas { display: block; max-width: 100% !important; height: auto !important; image-rendering: pixelated; }
+.tiles .tile-days { color: var(--gold); font-size: min(clamp(18px, 2.6vh, 26px), 8cqi); letter-spacing: 0.12em; white-space: nowrap; }
 .tiles .tile-days .is-off { color: var(--mid); }
 /* The tournament tile: the week's fish in one cell, the top three each in a cell of their own. */
 .tiles .tile-tourney { justify-content: flex-start; }
@@ -1277,6 +1278,7 @@ html.keyboard-open .sheet[open] > .account-body {
 .tiles .tile-today { flex-direction: row; align-items: stretch; gap: 0; padding: 0; }
 .tiles .tile-half { display: flex; flex: 1 1 0; flex-direction: column; justify-content: space-between; gap: clamp(4px, 0.8vh, 8px); min-width: 0; padding: clamp(10px, 1.6vh, 18px) clamp(12px, 1.3vw, 18px); }
 .tiles #tile-quest-goal { display: -webkit-box; white-space: normal; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.tiles .tile-half { container-type: inline-size; }
 .tiles .tile-half + .tile-half { box-shadow: inset 2px 0 0 rgb(60 104 96 / 0.45); }
 
 .menu-short { display: none; }
@@ -1440,7 +1442,7 @@ html.keyboard-open .sheet[open] > .account-body {
   .tiles .tile .achievement-bar { height: 6px; }
   .tiles .tile-half { gap: 3px; padding: 8px; }
   .tiles .tile-art canvas { width: 72px !important; height: auto !important; image-rendering: pixelated; }
-  .tiles .tile-days { font-size: 12px; letter-spacing: 0.02em; }
+  .tiles .tile-days { font-size: min(12px, 8cqi); letter-spacing: 0.02em; }
   .tiles .tourney-cells { grid-template-columns: minmax(0, 1fr); gap: 6px; }
   .tiles .tile-podium { gap: 6px; }
   .tiles .tourney-cell { padding: 4px 6px; font-size: 14px; }
