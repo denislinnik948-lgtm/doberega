@@ -13,6 +13,10 @@ import { BAITS, BELL_WINDOW, BOOT_CHANCE, FEEDER, FINDS, FISH, GROUNDBAITS, figh
  * Fight: while pulling, the tension bar fills at rate X and the fish comes in;
  * while released it drains at 1.5X and the fish swims off at a random pace.
  * A small fish comes in within one full bar; bigger ones need several pulls.
+ * At a water of giants (`strongFish`) a fish also has strength: fresh, it
+ * hardly gives line and runs more often; held on a tight line it tires (the
+ * harder the line is pulled, the faster), and let go it gathers its strength
+ * again. Spent, it comes in like any other.
  *
  * Spinning: after the cast, holding reels the spoon in toward the bank. A
  * fish may strike while it moves: most often just after a jerk (a short pull)
@@ -71,6 +75,11 @@ export const TUNING = {
   // How much of a run's pace takes line while the rod is held tight, and while the line is let go.
   runHeld: 0.35,
   runSlack: 1.25,
+  // A giant's strength (`strongFish` waters): what a second of tight line takes off it (times 0.4 plus the
+  // tension, more on a run), what a second of slack gives back, and how little line a fresh one gives.
+  tireRate: 0.1,
+  restRate: 0.02,
+  freshHold: 0.6,
 };
 
 /** Rates for a fish of `weight` kg on a rod; exported for balance tests. */
@@ -148,6 +157,7 @@ export class FishingGame {
     this.target = null;
     this.fish = null;
     this.snag = false;
+    this.strength = null;
     this.tension = 0;
     this.distance = 1;
     this.float = { offset: 0, sink: 0 };
@@ -299,6 +309,8 @@ export class FishingGame {
     this.surgePower = 0;
     this.side = 0;
     this.sideTarget = 0;
+    // At a water of giants it has strength to wear down first (null elsewhere).
+    this.strength = LOCATIONS[this.location]?.strongFish && !this.fish.junk ? 1 : null;
     // One with spirit often bolts the moment it feels the hook.
     this.firstRun = this.vigor > 0.15 && this.random() < Math.min(0.8, this.vigor * 0.5) ? 0.3 + this.random() * 0.7 : null;
     this.float.sink = 1;
@@ -695,9 +707,12 @@ export class FishingGame {
     // A fish with fight in it surges off now and then: it takes line even
     // against the pull, loading the rod hard, and veers off to a side.
     const vigor = this.vigor ?? 0;
+    // A giant's strength: fresh, it runs more often and hardly gives line; spent, it comes in like any fish.
+    const fresh = this.strength ?? 0;
+    const restless = this.strength === null ? 1 : 0.4 + 1.2 * fresh;
     if (this.firstRun !== null) this.firstRun -= dt;
     if (this.surge > 0) this.surge -= dt;
-    else if (vigor > 0.15 && this.distance > 0.1 && ((this.firstRun !== null && this.firstRun <= 0) || random() < TUNING.surgeRate * vigor * dt)) {
+    else if (vigor > 0.15 && this.distance > 0.1 && ((this.firstRun !== null && this.firstRun <= 0) || random() < TUNING.surgeRate * vigor * restless * dt)) {
       this.firstRun = null;
       this.surge = 0.6 + random() * Math.min(1.5, vigor);
       this.surgePower = 0.5 + random() * 0.5;
@@ -711,7 +726,7 @@ export class FishingGame {
       this.tension += rates.fill * calm * dt;
       if (surging) this.tension += TUNING.fillRate * 0.5 * this.surgePower * Math.min(1.5, vigor) * calm * dt;
       // Held tight, a running fish takes little line; let go, it runs freely (see TUNING.runHeld, runSlack).
-      this.distance = Math.min(1, this.distance - (rates.reel - run * TUNING.runHeld) * dt);
+      this.distance = Math.min(1, this.distance - (rates.reel * (1 - TUNING.freshHold * fresh) - run * TUNING.runHeld) * dt);
       if (random() < rates.jerkRate * dt) this.tension += 0.04 + random() * 0.1 * Math.min(1.5, rates.strain);
       // It shakes its head on the line.
       if (random() < 0.6 * vigor * dt) this.tension += 0.02 + random() * 0.05 * vigor;
@@ -724,6 +739,12 @@ export class FishingGame {
         this.behaviorClock = 0;
         if (random() < 0.35) this.behavior = pickBehavior(rates.strain, random);
       }
+    }
+
+    if (this.strength !== null) {
+      this.strength = this.pulling
+        ? Math.max(0, this.strength - TUNING.tireRate * (0.4 + this.tension) * (surging ? 1.6 : 1) * dt)
+        : Math.min(1, this.strength + TUNING.restRate * dt);
     }
 
     // Off to the side on a run, drifting back in line as it tires; never onto a bank.

@@ -710,7 +710,7 @@ function syncFishingUi() {
     document.body.classList.toggle("is-fishing", game.busy);
     ui.showFight(game.phase === "fight");
   }
-  if (game.phase === "fight") ui.updateFight(game.tension);
+  if (game.phase === "fight") ui.updateFight(game.tension, game.strength);
 }
 
 function anglerView(elapsed) {

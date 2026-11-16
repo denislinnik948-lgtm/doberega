@@ -569,15 +569,17 @@ export const LOCATIONS = [
      * (`preview`: a tester only): giants from 45 kg, mostly up to 70, a big
      * one up to 100, now and then up to 110: its own Nile perch, Siamese giant
      * carp and white sturgeon, with the catfish and the silver carp. Entered
-     * by a day ticket (see PASS_MS), only with the catfish rod. The fish's
-     * strength is still to come.
+     * by a day ticket (see PASS_MS), only with the catfish rod. Its fish have
+     * strength to wear down first (`strongFish`).
      */
     id: "mountain", snagChance: 0.03, kind: "mountain", water: "#2e5a4a", preview: true,
+    // Its giants have strength to wear down before they come in (see the fight in game.js).
+    strongFish: true,
     traits: { type: "lake", depth: "veryDeep", bottom: "stones", current: "none" },
     minKg: 45, typicalKg: 70, maxKg: 100, bigChance: 1 / 6, tailKg: 110, tailChance: 1 / 60, pace: 0.5,
     // Entry by a ticket for a day, and only with the catfish rod; not a once-paid fee, so off the rod ladder.
-    // It pays about 89 000 $ an hour with the catfish rod and crayfish (the carp lake 47 000), so the ticket pays for itself in a little over
-    // an hour there, and after some two and a half hours a day there beats the carp lake.
+    // It pays about 80 000 $ an hour with the catfish rod and crayfish (the carp lake 47 000), so the ticket pays for itself in about
+    // an hour and a quarter there, and after some three hours a day there beats the carp lake.
     unlock: { pass: 100000, rod: "catfish" },
     fish: { nilskyi: 3, siamskyi: 3, osetr: 1, som: 1.5, tovstolob: 0.5 },
   },

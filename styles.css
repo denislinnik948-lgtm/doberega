@@ -410,6 +410,15 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
   pointer-events: none;
 }
 .tension-fill { width: 0; height: 100%; background: var(--light); }
+/* A giant's strength, over the tension: its name on the left, the rest of its strength in a bar; once spent it says so. */
+.fight-hud:has(.strength:not([hidden])) { flex-direction: column; }
+.fight-hud:has(.strength:not([hidden])) .tension { flex: none; }
+.strength { display: flex; align-items: center; gap: 12px; height: 34px; padding: 8px 10px; }
+.strength[hidden] { display: none; }
+.strength-label { flex: none; color: var(--light); font-size: 16px; line-height: 1; white-space: nowrap; }
+.strength-track { flex: 1; height: 100%; background: var(--ink); }
+.strength-fill { width: 100%; height: 100%; background: var(--soft); transition: width 120ms linear; }
+.strength.is-spent .strength-label { color: var(--gold); }
 .tension-fill[data-level="mid"] { background: var(--gold); }
 .tension-fill[data-level="high"] { background: var(--ember); }
 

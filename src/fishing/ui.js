@@ -1423,7 +1423,20 @@ export class AnglerUI {
     this.fighting = visible;
   }
 
-  updateFight(tension) {
+  updateFight(tension, strength = null) {
+    // A giant's strength, shown only at a water of giants.
+    const meter = $("#strength-meter");
+    meter.hidden = strength === null;
+    if (strength !== null) {
+      const left = Math.round(strength * 100);
+      $("#strength-fill").style.width = `${left}%`;
+      meter.setAttribute("aria-valuenow", String(left));
+      const spent = strength <= 0.001;
+      if (meter.classList.contains("is-spent") !== spent) {
+        meter.classList.toggle("is-spent", spent);
+        $("#strength-label").textContent = t(spent ? "fight.spent" : "fight.strength");
+      }
+    }
     const level = Math.min(1, tension);
     const percent = Math.round(level * 100);
     this.tensionFill.style.width = `${percent}%`;

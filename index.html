@@ -110,6 +110,11 @@
       </div>
 
       <div class="fight-hud" id="fight-hud" hidden>
+        <!-- A giant's strength (Dragon Lake): worn down on a tight line, back while it is slack. -->
+        <div class="strength" id="strength-meter" data-frame="box" role="meter" data-i18n-aria="fight.strength" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" hidden>
+          <span class="strength-label" id="strength-label" data-i18n="fight.strength">Fish's strength</span>
+          <div class="strength-track"><div class="strength-fill" id="strength-fill"></div></div>
+        </div>
         <div class="tension" id="tension-meter" data-frame="box" role="meter" data-i18n-aria="a11y.tension" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
           <div class="tension-fill" id="tension-fill"></div>
         </div>
