@@ -31,6 +31,9 @@ export function normalizeProgress(saved) {
     // The line on the reel and the spares (older saves start with a new line).
     if (Number.isFinite(saved.line)) state.line = Math.max(0, Math.min(1, saved.line));
     if (Number.isFinite(saved.lines)) state.lines = Math.max(0, Math.floor(saved.lines));
+    // The sea line, once bought, and which line is on the reel.
+    state.seaLine = saved.seaLine === true;
+    if (state.seaLine && saved.reelLine === "sea") state.reelLine = "sea";
     if (saved.baits && typeof saved.baits === "object") {
       state.baits = Object.fromEntries(Object.entries(saved.baits).filter(([id, count]) => BAITS[id] && Number.isFinite(count)));
       // Baits taken out of the game are paid back in full.

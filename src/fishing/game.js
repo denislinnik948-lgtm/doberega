@@ -1,4 +1,4 @@
-import { BAITS, BELL_WINDOW, BOOT_CHANCE, FEEDER, FINDS, FISH, GROUNDBAITS, fightVigor, groundbaitBoost, HOOKS, LINE, LOCATIONS, LOST_LURES, NIBBLE, RODS, biteActivity, lineWeakness, rodGiveChance, rollFish, spotMood, straightenChance } from "./data.js";
+import { BAITS, BELL_WINDOW, BOOT_CHANCE, FEEDER, FINDS, FISH, GROUNDBAITS, fightVigor, groundbaitBoost, HOLD_LUCK, HOOKS, LINE, LOCATIONS, LOST_LURES, NIBBLE, RODS, SEA_LINE, biteActivity, lineWeakness, rodGiveChance, rollFish, spotMood, straightenChance } from "./data.js";
 
 /**
  * Fishing state machine. Positions are normalized to the viewport (0..1) so the
@@ -175,13 +175,15 @@ export class FishingGame {
   /**
    * Cast toward a normalized water point with the chosen rod, bait, spot and
    * extras; `groundbait` is whether this water is baited, `groundbaitKind`
-   * with which (see GROUNDBAITS; none: the plain one).
+   * with which (see GROUNDBAITS; none: the plain one); `line` is the line on
+   * the reel, "plain" or "sea" (SEA_LINE).
    */
-  cast(target, rodId, baitId, { location = 0, extras = [], groundbait = false, groundbaitKind = null, hook = "medium", school = false } = {}) {
+  cast(target, rodId, baitId, { location = 0, extras = [], groundbait = false, groundbaitKind = null, hook = "medium", line = "plain", school = false } = {}) {
     if (this.phase !== "ready") return false;
     this.rod = rodId;
     this.bait = baitId;
     this.hookSize = hook;
+    this.line = line;
     this.location = location;
     this.extras = extras;
     this.groundbait = groundbait;
@@ -196,6 +198,16 @@ export class FishingGame {
     this.enter("casting");
     this.emit("cast", { style: this.castStyle });
     return true;
+  }
+
+  /** The sea line never wears; the plain line tells the host what it loses. */
+  wearLine(amount) {
+    if (this.line !== "sea") this.onLineWear(amount);
+  }
+
+  /** How much faster the tension bar fills on the line on the reel (the sea line is never worn). */
+  lineWeakness() {
+    return this.line === "sea" ? 1 : lineWeakness(this.lineHealth());
   }
 
   /** Whether the bait on the line is a lure that is reeled in (the spoon). */
@@ -278,7 +290,7 @@ export class FishingGame {
   startSnag() {
     this.snag = true;
     this.fish = null;
-    this.rates = { strain: 1, fill: TUNING.fillRate * 1.7 * lineWeakness(this.lineHealth()), drain: TUNING.fillRate * TUNING.drainRatio, reel: 0, escape: 0, jerkRate: 0 };
+    this.rates = { strain: 1, fill: TUNING.fillRate * 1.7 * this.lineWeakness(), drain: TUNING.fillRate * TUNING.drainRatio, reel: 0, escape: 0, jerkRate: 0 };
     this.wearRate = LINE.wear * 2;
     this.tension = 0;
     this.distance = 1;
@@ -292,12 +304,15 @@ export class FishingGame {
   hook(onDip = false) {
     this.rates = fightRates(this.fish.weight, this.rod, this.extras, Boolean(this.fish.junk));
     // A worn line gives sooner; a heavy fish wears it faster (braid half as fast).
-    this.rates.fill *= lineWeakness(this.lineHealth());
+    this.rates.fill *= this.lineWeakness();
     this.wearRate = LINE.wear * (1 + this.fish.weight ** 0.8) * (this.extras.includes("braid") ? 0.5 : 1);
     // Too heavy for the hook: it may bend straight somewhere on the way in.
     this.giveAt = !this.fish.junk && !this.gentle && this.random() < straightenChance(this.gear, this.fish.weight) ? 0.2 + this.random() * 0.6 : null;
     // Too heavy for the rod: the line snaps somewhere on the way in.
     this.snapAt = !this.fish.junk && !this.gentle && this.random() < rodGiveChance(this.rod, this.fish.weight) ? 0.1 + this.random() * 0.6 : null;
+    // A water that asks for the sea line (Dragon Lake): its giants snap any other line, mostly early in the fight.
+    this.lineSnaps = !this.fish.junk && !this.gentle && LOCATIONS[this.location]?.unlock?.line === "sea" && this.line !== "sea" && this.random() < 1 - HOLD_LUCK;
+    if (this.lineSnaps) this.snapAt = Math.min(this.snapAt ?? 1, 0.05 + this.random() * 0.35);
     this.tension = 0;
     this.distance = 1;
     this.behavior = 0;
@@ -454,7 +469,10 @@ export class FishingGame {
     // Mostly a short wait, sometimes a quick one, now and then a long lull.
     const lull = this.random() < 0.1 ? 6 + this.random() * 12 : 0;
     const wait = 2.5 + 11 * this.random() ** 1.6 + lull;
-    return (wait / this.keenness()) * (this.extras.includes("sonar") ? 0.55 : 1);
+    // A fine hook makes fish bolder (HOOKS `keen`); the thick sea line puts them off, but where it is needed.
+    const keen = this.spinning ? 1 : this.gear.keen ?? 1;
+    const shy = this.line === "sea" && LOCATIONS[this.location]?.unlock?.line !== "sea" ? SEA_LINE.shy : 1;
+    return (wait / (this.keenness() * keen * shy)) * (this.extras.includes("sonar") ? 0.55 : 1);
   }
 
   /** Where a reeled-in spoon (or a hooked fish) ends up: the water's edge below the rod. */
@@ -694,9 +712,9 @@ export class FishingGame {
           return;
         }
       }
-      if (this.pulling) this.onLineWear(this.tension * this.wearRate * dt);
+      if (this.pulling) this.wearLine(this.tension * this.wearRate * dt);
       if (this.tension >= 1) {
-        this.onLineWear(LINE.snapWear);
+        this.wearLine(LINE.snapWear);
         this.escape("snagSnap", true, "snagSnap");
       }
       return;
@@ -759,7 +777,7 @@ export class FishingGame {
     }
 
     // The line wears with the strain on it.
-    this.onLineWear(this.tension * this.wearRate * dt);
+    this.wearLine(this.tension * this.wearRate * dt);
 
     if (this.giveAt !== null && 1 - this.distance >= this.giveAt) {
       // The hook (or the lure's hook) bends straight: the fish is gone, and so is the hook.
@@ -767,8 +785,8 @@ export class FishingGame {
       return;
     }
     if (this.snapAt !== null && 1 - this.distance >= this.snapAt) {
-      this.onLineWear(LINE.snapWear);
-      this.escape("overweight", true, "rodSnap");
+      this.wearLine(LINE.snapWear);
+      this.escape("overweight", true, this.lineSnaps ? "lineSnap" : "rodSnap");
       return;
     }
 
@@ -782,7 +800,7 @@ export class FishingGame {
     if (this.gentle) this.tension = Math.min(this.tension, 0.97);
     if (this.tension >= 1) {
       // A big fish snapping the line takes the hook with it.
-      this.onLineWear(LINE.snapWear);
+      this.wearLine(LINE.snapWear);
       this.escape(rates.strain > 1 ? "overweight" : "snap", Boolean(this.fish.big) || rates.strain > 0.8);
     } else if (this.distance <= 0) {
       const fish = this.fish;

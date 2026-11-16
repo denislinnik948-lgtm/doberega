@@ -1,5 +1,5 @@
 import {
-  BAITS, BOTTLE_MONEY, SPECIAL_AVATAR, EXTRAS, FISH, FLOAT_LIGHTS, LIVEBAIT, access, extraShown, GROUNDBAIT, GROUNDBAITS, GULL, HOOKS, LEGENDS, LINE, LOCATIONS, RODS, fishShown, gameHoursMs, spotShown,
+  BAITS, BOTTLE_MONEY, SPECIAL_AVATAR, EXTRAS, FISH, FLOAT_LIGHTS, LIVEBAIT, access, extraShown, GROUNDBAIT, GROUNDBAITS, GULL, HOOKS, LEGENDS, LINE, LOCATIONS, RODS, SEA_LINE, fishShown, gameHoursMs, spotShown,
   baitEntries, BIG_BONUS, DAY_FISH_BONUS, OVERSIZE_BONUS, fishPrice, formatMoney, sizeBonus, formatWeight, handbookEntries, peakPeriod, spotEntries, trophyCost,
 } from "./data.js";
 import {
@@ -57,6 +57,7 @@ function friendlyError(message) {
 const reachLines = (gear) => [
   t("tackle.takes", { what: gear.minKg ? t("tackle.from", { weight: formatWeight(gear.minKg) }) : t("tackle.any") }),
   t("tackle.holds", { what: Number.isFinite(gear.holdKg) ? t("tackle.upTo", { weight: formatWeight(gear.holdKg) }) : t("tackle.anyWeight") }),
+  ...(gear.keen ? [t("tackle.keen")] : []),
 ];
 // The weight a rod is rated for, or that it has no limit (the strongest).
 const rodRating = (id) => (RODS[id].holdsAny ? t("shop.noLimit") : t("shop.upTo", { weight: formatWeight(RODS[id].maxKg) }));
@@ -1291,7 +1292,7 @@ export class AnglerUI {
     if (!unlock) return t("water.openAll");
     // The last water: a ticket for a day, only with the catfish rod (still being tried out).
     if (unlock.pass) {
-      const text = t("water.openPass", { price: formatMoney(unlock.pass), rod: nameOf("rod", unlock.rod) });
+      const text = t(unlock.line ? "water.openPassLine" : "water.openPass", { price: formatMoney(unlock.pass), rod: nameOf("rod", unlock.rod) });
       const left = passLeft(this.progress, LOCATIONS[index].id);
       return left ? `${text} · ${t("water.passLeft", { time: this.timeLeft(left) })}` : text;
     }
@@ -1325,12 +1326,12 @@ export class AnglerUI {
     note.hidden = !lock && !left;
     note.textContent = !lock ? (left ? t("water.passNote", { time: this.timeLeft(left) }) : "")
       : lock.rank !== undefined ? t("water.needRank", { rank: this.rankName(lock.rank) })
-        : lock.rod ? t("water.needRod", { rod: nameOf("rod", lock.rod) })
+        : lock.rod || lock.line ? t(lock.rod && lock.line ? "water.needRodLine" : lock.rod ? "water.needRod" : "water.needLine", { rod: nameOf("rod", lock.rod) })
           : lock.pass ? t("water.pass", { price: formatMoney(lock.pass) })
             : t("water.fee", { price: formatMoney(lock.price) });
     const shown = shownSpots();
     document.querySelectorAll("#spot-dots button").forEach((dot, place) => dot.classList.toggle("is-locked", Boolean(spotLock(progress, shown[place]))));
-    const cost = lock?.price ?? (lock?.pass && !lock.rod ? lock.pass : 0);
+    const cost = lock?.price ?? (lock?.pass && !lock.rod && !lock.line ? lock.pass : 0);
     const short = cost ? cost - progress.money : 0;
     button.classList.toggle("is-join", Boolean(cost));
     button.disabled = Boolean(lock) && (!cost || short > 0);
@@ -1657,6 +1658,8 @@ export class AnglerUI {
           lure.price, progress.baits[id] ?? 0, (qty) => { progress.baits[id] = (progress.baits[id] ?? 0) + qty; },
         ), group: "lures" })),
         { ...piece("line", () => lineSprite(4), t("line.name"), t("line.shopText"), LINE.price, progress.lines, (qty) => { progress.lines += qty; }), group: "line" },
+        // The sea line, bought once and put on the reel at once.
+        { ...once("sealine", () => lineSprite(4, false, true), t("line.seaName"), t("line.seaShop"), SEA_LINE.price, progress.seaLine, () => { progress.seaLine = true; progress.reelLine = "sea"; }), group: "line" },
       ],
       // The groundbaits on a shelf of their own, each saying how much it livens the water and which fish it draws.
       "groundbait-shop": Object.entries(GROUNDBAITS).map(([kind, bag]) => piece(
@@ -1978,9 +1981,16 @@ export class AnglerUI {
         take: left > 0 || id === progress.hook ? () => { progress.hook = id; } : null,
       });
     }
+    // With the sea line bought, either line can go on the reel.
     add("line", {
       key: "line", art: () => lineSprite(3, worn), title: t("line.name"), tag: `${Math.round(progress.line * 100)}%`, worn,
       facts: [`${t("line.spare")}: ${progress.lines}`], action: [t("pack.newLine"), () => this.renewLine(true)],
+      ...(progress.seaLine ? { on: progress.reelLine !== "sea", status: t("pack.onReel"), take: () => { progress.reelLine = "plain"; } } : {}),
+    });
+    if (progress.seaLine) add("line", {
+      key: "sealine", art: () => lineSprite(3, false, true), title: t("line.seaName"), tag: "∞",
+      facts: [t("line.seaFact")], on: progress.reelLine === "sea", status: t("pack.onReel"),
+      take: () => { progress.reelLine = "sea"; },
     });
     for (const id of this.ownedBaits()) {
       const locked = BAITS[id].lure && !reel;

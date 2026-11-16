@@ -327,12 +327,15 @@ export const RODS = {
  * the hook straight. `minKg`: a fish lighter than this can hardly take the
  * hook (the edge is soft, and now and then a small one still manages);
  * `holdKg`: up to this weight the hook holds for sure; past it, it bends
- * straight in the fight almost every time (see gearHolds).
+ * straight in the fight almost every time (see gearHolds). `keen`: how much
+ * sooner fish bite on it (a fine small hook makes them bolder). The large
+ * hook gives on Dragon Lake's giants: they take the catfish hook.
  */
 export const HOOKS = {
-  small: { price: 4, minKg: 0, holdKg: 1 },
+  small: { price: 4, minKg: 0, holdKg: 1, keen: 1.6 },
   medium: { price: 6, minKg: 0.2, holdKg: 6 },
-  large: { price: 12, minKg: 1, holdKg: Infinity },
+  large: { price: 12, minKg: 1, holdKg: 45 },
+  catfish: { price: 50, minKg: 5, holdKg: Infinity },
 };
 
 /**
@@ -374,6 +377,14 @@ export const OVERSIZE = { chance: 1 / 400, extra: 0.1 };
  * from the backpack goes on by itself. `price` is per spare line.
  */
 export const LINE = { price: 100, wear: 0.00017, snapWear: 0.02, weakBelow: 0.25 };
+
+/*
+ * The sea line: a spool bought once and put on in the backpack instead of the
+ * plain line. It never wears and holds any fish, and Dragon Lake lets no one
+ * in without it: its giants snap any other line (see the fight in game.js).
+ * Anywhere else it is too thick, and fish bite `shy` as often on it.
+ */
+export const SEA_LINE = { price: 120000, shy: 0.6 };
 
 /** How much faster the tension bar fills on a line this worn (1 while it's sound, 1.5 when worn through). */
 export function lineWeakness(health) {
@@ -566,21 +577,21 @@ export const LOCATIONS = [
   {
     /*
      * Dragon Lake, the mountain lake, the last and dearest water: giants
-     * from 45 kg, mostly up to 70, a big
-     * one up to 100, now and then up to 110: its own Nile perch, Siamese giant
-     * carp and white sturgeon, with the catfish and the silver carp. Entered
-     * by a day ticket (see PASS_MS), only with the catfish rod. Its fish have
-     * strength to wear down first (`strongFish`).
+     * from 45 kg, mostly up to 70, a big one up to 100, now and then up to
+     * 110: its own Nile perch, Siamese giant carp and white sturgeon, with the
+     * catfish and the silver carp. Entered by a day ticket (see PASS_MS), only
+     * with the catfish rod and the sea line (SEA_LINE). Its fish have strength
+     * to wear down first (`strongFish`).
      */
     id: "mountain", snagChance: 0.03, kind: "mountain", water: "#2e5a4a",
     // Its giants have strength to wear down before they come in (see the fight in game.js).
     strongFish: true,
     traits: { type: "lake", depth: "veryDeep", bottom: "stones", current: "none" },
     minKg: 45, typicalKg: 70, maxKg: 100, bigChance: 1 / 6, tailKg: 110, tailChance: 1 / 60, pace: 0.5,
-    // Entry by a ticket for a day, and only with the catfish rod; not a once-paid fee, so off the rod ladder.
-    // It pays about 80 000 $ an hour with the catfish rod and crayfish (the carp lake 47 000), so the ticket pays for itself in about
-    // an hour and a quarter there, and after some three hours a day there beats the carp lake.
-    unlock: { pass: 100000, rod: "catfish" },
+    // Entry by a ticket for a day, and only with the catfish rod and the sea line; not a once-paid fee, so off the rod ladder.
+    // It pays about 90 000 $ an hour with the catfish rod, the catfish hook and crayfish (the carp lake 47 000), so the ticket pays for itself in
+    // about an hour and a quarter there, and after some three hours a day there beats the carp lake.
+    unlock: { pass: 100000, rod: "catfish", line: "sea" },
     fish: { nilskyi: 3, siamskyi: 3, osetr: 1, som: 1.5, tovstolob: 0.5 },
   },
 ];
@@ -594,6 +605,9 @@ export const access = { tester: false };
 
 /** How long a water's ticket lasts from the moment it is bought: a day of real time. */
 export const PASS_MS = 24 * 60 * 60 * 1000;
+
+/** When the sea line came to be asked: a ticket bought before it still lets one in without the line, to its end. */
+export const SEA_LINE_SINCE = Date.parse("2026-11-16T22:30:00Z");
 
 /** Whether a water is shown to this angler. */
 export const spotShown = (spot) => !spot.preview || access.tester;
@@ -616,11 +630,14 @@ export const START_STATE = {
   // The angler's picture (an index into AVATARS).
   avatar: 0,
   baits: { worm: 5 },
-  hooks: { small: 0, medium: 5, large: 0 },
+  hooks: { small: 0, medium: 5, large: 0, catfish: 0 },
   hook: "medium",
   // What is left of the line on the reel (1 new .. 0 worn through), and spare lines in the backpack.
   line: 1,
   lines: 0,
+  // The sea line (SEA_LINE): whether it is bought, and which line is on the reel ("plain" or "sea").
+  seaLine: false,
+  reelLine: "plain",
   rods: ["willow"],
   rod: "willow",
   bait: "worm",

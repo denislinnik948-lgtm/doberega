@@ -68,10 +68,10 @@ function seeded(seed) {
 }
 
 /** Fish one setup for `hours`: what it earns and what it costs. */
-function session({ rod, spot, bait, hook, hours, seed, extras = [] }) {
+function session({ rod, spot, bait, hook, hours, seed, extras = [], line = "plain" }) {
   const random = seeded(seed);
   const tally = { income: 0, spend: 0, landed: 0, bites: 0, lost: 0, lines: 0, xp: 0 };
-  let line = 1;
+  let health = 1;
   const game = new FishingGame({
     random,
     onEvent: (type, data) => {
@@ -91,13 +91,13 @@ function session({ rod, spot, bait, hook, hours, seed, extras = [] }) {
       } else if (data.hookLost) tally.lost += 1;
     },
   });
-  game.lineHealth = () => line;
+  game.lineHealth = () => health;
   game.onLineWear = (amount) => {
-    line -= amount;
-    if (line <= 0) {
+    health -= amount;
+    if (health <= 0) {
       tally.spend += LINE.price;
       tally.lines += 1;
-      line = 1;
+      health = 1;
     }
   };
   // Starting somewhere random in the day, so short sessions don't all fish the same hour.
@@ -125,7 +125,7 @@ function session({ rod, spot, bait, hook, hours, seed, extras = [] }) {
       pause -= 0.1;
       if (pause <= 0) {
         const y = TUNING.farY + (TUNING.nearY - TUNING.farY) * (0.08 + 0.35 * random());
-        game.cast({ x: 0.5, y }, rod, bait, { location: spot, extras, hook });
+        game.cast({ x: 0.5, y }, rod, bait, { location: spot, extras, hook, line });
       }
     } else if (phase === "landed") {
       pause -= 0.1;
@@ -154,13 +154,14 @@ function session({ rod, spot, bait, hook, hours, seed, extras = [] }) {
   return { ...tally, rate: (tally.income - tally.spend) / hours };
 }
 
-/** Every setup worth trying with this rod: each open water, bait and hook (lures with the spinning reel). */
+/** Every setup worth trying with this rod: each open water, bait and hook (lures with the spinning reel), on the line the water asks for. */
 function setups(rod, open) {
   const list = [];
   open.forEach((spot) => {
+    const line = LOCATIONS[spot].unlock?.line ?? "plain";
     for (const [bait, info] of Object.entries(BAITS)) {
-      if (info.lure) list.push({ rod, spot, bait, hook: "medium", extras: ["spinreel"], needs: "spinreel" });
-      else for (const hook of Object.keys(HOOKS)) list.push({ rod, spot, bait, hook });
+      if (info.lure) list.push({ rod, spot, bait, hook: "medium", line, extras: ["spinreel"], needs: "spinreel" });
+      else for (const hook of Object.keys(HOOKS)) list.push({ rod, spot, bait, hook, line });
     }
   });
   return list;

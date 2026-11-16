@@ -20,7 +20,7 @@ import { breakStreak, bump, recordCatch } from "./fishing/achievements.js";
 import { XP, fishXp, gainXp, rankPending } from "./fishing/ranks.js";
 import { previewTourney, recordDay, recordQuest, recordTourney, settleTourney, tourneyFormat, tourneyKey, tourneyPreview, tourneyState, tourneyWeek } from "./fishing/quests.js";
 import { warmFishPortraits } from "./fishing/sprites.js";
-import { ensureOpenSpot } from "./fishing/waters.js";
+import { ensureOpenSpot, lineWaived } from "./fishing/waters.js";
 
 // The water look is fixed: a still lake, gentle swell speed, soft glints.
 const config = {
@@ -632,7 +632,7 @@ function tryCast(x, y) {
   const reach = castReach(x, y);
   const blown = { x: target.x + wind.dir * wind.strength * wind.gust * 0.035 * (0.4 + reach) * (0.5 + Math.random()), y: target.y };
   if (isOnWater(blown.x * width, blown.y * height) && !renderer.onIce(blown.x * width, blown.y * height)) target = blown;
-  if (game.cast(target, progress.rod, progress.bait, { location: progress.location, extras: progress.extras, groundbait, groundbaitKind: progress.baitedKind?.[spotId] ?? null, hook: progress.hook, school: nearSchool(target) })) {
+  if (game.cast(target, progress.rod, progress.bait, { location: progress.location, extras: progress.extras, groundbait, groundbaitKind: progress.baitedKind?.[spotId] ?? null, hook: progress.hook, line: lineWaived(progress, spotId) ? "sea" : progress.reelLine, school: nearSchool(target) })) {
     // Get the pointer out of the way while watching the float.
     document.body.classList.add("cursor-hidden");
   }

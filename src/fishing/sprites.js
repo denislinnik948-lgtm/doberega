@@ -1549,8 +1549,9 @@ export function groundbaitSprite(scale = 3, kind = "plain") {
   ], { o: P.ink, ...(SACKS[kind] ?? SACKS.plain) }).toCanvas(scale);
 }
 
-/** A spool of fishing line; `worn` greys the line and frays its loose end. */
-export function lineSprite(scale = 3, worn = false) {
+/** A spool of fishing line; `worn` greys the line and frays its loose end; `sea`: the sea line, blue on a steel spool. */
+export function lineSprite(scale = 3, worn = false, sea = false) {
+  const colors = sea ? { D: P.mid, L: "#4a86b4", l: "#9cc6e4" } : { D: P.goldDark, L: worn ? P.mid : P.light, l: worn ? P.dark : P.soft };
   return fromRows([
     "..oooooooooo..",
     ".oDDDDDDDDDDo.",
@@ -1563,7 +1564,7 @@ export function lineSprite(scale = 3, worn = false) {
     "..oooooooooo..",
     "...........l..",
     "............l.",
-  ], { o: P.ink, D: P.goldDark, L: worn ? P.mid : P.light, l: worn ? P.dark : P.soft }).toCanvas(scale);
+  ], { o: P.ink, ...colors }).toCanvas(scale);
 }
 
 export function extraSprite(id, scale = 3) {
@@ -1590,7 +1591,8 @@ export function keepnetSprite(scale = 3) {
 /*
  * Hooks by size (see HOOKS), each its own shape and metal so they tell apart
  * at a glance: a small fine-wire one, bright steel; the medium one, bronze; a
- * large forged one, dark, thick in the bend and with the barb showing.
+ * large forged one, dark, thick in the bend and with the barb showing; the
+ * catfish hook, the biggest, blackened, with a ring for the eye.
  */
 const HOOK_ROWS = {
   small: [
@@ -1634,11 +1636,32 @@ const HOOK_ROWS = {
     "...oLLLLo.....",
     "....oooo......",
   ],
+  catfish: [
+    "........oooo....",
+    ".......oWWWWo...",
+    ".......oW..Wo...",
+    ".......oWWWWo...",
+    "........oLLo....",
+    "........oLLo....",
+    "........oLLo....",
+    "........oLLo....",
+    "........oLLo....",
+    "........oLLo....",
+    ".oo.....oLLo....",
+    "oLWo....oLLo....",
+    "oLLWo...oLLo....",
+    ".oLLLo..oLLo....",
+    ".oLLLLooLLLo....",
+    "..oLLLLLLLo.....",
+    "...oLLLLLo......",
+    "....ooooo.......",
+  ],
 };
 const HOOK_METALS = {
   small: { L: "#c8d0d4", W: "#f2f6f8" },
   medium: { L: "#c89a52", W: "#f0d08a" },
   large: { L: "#6a737c", W: "#b4c0ca" },
+  catfish: { L: "#3a4046", W: "#8a959e" },
 };
 export function hookSprite(scale = 3, size = "medium") {
   return fromRows(HOOK_ROWS[size] ?? HOOK_ROWS.medium, { o: P.ink, ...(HOOK_METALS[size] ?? HOOK_METALS.medium) }).toCanvas(scale);

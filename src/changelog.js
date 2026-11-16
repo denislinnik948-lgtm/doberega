@@ -15,6 +15,8 @@ export const CHANGELOG = [
       "У налаштуваннях з'явилися журнал оновлень і зв'язок з розробником: можна написати про помилку чи ідею просто з гри.",
       "Відкрито Драконове озеро, останню водойму: гірське озеро під руїнами старої вежі. Вхід за квитком на добу (100 000 $) і лише з сомовою вудкою. Тут ловляться велетні від 45 кг: нільський окунь, сіамський короп, білий осетер і сом, а легенда озера, осетер Змій, важить 130–150 кг.",
       "Риба на Драконовому озері має силу: над шкалою натягу з'являється шкала «Сила риби». Тримай волосінь натягнутою, щоб риба втомилася, і лише тоді вона піде до берега.",
+      "Новий сомовий гачок (50 $): лише риба від 5 кг, тримає будь-яку. Великий гачок тепер тримає до 45 кг, тож велетні Драконового озера його розгинають. Малий гачок тонкий: на нього клює частіше, і на ставку він дає більше риби й досвіду.",
+      "Морський шнур (Снасті, 120 000 $): купується раз, не зношується і тримає будь-яку рибу. Без нього на Драконове озеро не пускають, а звичайну волосінь тамтешні велетні рвуть. Деінде на нього клює рідше, тож яку волосінь поставити, обирай у рюкзаку. Хто купив квиток раніше, ловить там без шнура, доки квиток діє.",
     ],
     en: [
       "A tournament now lasts three days instead of a week. Prizes are paid for every tournament you took part in, even if several went by while you were away.",
@@ -23,6 +25,8 @@ export const CHANGELOG = [
       "Settings now have the update log and a way to contact the developer: write about a bug or an idea right from the game.",
       "Dragon Lake, the last water, is open: a mountain lake under a ruined tower. Entry is by a day ticket (100 000 $) and only with the catfish rod. Here giants from 45 kg bite: the Nile perch, the Siamese giant carp, the white sturgeon and the catfish, and the lake's legend, the sturgeon Zmii, weighs 130-150 kg.",
       "Fish at Dragon Lake have strength: a Fish's strength bar appears over the tension bar. Keep the line tight to wear the fish out, and only then will it come in.",
+      "A new catfish hook (50 $): only fish from 5 kg, holds any. The large hook now holds up to 45 kg, so Dragon Lake's giants bend it straight. The small hook is fine: fish bite on it more often, and at the pond it brings more fish and experience.",
+      "The sea line (Tackle, 120 000 $): bought once, never wears and holds any fish. Dragon Lake lets no one in without it, and its giants snap the plain line. Elsewhere fish bite less often on it, so pick which line is on the reel in the backpack. Those who bought a ticket before fish there without it while the ticket lasts.",
     ],
   },
   {

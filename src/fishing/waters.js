@@ -1,30 +1,39 @@
-import { GROUNDBAITS, LOCATIONS, PASS_MS, access, spotShown } from "./data.js";
+import { GROUNDBAITS, LOCATIONS, PASS_MS, SEA_LINE_SINCE, access, spotShown } from "./data.js";
 import { rankAt } from "./ranks.js";
 
 /*
  * Which waters an angler may fish (see LOCATIONS): the pond is open to
  * everyone, the next three open with a rank, the last four with a membership
  * fee, paid once; `progress.waters` holds the ids paid for. The last one
- * takes a ticket for a day instead, and only with the catfish rod;
- * `progress.passes` holds when each ticket runs out. The same rules hold for
- * every save, old ones too. A tester has every water open, the ones still
- * being tried out too, but buys the ticket like anyone (the rod is waived),
- * to try it; to anyone else those waters stay hidden.
+ * takes a ticket for a day instead, and only with the catfish rod and the
+ * sea line; `progress.passes` holds when each ticket runs out. The same rules
+ * hold for every save, old ones too. A tester has every water open, the ones
+ * still being tried out too, but buys the ticket like anyone (the rod and the
+ * line are waived), to try it; to anyone else those waters stay hidden.
+ * A ticket bought before the sea line was asked (SEA_LINE_SINCE) lets one in
+ * and fish there on any line until it runs out.
  */
 
 /** Milliseconds left on a water's ticket (0 when there is none or it has run out). */
 export const passLeft = (progress, id, now = Date.now()) => Math.max(0, (progress.passes?.[id] ?? 0) - now);
 
+/** A water's ticket still running that was bought before the sea line was asked: the line is waived there. */
+export const lineWaived = (progress, id, now = Date.now()) => passLeft(progress, id, now) > 0 && progress.passes[id] - PASS_MS < SEA_LINE_SINCE;
+
 /**
  * What still keeps a water shut: { rank }, { price }, { pass } (a ticket to
- * buy), { pass, rod } (the rod needed first) or { hidden }, or null when it is open.
+ * buy), { pass, rod, line } (the rod or the sea line needed first, whichever
+ * is missing) or { hidden }, or null when it is open.
  */
 export function spotLock(progress, index) {
   const spot = LOCATIONS[index];
   if (spot && !spotShown(spot)) return { hidden: true };
   const unlock = spot?.unlock;
   if (unlock?.pass) {
-    if (!access.tester && !(progress.rods ?? []).includes(unlock.rod)) return { pass: unlock.pass, rod: unlock.rod };
+    // The gear it asks for first (a tester has it waived): the rod, and the sea line where it is asked.
+    const rod = !access.tester && !(progress.rods ?? []).includes(unlock.rod);
+    const line = !access.tester && unlock.line === "sea" && !progress.seaLine && !lineWaived(progress, spot.id);
+    if (rod || line) return { pass: unlock.pass, ...(rod ? { rod: unlock.rod } : {}), ...(line ? { line: unlock.line } : {}) };
     return passLeft(progress, spot.id) > 0 ? null : { pass: unlock.pass };
   }
   if (!unlock || access.tester) return null;
@@ -37,7 +46,7 @@ export const spotOpen = (progress, index) => !spotLock(progress, index);
 /** Pay a water's fee, or buy its ticket for a day: true when it is paid and the water open. */
 export function joinWater(progress, index, now = Date.now()) {
   const lock = spotLock(progress, index);
-  const cost = lock?.price ?? (lock?.pass && !lock.rod ? lock.pass : 0);
+  const cost = lock?.price ?? (lock?.pass && !lock.rod && !lock.line ? lock.pass : 0);
   if (!cost || progress.money < cost) return false;
   progress.money -= cost;
   const id = LOCATIONS[index].id;
