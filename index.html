@@ -325,6 +325,31 @@
         <label class="volume-row"><span data-i18n="settings.effects">Effects</span><input type="range" id="volume-fx" min="0" max="100" step="5" /><output id="volume-fx-value"></output></label>
         <label class="volume-row"><span data-i18n="settings.music">Music</span><input type="range" id="volume-music" min="0" max="100" step="5" /><output id="volume-music-value"></output></label>
       </div>
+      <!-- A word to the developer: its own page, the message going to their Telegram (api/feedback.js). -->
+      <div class="setting-row" id="feedback-row" hidden>
+        <span class="setting-label" data-i18n="settings.feedback">Contact the developer</span>
+        <button class="pixel-btn" id="feedback-button" type="button" aria-haspopup="dialog" data-i18n="feedback.open">Write ›</button>
+      </div>
+    </dialog>
+
+    <dialog class="sheet settings-sheet page" id="feedback-dialog" aria-labelledby="feedback-title">
+      <header class="sheet-heading">
+        <h2 class="title-tab" id="feedback-title" data-frame="tab" data-i18n="feedback.title">Contact</h2>
+        <form method="dialog"><button class="pixel-btn pixel-btn-square" type="submit" data-i18n-aria="a11y.close">✕</button></form>
+      </header>
+      <p class="sync-text" data-i18n="feedback.about">Found a bug, have an idea, or just want to say something? Write, I read everything.</p>
+      <label class="field">
+        <span class="field-label" data-i18n="feedback.text">Message</span>
+        <textarea class="text-input feedback-text" id="feedback-text" maxlength="1000" rows="6" data-i18n-placeholder="feedback.placeholder"></textarea>
+        <small class="field-hint feedback-count" id="feedback-count"></small>
+      </label>
+      <label class="field">
+        <span class="field-label" data-i18n="feedback.contact">How to reach you (optional)</span>
+        <input class="text-input" id="feedback-contact" type="text" maxlength="100" autocomplete="off" data-i18n-placeholder="feedback.contactPlaceholder" />
+      </label>
+      <p class="account-hint" data-i18n="feedback.context">Your nickname, rank, the game's language, the kind of device and the water go with it, to help sort it out.</p>
+      <button class="pixel-btn pixel-btn-primary account-submit" id="feedback-send" type="button" data-i18n="feedback.send">Send</button>
+      <p class="account-message" id="feedback-message" role="status"></p>
     </dialog>
 
     <!-- Offered once, after the very first fish: sign in, or carry on knowing the risk. -->

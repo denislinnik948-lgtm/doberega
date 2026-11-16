@@ -143,6 +143,9 @@ export class AnglerUI {
     $("#collection-button").addEventListener("click", () => this.openCollection());
     $("#keepnet-chip").addEventListener("click", () => this.openKeepnet());
     $("#settings-button").addEventListener("click", () => this.openSettings());
+    $("#feedback-button").addEventListener("click", () => this.openFeedback());
+    $("#feedback-send").addEventListener("click", () => this.sendFeedback());
+    $("#feedback-text").addEventListener("input", () => this.countFeedback());
     // Each tile opens the page it sums up.
     $("#tile-profile").addEventListener("click", () => this.openProfile());
     $("#tile-today").addEventListener("click", () => this.openQuest());
@@ -218,6 +221,7 @@ export class AnglerUI {
     });
     document.querySelectorAll("[data-i18n-aria]").forEach((node) => node.setAttribute("aria-label", t(node.dataset.i18nAria)));
     document.querySelectorAll("[data-i18n-title]").forEach((node) => node.setAttribute("title", t(node.dataset.i18nTitle)));
+    document.querySelectorAll("[data-i18n-placeholder]").forEach((node) => node.setAttribute("placeholder", t(node.dataset.i18nPlaceholder)));
     document.querySelectorAll("[data-i18n-roledescription]").forEach((node) => node.setAttribute("aria-roledescription", t(node.dataset.i18nRoledescription)));
     this.labelBackButtons();
     // The account form is rebuilt in the new language.
@@ -228,6 +232,8 @@ export class AnglerUI {
   }
 
   openSettings() {
+    // Writing to the developer: testers only until the bot is seen to work.
+    $("#feedback-row").hidden = !access.tester;
     const options = $("#language-options");
     options.replaceChildren(...LANGUAGES.map(({ id, label }) => element("button", {
       className: `pixel-btn tab${id === language() ? " is-active" : ""}`,
@@ -1735,6 +1741,59 @@ export class AnglerUI {
     this.renderBasketBar($("#basket-page-bar"), false);
     const dialog = $("#basket-dialog");
     if (!dialog.open) dialog.showModal();
+  }
+
+  /* ---------- A word to the developer (api/feedback.js) ---------- */
+
+  openFeedback() {
+    this.countFeedback();
+    $("#feedback-message").textContent = "";
+    const dialog = $("#feedback-dialog");
+    if (!dialog.open) dialog.showModal();
+  }
+
+  /** "120 / 1000" under the message. */
+  countFeedback() {
+    const field = $("#feedback-text");
+    $("#feedback-count").textContent = `${field.value.length} / ${field.maxLength}`;
+  }
+
+  /** Send the message with a little about who and where; a minute between messages. */
+  async sendFeedback() {
+    const say = (key) => { $("#feedback-message").textContent = t(key); };
+    const field = $("#feedback-text");
+    const text = field.value.trim();
+    if (text.length < 3) return say("feedback.short");
+    if (Date.now() - (this.feedbackAt ?? 0) < 60000) return say("feedback.wait");
+    const button = $("#feedback-send");
+    button.disabled = true;
+    say("feedback.sending");
+    const { progress } = this;
+    const context = {
+      nick: this.cloud?.user?.user_metadata?.nickname || "",
+      rank: this.rankName(rankAt(Math.floor(progress.xp ?? 0))),
+      lang: language(),
+      device: window.matchMedia("(pointer: coarse)").matches ? "phone" : "computer",
+      spot: nameOf("location", progress.location),
+    };
+    try {
+      const response = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, contact: $("#feedback-contact").value.trim(), context }),
+      });
+      if (response.status === 429) return say("feedback.wait");
+      if (!response.ok) return say("feedback.error");
+      this.feedbackAt = Date.now();
+      field.value = "";
+      $("#feedback-contact").value = "";
+      this.countFeedback();
+      say("feedback.sent");
+    } catch {
+      say("feedback.error");
+    } finally {
+      button.disabled = false;
+    }
   }
 
   /** Pay for the whole basket at once, then back to the shop. */
