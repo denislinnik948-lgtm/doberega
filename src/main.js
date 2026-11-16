@@ -353,7 +353,8 @@ window.addEventListener("pagehide", () => cloud.flush());
 // once the account's save is in (so an angler signed in on a new device who has seen them won't again),
 // but no sooner than 1.2 s and no later than 8 s in.
 const onboardAt = Date.now() + 1200;
-const onboard = () => setTimeout(() => ui.openOnboarding(), Math.max(0, onboardAt - Date.now()));
+// Then, for an angler who has seen it, what is new since last time (once a day).
+const onboard = () => setTimeout(() => { ui.openOnboarding(); ui.openNews(); }, Math.max(0, onboardAt - Date.now()));
 const onboardLate = setTimeout(onboard, 8000);
 cloud.init().then(() => {
   if (rankPending(progress)) ui.commit();

@@ -113,6 +113,10 @@ export function normalizeProgress(saved) {
     }
     if (saved.cupsBackfilled === true) state.cupsBackfilled = true;
     if (saved.onboarded === true) state.onboarded = true;
+    if (saved.news && typeof saved.news === "object") {
+      const text = (value) => (typeof value === "string" ? value.slice(0, 10) : "");
+      state.news = { seen: text(saved.news.seen), shownOn: text(saved.news.shownOn), off: saved.news.off === true };
+    }
     if (Array.isArray(saved.tips)) state.tips = [...new Set(saved.tips.filter((key) => typeof key === "string"))].slice(0, 50);
     // The float skins were taken out of the game: each one bought is paid back at its price,
     // once (the save keeps no list of them after this).

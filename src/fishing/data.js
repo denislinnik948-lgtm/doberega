@@ -625,6 +625,8 @@ export const START_STATE = {
   // The first-start screens seen (or skipped), and the first-use tips already shown (see main.js).
   onboarded: false,
   tips: [],
+  // The update log (see openNews in ui.js): the newest day already seen, the day it last opened by itself, and whether it never should.
+  news: { seen: "", shownOn: "", off: false },
 };
 
 /** The fish of the day (see quests.js) sells for this much more, if it was caught that day. */

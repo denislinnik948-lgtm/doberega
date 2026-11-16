@@ -334,6 +334,16 @@
           <label class="setting-line volume-row"><span class="setting-label" data-i18n="settings.music">Music</span><span class="volume-control"><input type="range" id="volume-music" min="0" max="100" step="5" /><output id="volume-music-value"></output></span></label>
           <p class="account-hint setting-hint" id="sound-hint" data-i18n="settings.soundOff">Switch the sound on to set its volume.</p>
         </section>
+        <!-- The update log: its own page, and whether it opens by itself on coming in (see openNews in ui.js). -->
+        <section class="settings-card settings-wide news-card" id="news-row" data-frame="box" hidden>
+          <h3 class="today-heading" data-i18n="settings.news">Update log</h3>
+          <p class="setting-note" data-i18n="news.lead">What has changed in how the game plays.</p>
+          <button class="pixel-btn feedback-open" id="news-button" type="button" aria-haspopup="dialog" data-i18n="news.open">Open ›</button>
+          <div class="setting-line is-choice news-auto">
+            <span class="setting-label" data-i18n="news.onStart">On coming in</span>
+            <div class="segmented" id="news-options" role="radiogroup" data-i18n-aria="news.onStart"></div>
+          </div>
+        </section>
         <!-- A word to the developer: its own page, the message going to their Telegram (api/feedback.js). -->
         <section class="settings-card settings-wide feedback-card" id="feedback-row" data-frame="box" hidden>
           <h3 class="today-heading" data-i18n="settings.feedback">Contact the developer</h3>
@@ -341,6 +351,29 @@
           <button class="pixel-btn feedback-open" id="feedback-button" type="button" aria-haspopup="dialog" data-i18n="feedback.open">Write ›</button>
           <p class="feedback-social"><span data-i18n="feedback.social">Or find me here:</span> <a class="social-link" data-network="instagram" href="https://www.instagram.com/haveavicenight/" target="_blank" rel="noopener" aria-label="Instagram @haveavicenight" title="Instagram @haveavicenight"></a><a class="social-link" data-network="x" href="https://x.com/DenysLynnyk948" target="_blank" rel="noopener" aria-label="X @DenysLynnyk948" title="X @DenysLynnyk948"></a></p>
         </section>
+      </div>
+    </dialog>
+
+    <!-- The whole update log, newest first (src/changelog.js). -->
+    <dialog class="sheet settings-sheet page" id="news-page" aria-labelledby="news-page-title">
+      <header class="sheet-heading">
+        <h2 class="title-tab" id="news-page-title" data-frame="tab" data-i18n="settings.news">Update log</h2>
+        <form method="dialog"><button class="pixel-btn pixel-btn-square" type="submit" data-i18n-aria="a11y.close">✕</button></form>
+      </header>
+      <div class="settings-body feedback-body">
+        <section class="settings-card settings-wide" data-frame="box"><ol class="news-list" id="news-page-list"></ol></section>
+      </div>
+    </dialog>
+
+    <!-- What's new since last time: once a day on coming in, skippable, or never again. -->
+    <dialog class="sheet news-sheet" id="news-dialog" data-frame="ornate" aria-labelledby="news-title">
+      <header class="sheet-heading">
+        <h2 class="title-tab" id="news-title" data-frame="tab" data-i18n="news.title">What's new</h2>
+      </header>
+      <ol class="news-list" id="news-list"></ol>
+      <div class="news-foot">
+        <label class="news-never"><input type="checkbox" id="news-never" /><span data-i18n="news.never">Don't show again</span></label>
+        <button class="pixel-btn pixel-btn-primary" id="news-close" type="button" data-i18n="news.close">Got it</button>
       </div>
     </dialog>
 

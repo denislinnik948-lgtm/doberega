@@ -698,6 +698,21 @@ html.keyboard-open .sheet[open] > .account-body {
 .volume-row:has(input:disabled) :is(.setting-label, output) { color: var(--mid); }
 .volume-row input:disabled { opacity: 0.4; }
 .feedback-open { justify-self: stretch; min-height: 48px; padding-inline: 18px; }
+/* The update log: days newest first, each its date and a few lines; in the window, "don't show again" beside Got it. */
+.news-list { display: grid; gap: 18px; margin: 0; padding: 0; list-style: none; }
+.news-day { display: grid; gap: 8px; }
+.news-day .today-heading { margin: 0; color: var(--gold); }
+.news-lines { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.news-lines li { position: relative; padding-left: 18px; color: var(--light); font-size: 19px; line-height: 1.3; }
+.news-lines li::before { content: "~"; position: absolute; left: 0; color: var(--soft); }
+.news-sheet { width: min(560px, calc(100vw - 32px)); }
+.news-sheet .news-list { max-height: min(60vh, 520px); overflow-y: auto; }
+.news-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.news-foot .pixel-btn { min-height: 46px; padding-inline: 22px; }
+.news-never { display: flex; align-items: center; gap: 10px; color: var(--light); font-size: 18px; cursor: pointer; }
+.news-never input { width: 20px; height: 20px; margin: 0; accent-color: var(--gold); }
+.news-auto { margin-top: 2px; }
+.news-auto .segmented { max-width: 380px; }
 .feedback-social { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; color: var(--soft); font-size: 18px; line-height: 1.4; }
 /* Each network a square button with its pixel mark, big enough for a thumb. */
 .social-link { display: grid; place-items: center; width: 44px; height: 44px; background: var(--ink); box-shadow: inset 0 0 0 2px var(--line); }
@@ -709,9 +724,9 @@ html.keyboard-open .sheet[open] > .account-body {
   .settings-body { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .settings-wide { grid-column: 1 / -1; }
   /* Across both cards: the line on the left, the button on the right. */
-  .feedback-card { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 20px; }
-  .feedback-card .today-heading { grid-column: 1 / -1; }
-  .feedback-card > .setting-note, .feedback-social { grid-column: 1; }
+  .feedback-card, .news-card { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 20px; }
+  :is(.feedback-card, .news-card) .today-heading { grid-column: 1 / -1; }
+  :is(.feedback-card, .news-card) > .setting-note, .feedback-social, .news-auto { grid-column: 1; }
   .feedback-open { grid-column: 2; grid-row: 2 / span 2; justify-self: end; }
   .feedback-body { max-width: 720px; grid-template-columns: minmax(0, 1fr); }
 }

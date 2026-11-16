@@ -15,6 +15,7 @@ import {
 import { frame, frameAll, repaint, setContent } from "./frames.js";
 import { SEASONS, currentSeason, isWinter, season, setSeason } from "../theme.js";
 import { validNickname } from "../cloud.js";
+import { CHANGELOG, NEWS_DAYS_SHOWN } from "../changelog.js";
 import { track } from "../analytics.js";
 import { baitCount, saveProgress } from "./store.js";
 import { setSoundEnabled, setVolume, soundEnabled, sounds, volume } from "../sound.js";
@@ -144,6 +145,14 @@ export class AnglerUI {
     $("#keepnet-chip").addEventListener("click", () => this.openKeepnet());
     $("#settings-button").addEventListener("click", () => this.openSettings());
     $("#feedback-button").addEventListener("click", () => this.openFeedback());
+    $("#news-button").addEventListener("click", () => this.openNewsPage());
+    $("#news-close").addEventListener("click", () => $("#news-dialog").close());
+    // However it closes (the button, Esc): "don't show again" is kept.
+    $("#news-dialog").addEventListener("close", () => {
+      if (!$("#news-never").checked) return;
+      this.progress.news.off = true;
+      this.commit();
+    });
     document.querySelectorAll(".social-link").forEach((link) => link.replaceChildren(socialSprite(link.dataset.network)));
     $("#feedback-send").addEventListener("click", () => this.sendFeedback());
     $("#feedback-text").addEventListener("input", () => this.countFeedback());
@@ -235,6 +244,21 @@ export class AnglerUI {
   openSettings() {
     // Writing to the developer: testers only until the bot is seen to work.
     $("#feedback-row").hidden = !access.tester;
+    // The update log: testers only for now too; whether it opens by itself on coming in.
+    $("#news-row").hidden = !access.tester;
+    const news = (this.progress.news ??= { seen: "", shownOn: "", off: false });
+    $("#news-options").replaceChildren(...[true, false].map((on) => element("button", {
+      className: `pixel-btn tab${on === !news.off ? " is-active" : ""}`,
+      type: "button",
+      role: "radio",
+      ariaChecked: String(on === !news.off),
+      textContent: t(on ? "news.show" : "news.hide"),
+      onclick: () => {
+        news.off = !on;
+        this.commit();
+        this.openSettings();
+      },
+    })));
     const options = $("#language-options");
     options.replaceChildren(...LANGUAGES.map(({ id, label }) => element("button", {
       className: `pixel-btn tab${id === language() ? " is-active" : ""}`,
@@ -1744,6 +1768,57 @@ export class AnglerUI {
     ])) : [element("li", { className: "empty-note", textContent: t("cart.hint") })]));
     this.renderBasketBar($("#basket-page-bar"), false);
     const dialog = $("#basket-dialog");
+    if (!dialog.open) dialog.showModal();
+  }
+
+  /* ---------- The update log (src/changelog.js) ---------- */
+
+  /** Days of the log into a list: each day's date, then its lines. */
+  fillNews(list, days) {
+    const lang = language() === "en" ? "en" : "uk";
+    list.replaceChildren(...days.map((day) => element("li", { className: "news-day" }, [
+      element("h3", { className: "today-heading", textContent: new Date(`${day.date}T12:00:00`).toLocaleDateString(locale(), { day: "numeric", month: "long" }) }),
+      element("ul", { className: "news-lines" }, day[lang].map((text) => element("li", { textContent: text }))),
+    ])));
+  }
+
+  /**
+   * On coming in, at most once a day: what's new since the angler last saw the
+   * log (the newest NEWS_DAYS_SHOWN days of it), unless they said never again.
+   * A new angler starts with all of it seen. Testers only for now.
+   */
+  openNews() {
+    const { progress } = this;
+    const news = (progress.news ??= { seen: "", shownOn: "", off: false });
+    const newest = CHANGELOG[0]?.date ?? "";
+    if (!access.tester || news.off) return;
+    if (!progress.onboarded) {
+      if (news.seen !== newest) {
+        news.seen = newest;
+        this.commit();
+      }
+      return;
+    }
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const days = CHANGELOG.filter((day) => day.date > news.seen).slice(0, NEWS_DAYS_SHOWN);
+    if (news.shownOn === today || !days.length) return;
+    // Another window open (not a page being warmed up out of sight): try again a little later.
+    if (document.querySelector("dialog[open]") && !document.body.classList.contains("warming")) {
+      setTimeout(() => this.openNews(), 1500);
+      return;
+    }
+    this.fillNews($("#news-list"), days);
+    $("#news-never").checked = false;
+    Object.assign(news, { seen: newest, shownOn: today });
+    this.commit();
+    $("#news-dialog").showModal();
+  }
+
+  /** The whole log, from Settings. */
+  openNewsPage() {
+    this.fillNews($("#news-page-list"), CHANGELOG);
+    const dialog = $("#news-page");
     if (!dialog.open) dialog.showModal();
   }
 

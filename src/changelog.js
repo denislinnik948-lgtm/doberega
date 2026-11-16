@@ -1,0 +1,47 @@
+/*
+ * The update log: what changed in how the game plays (mechanics, the economy,
+ * new things to do), newest first, a few plain lines a day in both languages.
+ * Small fixes and looks don't go here. Shown once a day on coming in when
+ * there is something new since last time (see openNews in ui.js), and all of
+ * it in Settings → Update log.
+ */
+export const CHANGELOG = [
+  {
+    date: "2026-11-16",
+    uk: [
+      "Турнір тепер триває три дні замість тижня. Призи видаються за кожен турнір, у якому ти брав участь, навіть якщо кілька пройшли, поки тебе не було.",
+      "З 22 листопада чотири нові формати турніру: снайпер (риба, найближча до заданої ваги), легка снасть (лоза, ліщина чи бамбук), одна наживка і трофейний (будь-яка риба, рахується відсоток від рекорду виду).",
+      "Дні поспіль тепер ідуть колом з десяти днів: сьомого дня половина нагороди за завдання, восьмого 10 кукурудзи, дев'ятого дві прикормки, десятого півтори нагороди.",
+    ],
+    en: [
+      "A tournament now lasts three days instead of a week. Prizes are paid for every tournament you took part in, even if several went by while you were away.",
+      "From 22 November, four new tournament formats: sniper (the fish closest to a set weight), light tackle (willow, hazel or bamboo rod), one bait, and trophy (any fish, scored as a share of its kind's top weight).",
+      "Days in a row now go round ten days: half the quest reward on the seventh, 10 corn on the eighth, two groundbaits on the ninth, one and a half quest rewards on the tenth.",
+    ],
+  },
+  {
+    date: "2026-11-15",
+    uk: [
+      "Кольорові світлячки для поплавка в магазині (Додатки, 2 000 $): купуєш раз і вибираєш у рюкзаку, яким світитиметься поплавок уночі: зеленим, синім, червоним, жовтим чи білим.",
+    ],
+    en: [
+      "Coloured float lights in the shop (Extras, 2 000 $): buy them once and pick in the backpack how the float glows at night: green, blue, red, yellow or white.",
+    ],
+  },
+  {
+    date: "2026-11-14",
+    uk: [
+      "Поплавок світиться вночі в усіх. Хто купував світний поплавок, отримав 900 $ назад.",
+      "Риба продається рівно за свою ціну за кілограм, як у довіднику. У садку видно, що підняло ціну: велика ×1,3, переросток ×1,6, риба дня ×1,5.",
+      "Скіни поплавків прибрано з гри, гроші за куплені повернуто.",
+    ],
+    en: [
+      "Every float glows at night. Those who bought the glowing float got their 900 $ back.",
+      "Fish sell for exactly their price per kilo, as the handbook says. The keepnet shows what lifted a price: big ×1.3, outgrown ×1.6, fish of the day ×1.5.",
+      "Float skins are gone from the game; the money for those bought has been paid back.",
+    ],
+  },
+];
+
+/** At most this many days are shown on coming in, however long the angler was away. */
+export const NEWS_DAYS_SHOWN = 3;
