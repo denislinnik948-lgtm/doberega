@@ -116,9 +116,10 @@ export function fishOfDay(day = questDay()) {
 
 /*
  * Days in a row: a day counts once the angler lands a fish on it (days run
- * in UTC, like the quest). Each counted day brings a gift, round a week:
- * bait, hooks, groundbait, a spare line, and money on the fourth and the
- * seventh (a share of the quest reward, so it keeps up with the angler).
+ * in UTC, like the quest). Each counted day brings a gift, round ten days
+ * (seven until November 2026): bait, hooks, groundbait, a spare line, and
+ * money on the fourth, the seventh and the tenth (a share of the quest
+ * reward, so it keeps up with the angler), the most on the tenth.
  * Miss a day and the run starts again from the first.
  *
  * `progress.streak` holds { day, count, best }.
@@ -130,10 +131,13 @@ export const STREAK_GIFTS = [
   { money: 0.25 },
   { lines: 1 },
   { groundbait: 2 },
-  { money: 1 },
+  { money: 0.5 },
+  { bait: "corn", count: 10 },
+  { groundbait: 2 },
+  { money: 1.5 },
 ];
 
-/** The gift for a day of the run (1, 2, …), round the week. */
+/** The gift for a day of the run (1, 2, …), round the ten days. */
 export const streakGift = (count) => STREAK_GIFTS[(count - 1) % STREAK_GIFTS.length];
 
 /** How many days in a row so far: still alive if the last counted day was today or yesterday. */

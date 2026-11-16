@@ -250,7 +250,7 @@ button { font: inherit; color: inherit; touch-action: manipulation; }
 .day-fish-big canvas { display: block; max-width: 110px; width: auto !important; height: auto !important; }
 .day-fish-card .quest-status { color: var(--bone); font-size: 19px; line-height: 1.2; }
 #streak-about { color: var(--bone); font-size: 19px; line-height: 1.2; }
-.streak-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin: 0; padding: 0; list-style: none; }
+.streak-days { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; margin: 0; padding: 0; list-style: none; }
 .streak-day { display: grid; justify-items: center; gap: 2px; padding: 4px 2px 5px; background: rgb(10 20 18 / 0.45); box-shadow: inset 0 0 0 2px var(--dark); color: var(--soft); font-size: 15px; text-align: center; }
 .streak-day small { font-size: 13px; white-space: nowrap; }
 .streak-art { display: grid; place-items: center; height: 26px; }
