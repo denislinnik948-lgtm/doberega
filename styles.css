@@ -1602,6 +1602,18 @@ html.keyboard-open .sheet[open] > .account-body {
   }
   .tiles dialog.page .title-tab { padding: 4px 12px; font-size: 22px; }
   .tiles dialog.page .sheet-heading .chip { min-height: 34px; font-size: 17px; }
+  /* A page's tabs (the shop's shelves, the trophies) stay put right under the heading too; its height is fixed so they know where. */
+  .tiles dialog.page { --head-height: calc(env(safe-area-inset-top, 0px) + 65px); }
+  .tiles dialog.page .sheet-heading:has(+ .tabs) { height: var(--head-height); box-shadow: none; }
+  .tiles dialog.page > .tabs {
+    position: sticky;
+    top: calc(var(--head-height) - 1px);
+    z-index: 4;
+    margin: -16px -14px 0;
+    padding: 16px 14px 8px;
+    background: var(--ink);
+    box-shadow: 0 2px 0 var(--dark), 0 12px 12px -6px rgb(10 20 18 / 0.85);
+  }
   /* A dark strip along the bottom holds the arrow, so it never lies over the page's own buttons. */
   .tiles dialog.page .sheet-heading form {
     position: fixed;
