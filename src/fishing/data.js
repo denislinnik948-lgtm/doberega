@@ -552,14 +552,16 @@ export const LOCATIONS = [
     /*
      * The mountain lake, the last and dearest water, still being tried out
      * (`preview`: a tester only): giants from 45 kg, mostly up to 70, a big
-     * one up to 100, now and then up to 110. Its own fish, the weekly ticket
-     * and the fish's strength are still to come.
+     * one up to 100, now and then up to 110. Entered by a day ticket (see
+     * PASS_MS), only with the catfish rod. Its own fish and the fish's
+     * strength are still to come.
      */
     id: "mountain", snagChance: 0.03, kind: "mountain", water: "#2e5a4a", preview: true,
     traits: { type: "lake", depth: "veryDeep", bottom: "stones", current: "none" },
     minKg: 45, typicalKg: 70, maxKg: 100, bigChance: 1 / 6, tailKg: 110, tailChance: 1 / 60, pace: 0.5,
-    // Entry by a 7-day ticket, and only with the catfish rod (to come); not a once-paid fee, so off the rod ladder.
-    unlock: { pass: 130000, rod: "catfish" },
+    // Entry by a ticket for a day, and only with the catfish rod; not a once-paid fee, so off the rod ladder.
+    // It pays about 71 000 $ an hour with the catfish rod (the carp lake 47 000), so the ticket pays for itself in about an hour and a quarter there.
+    unlock: { pass: 30000, rod: "catfish" },
     fish: { som: 3, amur: 1, tovstolob: 1 },
   },
 ];
@@ -570,6 +572,9 @@ export const LOCATIONS = [
  * the fish that live only there.
  */
 export const access = { tester: false };
+
+/** How long a water's ticket lasts from the moment it is bought: a day of real time. */
+export const PASS_MS = 24 * 60 * 60 * 1000;
 
 /** Whether a water is shown to this angler. */
 export const spotShown = (spot) => !spot.preview || access.tester;
@@ -627,6 +632,8 @@ export const START_STATE = {
   tips: [],
   // The update log (see openNews in ui.js): the newest day already seen, the day it last opened by itself, and whether it never should.
   news: { seen: "", shownOn: "", off: false },
+  // When each water's day ticket runs out, by spot id (see waters.js).
+  passes: {},
 };
 
 /** The fish of the day (see quests.js) sells for this much more, if it was caught that day. */

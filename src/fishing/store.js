@@ -113,6 +113,9 @@ export function normalizeProgress(saved) {
     }
     if (saved.cupsBackfilled === true) state.cupsBackfilled = true;
     if (saved.onboarded === true) state.onboarded = true;
+    if (saved.passes && typeof saved.passes === "object") {
+      for (const [id, until] of Object.entries(saved.passes)) if (LOCATIONS.some((spot) => spot.id === id) && Number.isFinite(until)) state.passes[id] = until;
+    }
     if (saved.news && typeof saved.news === "object") {
       const text = (value) => (typeof value === "string" ? value.slice(0, 10) : "");
       state.news = { seen: text(saved.news.seen), shownOn: text(saved.news.shownOn), off: saved.news.off === true };

@@ -8,7 +8,7 @@ import {
 import { P } from "./palette.js";
 import { GROUPS, bump, evaluate, shownAchievements } from "./achievements.js";
 import { RANKS, XP, claimRanks, rankAt } from "./ranks.js";
-import { joinWater, opensWithRank, shownSpots, spotLock } from "./waters.js";
+import { joinWater, opensWithRank, passLeft, shownSpots, spotLock } from "./waters.js";
 import {
   STREAK_GIFTS, TOURNEY_PRIZES, fishOfDay, questReward, questState, streakNow, streakToday, todaysQuest, TOURNEY_ANY, tourneyBait, tourneyFish, tourneyFormat, tourneyKey, tourneyState, tourneyTarget, tourneyWeek, tourneyWeekStart, untilNextQuest, untilWeekEnd,
 } from "./quests.js";
@@ -129,11 +129,11 @@ export class AnglerUI {
 
     $("#spot-prev").addEventListener("click", () => this.shiftSpot(-1));
     $("#spot-next").addEventListener("click", () => this.shiftSpot(1));
-    // At a shut water the button pays its fee (or waits for the rank) instead.
+    // At a shut water the button pays its fee or buys its ticket (or waits for the rank or the rod) instead.
     $("#fish-button").addEventListener("click", () => {
       const lock = spotLock(this.progress, this.progress.location);
       if (!lock) onFish();
-      else if (lock.price) this.joinSpot();
+      else if (lock.price || (lock.pass && !lock.rod)) this.joinSpot();
     });
     $("#exit-button").addEventListener("click", () => {
       if (!this.busy) onExit();
@@ -1289,16 +1289,28 @@ export class AnglerUI {
   accessText(index) {
     const unlock = LOCATIONS[index].unlock;
     if (!unlock) return t("water.openAll");
-    // The last water: a ticket for 7 days, only with the catfish rod (still being tried out).
-    if (unlock.pass) return t("water.openPass", { price: formatMoney(unlock.pass), rod: nameOf("rod", unlock.rod) });
+    // The last water: a ticket for a day, only with the catfish rod (still being tried out).
+    if (unlock.pass) {
+      const text = t("water.openPass", { price: formatMoney(unlock.pass), rod: nameOf("rod", unlock.rod) });
+      const left = passLeft(this.progress, LOCATIONS[index].id);
+      return left ? `${text} · ${t("water.passLeft", { time: this.timeLeft(left) })}` : text;
+    }
     const text = unlock.rank !== undefined ? t("water.openRank", { rank: this.rankName(unlock.rank) }) : t("water.openFee", { price: formatMoney(unlock.price) });
     return unlock.price && !spotLock(this.progress, index) ? `${text} · ${t("water.member")}` : text;
   }
 
+  /** "13 h 20 min" (or "40 min") of time left. */
+  timeLeft(ms) {
+    const minutes = Math.ceil(ms / 60000);
+    const hours = Math.floor(minutes / 60);
+    return hours ? t("time.hoursMinutes", { hours, minutes: minutes % 60 }) : t("time.minutes", { minutes });
+  }
+
   /**
    * A shut water: the picture dimmed under a note of what opens it, and the
-   * Fish button turned into the fee (a first tap asks, a second pays) or
-   * shut until the rank.
+   * Fish button turned into the fee or the day ticket (a first tap asks, a
+   * second pays) or shut until the rank or the rod. A water open by a ticket
+   * says how long it has left.
    */
   renderSpotLock() {
     const { progress } = this;
@@ -1306,19 +1318,26 @@ export class AnglerUI {
     // Building the scene: the button says so until it is done.
     if (button.textContent === t("menu.loading")) return;
     const lock = spotLock(progress, progress.location);
+    const spot = LOCATIONS[progress.location];
+    const left = !lock && spot?.unlock?.pass ? passLeft(progress, spot.id) : 0;
     $("#spot-picture").classList.toggle("is-locked", Boolean(lock));
     const note = $("#spot-lock");
-    note.hidden = !lock;
-    if (lock) note.textContent = lock.rank !== undefined ? t("water.needRank", { rank: this.rankName(lock.rank) }) : t("water.fee", { price: formatMoney(lock.price) });
+    note.hidden = !lock && !left;
+    note.textContent = !lock ? (left ? t("water.passNote", { time: this.timeLeft(left) }) : "")
+      : lock.rank !== undefined ? t("water.needRank", { rank: this.rankName(lock.rank) })
+        : lock.rod ? t("water.needRod", { rod: nameOf("rod", lock.rod) })
+          : lock.pass ? t("water.pass", { price: formatMoney(lock.pass) })
+            : t("water.fee", { price: formatMoney(lock.price) });
     const shown = shownSpots();
     document.querySelectorAll("#spot-dots button").forEach((dot, place) => dot.classList.toggle("is-locked", Boolean(spotLock(progress, shown[place]))));
-    const short = lock?.price ? lock.price - progress.money : 0;
-    button.classList.toggle("is-join", Boolean(lock?.price));
-    button.disabled = Boolean(lock) && (lock.rank !== undefined || short > 0);
+    const cost = lock?.price ?? (lock?.pass && !lock.rod ? lock.pass : 0);
+    const short = cost ? cost - progress.money : 0;
+    button.classList.toggle("is-join", Boolean(cost));
+    button.disabled = Boolean(lock) && (!cost || short > 0);
     button.textContent = !lock ? t("menu.fish")
-      : lock.rank !== undefined ? t("water.locked")
+      : !cost ? t("water.locked")
         : short > 0 ? t("water.short", { sum: formatMoney(short) })
-          : t(this.joinConfirm === progress.location ? "water.confirm" : "water.join", { price: formatMoney(lock.price) });
+          : t(this.joinConfirm === progress.location ? "water.confirm" : lock.pass ? "water.buyPass" : "water.join", { price: formatMoney(cost) });
   }
 
   /** The fee: the first tap asks (for a few seconds), the second pays and opens the water. */
@@ -1335,10 +1354,11 @@ export class AnglerUI {
       return;
     }
     this.joinConfirm = null;
+    const pass = Boolean(spotLock(this.progress, index)?.pass);
     if (!joinWater(this.progress, index)) return this.renderSpotLock();
     sounds.buyBig();
     this.commit();
-    this.toast(t("water.joined", { name: nameOf("location", LOCATIONS[index].id) }), "good", 2600);
+    this.toast(t(pass ? "water.passBought" : "water.joined", { name: nameOf("location", LOCATIONS[index].id) }), "good", 2600);
   }
 
   /* ---------- Gear ---------- */
