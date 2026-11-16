@@ -1776,8 +1776,9 @@ export class AnglerUI {
   }
 
   /**
-   * On coming in, at most once a day: what's new since the angler last saw the
-   * log (the newest NEWS_DAYS_SHOWN days of it), unless they said never again.
+   * On coming in, at most once a day: only what the window hasn't shown yet
+   * (the first time, only the newest day; after a long absence at most
+   * NEWS_DAYS_SHOWN days), unless they said never again. All of it is in Settings.
    * A new angler starts with all of it seen. Testers only for now.
    */
   openNews() {
@@ -1794,7 +1795,8 @@ export class AnglerUI {
     }
     const now = new Date();
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-    const days = CHANGELOG.filter((day) => day.date > news.seen).slice(0, NEWS_DAYS_SHOWN);
+    // Only what the window hasn't shown before; the very first time, only the newest day.
+    const days = news.seen ? CHANGELOG.filter((day) => day.date > news.seen).slice(0, NEWS_DAYS_SHOWN) : CHANGELOG.slice(0, 1);
     if (news.shownOn === today || !days.length) return;
     // Another window open (not a page being warmed up out of sight): try again a little later.
     if (document.querySelector("dialog[open]") && !document.body.classList.contains("warming")) {
