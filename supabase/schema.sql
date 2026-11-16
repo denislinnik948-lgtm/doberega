@@ -85,6 +85,10 @@ alter table public.tournament add constraint tournament_weight_check check (weig
 
 alter table public.tournament add column if not exists angler_rank smallint not null default 0;
 alter table public.tournament add column if not exists avatar smallint not null default 0;
+-- The fish that set the score, for a sniper one (where the score is how close it came)
+-- and a trophy one (any fish, the score its share of its kind's top weight).
+alter table public.tournament add column if not exists fish text;
+alter table public.tournament add column if not exists fish_kg real;
 
 create index if not exists tournament_board_idx on public.tournament (week, species, weight desc);
 
@@ -106,30 +110,41 @@ as $$
   from (select (now() at time zone 'Europe/Kiev')::date - date '1970-01-01' as d) as today;
 $$;
 
--- The tournament's format, as in the game (TOURNEY_FORMATS in src/fishing/quests.js):
--- the heaviest fish every other time, a marathon and a night one in between,
--- from the one starting 16 November 2026 (TOURNEY_RULES_FROM).
+-- The tournament's format, as in the game (TOURNEY_FORMATS and TOURNEY_FORMATS_MORE
+-- in src/fishing/quests.js): from the one starting 16 November 2026 (2968) the
+-- heaviest, a marathon, the heaviest, a night one in turn; from 22 November (2970)
+-- eight in turn with a sniper, light tackle, a trophy and a one-bait one.
 create or replace function public.tournament_format(w int)
 returns text
 language sql
 immutable
 as $$
-  select case when w < 2968 then 'heaviest' else case ((w % 4) + 4) % 4 when 1 then 'marathon' when 3 then 'night' else 'heaviest' end end;
+  select case
+    when w < 2968 then 'heaviest'
+    when w < 2970 then case ((w % 4) + 4) % 4 when 1 then 'marathon' when 3 then 'night' else 'heaviest' end
+    else (array['sniper', 'heaviest', 'light', 'marathon', 'trophy', 'heaviest', 'bait', 'night'])[((w - 2970) % 8) + 1]
+  end;
 $$;
 
--- A new score for the signed-in angler. The limit is the heaviest each fish can
--- grow, a tenth over its kind's top (a fish can outgrow its kind, OVERSIZE in
--- src/fishing/data.js); in a marathon, the kilos of the tournament's fishing.
--- `lvl` is the angler's rank and `pic` their picture, both shown by their name.
+-- A new score for the signed-in angler: `fish` is the board's key (the species,
+-- or 'trophy'), `kg` the score, always the more the better. The limit is the
+-- heaviest each fish can grow, a tenth over its kind's top (a fish can outgrow
+-- its kind, OVERSIZE in src/fishing/data.js); in a marathon, the kilos of the
+-- tournament's fishing; in a sniper one, 1 (right on the weight); in a trophy
+-- one, 110 (per cent of a kind's top). `lvl` is the angler's rank and `pic`
+-- their picture, both shown by their name; `caught` and `caught_kg` the fish
+-- that set the score.
 drop function if exists public.submit_tournament(text, real);
 drop function if exists public.submit_tournament(text, real, int);
-create or replace function public.submit_tournament(fish text, kg real, lvl int default 0, pic int default 0)
+drop function if exists public.submit_tournament(text, real, int, int);
+create or replace function public.submit_tournament(fish text, kg real, lvl int default 0, pic int default 0, caught text default null, caught_kg real default null)
 returns void
 language plpgsql
 security definer
 set search_path = public
 as $$
 declare
+  fmt text := public.tournament_format(public.tournament_week());
   cap real := case fish
     when 'karas' then 1.651 when 'okun' then 1.981 when 'lyn' then 3.851
     when 'lyasch' then 5.501 when 'plitka' then 0.661 when 'krasnopirka' then 0.771
@@ -137,25 +152,31 @@ declare
   end;
   nickname text;
 begin
-  if cap is not null and public.tournament_format(public.tournament_week()) = 'marathon' then
+  if fmt = 'trophy' then
+    cap := case when fish = 'trophy' then 110.001 end;
+  elsif cap is not null and fmt = 'marathon' then
     cap := 400;
+  elsif cap is not null and fmt = 'sniper' then
+    cap := 1.0001;
   end if;
   if auth.uid() is null or cap is null or kg is null or kg <= 0 or kg > cap then
     return;
   end if;
   select left(coalesce(raw_user_meta_data ->> 'nickname', ''), 16) into nickname from auth.users where id = auth.uid();
-  insert into public.tournament (user_id, week, species, player, weight, caught_at, angler_rank, avatar)
-  values (auth.uid(), public.tournament_week(), fish, nickname, kg, now(), greatest(0, least(9, coalesce(lvl, 0))), coalesce(pic, 0))
-  -- The weight only ever grows; the name, rank and picture are always the latest.
+  insert into public.tournament (user_id, week, species, player, weight, caught_at, angler_rank, avatar, fish, fish_kg)
+  values (auth.uid(), public.tournament_week(), submit_tournament.fish, nickname, kg, now(), greatest(0, least(9, coalesce(lvl, 0))), coalesce(pic, 0), left(caught, 24), caught_kg)
+  -- The score only ever grows; the name, rank and picture are always the latest.
   on conflict (user_id, week, species) do update
     set weight = greatest(public.tournament.weight, excluded.weight),
         caught_at = case when excluded.weight > public.tournament.weight then excluded.caught_at else public.tournament.caught_at end,
+        fish = case when excluded.weight > public.tournament.weight then excluded.fish else public.tournament.fish end,
+        fish_kg = case when excluded.weight > public.tournament.weight then excluded.fish_kg else public.tournament.fish_kg end,
         player = excluded.player, angler_rank = excluded.angler_rank, avatar = excluded.avatar;
 end;
 $$;
 
-revoke all on function public.submit_tournament(text, real, int, int) from public;
-grant execute on function public.submit_tournament(text, real, int, int) to authenticated;
+revoke all on function public.submit_tournament(text, real, int, int, text, real) from public;
+grant execute on function public.submit_tournament(text, real, int, int, text, real) to authenticated;
 
 -- The daily quest no longer keeps a list of who has done it.
 drop table if exists public.quest_done;

@@ -18,7 +18,7 @@ import { ambienceTick, dragonSound, jumpSound, musicTick, nightSound, sounds, th
 import { AnglerUI } from "./fishing/ui.js";
 import { breakStreak, bump, recordCatch } from "./fishing/achievements.js";
 import { XP, fishXp, gainXp, rankPending } from "./fishing/ranks.js";
-import { recordDay, recordQuest, recordTourney, settleTourney, tourneyFish, tourneyFormat, tourneyState, tourneyWeek } from "./fishing/quests.js";
+import { previewTourney, recordDay, recordQuest, recordTourney, settleTourney, tourneyFormat, tourneyKey, tourneyPreview, tourneyState, tourneyWeek } from "./fishing/quests.js";
 import { warmFishPortraits } from "./fishing/sprites.js";
 import { ensureOpenSpot } from "./fishing/waters.js";
 
@@ -46,6 +46,8 @@ const worldDayTime = () => dayTimeAt(Date.now() / 1000, WORLD_START, DAY_LENGTH)
 // Each day's sunset and dawn have their own colours (crimson, raspberry, golden...);
 // `?sunset=crimson` or `?dawn=rose` pins one (see MOODS in daycycle.js).
 const FORCED_MOODS = { dusk: params.get("sunset"), dawn: params.get("dawn") };
+// `?debug&tourney=sniper`: this tournament played in another format on this device only, sent nowhere.
+if (params.has("debug") && params.get("tourney")) previewTourney(params.get("tourney"));
 const skyMoods = () => skyMoodsAt(Date.now() / 1000, WORLD_START, DAY_LENGTH, FORCED_MOODS);
 // `?rain=1` forces rain (0..1), `&storm=1` adds lightning; otherwise showers and storms come and go on their own.
 const weather = new Weather({
@@ -260,7 +262,7 @@ const cloud = new Cloud({
   onSynced: async () => {
     const week = tourneyWeek();
     const state = tourneyState(progress, week);
-    if (state.best > 0) cloud.submitTournament(tourneyFish(week), state.best).then(() => checkTourneyPlace());
+    if (state.best > 0 && !tourneyPreview()) cloud.submitTournament(tourneyKey(week), state.best, state).then(() => checkTourneyPlace());
     await backfillCups(week);
     if ((state.claimed ?? -1) >= week - 1) return;
     try {
@@ -323,7 +325,7 @@ async function checkTourneyPlace(tell = true) {
   if (!cloud.user || !(state.best > 0)) return;
   placeChecked = Date.now();
   try {
-    const result = await cloud.tournamentPlace(week, tourneyFish(week));
+    const result = await cloud.tournamentPlace(week, tourneyKey(week));
     if (!result?.place || tourneyWeek() !== week) return;
     if (tell && state.place && result.place > state.place) ui.tourneyOvertaken(result.place);
     if (state.place !== result.place) {
@@ -463,10 +465,10 @@ function handleGameEvent(type, data) {
       gainXp(progress, fishXp(data.fish) + (fresh ? XP.newSpecies : 0) + (quest ? XP.quest : 0));
       // A new score in the week's tournament goes up to the board (signed in);
       // a marathon's kilos grow with every fish, so they are not announced each time.
-      const best = recordTourney(progress, data.fish, game.hour % 24);
+      const best = recordTourney(progress, data.fish, { hour: game.hour % 24, rod: progress.rod, bait: data.bait });
       if (best) {
         if (best.format !== "marathon") ui.tourneyBest(best, Boolean(cloud.user));
-        cloud.submitTournament(best.species, best.weight).then(() => checkTourneyPlace(false));
+        if (!tourneyPreview()) cloud.submitTournament(best.species, best.weight, best).then(() => checkTourneyPlace(false));
       }
       // The first fish of a day counts towards the run of days in a row, with its gift.
       if (!FISH[data.fish.species]?.junk) {

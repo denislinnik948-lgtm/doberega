@@ -10,7 +10,7 @@ import { GROUPS, bump, evaluate, shownAchievements } from "./achievements.js";
 import { RANKS, XP, claimRanks, rankAt } from "./ranks.js";
 import { joinWater, opensWithRank, shownSpots, spotLock } from "./waters.js";
 import {
-  STREAK_GIFTS, TOURNEY_PRIZES, fishOfDay, questReward, questState, streakNow, streakToday, todaysQuest, tourneyFish, tourneyFormat, tourneyState, tourneyWeek, tourneyWeekStart, untilNextQuest, untilWeekEnd,
+  STREAK_GIFTS, TOURNEY_PRIZES, fishOfDay, questReward, questState, streakNow, streakToday, todaysQuest, TOURNEY_ANY, tourneyBait, tourneyFish, tourneyFormat, tourneyKey, tourneyState, tourneyTarget, tourneyWeek, tourneyWeekStart, untilNextQuest, untilWeekEnd,
 } from "./quests.js";
 import { frame, frameAll, repaint, setContent } from "./frames.js";
 import { SEASONS, currentSeason, isWinter, season, setSeason } from "../theme.js";
@@ -863,24 +863,59 @@ export class AnglerUI {
     }, [avatarSprite(id, 4)])));
   }
 
-  /** The tournament's own page: the week's fish, the prizes and the board. */
+  /** The tournament's goal in words (`short`: the few words on the tile). */
+  tourneyGoal(week, short = false) {
+    const format = tourneyFormat(week);
+    const bait = format === "bait" ? nameOf("bait", tourneyBait(week)).toLocaleLowerCase(locale()) : "";
+    const target = format === "sniper" ? formatWeight(tourneyTarget(week)) : "";
+    return t(`tourney.${short ? "short" : "goal"}.${format}`, { bait, target });
+  }
+
+  /** What the tournament is for, drawn and named: its fish, or a cup for any fish. */
+  tourneyArt(week, scale, label) {
+    return tourneyFormat(week) === "trophy" ? cupSprite(scale) : fishSprite(tourneyFish(week), scale, label);
+  }
+
+  tourneyName(week) {
+    return tourneyFormat(week) === "trophy" ? t("tourney.anyFish") : nameOf("fish", tourneyFish(week));
+  }
+
+  /**
+   * A score as it reads: kilos; in a sniper one how far off the weight it was,
+   * in a trophy one the share of its kind's top. `caught` ({ fish, kg }) is the
+   * fish that set it, named too when `full`.
+   */
+  tourneyScore(week, score, caught = {}, full = true) {
+    const format = tourneyFormat(week);
+    if (format === "sniper") {
+      const off = t("tourney.miss", { grams: Math.round((1 - score) * tourneyTarget(week) * 1000) });
+      return full && caught.kg ? `${formatWeight(caught.kg)} · ${off}` : off;
+    }
+    if (format === "trophy") {
+      const share = `${score.toLocaleString(locale())}%`;
+      return full && caught.fish ? `${nameOf("fish", caught.fish)} ${formatWeight(caught.kg)} · ${share}` : share;
+    }
+    return formatWeight(score);
+  }
+
+  /** The tournament's own page: what it is for, the prizes and the board. */
   openTourney() {
     const dialog = $("#tourney-dialog");
-    // Up top a card: the week's fish, the time left, your best, and the prizes.
+    // Up top a card: the fish, the time left, your best, and the prizes.
     const week = tourneyWeek();
-    const species = tourneyFish(week);
     const format = tourneyFormat(week);
-    const best = tourneyState(this.progress, week).best;
+    const state = tourneyState(this.progress, week);
+    const best = state.best;
     const reward = questReward(this.progress);
     const fact = (label, value) => element("div", {}, [element("dt", { textContent: label }), element("dd", { textContent: value })]);
     const card = element("div", { className: "tourney-card" }, [
-      element("span", { className: "tourney-fish" }, [fishSprite(species, 4, nameOf("fish", species))]),
+      element("span", { className: "tourney-fish" }, [this.tourneyArt(week, 4, this.tourneyName(week))]),
       element("div", { className: "tourney-goal" }, [
-        element("small", { textContent: t(`tourney.goal.${format}`) }),
-        element("strong", { textContent: nameOf("fish", species) }),
+        element("small", { textContent: this.tourneyGoal(week) }),
+        element("strong", { textContent: this.tourneyName(week) }),
         element("dl", {}, [
           fact(t("tourney.endsIn"), this.weekLeft()),
-          fact(t(format === "marathon" ? "tourney.yoursTotal" : "tourney.yours"), best ? formatWeight(best) : t("tourney.none")),
+          fact(t(format === "marathon" ? "tourney.yoursTotal" : "tourney.yours"), best ? this.tourneyScore(week, best, state) : t("tourney.none")),
           fact(t("tourney.prizes"), TOURNEY_PRIZES.map((share) => formatMoney(Math.round(reward * share))).join(" / ")),
           fact(t("tourney.everyone"), t("tourney.gift")),
         ]),
@@ -898,7 +933,6 @@ export class AnglerUI {
     const quest = todaysQuest();
     const state = questState(progress, quest);
     const week = tourneyWeek();
-    const species = tourneyFish(week);
     const best = tourneyState(progress, week).best;
     const xp = Math.floor(progress.xp ?? 0);
     const key = [quest.day, state.value, state.done, streakNow(progress), streakToday(progress), week, best, xp, progress.avatar, language()].join(":");
@@ -927,18 +961,19 @@ export class AnglerUI {
     $("#tile-level-fill").style.width = `${(next ? (xp - from) / (next.xp - from) : 1) * 100}%`;
     $("#tile-level-next").textContent = next ? t("level.toNext", { xp: (next.xp - xp).toLocaleString(locale()) }) : t("level.top");
 
-    this.renderTourneyTile(week, species, best);
+    this.renderTourneyTile(week, best);
   }
 
-  /** The tournament tile: the week's fish, the top three, and this angler's best. */
-  renderTourneyTile(week, species, best) {
-    // A cell for the week's fish, the time left and your best; then one for each of the top three.
+  /** The tournament tile: its fish, the top three, and this angler's best. */
+  renderTourneyTile(week, best) {
+    const species = tourneyKey(week);
+    // A cell for the fish, the time left and your best; then one for each of the top three.
     $("#tile-tourney-fish").replaceChildren(
-      element("span", { className: "tourney-cell-art" }, [fishSprite(species, 2)]),
-      element("strong", { textContent: nameOf("fish", species) }),
-      element("span", { className: "tile-note", textContent: t(`tourney.short.${tourneyFormat(week)}`) }),
+      element("span", { className: "tourney-cell-art" }, [this.tourneyArt(week, 2)]),
+      element("strong", { textContent: this.tourneyName(week) }),
+      element("span", { className: "tile-note", textContent: this.tourneyGoal(week, true) }),
       element("span", { className: "tile-note", textContent: this.weekLeft() }),
-      element("span", { className: "tile-note", textContent: best > 0 ? t("level.yourBest", { weight: formatWeight(best) }) : t("level.noBest") }),
+      element("span", { className: "tile-note", textContent: best > 0 ? t("level.yourBest", { weight: this.tourneyScore(week, best, {}, false) }) : t("level.noBest") }),
     );
     const board = $("#tile-tourney-board");
     const podium = (rows = [], champions = null) => board.replaceChildren(...[0, 1, 2].map((index) => {
@@ -955,7 +990,7 @@ export class AnglerUI {
         element("span", { className: "podium-place", textContent: String(place) }),
         element("span", { className: "podium-avatar" }, [avatarSprite(entry.avatar ?? 0, 2)]),
         element("span", { className: "podium-name" }, [entry.player || t("trophies.anonymous"), this.championBadge(champions, entry.user_id)]),
-        element("span", { className: "podium-weight", textContent: formatWeight(entry.weight) }),
+        element("span", { className: "podium-weight", textContent: this.tourneyScore(week, entry.weight, {}, false) }),
       ]);
     }));
     const cloud = this.cloud;
@@ -1008,9 +1043,9 @@ export class AnglerUI {
     this.notify(t("streak.toast", { count, gift: this.giftText(gift) }));
   }
 
-  /** A new best of the week's tournament; without an account it stays off the board. */
-  tourneyBest({ weight }, signedIn) {
-    this.notify(`${t("tourney.newBest", { weight: formatWeight(weight) })}${signedIn ? "" : ` · ${t("tourney.signIn")}`}`);
+  /** A new best in the tournament; without an account it stays off the board. */
+  tourneyBest(best, signedIn) {
+    this.notify(`${t("tourney.newBest", { weight: this.tourneyScore(best.week, best.weight, best) })}${signedIn ? "" : ` · ${t("tourney.signIn")}`}`);
   }
 
   /** Last week's tournament settled: a prize for the top three, a gift for taking part. */
@@ -1037,7 +1072,7 @@ export class AnglerUI {
   champions() {
     const week = tourneyWeek() - 1;
     if (this.championsFor?.week !== week) {
-      const request = this.cloud?.enabled ? this.cloud.tournamentWinners(week, tourneyFish(week)).then((ids) => {
+      const request = this.cloud?.enabled ? this.cloud.tournamentWinners(week, tourneyKey(week)).then((ids) => {
         // Not connected yet (or the board didn't answer): ask again next time.
         if (!ids && this.championsFor?.request === request) this.championsFor = null;
         return new Set(ids ?? []);
@@ -2490,7 +2525,7 @@ export class AnglerUI {
    */
   fillTourney({ board, empty, shown }) {
     const week = tourneyWeek();
-    const species = tourneyFish(week);
+    const species = tourneyKey(week);
     const say = (text) => {
       board.replaceChildren();
       empty.textContent = text;
@@ -2506,7 +2541,7 @@ export class AnglerUI {
       const me = cloud.user?.id;
       // When the result was set (the fish landed, or in a marathon the last that counted), in this device's time.
       const when = (at) => (at ? new Date(at).toLocaleString(locale(), { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "");
-      const row = (place, player, weight, isMe, rank, avatar, userId, caughtAt) => element("li", { className: `tourney-row${isMe ? " is-me" : ""}${place <= 3 ? ` is-top is-top-${place}` : ""}` }, [
+      const row = (place, player, weight, isMe, rank, avatar, userId, caughtAt, caught) => element("li", { className: `tourney-row${isMe ? " is-me" : ""}${place <= 3 ? ` is-top is-top-${place}` : ""}` }, [
         element("span", { className: "tourney-place", textContent: String(place) }),
         element("span", { className: "tourney-avatar" }, [avatarSprite(avatar ?? 0, 2)]),
         element("span", { className: "tourney-player" }, [
@@ -2515,7 +2550,7 @@ export class AnglerUI {
           Number.isFinite(rank) ? element("small", { textContent: ` · ${this.rankName(rank)}` }) : "",
         ]),
         element("span", { className: "tourney-result" }, [
-          element("span", { className: "tourney-weight", textContent: formatWeight(weight) }),
+          element("span", { className: "tourney-weight", textContent: this.tourneyScore(week, weight, caught) }),
           caughtAt ? element("small", { className: "tourney-when", textContent: when(caughtAt) }) : "",
         ]),
       ]);
@@ -2525,10 +2560,10 @@ export class AnglerUI {
       const rows = result.rows.map((entry, index) => {
         if (entry.weight !== last) place = index + 1;
         last = entry.weight;
-        return row(place, entry.player, entry.weight, entry.user_id === me, entry.angler_rank, entry.avatar, entry.user_id, entry.caught_at);
+        return row(place, entry.player, entry.weight, entry.user_id === me, entry.angler_rank, entry.avatar, entry.user_id, entry.caught_at, { fish: entry.fish, kg: entry.fish_kg });
       });
       if (mine?.place && !result.rows.some((entry) => entry.user_id === me)) {
-        rows.push(element("li", { className: "tourney-gap", textContent: "…" }), row(mine.place, cloud.user.user_metadata?.nickname, mine.weight, true, this.progress.rank ?? 0, this.progress.avatar, me, mine.caughtAt));
+        rows.push(element("li", { className: "tourney-gap", textContent: "…" }), row(mine.place, cloud.user.user_metadata?.nickname, mine.weight, true, this.progress.rank ?? 0, this.progress.avatar, me, mine.caughtAt, mine));
       }
       board.replaceChildren(...rows);
       const note = !rows.length ? t("tourney.empty") : !cloud.user ? t("tourney.signIn") : !mine?.place ? t("tourney.notYet") : "";
@@ -2612,7 +2647,8 @@ export class AnglerUI {
     const metal = ["gold", "silver", "bronze"];
     shelf.replaceChildren(element("h3", { textContent: t("trophies.cups") }), element("ul", { className: "cup-list" }, cups.map((cup) => {
       const date = tourneyWeekStart(cup.week).toLocaleDateString(locale(), { day: "numeric", month: "short", year: "numeric" });
-      const label = t("trophies.cup", { place: cup.place, fish: nameOf("fish", cup.species), format: t(`tourney.short.${cup.format}`), date });
+      const fish = cup.species === TOURNEY_ANY ? t("tourney.anyFish") : nameOf("fish", cup.species);
+      const label = t("trophies.cup", { place: cup.place, fish, format: t(`tourney.kind.${cup.format ?? "heaviest"}`), date });
       return element("li", { className: `cup cup-${metal[cup.place - 1]}`, title: label }, [
         cupSprite(3, metal[cup.place - 1]),
         element("small", { textContent: label }),

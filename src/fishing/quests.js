@@ -1,5 +1,5 @@
 import { hash2 } from "../noise.js";
-import { FISH, HOOKS, LOCATIONS, RARE_FISH, RODS } from "./data.js";
+import { BAITS, FISH, HOOKS, LOCATIONS, RARE_FISH, RODS } from "./data.js";
 import { giveGroundbaits, groundbaitFor } from "./waters.js";
 
 /*
@@ -176,10 +176,13 @@ export function recordDay(progress, now = Date.now()) {
 /*
  * The tournament: one species, the same for everyone, for three days at a
  * time from midnight Kyiv time (a week, Monday to Sunday, before 16 November
- * 2026), in one of three formats taking turns (TOURNEY_FORMATS): the heaviest
- * single fish, a marathon (the most kilos of it over the tournament) or the
- * heaviest one caught at night. Middling fish, ones the early rods can land
- * too, and the pike and zander. Results of signed-in anglers go to the cloud
+ * 2026), in one of the formats taking turns (TOURNEY_FORMATS, then
+ * TOURNEY_FORMATS_MORE): the heaviest single fish, a marathon (the most kilos
+ * of it over the tournament), the heaviest one caught at night, a sniper (the
+ * one closest to a set weight), light tackle (the heaviest on one of the three
+ * lightest rods), one bait (the heaviest on the tournament's bait) or a trophy
+ * one (any fish, the biggest share of its kind's top weight). Middling fish,
+ * ones the early rods can land too, and the pike and zander. Results of signed-in anglers go to the cloud
  * (cloud.js); the server checks the tournament and the weight. Prizes, paid
  * the next time the angler comes in after it: 3×, 2× and 1× the quest reward
  * and a cup on the trophy wall for the top three, and two groundbaits made
@@ -189,9 +192,10 @@ export function recordDay(progress, now = Date.now()) {
  * ones, in the saves and the cloud's table alike): the weeks counted from
  * 1970 up to 2967, then one number for every three days from 2968 on.
  *
- * `progress.tourney` holds { week, best, count, place, claimed, previous }:
- * this tournament's score (the heaviest, or the kilos in all), how many of
- * its fish counted, the last place seen on the board, the last tournament
+ * `progress.tourney` holds { week, best, fish, kg, count, place, claimed, previous }:
+ * this tournament's score (the heaviest, the kilos in all, a sniper's
+ * closeness from 0 to 1 or a trophy's share of the top in per cent, always
+ * the more the better) and the fish that set it, how many of its fish counted, the last place seen on the board, the last tournament
  * whose prize has been settled, and the one before's { week, count }.
  */
 export const TOURNEY_FISH = ["karas", "okun", "lyn", "lyasch", "plitka", "krasnopirka", "shchuka", "sudak"];
@@ -206,13 +210,46 @@ export const TOURNEY_PRIZES = [3, 2, 1];
 export const TOURNEY_GIFT = { groundbait: 2, minFish: 3 };
 // The formats take turns: the heaviest every other time, a marathon and a night one in between.
 export const TOURNEY_FORMATS = ["heaviest", "marathon", "heaviest", "night"];
+// From the tournament of 22 November 2026 four more join them, eight in turn (24 days round).
+export const TOURNEY_MORE_FROM = 2970;
+export const TOURNEY_FORMATS_MORE = ["sniper", "heaviest", "light", "marathon", "trophy", "heaviest", "bait", "night"];
 // Night by the game's clock, the same for everyone (see daycycle.js).
 export const TOURNEY_NIGHT = { from: 21, to: 5 };
+// Light tackle: the three lightest rods, up to 2 kg.
+export const TOURNEY_LIGHT_RODS = ["willow", "hazel", "bamboo"];
+// A trophy tournament is for any fish: its board goes by this name instead of a species.
+export const TOURNEY_ANY = "trophy";
+
+// A format tried out on this device only (`?debug&tourney=sniper`): the board isn't sent anything.
+let preview = null;
+export const previewTourney = (format) => { preview = format; };
+export const tourneyPreview = () => preview;
 
 export function tourneyFormat(week = tourneyWeek()) {
+  if (preview && week >= tourneyWeek()) return preview;
   if (week < TOURNEY_RULES_FROM) return "heaviest";
-  return TOURNEY_FORMATS[((week % TOURNEY_FORMATS.length) + TOURNEY_FORMATS.length) % TOURNEY_FORMATS.length];
+  const turn = (list, from) => list[(((week - from) % list.length) + list.length) % list.length];
+  return week < TOURNEY_MORE_FROM ? turn(TOURNEY_FORMATS, 0) : turn(TOURNEY_FORMATS_MORE, TOURNEY_MORE_FROM);
 }
+
+/** What the tournament's board is kept under: its fish, or TOURNEY_ANY in a trophy one. */
+export const tourneyKey = (week = tourneyWeek()) => (tourneyFormat(week) === "trophy" ? TOURNEY_ANY : tourneyFish(week));
+
+/** A sniper's weight to aim at: a fifth to half of the way up the fish's range, to 50 g. */
+export function tourneyTarget(week = tourneyWeek()) {
+  const { min, max } = FISH[tourneyFish(week)];
+  return Math.max(min + 0.05, Math.round((min + (max - min) * (0.2 + 0.3 * hash2(week, 5, 3301))) * 20) / 20);
+}
+
+/** The one bait of a bait tournament: one its fish favours (a lure for the pike and zander). */
+export function tourneyBait(week = tourneyWeek()) {
+  const fish = tourneyFish(week);
+  const baits = Object.keys(BAITS).filter((id) => !BAITS[id].free && (BAITS[id].species?.[fish] ?? 0) >= 2);
+  return baits[Math.floor(hash2(week, 9, 7411) * baits.length) % baits.length];
+}
+
+/** Whether a kind counts in a trophy tournament: a fish with a price (not junk, not the Red Book's). */
+export const trophyFish = (species) => Boolean(FISH[species] && !FISH[species].junk && FISH[species].pricePerKg > 0 && FISH[species].max);
 
 /** Whether a game hour is night, for the night tournament. */
 export const tourneyNight = (hour) => hour >= TOURNEY_NIGHT.from || hour < TOURNEY_NIGHT.to;
@@ -243,13 +280,22 @@ export function untilWeekEnd(now = Date.now()) {
   return tourneyStartDay(tourneyWeek(now) + 1) * DAY_MS - kyivWall(now);
 }
 
-/** The tournament's fish, never the same two running. */
+/**
+ * The tournament's fish, never the same two running. Up to TOURNEY_MORE_FROM
+ * it was only checked against the last one's first pick, so a moved fish could
+ * still come twice; from then on against the fish the last one really had.
+ */
+const fishOf = new Map();
 export function tourneyFish(week = tourneyWeek()) {
+  if (fishOf.has(week)) return fishOf.get(week);
   const list = (w) => (w >= TOURNEY_RULES_FROM ? TOURNEY_FISH : OLD_TOURNEY_FISH);
   const pick = (w) => list(w)[Math.floor(hash2(w, 11, 7717) * list(w).length) % list(w).length];
   const fish = pick(week);
   const own = list(week);
-  return fish === pick(week - 1) ? own[(own.indexOf(fish) + 1) % own.length] : fish;
+  const last = week > TOURNEY_MORE_FROM ? tourneyFish(week - 1) : pick(week - 1);
+  const chosen = fish === last ? own[(own.indexOf(fish) + 1) % own.length] : fish;
+  fishOf.set(week, chosen);
+  return chosen;
 }
 
 /** This tournament's run, started afresh on a new one (the last one's count kept for its gift). */
@@ -257,27 +303,36 @@ export function tourneyState(progress, week = tourneyWeek()) {
   const state = progress.tourney ?? { week, best: 0, count: 0, claimed: week - 1 };
   if (state.week !== week) {
     state.previous = { week: state.week, count: state.count ?? 0 };
-    Object.assign(state, { week, best: 0, count: 0, place: null });
+    Object.assign(state, { week, best: 0, fish: null, kg: null, count: 0, place: null });
   }
   progress.tourney = state;
   return state;
 }
 
 /**
- * A landed fish at game hour `hour`: when it raises the tournament's score, returns
- * { week, species, weight, format } (weight: the score), otherwise null.
+ * A landed fish, at game hour `hour`, on rod `rod` and bait `bait`: when it
+ * raises the tournament's score, returns { week, species (the board's key),
+ * weight (the score), format, fish, kg }, otherwise null.
  */
-export function recordTourney(progress, fish, hour = 12, now = Date.now()) {
+export function recordTourney(progress, fish, { hour = 12, rod = null, bait = null } = {}, now = Date.now()) {
   const week = tourneyWeek(now);
-  if (fish.unique || fish.species !== tourneyFish(week)) return null;
   const format = tourneyFormat(week);
+  if (fish.unique) return null;
+  if (format === "trophy" ? !trophyFish(fish.species) : fish.species !== tourneyFish(week)) return null;
   if (format === "night" && !tourneyNight(hour)) return null;
+  if (format === "light" && !TOURNEY_LIGHT_RODS.includes(rod)) return null;
+  if (format === "bait" && bait !== tourneyBait(week)) return null;
   const state = tourneyState(progress, week);
   state.count = (state.count ?? 0) + 1;
-  const score = format === "marathon" ? Math.round((state.best + fish.weight) * 1000) / 1000 : fish.weight;
+  const round = (value, places) => Math.round(value * 10 ** places) / 10 ** places;
+  const target = format === "sniper" ? tourneyTarget(week) : 0;
+  const score = format === "marathon" ? round(state.best + fish.weight, 3)
+    : format === "sniper" ? Math.max(0.001, round(1 - Math.abs(fish.weight - target) / target, 5))
+    : format === "trophy" ? round((fish.weight / FISH[fish.species].max) * 100, 1)
+    : fish.weight;
   if (score <= state.best) return null;
-  state.best = score;
-  return { week, species: fish.species, weight: score, format };
+  Object.assign(state, { best: score, fish: fish.species, kg: fish.weight });
+  return { week, species: tourneyKey(week), weight: score, format, fish: fish.species, kg: fish.weight };
 }
 
 /**
@@ -304,7 +359,7 @@ export function settleTourney(progress, week, place) {
   if (share) {
     progress.stats.podiums = (progress.stats.podiums ?? 0) + 1;
     // A cup for the trophy wall.
-    progress.cups = [...(progress.cups ?? []), { week, species: tourneyFish(week), format: tourneyFormat(week), place }];
+    progress.cups = [...(progress.cups ?? []), { week, species: tourneyKey(week), format: tourneyFormat(week), place }];
   }
   if (place === 1) progress.stats.wins = (progress.stats.wins ?? 0) + 1;
   return { place, money, gift };

@@ -245,12 +245,18 @@ export class Cloud {
 
   /* ---------- The weekly tournament (see quests.js) ---------- */
 
-  /** Send a new best of the week; the server checks the week and the weight. */
-  async submitTournament(species, weight) {
+  /**
+   * Send a new best of the tournament (`species`: its board's key; `weight`: the
+   * score); `caught` is the fish that set it ({ fish, kg }), shown on the board
+   * in a sniper or trophy one. The server checks the tournament and the score.
+   */
+  async submitTournament(species, weight, caught = {}) {
     if (!this.user) return;
     const progress = this.getProgress();
-    let { error } = await this.client.rpc("submit_tournament", { fish: species, kg: weight, lvl: progress.rank ?? 0, pic: progress.avatar ?? 0 });
-    // The function from before pictures (schema.sql not yet run again).
+    const args = { fish: species, kg: weight, lvl: progress.rank ?? 0, pic: progress.avatar ?? 0 };
+    let { error } = await this.client.rpc("submit_tournament", { ...args, caught: caught.fish ?? null, caught_kg: caught.kg ?? null });
+    // The functions from before the fish that set it, and before pictures (schema.sql not yet run again).
+    if (error && /submit_tournament/.test(error.message)) ({ error } = await this.client.rpc("submit_tournament", args));
     if (error && /submit_tournament/.test(error.message)) ({ error } = await this.client.rpc("submit_tournament", { fish: species, kg: weight, lvl: progress.rank ?? 0 }));
     if (error) console.warn("Tournament result was not sent:", error.message);
   }
@@ -283,12 +289,12 @@ export class Cloud {
   /** This angler's result for a week and their place (ties share it); place is null without a result. */
   async tournamentPlace(week, species) {
     if (!this.user) return null;
-    const mine = await this.client.from("tournament").select("weight, caught_at").eq("week", week).eq("species", species).eq("user_id", this.user.id).maybeSingle();
+    const mine = await this.client.from("tournament").select("*").eq("week", week).eq("species", species).eq("user_id", this.user.id).maybeSingle();
     if (mine.error) throw mine.error;
     if (!mine.data) return { weight: 0, place: null };
     const ahead = await this.client.from("tournament").select("user_id", { count: "exact", head: true }).eq("week", week).eq("species", species).gt("weight", mine.data.weight);
     if (ahead.error) throw ahead.error;
-    return { weight: mine.data.weight, caughtAt: mine.data.caught_at, place: ahead.count + 1 };
+    return { weight: mine.data.weight, caughtAt: mine.data.caught_at, fish: mine.data.fish, kg: mine.data.fish_kg, place: ahead.count + 1 };
   }
 
   /** The savedAt of the last save this device and the cloud both had, for this account. */
