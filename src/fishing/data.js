@@ -560,8 +560,9 @@ export const LOCATIONS = [
     traits: { type: "lake", depth: "veryDeep", bottom: "stones", current: "none" },
     minKg: 45, typicalKg: 70, maxKg: 100, bigChance: 1 / 6, tailKg: 110, tailChance: 1 / 60, pace: 0.5,
     // Entry by a ticket for a day, and only with the catfish rod; not a once-paid fee, so off the rod ladder.
-    // It pays about 71 000 $ an hour with the catfish rod (the carp lake 47 000), so the ticket pays for itself in about two hours there.
-    unlock: { pass: 50000, rod: "catfish" },
+    // It pays about 71 000 $ an hour with the catfish rod (the carp lake 47 000), so the ticket pays for itself in about an hour and a half there,
+    // and only after some four hours does a day there beat the carp lake.
+    unlock: { pass: 100000, rod: "catfish" },
     fish: { som: 3, amur: 1, tovstolob: 1 },
   },
 ];
