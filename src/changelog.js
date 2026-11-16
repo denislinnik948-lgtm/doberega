@@ -12,11 +12,13 @@ export const CHANGELOG = [
       "Турнір тепер триває три дні замість тижня. Призи видаються за кожен турнір, у якому ти брав участь, навіть якщо кілька пройшли, поки тебе не було.",
       "З 22 листопада чотири нові формати турніру: снайпер (риба, найближча до заданої ваги), легка снасть (лоза, ліщина чи бамбук), одна наживка і трофейний (будь-яка риба, рахується відсоток від рекорду виду).",
       "Дні поспіль тепер ідуть колом з десяти днів: сьомого дня половина нагороди за завдання, восьмого 10 кукурудзи, дев'ятого дві прикормки, десятого півтори нагороди.",
+      "У налаштуваннях з'явилися журнал оновлень і зв'язок з розробником: можна написати про помилку чи ідею просто з гри.",
     ],
     en: [
       "A tournament now lasts three days instead of a week. Prizes are paid for every tournament you took part in, even if several went by while you were away.",
       "From 22 November, four new tournament formats: sniper (the fish closest to a set weight), light tackle (willow, hazel or bamboo rod), one bait, and trophy (any fish, scored as a share of its kind's top weight).",
       "Days in a row now go round ten days: half the quest reward on the seventh, 10 corn on the eighth, two groundbaits on the ninth, one and a half quest rewards on the tenth.",
+      "Settings now have the update log and a way to contact the developer: write about a bug or an idea right from the game.",
     ],
   },
   {

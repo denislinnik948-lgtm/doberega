@@ -249,10 +249,7 @@ export class AnglerUI {
   }
 
   openSettings() {
-    // Writing to the developer: testers only until the bot is seen to work.
-    $("#feedback-row").hidden = !access.tester;
-    // The update log: testers only for now too; whether it opens by itself on coming in.
-    $("#news-row").hidden = !access.tester;
+    // The update log: whether it opens by itself on coming in.
     const news = (this.progress.news ??= { seen: "", shownOn: "", off: false });
     this.setSwitch($("#news-switch"), !news.off, null, () => {
       news.off = !news.off;
@@ -1779,13 +1776,13 @@ export class AnglerUI {
    * On coming in, at most once a day: only what the window hasn't shown yet
    * (the first time, only the newest day; after a long absence at most
    * NEWS_DAYS_SHOWN days), unless they said never again. All of it is in Settings.
-   * A new angler starts with all of it seen. Testers only for now.
+   * A new angler starts with all of it seen.
    */
   openNews() {
     const { progress } = this;
     const news = (progress.news ??= { seen: "", shownOn: "", off: false });
     const newest = CHANGELOG[0]?.date ?? "";
-    if (!access.tester || news.off) return;
+    if (news.off) return;
     if (!progress.onboarded) {
       if (news.seen !== newest) {
         news.seen = newest;
