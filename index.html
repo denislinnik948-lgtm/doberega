@@ -314,25 +314,28 @@
       <div class="settings-body">
         <section class="settings-card" data-frame="box">
           <h3 class="today-heading" data-i18n="settings.game">Game</h3>
-          <div class="setting-row">
+          <div class="setting-line is-choice">
             <span class="setting-label" data-i18n="settings.language">Language</span>
             <div class="segmented" id="language-options" role="radiogroup" data-i18n-aria="settings.language"></div>
           </div>
-          <div class="setting-row">
+          <div class="setting-line is-choice">
             <span class="setting-label" data-i18n="settings.season">Season</span>
             <div class="segmented" id="season-options" role="radiogroup" data-i18n-aria="settings.season"></div>
-            <p class="account-hint" id="season-hint"></p>
+            <p class="account-hint setting-hint" id="season-hint"></p>
           </div>
         </section>
         <section class="settings-card" data-frame="box">
-          <h3 class="today-heading" data-i18n="settings.sound">Sound</h3>
-          <div class="segmented" id="sound-options" role="radiogroup" data-i18n-aria="settings.sound"></div>
-          <label class="volume-row"><span data-i18n="settings.effects">Effects</span><input type="range" id="volume-fx" min="0" max="100" step="5" /><output id="volume-fx-value"></output></label>
-          <label class="volume-row"><span data-i18n="settings.music">Music</span><input type="range" id="volume-music" min="0" max="100" step="5" /><output id="volume-music-value"></output></label>
-          <p class="account-hint" id="sound-hint" data-i18n="settings.soundOff">Switch the sound on to set its volume.</p>
+          <h3 class="today-heading" data-i18n="settings.soundCard">Sound and music</h3>
+          <div class="setting-line is-choice">
+            <span class="setting-label" data-i18n="settings.sound">Sound</span>
+            <div class="segmented" id="sound-options" role="radiogroup" data-i18n-aria="settings.sound"></div>
+          </div>
+          <label class="setting-line volume-row"><span class="setting-label" data-i18n="settings.effects">Effects</span><span class="volume-control"><input type="range" id="volume-fx" min="0" max="100" step="5" /><output id="volume-fx-value"></output></span></label>
+          <label class="setting-line volume-row"><span class="setting-label" data-i18n="settings.music">Music</span><span class="volume-control"><input type="range" id="volume-music" min="0" max="100" step="5" /><output id="volume-music-value"></output></span></label>
+          <p class="account-hint setting-hint" id="sound-hint" data-i18n="settings.soundOff">Switch the sound on to set its volume.</p>
         </section>
         <!-- A word to the developer: its own page, the message going to their Telegram (api/feedback.js). -->
-        <section class="settings-card settings-wide" id="feedback-row" data-frame="box" hidden>
+        <section class="settings-card settings-wide feedback-card" id="feedback-row" data-frame="box" hidden>
           <h3 class="today-heading" data-i18n="settings.feedback">Contact the developer</h3>
           <p class="setting-note" data-i18n="feedback.lead">Found a bug, have an idea or a question? Write, I read everything.</p>
           <button class="pixel-btn feedback-open" id="feedback-button" type="button" aria-haspopup="dialog" data-i18n="feedback.open">Write ›</button>

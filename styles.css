@@ -667,22 +667,46 @@ html.keyboard-open .sheet[open] > .account-body {
 
 /* ---------- Settings ---------- */
 
-/* Framed cards, two side by side on a wide screen: the game and the sound, then a word to the developer across both. */
-.settings-body { display: grid; align-items: start; gap: 20px; }
-.settings-card { display: grid; align-content: start; gap: 14px; padding: 16px 18px; }
+/*
+ * Framed cards, two side by side on a wide screen (as tall as each other): the game and the sound, then a
+ * word to the developer across both. In each, a line per setting: its name in a column on the left, the
+ * control on the right; on a narrow card a choice goes under its name.
+ */
+.settings-body { display: grid; gap: 20px; }
+.settings-card { display: grid; align-content: start; gap: 14px; padding: 16px 18px; container-type: inline-size; }
 .settings-card .today-heading { margin: 0; }
-.setting-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
-.setting-label { color: var(--light); font-size: 17px; }
+.setting-line { display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: center; gap: 8px 14px; }
+.setting-line .setting-hint { grid-column: 2; }
+/* The sound's note sits under the sliders, in the controls' column. */
+.settings-card > .setting-hint { padding-left: calc(96px + 14px); }
+.setting-label { color: var(--light); font-size: 19px; }
 .setting-note { margin: 0; color: var(--light); font-size: 19px; line-height: 1.3; }
+@container (max-width: 380px) {
+  .setting-line.is-choice { grid-template-columns: minmax(0, 1fr); }
+  .setting-line.is-choice .setting-hint { grid-column: 1; }
+  .settings-card > .setting-hint { padding-left: 0; }
+}
+/* A choice reads as one switch: a sunken track, the picked option raised in it. */
+.segmented { display: flex; gap: 4px; padding: 4px; background: var(--ink); box-shadow: inset 0 0 0 2px var(--line); }
+.segmented .pixel-btn { flex: 1; min-width: 0; min-height: 42px; padding-inline: 6px; border-color: transparent; color: var(--soft); background: none; }
+.segmented .pixel-btn:hover:not(.is-active) { border-color: transparent; color: var(--bone); background: var(--deep); }
+.segmented .pixel-btn.is-active { border-color: var(--line-hover); color: var(--bone); background: var(--dark); }
+/* A volume: the slider and its value, faded while the sound is off. */
+.volume-control { display: grid; grid-template-columns: minmax(0, 1fr) 52px; align-items: center; gap: 12px; }
+.volume-control output { color: var(--bone); text-align: right; font-variant-numeric: tabular-nums; }
+.volume-control input[type="range"] { width: 100%; accent-color: var(--gold); }
+.volume-row:has(input:disabled) :is(.setting-label, output) { color: var(--mid); }
+.volume-row input:disabled { opacity: 0.4; }
 .feedback-open { justify-self: stretch; min-height: 48px; padding-inline: 18px; }
 @media (min-width: 900px) {
   .settings-body { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .settings-wide { grid-column: 1 / -1; }
-  .feedback-open { justify-self: start; }
+  /* Across both cards: the line on the left, the button on the right. */
+  .feedback-card { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 20px; }
+  .feedback-card .today-heading { grid-column: 1 / -1; }
+  .feedback-open { justify-self: end; }
   .feedback-body { max-width: 720px; grid-template-columns: minmax(0, 1fr); }
 }
-.segmented { display: flex; gap: 10px; }
-.segmented .pixel-btn { flex: 1; min-width: 0; min-height: 46px; }
 
 /* ---------- Account ---------- */
 
@@ -697,12 +721,6 @@ html.keyboard-open .sheet[open] > .account-body {
 .account-status.is-synced { color: var(--light); }
 .account-status.is-synced::before { background: var(--light); }
 .account-error, .account-message.is-bad { color: var(--ember); }
-/* Volume sliders in Settings: a label, the slider, the value. */
-.volume-row { display: grid; grid-template-columns: 90px 1fr 52px; gap: 10px; align-items: center; color: var(--light); font-size: 19px; }
-.volume-row output { color: var(--bone); text-align: right; font-variant-numeric: tabular-nums; }
-.volume-row input[type="range"] { width: 100%; accent-color: var(--gold); }
-.volume-row input:disabled { opacity: 0.4; }
-.volume-row:has(input:disabled) { color: var(--mid); }
 .account-hint { margin: 0; color: var(--soft); font-size: 17px; line-height: 1.3; }
 .account-name { margin: 0; color: var(--bone); font-size: 24px; line-height: 1.1; overflow-wrap: anywhere; }
 .account-email { margin: 0; color: var(--light); font-size: 18px; overflow-wrap: anywhere; }
@@ -904,7 +922,6 @@ html.keyboard-open .sheet[open] > .account-body {
   .stepper-value { min-width: 28px; font-size: 26px; }
   .tabs .pixel-btn { min-height: 44px; padding-inline: 6px; font-size: 18px; }
   /* Five seasons fit one row. */
-  .segmented { gap: 6px; }
   .segmented .pixel-btn { padding-inline: 4px; font-size: 19px; }
   .pack-body { max-height: calc(100dvh - 150px); padding-right: 0; }
   /* Three even tiles a row, edge to edge. */
