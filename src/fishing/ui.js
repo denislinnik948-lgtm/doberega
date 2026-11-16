@@ -280,6 +280,7 @@ export class AnglerUI {
       slider.value = String(Math.round(volume(kind) * 100));
       shown.textContent = `${slider.value}%`;
       slider.disabled = !soundEnabled();
+      $("#sound-hint").hidden = soundEnabled();
       slider.oninput = () => {
         setVolume(kind, Number(slider.value) / 100);
         shown.textContent = `${slider.value}%`;
