@@ -688,7 +688,7 @@ const STRINGS = {
         lights: "The float glows at night in the colour you pick: green, blue, red, yellow or white",
       },
       location: {
-        pond: "Village pond", lake: "Quiet lake", castle: "Castle lake", reservoir: "Pripyat", bridge: "Old bridge", troutfarm: "Smerekove", quarry: "Granite quarry", carplake: "Quiet Backwater", mountain: "Blue Lake",
+        pond: "Village pond", lake: "Quiet lake", castle: "Castle lake", reservoir: "Pripyat", bridge: "Old bridge", troutfarm: "Smerekove", quarry: "Granite quarry", carplake: "Quiet Backwater", mountain: "Dragon Lake",
       },
     },
     rules: [
@@ -1420,7 +1420,7 @@ const STRINGS = {
         lights: "Поплавок вночі світить кольором на вибір: зеленим, синім, червоним, жовтим чи білим",
       },
       location: {
-        pond: "Ставок за селом", lake: "Тихе озеро", castle: "Замкове озеро", reservoir: "Прип'ять", bridge: "Старий міст", troutfarm: "Смерекове", quarry: "Гранітний кар'єр", carplake: "Тиха заводь", mountain: "Синє озеро",
+        pond: "Ставок за селом", lake: "Тихе озеро", castle: "Замкове озеро", reservoir: "Прип'ять", bridge: "Старий міст", troutfarm: "Смерекове", quarry: "Гранітний кар'єр", carplake: "Тиха заводь", mountain: "Драконове озеро",
       },
     },
     rules: [
