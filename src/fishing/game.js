@@ -14,9 +14,11 @@ import { BAITS, BELL_WINDOW, BOOT_CHANCE, FEEDER, FINDS, FISH, GROUNDBAITS, figh
  * while released it drains at 1.5X and the fish swims off at a random pace.
  * A small fish comes in within one full bar; bigger ones need several pulls.
  * At a water of giants (`strongFish`) a fish also has strength: fresh, it
- * hardly gives line and runs more often; held on a tight line it tires (the
- * harder the line is pulled, the faster), and let go it gathers its strength
- * again. Spent, it comes in like any other.
+ * hardly gives line and runs more often; held on a tight line it tires (far
+ * faster near the top of the bar, and faster still while it runs against the
+ * rod), and let go it gathers its strength again. Spent, it comes in like any
+ * other. The heavier it is, the more strength it has to wear down and the
+ * longer and harder its runs; a big one, nearly spent, may make one last run.
  *
  * Spinning: after the cast, holding reels the spoon in toward the bank. A
  * fish may strike while it moves: most often just after a jerk (a short pull)
@@ -75,11 +77,13 @@ export const TUNING = {
   // How much of a run's pace takes line while the rod is held tight, and while the line is let go.
   runHeld: 0.35,
   runSlack: 1.25,
-  // A giant's strength (`strongFish` waters): what a second of tight line takes off it (times 0.4 plus the
-  // tension, more on a run), what a second of slack gives back, and how little line a fresh one gives.
-  tireRate: 0.1,
+  // A giant's strength (`strongFish` waters): what a second of tight line takes off a giant of `giantKg`
+  // (times 0.25 plus 1.4 tension squared, twice that on a run; a heavier one has more to wear down), what a
+  // second of slack gives back, and how little line a fresh one gives.
+  tireRate: 0.17,
   restRate: 0.02,
   freshHold: 0.6,
+  giantKg: 60,
 };
 
 /** Rates for a fish of `weight` kg on a rod; exported for balance tests. */
@@ -325,7 +329,15 @@ export class FishingGame {
     this.side = 0;
     this.sideTarget = 0;
     // At a water of giants it has strength to wear down first (null elsewhere).
-    this.strength = LOCATIONS[this.location]?.strongFish && !this.fish.junk ? 1 : null;
+    const strong = LOCATIONS[this.location]?.strongFish && !this.fish.junk;
+    this.strength = strong ? 1 : null;
+    // How much strength there is to wear down and how hard its runs are, by its weight; a big one may make a last run when nearly spent.
+    const giant = this.fish.weight / TUNING.giantKg;
+    this.stamina = strong ? giant : 1;
+    this.heft = strong ? Math.min(1.6, Math.max(0.85, Math.sqrt(giant))) : 1;
+    this.lastRun = strong && this.random() < Math.min(0.9, Math.max(0, (this.fish.weight - 55) / 70)) ? 0.2 + this.random() * 0.15 : null;
+    // Seconds left of the "last run" word over the strength bar.
+    this.rallied = 0;
     // One with spirit often bolts the moment it feels the hook.
     this.firstRun = this.vigor > 0.15 && this.random() < Math.min(0.8, this.vigor * 0.5) ? 0.3 + this.random() * 0.7 : null;
     this.float.sink = 1;
@@ -732,8 +744,8 @@ export class FishingGame {
     if (this.surge > 0) this.surge -= dt;
     else if (vigor > 0.15 && this.distance > 0.1 && ((this.firstRun !== null && this.firstRun <= 0) || random() < TUNING.surgeRate * vigor * restless * dt)) {
       this.firstRun = null;
-      this.surge = 0.6 + random() * Math.min(1.5, vigor);
-      this.surgePower = 0.5 + random() * 0.5;
+      this.surge = (0.6 + random() * Math.min(1.5, vigor)) * this.heft;
+      this.surgePower = (0.5 + random() * 0.5) * this.heft;
       this.sideTarget = Math.max(-1, Math.min(1, this.side + (random() < 0.5 ? -1 : 1) * (0.4 + random() * 0.6)));
       this.emit("surge", { power: this.surgePower * vigor });
     }
@@ -742,7 +754,8 @@ export class FishingGame {
     const run = surging ? rates.reel * (0.4 + 0.5 * this.surgePower) * Math.min(1, 0.3 + 0.5 * vigor) * Math.min(1, 0.3 + 0.7 * rates.strain) * calm : 0;
     if (this.pulling) {
       this.tension += rates.fill * calm * dt;
-      if (surging) this.tension += TUNING.fillRate * 0.5 * this.surgePower * Math.min(1.5, vigor) * calm * dt;
+      // (A giant's heavier runs load the rod only somewhat harder: they mostly take more line, for longer.)
+      if (surging) this.tension += (TUNING.fillRate * 0.5 * this.surgePower * Math.min(1.5, vigor) * calm * dt) / Math.sqrt(this.heft);
       // Held tight, a running fish takes little line; let go, it runs freely (see TUNING.runHeld, runSlack).
       this.distance = Math.min(1, this.distance - (rates.reel * (1 - TUNING.freshHold * fresh) - run * TUNING.runHeld) * dt);
       if (random() < rates.jerkRate * dt) this.tension += 0.04 + random() * 0.1 * Math.min(1.5, rates.strain);
@@ -761,8 +774,16 @@ export class FishingGame {
 
     if (this.strength !== null) {
       this.strength = this.pulling
-        ? Math.max(0, this.strength - TUNING.tireRate * (0.4 + this.tension) * (surging ? 1.6 : 1) * dt)
+        ? Math.max(0, this.strength - (TUNING.tireRate * (0.25 + 1.4 * this.tension ** 2) * (surging ? 2 : 1) * dt) / this.stamina)
         : Math.min(1, this.strength + TUNING.restRate * dt);
+      // Nearly spent, a big one gathers itself for one last run.
+      if (this.lastRun !== null && this.strength <= this.lastRun) {
+        this.lastRun = null;
+        this.strength += 0.15;
+        this.firstRun = 0;
+        this.rallied = 1.8;
+      }
+      this.rallied = Math.max(0, this.rallied - dt);
     }
 
     // Off to the side on a run, drifting back in line as it tires; never onto a bank.

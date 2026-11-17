@@ -591,7 +591,7 @@ export const LOCATIONS = [
     // Entry by a ticket for a day, and only with the catfish rod and the sea line; not a once-paid fee, so off the rod ladder.
     // It pays about 90 000 $ an hour with the catfish rod, the catfish hook and crayfish (the carp lake 47 000), so the ticket pays for itself in
     // about an hour and a quarter there, and after some three hours a day there beats the carp lake.
-    unlock: { pass: 100000, rod: "catfish", line: "sea" },
+    unlock: { pass: 80000, rod: "catfish", line: "sea" },
     fish: { nilskyi: 3, siamskyi: 3, osetr: 1, som: 1.5, tovstolob: 0.5 },
   },
 ];

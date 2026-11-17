@@ -7,6 +7,19 @@
  */
 export const CHANGELOG = [
   {
+    date: "2026-11-17",
+    uk: [
+      "Квиток на Драконове озеро дешевшає: 80 000 $ замість 100 000 $.",
+      "Бій з велетнями тонший: що важча риба, то більше в неї сили, довші й сильніші ривки. 45 кг втомлюється секунд за десять, 140 кг за пів хвилини.",
+      "Риба втомлюється тим швидше, чим ближче натяг до краю шкали, і ще швидше, коли рве проти вудки. Велика риба на межі сил може зробити останній ривок.",
+    ],
+    en: [
+      "The Dragon Lake ticket is cheaper: 80 000 $ instead of 100 000 $.",
+      "Fighting giants is finer: the heavier the fish, the more strength it has and the longer and harder its runs. 45 kg tires in about ten seconds, 140 kg in half a minute.",
+      "A fish tires the faster the nearer the tension is to the top of the bar, and faster still while it runs against the rod. A big one, nearly spent, may make a last run.",
+    ],
+  },
+  {
     date: "2026-11-16",
     uk: [
       "Турнір тепер триває три дні замість тижня. Призи видаються за кожен турнір, у якому ти брав участь, навіть якщо кілька пройшли, поки тебе не було.",
