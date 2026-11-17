@@ -374,7 +374,8 @@ export const tourneyWeekStart = (week) => new Date(tourneyStartDay(week) * DAY_M
  * can fish, mostly the very best: either one heavy fish of a kind (`heavy`: in the big step of
  * its weights there, but no heavier than the best rod owned is rated for),
  * or a few of a kind (`count`). It is paid the moment it is done, about an
- * hour's fishing at that water for a heavy one (ORDER_PAY) and three
+ * hour's fishing at that water for a heavy one (ORDER_PAY; at Dragon Lake
+ * half a ticket rather, as an hour there pays so much) and three
  * quarters of that for a few; it lapses at the end of its three days, and
  * the next comes. Dragon Lake counts as a water one can fish once the rod
  * and the sea line are had, the ticket aside.
@@ -387,7 +388,7 @@ export const tourneyWeekStart = (week) => new Date(tourneyStartDay(week) * DAY_M
 export const ORDER_DAYS = 3;
 
 /** About what an hour's fishing pays at each water (from the balance sim), the reward for a heavy fish there. */
-export const ORDER_PAY = { pond: 600, lake: 2500, castle: 5000, reservoir: 15000, bridge: 20000, troutfarm: 22000, quarry: 30000, carplake: 40000, mountain: 80000 };
+export const ORDER_PAY = { pond: 600, lake: 2500, castle: 5000, reservoir: 15000, bridge: 20000, troutfarm: 22000, quarry: 30000, carplake: 40000, mountain: 40000 };
 
 /** Kinds too rare to ask for, or that must be let go. */
 const ORDER_SKIP = new Set(["tovstolob", "sterliad", "holovach"]);

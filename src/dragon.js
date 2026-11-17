@@ -9,8 +9,11 @@
  * `dragonCells` lays one wingbeat's frame out in glyphs, cached.
  */
 
-/** About once in four and a half hours at the water, never twice within half an hour. */
-export const DRAGON = { perHour: 1 / 4.5, cooldown: 1800, flight: 10, from: 6, to: 21 };
+/**
+ * About once an hour at the water all told (since 17 November 2026; once in some seven and a half before):
+ * 2.6 times an hour by day and at dusk, when it flies, never twice within twenty minutes.
+ */
+export const DRAGON = { perHour: 2.6, cooldown: 1200, flight: 10, from: 6, to: 21 };
 
 /** Its flight: two wingbeats in `flap` seconds, then a glide, every `cycle` seconds. */
 export const RHYTHM = { cycle: 3.6, flap: 2.4, beats: 2 };
