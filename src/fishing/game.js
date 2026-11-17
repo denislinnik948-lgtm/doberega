@@ -134,6 +134,8 @@ export class FishingGame {
     // both kept current by the host.
     this.hour = 18;
     this.biteBoost = 1;
+    // Set by the host: how much a heron in the shallows puts the fish off (0 none, 0.5 a bite half as fast).
+    this.wary = 0;
     // Set by the host: the current at a float position, and whether a point is
     // open water the float can drift onto.
     this.currentAt = () => ({ x: 0, y: 0 });
@@ -381,6 +383,18 @@ export class FishingGame {
     return true;
   }
 
+  /** A duck or the beaver swam across the line: it tangles, and rig, bait and hook are lost. */
+  tangle(who) {
+    if (this.gentle || this.spinning || !["waiting", "nibble", "bite"].includes(this.phase)) return false;
+    this.escape("tangle", true, who === "beaver" ? "tangleBeaver" : "tangleDuck");
+    return true;
+  }
+
+  /** The water stirred (the dragon flew over): a float already out is taken almost at once. */
+  stir() {
+    if (this.phase === "waiting" && !this.bare) this.waitTime = Math.min(this.waitTime, this.clock + 0.8 + this.random() * 1.5);
+  }
+
   ripple(point, strength, size) {
     if (point) this.emit("ripple", { x: point.x, y: point.y, strength, size });
   }
@@ -525,7 +539,7 @@ export class FishingGame {
     // Each lure has its own best way of being fished.
     const style = BAITS[this.bait].retrieve ?? { jerk: 1, flutter: 1, steady: 1 };
     const odds = jerking ? TUNING.strikeJerk * style.jerk : fluttering ? TUNING.strikeFlutter * style.flutter : this.pulling ? TUNING.strikeSteady * style.steady : 0;
-    if (!odds || random() >= odds * this.keenness() * (this.extras.includes("sonar") ? 1.3 : 1) * dt) return;
+    if (!odds || random() >= odds * this.keenness() * (1 - this.wary) * (this.extras.includes("sonar") ? 1.3 : 1) * dt) return;
     const fish = rollFish(this.bait, this.location, random, this.reach(), this.hour, this.gear, this.favor);
     if (!fish) return;
     // A strike: from here on it's a bite like on the float. The reel stops; pull to hook it.
@@ -629,6 +643,8 @@ export class FishingGame {
 
       case "waiting":
         this.driftFloat(dt);
+        // A heron about: the fish keep away, and the bite is that much longer coming.
+        this.waitTime += dt * this.wary;
         if (this.clock >= this.waitTime) {
           this.fish = rollFish(this.bait, this.location, random, this.reach(), this.hour, this.gear, this.favor);
           // On a bare hook a fish only rarely takes anything (BARE_HOOK_BITE).

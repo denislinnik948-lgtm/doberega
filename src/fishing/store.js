@@ -98,6 +98,21 @@ export function normalizeProgress(saved) {
         done: typeof saved.quest.done === "string" ? saved.quest.done : null,
       };
     }
+    // The buyer's order as it was given and the run at it (see quests.js); another period's is simply made afresh.
+    const order = saved.order;
+    if (order && Number.isFinite(order.period) && FISH[order.fish] && LOCATIONS.some((spot) => spot.id === order.spot) && ["heavy", "count"].includes(order.kind)) {
+      state.order = {
+        period: order.period,
+        spot: order.spot,
+        kind: order.kind,
+        fish: order.fish,
+        ...(order.kind === "heavy" ? { weight: Math.max(0, Number(order.weight) || 0) } : {}),
+        target: Math.max(1, Math.floor(Number(order.target) || 1)),
+        reward: Math.max(0, Math.floor(Number(order.reward) || 0)),
+        value: Math.max(0, Math.floor(Number(order.value) || 0)),
+        done: typeof order.done === "string" ? order.done : null,
+      };
+    }
     // Days in a row with a catch (see quests.js).
     if (saved.streak && Number.isFinite(saved.streak.day) && Number.isFinite(saved.streak.count)) {
       state.streak = { day: saved.streak.day, count: Math.max(0, saved.streak.count), best: Math.max(saved.streak.count, Number(saved.streak.best) || 0) };

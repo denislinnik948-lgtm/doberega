@@ -87,6 +87,7 @@ export const ACHIEVEMENTS = [
   { id: "week", group: "count", reward: 300, ...counted(7, (p) => p.streak?.best ?? 0) },
   { id: "month", group: "count", reward: 1000, ...counted(30, (p) => p.streak?.best ?? 0) },
   { id: "allRods", group: "count", reward: 500, ...counted(Object.keys(RODS).length, (p) => p.rods.length) },
+  { id: "supplier", group: "count", reward: 500, ...counted(5, (p) => stat(p, "orders")) },
   // Special and secret.
   { id: "guardian", group: "special", reward: 500, ...flag((p) => (p.released?.sterliad ?? 0) >= 1) },
   { id: "mountainKeeper", group: "special", reward: 500, preview: "troutfarm", ...flag((p) => (p.released?.holovach ?? 0) >= 1) },
@@ -108,6 +109,8 @@ export const ACHIEVEMENTS = [
   // The last water's dragon, seen once, and seen again and again (it comes about once in four and a half hours there).
   { id: "sawDragon", group: "special", reward: 500, secret: true, preview: "mountain", ...flag((p) => stat(p, "sawDragon") >= 1) },
   { id: "dragonAgain", group: "special", reward: 1000, secret: true, preview: "mountain", ...counted(5, (p) => stat(p, "sawDragon")) },
+  // A scale on the hook while the lake is stirred after it (DRAGON_STIR in data.js).
+  { id: "dragonScale", group: "special", reward: 1000, secret: true, preview: "mountain", ...flag((p) => stat(p, "dragonScales") >= 1) },
 ];
 
 export const GROUPS = ["start", "collector", "weight", "skill", "time", "count", "special"];

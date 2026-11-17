@@ -7,7 +7,7 @@ import { moonAt, moonBite } from "./moon.js";
 import { windAt, windBite } from "./wind.js";
 import { Critters, Ducks } from "./wildlife.js";
 import { FishingGame, TUNING } from "./fishing/game.js";
-import { BAITS, FISH, GROUNDBAIT, HOOKS, LINE, LOCATIONS, RODS, SPECIAL_AVATAR, access } from "./fishing/data.js";
+import { BAITS, CRITTERS, DRAGON_STIR, FISH, GROUNDBAIT, HOOKS, LINE, LOCATIONS, RODS, SPECIAL_AVATAR, access } from "./fishing/data.js";
 import { baitCount, loadProgress, onProgressSaved, replaceProgress, saveProgress } from "./fishing/store.js";
 import { Cloud } from "./cloud.js";
 import { currentSeason, isWinter, onSeasonChange } from "./theme.js";
@@ -18,7 +18,7 @@ import { ambienceTick, dragonSound, jumpSound, musicTick, nightSound, sounds, th
 import { AnglerUI } from "./fishing/ui.js";
 import { breakStreak, bump, recordCatch } from "./fishing/achievements.js";
 import { XP, fishXp, gainXp, rankPending } from "./fishing/ranks.js";
-import { previewTourney, recordDay, recordQuest, recordTourney, settleTourney, tourneyFormat, tourneyKey, tourneyPreview, tourneyState, tourneyWeek } from "./fishing/quests.js";
+import { previewTourney, recordDay, recordOrder, recordQuest, recordTourney, settleTourney, tourneyFormat, tourneyKey, tourneyPreview, tourneyState, tourneyWeek } from "./fishing/quests.js";
 import { warmFishPortraits } from "./fishing/sprites.js";
 import { ensureOpenSpot, lineWaived } from "./fishing/waters.js";
 
@@ -59,12 +59,14 @@ const weather = new Weather({
   },
 });
 const ducks = new Ducks();
-// A heron, a beaver and dragonflies, for the look and sound of the place (they never touch the fishing).
+// A heron, a beaver and dragonflies, for the look and sound of the place; a heron in the
+// shallows puts the fish off, and the beaver may tangle the line (see CRITTERS in data.js).
 const critters = new Critters({
   onEvent: (type, data) => {
     if (mode !== "fishing") return;
     const pan = data ? ((data.x - renderer.frame.left) / renderer.frame.width) * 2 - 1 : 0;
     if (type === "heron") sounds.heron(Math.random() * 1.2 - 0.6);
+    if (type === "heronLand" && !sceneCovered()) ui.toast(t("toast.heron"), "", 2600);
     if (type === "finch") sounds.finch(Math.max(-0.8, Math.min(0.8, pan)));
     if (type === "heronStrike" || type === "beaverSlap") {
       addRipple({ ...renderer.screenToPlane(data.x, data.y), time: lastElapsed, strength: type === "beaverSlap" ? 0.7 : 0.35, size: type === "beaverSlap" ? 0.6 : 0.25, ambient: true });
@@ -81,6 +83,10 @@ const dragonSky = new DragonSky({
     dragonSound(flight.dir, RHYTHM, DRAGON.flight);
     bump(progress, "sawDragon");
     ui.commit();
+    // Its passing stirs the lake: the fish go wild for a while (DRAGON_STIR).
+    stirredUntil = lastElapsed + DRAGON_STIR.seconds;
+    game.stir();
+    ui.toast(t("toast.dragonStir"), "", 3200);
   },
 });
 // Mystic nights: lights over the water, an apparition by the far shore, eyes by the bank.
@@ -125,6 +131,9 @@ let pendingContact = null;
 let pullPointer = null;
 let nextFishAt = 4;
 let lastElapsed = 0;
+// Until when Dragon Lake is stirred after the dragon's flight (in elapsed seconds).
+let stirredUntil = -Infinity;
+const stirred = () => atDragonWater() && lastElapsed < stirredUntil;
 let shownPhase = "";
 let spaceHeld = false;
 // Where the school of fish is jumping (see maybeJumpFish).
@@ -369,6 +378,22 @@ setTimeout(warmFishPortraits, 3000);
 // So do the pages the first time they open (after the fish, which some of them show).
 setTimeout(() => ui.warmPages(), 5000);
 
+/**
+ * Whether a swimmer is on the line where it lies on the water: the stretch
+ * from the float most of the way back toward the rod tip (as the renderer
+ * places it, see rodGeometry), within a few pixels, less far out.
+ */
+function acrossLine(swimmer, float) {
+  const { left, width } = renderer.frame;
+  const tip = { x: left + width * 0.5 + (float.x - left - width * 0.5) * 0.3, y: height * 0.6 };
+  const dx = tip.x - float.x;
+  const dy = tip.y - float.y;
+  const along = ((swimmer.x - float.x) * dx + (swimmer.y - float.y) * dy) / (dx * dx + dy * dy || 1);
+  if (along < 0.08 || along > 0.7) return false;
+  const gap = Math.hypot(swimmer.x - (float.x + dx * along), swimmer.y - (float.y + dy * along));
+  return gap < 9 * Math.max(0.4, game.scaleAt(swimmer.y / height));
+}
+
 function toScreen(point) {
   return { x: point.x * width, y: point.y * height };
 }
@@ -448,7 +473,7 @@ function handleGameEvent(type, data) {
     switchBaitIfEmpty();
     // Counted for the achievements: a duck at the bait; a fish lost with the hook breaks the clean streak.
     if (data.type === "escape" && data.reason === "duck") bump(progress, "duckSteals");
-    if (data.type === "escape" && (data.hookLost || data.reason === "straightened")) breakStreak(progress);
+    if (data.type === "escape" && ((data.hookLost && data.reason !== "tangle") || data.reason === "straightened")) breakStreak(progress);
     if (data.type === "landed") {
       // A species never caught before is worth extra experience (for the atlas).
       const fresh = !FISH[data.fish.species]?.junk && !data.fish.unique && !(progress.stats?.bySpecies?.[data.fish.species] > 0);
@@ -463,6 +488,15 @@ function handleGameEvent(type, data) {
       // Today's quest, the same for everyone: paid the moment it's done.
       const quest = recordQuest(progress, data.fish, progress.location);
       if (quest) ui.questDone(quest);
+      // The buyer's order, the angler's own for three days.
+      const order = recordOrder(progress, data.fish, progress.location);
+      if (order) ui.orderDone(order);
+      // On the stirred lake a fish may come up with a dragon's scale on the hook, which the buyer takes.
+      if (stirred() && !FISH[data.fish.species]?.junk && Math.random() < DRAGON_STIR.scaleChance) {
+        progress.money += DRAGON_STIR.scalePrice;
+        bump(progress, "dragonScales");
+        ui.scaleFound(DRAGON_STIR.scalePrice);
+      }
       gainXp(progress, fishXp(data.fish) + (fresh ? XP.newSpecies : 0) + (quest ? XP.quest : 0));
       // A new score in the week's tournament goes up to the board (signed in);
       // a marathon's kilos grow with every fish, so they are not announced each time.
@@ -917,7 +951,7 @@ function renderNow(now = performance.now()) {
   wind = windAt(Date.now() / 1000, weather.intensity);
   config.waveAmplitude = wind.strength * 1.1;
   config.ruffle = wind.strength;
-  game.biteBoost = weather.biteBoost * moonBite(Date.now() / 1000, (dayTime * 24) % 24) * windBite(wind.strength);
+  game.biteBoost = weather.biteBoost * moonBite(Date.now() / 1000, (dayTime * 24) % 24) * windBite(wind.strength) * (stirred() ? DRAGON_STIR.boost : 1);
   // Ducks only come out between 6:00 and 20:00.
   const hour = (dayTime * 24) % 24;
   ducks.update(step, elapsed, width, height, renderer.shorelineY(width / 2), (x, y) => renderer.isDuckWater(x, y), hour >= 6 && hour < 20, renderer.frame);
@@ -930,10 +964,21 @@ function renderNow(now = performance.now()) {
     winter: isWinter(),
     perches: renderer.perches,
   });
-  // A duck paddling over the float eats the bait.
+  // A duck paddling over the float eats the bait; one (or the beaver) swimming across the line further in may tangle it.
+  game.wary = mode === "fishing" && critters.heron?.state === "stand" ? CRITTERS.heronWary : 0;
   if (mode === "fishing" && game.target && ["waiting", "nibble", "bite"].includes(game.phase)) {
     const float = toScreen(game.target);
     if (ducks.near(float.x, float.y, 26)) game.duckSteal();
+    else if (!game.spinning) {
+      const swimmers = [...ducks.all.map((duck) => [duck, "duck"]), ...(critters.beaver && !critters.beaver.under ? [[critters.beaver, "beaver"]] : [])];
+      for (const [swimmer, who] of swimmers) {
+        // Each one gets a single chance at it each time it goes over.
+        const on = acrossLine(swimmer, float);
+        const fresh = on && !swimmer.onLine;
+        swimmer.onLine = on;
+        if (fresh && Math.random() < CRITTERS.tangle && game.tangle(who)) break;
+      }
+    }
   }
   if (step > 0) game.update(step);
   if (mode === "fishing" && hoursAtWater < 24) {

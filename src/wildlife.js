@@ -203,14 +203,16 @@ export class Ducks {
 }
 
 /*
- * The rest of the wildlife, for the look and sound of the place only (it
- * never touches the fishing):
+ * The rest of the wildlife, mostly for the look and sound of the place:
  *
- * - a grey heron: by day, now and then, it glides in from a side, stands in
- *   the shallows near one of the edges of the view, stabs at the water every
- *   few seconds (sometimes coming up with a fish) and flies off again;
+ * - a grey heron: by day, now and then (every six to fourteen minutes), it
+ *   glides in from a side, stands in the shallows near one of the edges of
+ *   the view, stabs at the water every few seconds (sometimes coming up with
+ *   a fish) and flies off again; while it stands the fish keep away (the host
+ *   slows the bite, see CRITTERS in data.js);
  * - a beaver: in the evening, at the reedy waters and the river, a head with
- *   a long V of a wake swims across, and may slap its tail and dive;
+ *   a long V of a wake swims across, and may slap its tail and dive; across
+ *   the line it may tangle it (the host checks, as for the ducks);
  * - dragonflies: on warm days (summer, late spring), with no rain and no
  *   strong wind, a few hover by the reeds and dart from place to place;
  * - bats: at dusk and before dawn, out of winter, one or two flit and loop
@@ -239,7 +241,7 @@ export class Critters {
     this.finchTimer = 20 + random() * 60;
     this.bats = [];
     this.batTimer = 10 + random() * 30;
-    this.heronTimer = 60 + random() * 120;
+    this.heronTimer = 120 + random() * 240;
     this.beaverTimer = 30 + random() * 90;
   }
 
@@ -399,7 +401,7 @@ export class Critters {
     const random = this.random;
     this.heronTimer -= dt;
     if (!this.heron && allowed && this.heronTimer <= 0) {
-      this.heronTimer = 150 + random() * 240;
+      this.heronTimer = 360 + random() * 480;
       // A place to stand: shallow water near one side of the view, toward our bank.
       for (let attempt = 0; attempt < 16; attempt += 1) {
         const left = random() < 0.5;
@@ -425,7 +427,10 @@ export class Critters {
       heron.y = heron.from.y + (to.y - heron.from.y) * e - Math.sin(Math.PI * e) * 30;
       if (k >= 1) {
         if (heron.state === "out") this.heron = null;
-        else heron.state = "stand";
+        else {
+          heron.state = "stand";
+          this.onEvent("heronLand", { x: heron.x, y: heron.y });
+        }
       }
       return;
     }

@@ -1,6 +1,6 @@
 import { hash2 } from "../noise.js";
-import { BAITS, FISH, HOOKS, LOCATIONS, RARE_FISH, RODS } from "./data.js";
-import { giveGroundbaits, groundbaitFor } from "./waters.js";
+import { BAITS, FISH, HOOKS, LOCATIONS, RARE_FISH, RODS, weightSteps } from "./data.js";
+import { giveGroundbaits, groundbaitFor, spotLock } from "./waters.js";
 
 /*
  * The daily quest: one for everyone, the same all day. Days are counted in
@@ -367,3 +367,89 @@ export function settleTourney(progress, week, place) {
 
 /** The day a tournament starts on, as a date. */
 export const tourneyWeekStart = (week) => new Date(tourneyStartDay(week) * DAY_MS);
+
+/*
+ * The buyer's order: every three days (counted in UTC, like the quest) a
+ * buyer asks this angler for fish from one of the three best waters they
+ * can fish, mostly the very best: either one heavy fish of a kind (`heavy`: in the big step of
+ * its weights there, but no heavier than the best rod owned is rated for),
+ * or a few of a kind (`count`). It is paid the moment it is done, about an
+ * hour's fishing at that water for a heavy one (ORDER_PAY) and three
+ * quarters of that for a few; it lapses at the end of its three days, and
+ * the next comes. Dragon Lake counts as a water one can fish once the rod
+ * and the sea line are had, the ticket aside.
+ *
+ * `progress.order` holds the order as it was given (so it stays put if a
+ * new water opens meanwhile) and the run at it: { period, spot, kind, fish,
+ * weight?, target, reward, value, done }.
+ */
+
+export const ORDER_DAYS = 3;
+
+/** About what an hour's fishing pays at each water (from the balance sim), the reward for a heavy fish there. */
+export const ORDER_PAY = { pond: 600, lake: 2500, castle: 5000, reservoir: 15000, bridge: 20000, troutfarm: 22000, quarry: 30000, carplake: 40000, mountain: 80000 };
+
+/** Kinds too rare to ask for, or that must be let go. */
+const ORDER_SKIP = new Set(["tovstolob", "sterliad", "holovach"]);
+
+export const orderPeriod = (now = Date.now()) => Math.floor(questDay(now) / ORDER_DAYS);
+
+/** Milliseconds until the order runs out and the next one comes. */
+export const untilNextOrder = (now = Date.now()) => (orderPeriod(now) + 1) * ORDER_DAYS * DAY_MS - now;
+
+/** Nice round weights to ask for: two figures, never above `max`. */
+function roundKg(kg, max) {
+  const step = kg >= 10 ? 5 : kg >= 2 ? 0.5 : kg >= 0.5 ? 0.1 : 0.05;
+  const round = Math.round(kg / step) * step;
+  return Number((round > max ? round - step : round).toFixed(2));
+}
+
+/** The order for a period, made for what this angler can fish. */
+export function orderFor(progress, period) {
+  const roll = (k) => hash2(period, k, 7351);
+  const open = LOCATIONS.map((spot, index) => [spot, index]).filter(([spot, index]) => {
+    const lock = spotLock(progress, index);
+    return ORDER_PAY[spot.id] && (!lock || (lock.pass && !lock.rod && !lock.line));
+  });
+  // Mostly the best water open, otherwise one of the two before it.
+  const near = open.slice(-3, -1);
+  const [spot] = near.length && roll(1) < 0.4 ? near[Math.floor(roll(2) * near.length) % near.length] : open[open.length - 1];
+  const kinds = Object.entries(spot.fish).filter(([id, share]) => !ORDER_SKIP.has(id) && !FISH[id].unique && share >= 1);
+  const total = kinds.reduce((sum, [, share]) => sum + share, 0);
+  let pick = roll(3) * total;
+  const [fish, share] = kinds.find(([, s]) => (pick -= s) < 0) ?? kinds[0];
+  const pay = ORDER_PAY[spot.id];
+  const rodKg = Math.max(...progress.rods.map((id) => (RODS[id]?.holdsAny ? Infinity : RODS[id]?.maxKg ?? 0)));
+  const { typical, top } = weightSteps(fish, spot);
+  const heavyKg = roundKg(Math.min(typical + (top - typical) * 0.35, rodKg * 0.95), top);
+  if (roll(4) < 0.55 && heavyKg > typical * 0.9 && heavyKg >= 0.2) {
+    return { period, spot: spot.id, kind: "heavy", fish, weight: heavyKg, target: 1, reward: pay };
+  }
+  // A few of a kind: more of a common one.
+  const target = Math.round((share >= 2.5 ? 5 : 3) + roll(5) * 3);
+  return { period, spot: spot.id, kind: "count", fish, target, reward: Math.round((pay * 0.75) / 100) * 100 || 500 };
+}
+
+/** This period's order and the run at it, made afresh when a new one comes. */
+export function orderState(progress, now = Date.now()) {
+  const period = orderPeriod(now);
+  if (progress.order?.period !== period) progress.order = { ...orderFor(progress, period), value: 0, done: null };
+  return progress.order;
+}
+
+/**
+ * Count a landed fish towards the order. Returns the order the moment it is
+ * done (the reward is paid here), otherwise null.
+ */
+export function recordOrder(progress, fish, spotIndex, now = Date.now()) {
+  const order = orderState(progress, now);
+  if (order.done || fish.species !== order.fish || LOCATIONS[spotIndex]?.id !== order.spot) return null;
+  if (order.kind === "heavy" && fish.weight < order.weight) return null;
+  order.value += 1;
+  if (order.value < order.target) return null;
+  order.done = new Date(now).toISOString();
+  progress.money += order.reward;
+  progress.stats ??= {};
+  progress.stats.orders = (progress.stats.orders ?? 0) + 1;
+  return order;
+}

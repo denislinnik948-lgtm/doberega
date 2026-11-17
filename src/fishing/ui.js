@@ -10,7 +10,7 @@ import { GROUPS, bump, evaluate, shownAchievements } from "./achievements.js";
 import { RANKS, XP, claimRanks, rankAt } from "./ranks.js";
 import { joinWater, opensWithRank, passLeft, shownSpots, spotLock } from "./waters.js";
 import {
-  STREAK_GIFTS, TOURNEY_PRIZES, fishOfDay, questReward, questState, streakNow, streakToday, todaysQuest, TOURNEY_ANY, tourneyBait, tourneyFish, tourneyFormat, tourneyKey, tourneyState, tourneyTarget, tourneyWeek, tourneyWeekStart, untilNextQuest, untilWeekEnd,
+  STREAK_GIFTS, TOURNEY_PRIZES, fishOfDay, orderState, questReward, questState, streakNow, streakToday, todaysQuest, TOURNEY_ANY, tourneyBait, tourneyFish, tourneyFormat, tourneyKey, tourneyState, tourneyTarget, tourneyWeek, tourneyWeekStart, untilNextOrder, untilNextQuest, untilWeekEnd,
 } from "./quests.js";
 import { frame, frameAll, repaint, setContent } from "./frames.js";
 import { SEASONS, currentSeason, isWinter, season, setSeason } from "../theme.js";
@@ -1056,6 +1056,16 @@ export class AnglerUI {
 
 
 
+  /** The buyer's order done: paid already; said once the catch card is closed. */
+  orderDone({ reward }) {
+    this.notify(t("order.toast", { reward: formatMoney(reward) }));
+  }
+
+  /** A dragon's scale came up on the hook and was sold. */
+  scaleFound(money) {
+    this.notify(t("order.scale", { money: formatMoney(money) }));
+  }
+
   /** Today's quest done: the reward is already paid; say so once the catch card is closed. */
   questDone({ reward }) {
     this.renderTiles();
@@ -1168,6 +1178,21 @@ export class AnglerUI {
     $("#quest-status").textContent = state.done
       ? t("quest.done", { time: new Date(state.done).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" }) })
       : t("quest.progress", { count: this.questCount(quest, state), reward: formatMoney(questReward(this.progress)) });
+    // The buyer's order: what it asks, how far along, and how long it has left.
+    const order = orderState(this.progress);
+    const orderLeft = untilNextOrder();
+    const days = Math.floor(orderLeft / 86400000);
+    const hours = Math.floor((orderLeft % 86400000) / 3600000);
+    const time = { time: days ? t("order.days", { days, hours }) : t("order.hours", { hours: Math.max(1, hours) }) };
+    const orderFish = nameOf("fish", order.fish);
+    const orderSpot = nameOf("location", order.spot);
+    $("#order-goal").textContent = order.kind === "heavy"
+      ? t("order.heavy", { fish: orderFish, weight: formatWeight(order.weight), spot: orderSpot })
+      : t("order.count", { fish: orderFish, count: order.target, spot: orderSpot });
+    $("#order-fill").style.width = `${Math.min(100, (order.value / order.target) * 100)}%`;
+    $("#order-status").textContent = order.done
+      ? t("order.done", { reward: formatMoney(order.reward), ...time })
+      : t("order.progress", { count: `${order.value}/${order.target}`, reward: formatMoney(order.reward), ...time });
     const dayFish = fishOfDay(quest.day);
     $("#day-fish-big").replaceChildren(fishSprite(dayFish, 2, nameOf("fish", dayFish)));
     $("#day-fish-about").textContent = t("dayFish.about", { fish: nameOf("fish", dayFish).toLocaleLowerCase(locale()) });

@@ -220,6 +220,24 @@ export const BOTTLE_MONEY = { chance: 0.35, min: 20, max: 200 };
 export const GULL = { chance: 1 / 60, maxKg: 0.25 };
 
 /**
+ * A duck or the beaver swimming across the line out on the water (not by the
+ * float, where a duck eats the bait) tangles it, `chance` of the times one
+ * crosses it: rig, bait and hook are lost. A heron standing in the shallows
+ * puts the fish off: while it stands, the float waits `heronWary` longer
+ * (half as fast to a bite) and the spoon is struck less by as much.
+ */
+export const CRITTERS = { tangle: 0.6, heronWary: 0.5 };
+
+/**
+ * After the dragon flies over Dragon Lake the water is stirred for `seconds`
+ * (real time): fish bite `boost` times as keenly, a float already out is
+ * taken at once, and each fish landed then has `scaleChance` of coming up
+ * with a dragon's scale caught on the hook, which the buyer takes for
+ * `scalePrice`.
+ */
+export const DRAGON_STIR = { seconds: 300, boost: 2, scaleChance: 0.08, scalePrice: 10000 };
+
+/**
  * How a water's own ways change the bite right now: at a `deep` water a cast
  * in the near third (`reach` under a third) hardly ever gets one; a
  * `twilight` water bites best at dawn and dusk and slower in the bright
@@ -772,6 +790,25 @@ export function biteActivity(baitId, locationIndex, hour, favor = null) {
   return hunger * appeal;
 }
 
+/**
+ * The steps of a kind's weight at a water, within what the kind grows to:
+ * the lightest, the typical (where big ones start), the top and the rare tail.
+ * A kind that reaches its own limit there (a rudd at the lake) would land its
+ * big ones all at exactly that weight: its big step is then the top 15% of
+ * its range instead (`capped`), leaning light, so the very heaviest stays a
+ * rare stroke of luck.
+ */
+export function weightSteps(species, location) {
+  const fish = FISH[species];
+  const clampKg = (kg) => Math.min(fish.max, Math.max(fish.min, kg));
+  const floor = fish.max > (location.minKg ?? 0) ? clampKg(location.minKg ?? 0) : fish.min;
+  const top = Math.max(floor, clampKg(location.maxKg ?? fish.max));
+  const tail = Math.max(top, clampKg(location.tailKg ?? 0));
+  const capped = top - Math.max(floor, clampKg(location.typicalKg ?? fish.max)) < top * 0.15;
+  const typical = capped ? Math.max(floor, top * 0.85) : Math.max(floor, clampKg(location.typicalKg ?? fish.max));
+  return { floor, typical, top, tail, capped };
+}
+
 export function rollFish(baitId, locationIndex, random = Math.random, reach = 0.5, hour = 18, gear = null, favor = null) {
   const bait = BAITS[baitId];
   const location = LOCATIONS[locationIndex] ?? LOCATIONS[0];
@@ -801,16 +838,7 @@ export function rollFish(baitId, locationIndex, random = Math.random, reach = 0.
   const scale = bait.size * (0.4 + 1.2 * Math.min(1, Math.max(0, reach)));
   const rare = location.tailKg && random() < Math.min(0.2, (location.tailChance ?? 0) * scale);
   const big = rare || random() < Math.min(0.6, location.bigChance * scale);
-  // The steps of this water, within what the kind grows to.
-  const clampKg = (kg) => Math.min(fish.max, Math.max(fish.min, kg));
-  const floor = fish.max > (location.minKg ?? 0) ? clampKg(location.minKg ?? 0) : fish.min;
-  const top = Math.max(floor, clampKg(location.maxKg ?? fish.max));
-  const tail = Math.max(top, clampKg(location.tailKg ?? 0));
-  // A kind that reaches its own limit here (a rudd at the lake) would land its big
-  // ones all at exactly that weight: its big step is then the top 15% of its
-  // range instead, leaning light, so the very heaviest stays a rare stroke of luck.
-  const capped = top - Math.max(floor, clampKg(location.typicalKg ?? fish.max)) < top * 0.15;
-  const typical = capped ? Math.max(floor, top * 0.85) : Math.max(floor, clampKg(location.typicalKg ?? fish.max));
+  const { floor, typical, top, tail, capped } = weightSteps(species, location);
   const [from, to] = rare && tail > top * 1.02 ? [top, tail] : big ? [typical, top] : [floor, typical];
   // Ordinary fish lean to the light end; big and rare ones spread over their step.
   const t = big ? random() ** (capped ? 2 : 1.4) : random() ** 1.7;
